@@ -1,0 +1,2660 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+    xmlns:cx="http://schemas.microsoft.com/office/drawing/2014/chartex"
+    xmlns:cx1="http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"
+    xmlns:cx2="http://schemas.microsoft.com/office/drawing/2015/10/21/chartex"
+    xmlns:cx3="http://schemas.microsoft.com/office/drawing/2016/5/9/chartex"
+    xmlns:cx4="http://schemas.microsoft.com/office/drawing/2016/5/10/chartex"
+    xmlns:cx5="http://schemas.microsoft.com/office/drawing/2016/5/11/chartex"
+    xmlns:cx6="http://schemas.microsoft.com/office/drawing/2016/5/12/chartex"
+    xmlns:cx7="http://schemas.microsoft.com/office/drawing/2016/5/13/chartex"
+    xmlns:cx8="http://schemas.microsoft.com/office/drawing/2016/5/14/chartex"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:aink="http://schemas.microsoft.com/office/drawing/2016/ink"
+    xmlns:am3d="http://schemas.microsoft.com/office/drawing/2017/model3d"
+    xmlns:o="urn:schemas-microsoft-com:office:office"
+    xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+    xmlns:v="urn:schemas-microsoft-com:vml"
+    xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"
+    xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+    xmlns:w10="urn:schemas-microsoft-com:office:word"
+    xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+    xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"
+    xmlns:w16cex="http://schemas.microsoft.com/office/word/2018/wordml/cex"
+    xmlns:w16cid="http://schemas.microsoft.com/office/word/2016/wordml/cid"
+    xmlns:w16="http://schemas.microsoft.com/office/word/2018/wordml"
+    xmlns:w16sdtdh="http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash"
+    xmlns:w16se="http://schemas.microsoft.com/office/word/2015/wordml/symex"
+    xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
+    xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk"
+    xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml"
+    xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+    mc:Ignorable="w14 w15 w16se w16cid w16 w16cex w16sdtdh wp14">
+    <w:body>
+        <w:p w14:paraId="5A5614FB" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:ind w:right="-142" />
+                <w:jc w:val="center" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>CONTRATO DE TRABAJO SUJETO A MODALIDAD PARA SERVICIO ESPECIFICO</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="336FC644" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00C62F7D"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="360" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:bCs />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="6215EA74" w14:textId="0DC37122" w:rsidR="0080201E" w:rsidRPr="004D2865"
+            w:rsidRDefault="0080201E" w:rsidP="004D2865">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="004D2865">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">Conste por el presente documento el CONTRATO DE </w:t>
+            </w:r>
+            <w:r w:rsidR="00F76982">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>{{tipo_documento_nombre}}</w:t>
+            </w:r>
+            <w:r w:rsidRPr="004D2865">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">, que suscriben por triplicado al amparo del Texto Único Ordenado del Decreto Legislativo Nº 728, Ley de Productividad y Competitividad Laboral, que celebran de conformidad con el artículo 63º, del D. S. Nº 003-97-TR; de una parte, la EMPRESA DE TRANSPORTES CRUZ DEL NORTE SAC; con RUC Nº 20403002101, domiciliada en la Avenida Dos de Junio No 204, Mz. C interior 3, PP.JJ. Dos de Junio, Distrito de Chimbote, Provincia del Santa; Departamento de Ancash, inscrita en la Partida Electrónica N° 11001198 del Registro de Personas Jurídicas de Chimbote; representada por el señor EDILBERTO MIRANDA LOZANO; identificado con DNI 32932188, a quien en adelante se le llamará LA EMPLEADORA y de la otra </w:t>
+            </w:r>
+            <w:r w:rsidR="00CA35B1" w:rsidRPr="004D2865">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>{{genero}}</w:t>
+            </w:r>
+
+            <w:r w:rsidR="007834E3">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+
+            <w:r w:rsidRPr="004D2865">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>{{nombre}}</w:t>
+            </w:r>
+            <w:r w:rsidR="007834E3">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> identificado con DNI </w:t>
+            </w:r>
+            <w:r w:rsidR="004F206F">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>{{dni}}</w:t>
+            </w:r>
+
+            <w:r w:rsidRPr="004D2865">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> con domicilio en </w:t>
+            </w:r>
+            <w:bookmarkStart w:id="0" w:name="_Hlk176190114" />
+            <w:r w:rsidRPr="004D2865">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t> </w:t>
+            </w:r>
+            <w:bookmarkEnd w:id="0" />
+            <w:r w:rsidR="00933C9E">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>{{domicilio_trabajador}}</w:t>
+            </w:r>
+
+            <w:r w:rsidRPr="004D2865">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>, a quien en adelante se le denominara EL TRABAJADOR; de acuerdo a los términos y condiciones siguientes:</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="7DD0567A" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:ind w:right="-660" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="14" />
+                    <w:szCs w:val="14" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="3C928D91" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:u w:val="single" />
+                </w:rPr>
+                <w:t>ANTECEDENTES</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>. -</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="5D4DC845" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">PRIMERA. - LA EMPLEADORA, </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">es una persona jurídica, cuyo objeto social es el transporte interprovincial de pasajeros, envío de encomiendas local, regional y nacional; y requiere contratar los servicios personales de </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>EL TRABAJADOR</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>, para que Administre los recursos para lo cual se contrate y cumpla estrictamente las directivas que emanen de sus jefes o superiores.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="0C08DBAE" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:ind w:right="-660" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="14" />
+                    <w:szCs w:val="14" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="4AE0692B" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="360" w:lineRule="auto" />
+                <w:ind w:left="567" w:right="-660" w:hanging="567" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:u w:val="single" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:u w:val="single" />
+                </w:rPr>
+                <w:t>DEL OBJETO DEL CONTRATO</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="1E2F70FD" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>SEGUNDA. -</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>LA EMPLEADORA</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">, ha decidido incorporar a personas calificadas para afrontar con éxito este incremento de actividades, por lo que tiene la necesidad de contratar temporalmente a un </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:highlight w:val="yellow" />
+                    <w:u w:val="single" />
+                </w:rPr>
+                <w:t>Conductor Profesional</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:u w:val="single" />
+                </w:rPr>
+                <w:t>,</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> que permita cubrir las exigencias, y cumpla las funciones especificadas en la cuarta cláusula del presente contrato, las que </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>EL TRABAJADOR</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> declara conocer.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="1D0E4FA3" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="10" />
+                    <w:szCs w:val="10" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="4911DCC2" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">TERCERA. - </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">En virtud a su objeto social y en aplicación de los dispuesto por el </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>artículo 63 del TUO del decreto legislativo N° 728 – Ley de Productividad y Competitividad Laboral</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">, la empleadora contrata </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:bCs />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">{{nombre}} </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">para que preste sus servicios en calidad de </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>CONDUCTOR PROFESIONAL</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">en </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>la Unidad Vehicular</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> que se le asigne para el cumplimiento de sus labores</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>;</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> por el periodo que regirá desde el </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>01 de setiembre del 2025</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> hasta el </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>31 de agosto del 2026</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="4D4ECF53" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="10" />
+                    <w:szCs w:val="10" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="63747C9D" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">CUARTA. - EL TRABAJADOR </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>en su calidad de</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>CONDUCTOR PROFESIONAL</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:bCs />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>realizará las</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> siguientes funciones:</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="06DD8E99" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Tener operativa su unidad, realizando un mantenimiento preventivo del mismo, como revisión de llantas, petróleo, aceite, filtros, etc.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="7CB424D9" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Conducir su unidad con la mayor seguridad, evitando los excesos de velocidad, frenos imprevistos, etc.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="25F68B8D" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Cumplir con los horarios de salida y llegada establecidos.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="7E54574B" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Informar permanentemente sobre el estado de funcionamiento del Ómnibus que maneja, así como de los obstáculos que ha tenido en el servicio durante la semana.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="04A5C57F" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Emitir reportes escritos semanales, donde especifique los viajes realizados durante la semana, indicando la fecha de realizado, origen y destino del servicio, reportando todas las fallas mecánicas, eléctricas y llantas, especificando cual ha originado demora en el servicio.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="66964651" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Las demás inherentes al área de su competencia o que se deriven de la naturaleza de su puesto, y las que le sean expresamente encomendadas por su superior inmediato.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="2E147F92" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Cuidar la buena imagen de la Empresa, accionistas y funcionarios.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="636EDE53" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Mantener limpio y ordenado el área de trabajo asignada.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="2F5411A3" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="47355AE1" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:lastRenderedPageBreak />
+                <w:t xml:space="preserve">Reportar oportunamente sobre algún desperfecto que se presente durante el desarrollo de sus actividades, a fin de que se tomen las medidas necesarias para corregirlas. </w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="64EC3A36" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Participar en las reuniones y/o capacitaciones programadas por la institución.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="5582069A" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Apoyar en otras actividades que le asigne la Gerencia General.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="78442BBE" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Prrafodelista" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="1" />
+                </w:numPr>
+                <w:tabs>
+                    <w:tab w:val="left" w:pos="1985" />
+                </w:tabs>
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>Solicitar oportunamente la información necesaria para un eficiente cumplimiento de sus funciones.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="6A4F0425" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">QUINTA. - EL TRABAJADOR </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>se encuentra sujeto al horario de trabajo que rige para el personal de la institución, por lo que se compromete a laborar de manera diaria, el cual será de 8 horas diarias o 48 horas semanales.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="745EDD79" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="76636995" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">Queda entendido que la prestación de servicio deberá ser efectuada de manera personal, no pudiendo </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>EL TRABAJADOR</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> no será remplazado ni ayudado por tercera persona; </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">el horario </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:u w:val="single" />
+                </w:rPr>
+                <w:t>podrá ser modificado</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> por </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>LA EMPLEADORA</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> conforme a las necesidades del servicio, de acuerdo a las disposiciones legales vigentes, sin afectar a </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>EL TRABAJADOR.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="5ED6786E" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="64D7052D" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>SEXTA. -</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> Durante el desarrollo de sus labores </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>EL TRABAJADOR</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> se sujetará a las disposiciones de dirección y administración de </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>LA</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>EMPLEADORA</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> por la prestación subordinada de los servicios, de conformidad a lo establecido en el </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>artículo 9° del Texto Único ordenado del D. Leg. N° 728- ley de Productividad y competitividad laboral.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="27EE7ACC" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="02E9A9B9" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>SETIMA. - EL TRABAJADOR</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> percibirá como contraprestación por sus servicios una remuneración mensual ascendente a</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:highlight w:val="yellow" />
+                </w:rPr>
+                <w:t>S/. 1,600.00 (MIL SEISCIENTOS CON 00/100 SOLES);</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> hasta por el tiempo que dure la relación laboral descrita en la cláusula </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>TERCERA</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> del presente contrato; del mismo se deducirá las aportaciones y descuentos por tributos establecidos en la ley que resulten aplicables. También; las ausencias injustificadas por parte de </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>EL TRABAJADOR</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> implican la pérdida de la remuneración proporcionalmente a la duración de dicha ausencia, sin perjuicio de las facultades disciplinarias propias de </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>LA</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>EMPLEADORA</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> y la indemnización por daños y perjuicios previstos en la legislación laboral.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="5920C7DE" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="59A06930" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">OCTAVA. - </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>Ambas partes declaran que las labores que desarrollará</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> EL TRABAJADOR </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>se encuentran dentro de los alcances del</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> D.S. 003-97-TR- Texto Único ordenado del D. Leg. N° 728- ley de Productividad y competitividad laboral, </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>así como el</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> D.S. 001-96-TR </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>cuyos textos declaran conocer</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="79F04999" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="124479C1" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>NOVENA. - EL TRABAJADOR</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">, se compromete a guardar reserva y tratar como confidencial toda información (verbal, escrita, software, etc.) de la empresa, sus benefactores directos e indirectos, sus usuarios; etc. no pudiendo bajo ningún título ni por ningún motivo revelar, transferir o disponer, usar, en parte o en todo, directa o indirectamente, de dicha </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>INFORMACIÓN</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>, excepto que cuente con previa y expresa autorización por escrito del Gerente General o mandato Judicial. Esta obligación subsistirá aun después de terminada la relación contractual y su incumplimiento genera la correspondiente responsabilidad por daños y perjuicios, sin desmedro de la persecución penal.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="67FFAEA9" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="56DC8985" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>DECIMA: DE LAS OBLIGACIONES DEL TRABAJADOR:</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:u w:val="single" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">EL TRABAJADOR </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">se compromete a cumplir sus obligaciones con lealtad y eficiencia, aplicando para tal fin toda su experiencia y capacidad, y velando por los intereses de </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>LA EMPLEADORA</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>. Así mismo, deberá ejercer las funciones propias de su cargo con la mayor diligencia, responsabilidad y honestidad.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="6594A462" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="1273211D" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>DECIMA PRIMERA: SEGURIDAD Y SALUD EN EL TRABAJO:</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:u w:val="single" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">De conformidad con lo establecido en los artículos 35° inciso “C” y 49° punto 1 de su inciso “G” de la Ley de Seguridad y Salud en el Trabajo N° </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:lastRenderedPageBreak />
+                <w:t>29783</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>, EL TRABAJADOR</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> se obliga a cumplir con las siguientes normas y recomendaciones de Seguridad y Salud en el Trabajo:</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="65CA2362" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="18" />
+                    <w:szCs w:val="18" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="16BC5C3E" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>Usar adecuadamente los instrumentos y materiales de trabajo, así como los equipos de protección personal y colectiva y seguir puntualmente con las instrucciones dadas sobre su uso.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="532B70BE" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>Participar en los programas y eventos de capacitación, entrenamiento, simulacros en seguridad y salud en el trabajo.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="44910808" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>Cumplir a cabalidad con las disposiciones que dicte el comité o servicio de seguridad y salud en el trabajo.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="0AEE0109" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>No operar o manipular equipos u otros elementos para os cuales no haya sido autorizado.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="67AA7FD9" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>Cooperar y participar en el proceso de investigación de los accidentes de trabajo y de las enfermedades ocupacionales.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="12F78FE9" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>Someterse a los exámenes médicos a que este obligado.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="3E589C96" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>Participar en los programas de capacitación y otras actividades destinadas a prevenir los riesgos laborales que organice el centro de labores.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="687BF025" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>Comunicar todo evento o situación que ponga o pueda poner en riesgo su seguridad y salud o las instalaciones.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="75B8AA7B" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:numPr>
+                    <w:ilvl w:val="0" />
+                    <w:numId w:val="2" />
+                </w:numPr>
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="21" />
+                    <w:szCs w:val="21" />
+                </w:rPr>
+                <w:t>Reportar en forma inmediata la ocurrencia de cualquier incidente, accidente de trabajo o enfermedad.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="4871383B" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="12" />
+                    <w:szCs w:val="12" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="3A86F98A" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>DECIMA SEGUNDA: DE LOS BENEFICIOS SOCIALES:</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:u w:val="single" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">En concordancia con las cláusulas precedentes y de conformidad con el artículo 58 del Texto Único e Compensación por tiempo de servicios (D.S. N° 001-97-TR), los beneficios sociales de </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">EL TRABAJADOR </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>serán</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve"> efectuados de acuerdo al régimen general; </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t xml:space="preserve">para cuyo efecto el trabajador se obliga en comunicar a su empleadora, por escrito y bajo cargo; el nombre del depositario que ha elegido, el tipo de cuenta y moneda en que deberá efectuarse el depósito. </w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="671FEF42" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="4F2AA5CB" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:lang w:val="es-ES_tradnl" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>DECIMA TERCERA:</w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:b />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:lang w:val="es-ES_tradnl" />
+                </w:rPr>
+                <w:t xml:space="preserve"> </w:t>
+            </w:r>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:lang w:val="es-ES_tradnl" />
+                </w:rPr>
+                <w:t>Las partes dejan expresa constancia que sus domicilios para todos los efectos, son los consignados en la parte introductoria del presente documento, por lo que serán válidos para todas las acciones que pudieran derivarse de este contrato.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="32274F63" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:lang w:val="es-ES_tradnl" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="291D5F5C" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:lang w:val="es-ES_tradnl" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                    <w:lang w:val="es-ES_tradnl" />
+                </w:rPr>
+                <w:t>Para ser válida cualquier variación de su domicilio, deberá de ser comunicada por escrito dentro de diez (10) días de producida, sin cuyo requisito se tendrá por no valida dicha variación.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="66E01074" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                    <w:lang w:val="es-ES_tradnl" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="3CE42FA5" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>Ambas partes se ratifican en cada una de las cláusulas de este contrato, manifestando que el acto jurídico contenido en el mismo guarda estricta sujeción a la ley.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="1904B04D" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="20" />
+                    <w:szCs w:val="20" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="63EC27E7" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:pStyle w:val="Sinespaciado" />
+                <w:spacing w:line="276" w:lineRule="auto" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+                <w:t>En señal de conformidad las partes suscriben este documento en la ciudad de Chimbote en el día veintinueve (29) del mes de agosto del 2025.</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="6F448741" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="360" w:lineRule="auto" />
+                <w:ind w:right="-660" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:tbl>
+            <w:tblPr>
+                <w:tblStyle w:val="Tablaconcuadrcula" />
+                <w:tblW w:w="0" w:type="auto" />
+                <w:tblBorders>
+                    <w:top w:val="none" w:sz="0" w:space="0" w:color="auto" />
+                    <w:left w:val="none" w:sz="0" w:space="0" w:color="auto" />
+                    <w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto" />
+                    <w:right w:val="none" w:sz="0" w:space="0" w:color="auto" />
+                    <w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto" />
+                    <w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto" />
+                </w:tblBorders>
+                <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1"
+                    w:lastColumn="0" w:noHBand="0" w:noVBand="1" />
+            </w:tblPr>
+            <w:tblGrid>
+                <w:gridCol w:w="4292" />
+                <w:gridCol w:w="4212" />
+            </w:tblGrid>
+            <w:tr w:rsidR="007A5F21" w:rsidRPr="00AD5624" w14:paraId="036C0D5A"
+                w14:textId="77777777" w:rsidTr="008A69D3">
+                <w:tc>
+                    <w:tcPr>
+                        <w:tcW w:w="4247" w:type="dxa" />
+                    </w:tcPr>
+                    <w:p w14:paraId="33B8E057" w14:textId="26018E09" w:rsidR="007A5F21"
+                        w:rsidRPr="00AD5624" w:rsidRDefault="007A5F21" w:rsidP="0080201E">
+                        <w:pPr>
+                            <w:spacing w:line="360" w:lineRule="auto" />
+                            <w:ind w:right="-660" />
+                            <w:jc w:val="both" />
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                        </w:pPr>
+                        <w:r w:rsidRPr="00AD5624">
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                            <w:t>…….……………………….…………………….………</w:t>
+                        </w:r>
+                    </w:p>
+                </w:tc>
+                <w:tc>
+                    <w:tcPr>
+                        <w:tcW w:w="4247" w:type="dxa" />
+                    </w:tcPr>
+                    <w:p w14:paraId="56833A9A" w14:textId="24D009C1" w:rsidR="007A5F21"
+                        w:rsidRPr="00AD5624" w:rsidRDefault="007A5F21" w:rsidP="0080201E">
+                        <w:pPr>
+                            <w:spacing w:line="360" w:lineRule="auto" />
+                            <w:ind w:right="-660" />
+                            <w:jc w:val="both" />
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                        </w:pPr>
+                        <w:r w:rsidRPr="00AD5624">
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                            <w:t>...…………..……………………………………………</w:t>
+                        </w:r>
+                    </w:p>
+                </w:tc>
+            </w:tr>
+            <w:tr w:rsidR="007A5F21" w:rsidRPr="00AD5624" w14:paraId="5ABDF73A"
+                w14:textId="77777777" w:rsidTr="008A69D3">
+                <w:tc>
+                    <w:tcPr>
+                        <w:tcW w:w="4247" w:type="dxa" />
+                    </w:tcPr>
+                    <w:p w14:paraId="6348DC48" w14:textId="7ECF0914" w:rsidR="007A5F21"
+                        w:rsidRPr="00AD5624" w:rsidRDefault="007A5F21" w:rsidP="007A5F21">
+                        <w:pPr>
+                            <w:spacing w:line="360" w:lineRule="auto" />
+                            <w:jc w:val="center" />
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:b />
+                                <w:bCs />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                        </w:pPr>
+                        <w:r w:rsidRPr="00AD5624">
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:b />
+                                <w:bCs />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                            <w:t>LA EMPLEADORA</w:t>
+                        </w:r>
+                    </w:p>
+                </w:tc>
+                <w:tc>
+                    <w:tcPr>
+                        <w:tcW w:w="4247" w:type="dxa" />
+                    </w:tcPr>
+                    <w:p w14:paraId="7D37A4E6" w14:textId="7A886ECA" w:rsidR="007A5F21"
+                        w:rsidRPr="006B341A" w:rsidRDefault="003C5B12" w:rsidP="003C5B12">
+                        <w:pPr>
+                            <w:spacing w:line="360" w:lineRule="auto" />
+                            <w:jc w:val="center" />
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:bCs />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                        </w:pPr>
+                        <w:r w:rsidRPr="006B341A">
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cs="Calibri" />
+                                <w:bCs />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                            <w:t>{{nombre}}</w:t>
+                        </w:r>
+                    </w:p>
+                </w:tc>
+            </w:tr>
+            <w:tr w:rsidR="007A5F21" w:rsidRPr="00AD5624" w14:paraId="449198B9"
+                w14:textId="77777777" w:rsidTr="008A69D3">
+                <w:tc>
+                    <w:tcPr>
+                        <w:tcW w:w="4247" w:type="dxa" />
+                    </w:tcPr>
+                    <w:p w14:paraId="44C246A9" w14:textId="087A05E2" w:rsidR="007A5F21"
+                        w:rsidRPr="00AD5624" w:rsidRDefault="007A5F21" w:rsidP="007A5F21">
+                        <w:pPr>
+                            <w:spacing w:line="360" w:lineRule="auto" />
+                            <w:jc w:val="center" />
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:b />
+                                <w:bCs />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                        </w:pPr>
+                        <w:r w:rsidRPr="00AD5624">
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:b />
+                                <w:bCs />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                            <w:t>EMP. DE TRANS. CRUZ DEL NORTE SAC</w:t>
+                        </w:r>
+                    </w:p>
+                </w:tc>
+                <w:tc>
+                    <w:tcPr>
+                        <w:tcW w:w="4247" w:type="dxa" />
+                    </w:tcPr>
+                    <w:p w14:paraId="6C1D8C05" w14:textId="3F9C207B" w:rsidR="007A5F21"
+                        w:rsidRPr="00AD5624" w:rsidRDefault="003C5B12" w:rsidP="003C5B12">
+                        <w:pPr>
+                            <w:spacing w:line="360" w:lineRule="auto" />
+                            <w:jc w:val="center" />
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cstheme="minorHAnsi" />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                        </w:pPr>
+                        <w:r w:rsidRPr="00AD5624">
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cs="Calibri" />
+                                <w:b />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                            <w:t>DNI Nº</w:t>
+                        </w:r>
+                        <w:r w:rsidRPr="006B341A">
+                            <w:rPr>
+                                <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow"
+                                    w:cs="Calibri" />
+                                <w:bCs />
+                                <w:sz w:val="22" />
+                                <w:szCs w:val="22" />
+                            </w:rPr>
+                            <w:t xml:space="preserve"> {{dni}}</w:t>
+                        </w:r>
+                    </w:p>
+                </w:tc>
+            </w:tr>
+        </w:tbl>
+        <w:p w14:paraId="3305C7EB" w14:textId="77777777" w:rsidR="0080201E" w:rsidRPr="00AD5624"
+            w:rsidRDefault="0080201E" w:rsidP="0080201E">
+            <w:pPr>
+                <w:spacing w:line="360" w:lineRule="auto" />
+                <w:ind w:right="-660" />
+                <w:jc w:val="both" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cstheme="minorHAnsi" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="40B724B2" w14:textId="33F66BAD" w:rsidR="00527763"
+            w:rsidRDefault="00527763" w:rsidP="0080201E">
+            <w:pPr>
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cs="Calibri" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="0F8DA4F1" w14:textId="47FD63E7" w:rsidR="00262EF4"
+            w:rsidRDefault="00262EF4" w:rsidP="0080201E">
+            <w:pPr>
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cs="Calibri" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="5EEE7127" w14:textId="7C77D602" w:rsidR="00262EF4"
+            w:rsidRDefault="00262EF4" w:rsidP="0080201E">
+            <w:pPr>
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" w:cs="Calibri" />
+                    <w:sz w:val="22" />
+                    <w:szCs w:val="22" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="1C59F9B3" w14:textId="77777777" w:rsidR="00262EF4" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00262EF4" w:rsidP="0080201E">
+            <w:pPr>
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="38C1CCE6" w14:textId="7DDE5351" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="0080201E">
+            <w:pPr>
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="4CEA94C2" w14:textId="77777777" w:rsidR="00262EF4"
+            w:rsidRDefault="00262EF4" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:p w14:paraId="11F75087" w14:textId="42CCFBF4" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>CONTRATO DE {{tipo_documento_nombre}}</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="57D9148C" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>N.° C-{{idtrabajador}}-{{fecha}}</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="3DF61FF8" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>{{domicilio_trabajador}}</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="26353028" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>TIPO DE DOCUMENTO: {{tipo_documento_nombre}} (ID: {{tipo_documento_id}})</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="618537CF" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>FECHA DE EMISIÓN: {{fecha}}</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="4EBAF2C4" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>OBSERVACIONES: {{observaciones}}</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="750018A0" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>ENTRE:</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="1FBDA0A6" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>La empresa Cruz del Norte S.A.C., con RUC 20403002101, con domicilio en tal
+                    Taltal, representada por __________________________________ (en adelante, “LA
+                    EMPRESA”);</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="48C8B0C8" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>Y:</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="5632D680" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="00527763">
+            <w:pPr>
+                <w:spacing w:before="240" />
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+            <w:r w:rsidRPr="00AD5624">
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+                <w:t>{{nombre}}, identificado con DNI N.° {{dni}}, con domicilio en
+                    {{domicilio_trabajador}} (en adelante, “EL/LA TRABAJADOR(A)”).</w:t>
+            </w:r>
+        </w:p>
+        <w:p w14:paraId="552F3A5E" w14:textId="77777777" w:rsidR="00527763" w:rsidRPr="00AD5624"
+            w:rsidRDefault="00527763" w:rsidP="0080201E">
+            <w:pPr>
+                <w:rPr>
+                    <w:rFonts w:ascii="Arial Narrow" w:hAnsi="Arial Narrow" />
+                </w:rPr>
+            </w:pPr>
+        </w:p>
+        <w:sectPr w:rsidR="00527763" w:rsidRPr="00AD5624" w:rsidSect="00797FD3">
+            <w:headerReference w:type="default" r:id="rId7" />
+            <w:footerReference w:type="default" r:id="rId8" />
+            <w:pgSz w:w="11906" w:h="16838" w:code="9" />
+            <w:pgMar w:top="1417" w:right="1701" w:bottom="1417" w:left="1701" w:header="708"
+                w:footer="708" w:gutter="0" />
+            <w:cols w:space="708" />
+            <w:docGrid w:linePitch="360" />
+        </w:sectPr>
+    </w:body>
+</w:document>

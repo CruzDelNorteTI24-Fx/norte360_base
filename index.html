@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Inventario - Inicio</title>
+    <script>
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'css/styles.css?v=' + new Date().getTime();
+        document.head.appendChild(link);
+    </script>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <header class="header-mejorado">
+        <div class="header-logo">
+            <img src="img/icons/mini_logo.png" alt="Logo CDN" class="btn-icon">
+        </div>
+        <nav class="header-nav">
+            <ul>
+                <li><a href="#">Inicio</a></li>
+                <li><a href="#">Módulos</a></li>
+                <li><a href="#">Contacto</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main id="interfaz_ingreso" class="container">
+        <div class="row">
+            <button onclick="abrirModal('modal-mantenimiento')" class="btn" id="btn-mantenimiento">
+                Mantenimiento
+            </button>
+
+            <button onclick="abrirModal('modal-mantenimiento')" class="btn" id="btn-rrhh">
+                Recursos Humanos
+            </button>
+        </div>
+
+        <div class="row">
+            <button onclick="abrirModal('modal-mantenimiento')" class="btn" id="btn-liquidaciones">
+                Liquidaciones
+            </button>
+        </div>
+
+
+        <div class="row">
+            <button onclick="abrirModal('modal-mantenimiento')" class="btn" id="btn-peajes">
+                Peajes
+            </button>
+
+            <button onclick="abrirModal('modal-mantenimiento')" class="btn" id="btn-almacen">
+                Almacen
+            </button>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Cruz del Norte. Todos los derechos reservados.</p>
+        <div class="whatsapp-links">
+            <a href="https://wa.me/+51944532822"><span>+51 944532822</span><img src="img/icons/logo_whatsapp.png" alt="WhatsApp Icon" class="icon"></a>
+        </div>
+    </footer>
+
+    <div id="modal-mantenimiento" class="modal">
+        <div class="modal-content">
+        <span class="close" onclick="cerrarModal('modal-mantenimiento')">&times;</span>
+        <h2>Módulo del Sistema</h2>
+        <p>Funcional en la aplicación;)</p>
+        </div>
+    </div>
+
+    <script>
+        function abrirModal(id) {
+        document.getElementById(id).style.display = "block";
+        }
+    
+        function cerrarModal(id) {
+        document.getElementById(id).style.display = "none";
+        }
+    
+        // Cerrar al hacer clic fuera del contenido
+        window.onclick = function(event) {
+        const modales = document.querySelectorAll('.modal');
+        modales.forEach(modal => {
+            if (event.target === modal) {
+            modal.style.display = "none";
+            }
+        });
+        }
+    </script>
+  
+</body>
+</html>
