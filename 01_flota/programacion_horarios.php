@@ -215,15 +215,19 @@ function horario_sync_estado_actual_bus(mysqli $conn, int $uid, ?int $idplaca, ?
     $cantidad = (int)($row['cantidad'] ?? 0);
     $progidRef = isset($row['progid_ref']) ? (int)$row['progid_ref'] : null;
 
+
+    if ($preferirTaller && stripos((string)$motivo, 'TALLER') !== false) {
+        horario_upsert_estado_bus($conn, $uid, $idplaca, 'TALLER', $progidRef, $motivo);
+        return;
+    }
+
     if ($cantidad > 0) {
         horario_upsert_estado_bus($conn, $uid, $idplaca, 'ASIGNADO', $progidRef, "Asignado en {$cantidad} horario(s) activo(s)");
         return;
     }
-    if ($preferirTaller && stripos((string)$motivo, 'TALLER') !== false) {
-        horario_upsert_estado_bus($conn, $uid, $idplaca, 'TALLER', null, $motivo);
-    } else {
-        horario_upsert_estado_bus($conn, $uid, $idplaca, 'SIN_HORARIO', null, $motivo);
-    }
+
+    horario_upsert_estado_bus($conn, $uid, $idplaca, 'SIN_HORARIO', null, $motivo);
+
 }
 
 function horario_fetch_oficinas(mysqli $conn, string $tipo = 'TODAS'): array {
@@ -262,13 +266,16 @@ $sql = "
         IFNULL(p.clm_placas_BUS, '') AS bus,
         IFNULL(p.clm_placas_PLACA, '') AS placa,
         IFNULL(p.clm_placas_TIPO_VEHÍCULO, '') AS tipo_vehiculo,
-        IFNULL(p.clm_placas_servicio, '') AS servicio_unidad,        
+        IFNULL(p.clm_placas_servicio, '') AS servicio_unidad,   
+        IFNULL(ea.clm_pgbestado_estado, '') AS estado_actual_unidad,
+        IFNULL(ea.clm_pgbestado_motivo, '') AS motivo_actual_unidad,     
         IFNULL(o1.clm_sedes_abr, '') AS oficina_origen,
         IFNULL(o2.clm_sedes_abr, '') AS oficina_destino,
         IFNULL(o1.clm_sedes_grupo_pizarra, 'SIN GRUPO') AS grupo_pizarra_origen,
         IFNULL(NULLIF(TRIM(o1.clm_sedes_tipo_imagen_grupo), ''), 'PIZARRA') AS tipo_imagen_grupo_origen
     FROM tb_progbuses pb
     LEFT JOIN tb_placas p ON p.clm_placas_id = pb.clm_progbuses_idplaca
+    LEFT JOIN tb_progbuses_estado_actual ea ON ea.clm_pgbestado_idplaca = p.clm_placas_id
     LEFT JOIN tb_sedes o1 ON o1.clm_sedes_id = pb.clm_progbuses_idoficina_origen
     LEFT JOIN tb_sedes o2 ON o2.clm_sedes_id = pb.clm_progbuses_idoficina_destino
     WHERE pb.clm_progbuses_estado = ?
@@ -3066,6 +3073,171 @@ aside img {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
 }
+
+
+.modal-img-export {
+  border: 0;
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, .28);
+}
+
+.modal-img-export__header {
+  background: linear-gradient(135deg, #243447, #30475e);
+  padding: 22px 24px;
+}
+
+.modal-img-export__eyebrow {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: #8fd3ff;
+  margin-bottom: 4px;
+}
+
+.modal-img-export__body {
+  background: #f5f8fc;
+  padding: 22px;
+}
+
+.export-mode-card {
+  background: white;
+  border: 1px solid #dbe6f0;
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+
+.export-mode-title {
+  font-weight: 900;
+  color: #243447;
+  margin-bottom: 4px;
+}
+
+.export-mode-desc {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.export-switch-box {
+  background: #eef5fc;
+  border: 1px solid #d6e6f5;
+  border-radius: 999px;
+  padding: 9px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 900;
+  color: #243447;
+  white-space: nowrap;
+}
+
+.export-option {
+  width: 100%;
+  min-height: 145px;
+  border-radius: 22px;
+  background: white;
+  border: 2px solid #dbe6f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: .2s ease;
+  font-weight: 900;
+}
+
+.export-option i {
+  font-size: 34px;
+}
+
+.export-option span {
+  font-size: 15px;
+}
+
+.export-option small {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.export-option--pizarra {
+  color: #1f6fb2;
+  border-color: #b8d8f4;
+}
+
+.export-option--tabla {
+  color: #167b4d;
+  border-color: #bde6ca;
+}
+
+.export-option:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 35px rgba(15, 23, 42, .12);
+  background: #fbfdff;
+}
+.horarios-page .btn-img-auto,
+.horarios-page .btn-img-export {
+  width: auto;
+  min-height: 44px;
+  border-radius: 14px;
+  font-weight: 900;
+  padding: 10px 16px;
+  border: 1.5px solid transparent;
+  transition: .2s ease;
+}
+
+.horarios-page .btn-img-auto {
+  color: #075985;
+  background: linear-gradient(135deg, #e0f2fe, #f0f9ff);
+  border-color: #7dd3fc;
+}
+
+.horarios-page .btn-img-export {
+  color: #166534;
+  background: linear-gradient(135deg, #dcfce7, #f0fdf4);
+  border-color: #86efac;
+}
+
+.horarios-page .btn-img-auto:hover,
+.horarios-page .btn-img-export:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, .12);
+}
+
+.horarios-page .btn-img-auto:hover {
+  color: #fff;
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+}
+
+.horarios-page .btn-img-export:hover {
+  color: #fff;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+.schedule-card--taller {
+  border-color: #f1b8b8;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7f7 100%);
+}
+
+.mini-badge--taller {
+  background: #fdecec;
+  color: #b42318;
+}
+
+.schedule-card__taller-note {
+  background: #fff1f1;
+  color: #9f1d16;
+  border: 1px solid #f3c2bd;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
     </style>
 </head>
 
@@ -3239,7 +3411,13 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                 <div class="d-flex flex-wrap gap-2 justify-content-lg-end mt-lg-4">
                     <button class="btn btn-primary" id="btnNuevoHorario"><i class="bi bi-plus-circle me-2"></i>Nuevo horario</button>
                     <button class="btn btn-outline-secondary" id="btnRefreshHorarios"><i class="bi bi-arrow-repeat me-2"></i>Actualizar</button>
-                    <button class="btn btn-outline-info" id="btnExportImagen"><i class="bi bi-image me-2"></i>Generar imagen</button>
+                    <button class="btn btn-img-auto" id="btnExportImagen">
+                        <i class="bi bi-magic me-2"></i>Generar imágenes
+                    </button>
+
+                    <button class="btn btn-img-export" id="btnAbrirModalImagen">
+                        <i class="bi bi-sliders2 me-2"></i>Exportar imagen
+                    </button>
                     <button class="btn btn-outline-danger" id="btnInhabilitados"><i class="bi bi-ban me-2"></i>Inhabilitados</button>
                     <button class="btn btn-outline-dark" id="btnHistorial"><i class="bi bi-clock-history me-2"></i>Historial</button>
                 </div>
@@ -3249,7 +3427,19 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
     <div class="row g-4 align-items-start">
 <div class="col-xl-9">
+
+    <div class="d-flex flex-wrap gap-2 mb-2">
+        <button type="button" class="btn btn-sm btn-outline-success" id="btnExpandirAcordeones">
+            <i class="bi bi-arrows-expand me-1"></i> Expandir todo
+        </button>
+
+        <button type="button" class="btn btn-sm btn-outline-warning" id="btnContraerAcordeones">
+            <i class="bi bi-arrows-collapse me-1"></i> Contraer todo
+        </button>
+    </div>
+
     <div id="boardContainer" class="board-direct"></div>
+
 </div>
         <div class="col-xl-3 horarios-sidebar">
             <section class="side-shell">
@@ -3280,6 +3470,62 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
 <div class="modal fade" id="modalInhabilitados" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Horarios inhabilitados</h5><div class="small text-white-50">Desde aquí puedes reactivar horarios sin mostrarlos en la pizarra principal.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div id="inhabilitadosContainer"></div></div></div></div></div>
 
+<div class="modal fade" id="modalExportImagen" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modal-img-export">
+
+      <div class="modal-header modal-img-export__header">
+        <div>
+          <div class="modal-img-export__eyebrow">Programación operativa</div>
+          <h5 class="modal-title mb-1">Exportar imagen de horarios</h5>
+          <div class="small text-white-50">
+            Selecciona cómo quieres generar la pizarra o tabla.
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body modal-img-export__body">
+
+        <div class="export-mode-card">
+          <div>
+            <div class="export-mode-title">Modo de exportación</div>
+            <div class="export-mode-desc" id="txtModoImagen">
+              Predefinido: solo descarga los grupos que pertenecen al formato seleccionado.
+            </div>
+          </div>
+
+          <div class="export-switch-box">
+            <span id="lblModoImagen">Predefinido</span>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" role="switch" id="switchModoImagen">
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-2">
+          <div class="col-md-6">
+            <button type="button" class="export-option export-option--pizarra" id="btnDescargarPizarra">
+              <i class="bi bi-layout-text-window-reverse"></i>
+              <span>Descargar Pizarra</span>
+              <small>Formato visual por bloques</small>
+            </button>
+          </div>
+
+          <div class="col-md-6">
+            <button type="button" class="export-option export-option--tabla" id="btnDescargarTabla">
+              <i class="bi bi-table"></i>
+              <span>Descargar Tabla</span>
+              <small>Formato listado operativo</small>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <!-- <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20el%20servicio.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank">💬 Soporte</a> -->
 <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20una%20etiqueta.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank" title="Soporte por WhatsApp">
@@ -3354,6 +3600,14 @@ window.horariosInitialError = <?= json_encode($initialError, JSON_UNESCAPED_UNIC
     btnRefresh: $('btnRefreshHorarios'),
     btnNuevoHorario: $('btnNuevoHorario'),
     btnExportImagen: $('btnExportImagen'),
+
+btnAbrirModalImagen: $('btnAbrirModalImagen'),
+btnDescargarPizarra: $('btnDescargarPizarra'),
+btnDescargarTabla: $('btnDescargarTabla'),
+switchModoImagen: $('switchModoImagen'),
+lblModoImagen: $('lblModoImagen'),
+txtModoImagen: $('txtModoImagen'),
+
     btnHistorial: $('btnHistorial'),
     btnInhabilitados: $('btnInhabilitados'),
     crearOrigen: $('crearOrigen'),
@@ -3439,6 +3693,8 @@ window.horariosInitialError = <?= json_encode($initialError, JSON_UNESCAPED_UNIC
   const modalCreate = new bootstrap.Modal($('modalCrearHorario')); const modalEdit = new bootstrap.Modal($('modalEditarHora'));
   const modalMotivo = new bootstrap.Modal($('modalMotivo')); const modalBus = new bootstrap.Modal($('modalBus'));
   const modalHistorial = new bootstrap.Modal($('modalHistorial')); const modalInhabilitados = new bootstrap.Modal($('modalInhabilitados'));
+  const modalExportImagen = new bootstrap.Modal($('modalExportImagen'));
+
   const quickTimes = ['06:00','08:00','10:00','12:00','16:00','18:00','20:00','22:00'];
   const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   const showAlert = (type, message) => { els.alertZone.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${esc(message)}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`; };
@@ -3524,10 +3780,11 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
   function renderScheduleCard(row, fechaSig){
   const activo = Number(row.clm_progbuses_estado) === 1;
   const tieneBus = !!row.clm_progbuses_idplaca;
+  const estaEnTaller = tieneBus && String(row.estado_actual_unidad || '').toUpperCase() === 'TALLER';
   const hora = fmtHora(row.clm_progbuses_horasalida || row.hora_fmt);
 
   let estadoBadge = badge('INACTIVO', 'danger');
-  if (activo && tieneBus) estadoBadge = badge('ASIGNADO', 'success');
+  if (activo && tieneBus) estadoBadge = estaEnTaller ? badge('EN TALLER', 'taller') : badge('ASIGNADO', 'success');
   if (activo && !tieneBus) estadoBadge = badge('SIN BUS', 'warning');
 
   const nextBadge = isNext(hora) ? `<span class="mini-badge mini-badge--next">${esc(fechaSig || 'SIG. DÍA')}</span>` : '';
@@ -3540,7 +3797,7 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
           <i class="bi bi-arrow-left-right"></i> Cambiar unidad
         </button>
         <button class="btn-action-card warning" data-action="remover" data-id="${row.clm_progbuses_progid}">
-          <i class="bi bi-dash-circle"></i> Retirar
+          <i class="bi bi-dash-circle"></i> ${estaEnTaller ? 'Quitar' : 'Retirar'}
         </button>
       `;
     } else {
@@ -3568,9 +3825,15 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
   const metaTexto = tieneBus
     ? `Tipo: ${row.tipo_vehiculo || '—'} · Horario #${row.clm_progbuses_progid || '0'}`
     : `Pendiente de asignación · Horario #${row.clm_progbuses_progid || '0'}`;
+      
+      const tallerNota = estaEnTaller
+        ? `<div class="schedule-card__taller-note">
+            <i class="bi bi-tools me-1"></i> Esta unidad está actualmente en taller.
+          </div>`
+        : '';
 
   return `
-    <article class="${tieneBus ? 'schedule-card' : 'schedule-card schedule-card--empty'}">
+    <article class="${tieneBus ? `schedule-card ${estaEnTaller ? 'schedule-card--taller' : ''}` : 'schedule-card schedule-card--empty'}">
       <div class="schedule-card__top">
         <div class="schedule-card__time">
           <div class="schedule-card__hour">${esc(hora || '—')}</div>
@@ -3590,6 +3853,8 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
       }</div>
       <div class="schedule-card__unit">${esc(unidadTexto)}</div>
       <div class="schedule-card__meta">${esc(metaTexto)}</div>
+
+      ${tallerNota}
 
       <div class="schedule-card__footer">
         <div class="schedule-actions">
@@ -3616,8 +3881,34 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
     });
   });
 }
-    function attachBoardActions(){ els.boardContainer.querySelectorAll('[data-action]').forEach(btn=>{ btn.addEventListener('click',()=>{ const row=(state.snapshot.horarios||[]).find(r=>String(r.clm_progbuses_progid)===String(btn.dataset.id)); if(!row) return; const action=btn.dataset.action; if(action==='asignar') openBusModal(row,'asignar'); else if(action==='cambiar') openBusModal(row,'cambiar'); else if(action==='editarhora') openEditTimeModal(row); else if(action==='remover'){ askMotivo({accion:'RETIRO',titulo:'Motivo del retiro de la unidad',permitirTaller:true}).then(m=>{ if(m) performAction('remover_bus',{progid:row.clm_progbuses_progid,motivo:m},'Bus removido del horario.'); }); } else if(action==='inactivar'){ askMotivo({accion:'INACTIVAR',titulo:'Motivo de inhabilitación del horario',permitirTaller:false}).then(m=>{ if(m) performAction('inactivar_horario',{progid:row.clm_progbuses_progid,motivo:m},'Horario inhabilitado correctamente.'); }); } }); }); }
-function renderBoard(){
+    function attachBoardActions(){ els.boardContainer.querySelectorAll('[data-action]').forEach(btn=>{ btn.addEventListener('click',()=>{ const row=(state.snapshot.horarios||[]).find(r=>String(r.clm_progbuses_progid)===String(btn.dataset.id)); if(!row) return; const action=btn.dataset.action; if(action==='asignar') openBusModal(row,'asignar'); else if(action==='cambiar') openBusModal(row,'cambiar'); else if(action==='editarhora') openEditTimeModal(row); 
+
+            else if(action === 'remover'){
+              const estaEnTaller = String(row.estado_actual_unidad || '').toUpperCase() === 'TALLER';
+
+              if (estaEnTaller) {
+                const motivoAuto = `Retiro referencial: la unidad ${row.bus || ''} ${row.placa ? '(' + row.placa + ')' : ''} ya se encontraba en TALLER. Se remueve de este horario activo para sincerar la programación.`;
+
+                performAction(
+                  'remover_bus',
+                  {
+                    progid: row.clm_progbuses_progid,
+                    motivo: motivoAuto
+                  },
+                  'Unidad quitada del horario. La unidad continúa registrada como taller.'
+                );
+
+                return;
+              }
+
+              askMotivo({accion:'RETIRO', titulo:'Motivo del retiro de la unidad', permitirTaller:true}).then(m => {
+                if(m) performAction('remover_bus', {progid:row.clm_progbuses_progid, motivo:m}, 'Bus removido del horario.');
+              });
+            }
+
+          else if(action==='inactivar'){ askMotivo({accion:'INACTIVAR',titulo:'Motivo de inhabilitación del horario',permitirTaller:false}).then(m=>{ if(m) performAction('inactivar_horario',{progid:row.clm_progbuses_progid,motivo:m},'Horario inhabilitado correctamente.'); }); } }); }); }
+
+    function renderBoard(){
   const rows = getFilteredRows();
 
   if (els.boardCounter) {
@@ -3840,6 +4131,78 @@ function pausa(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+
+function getModoImagen() {
+  return els.switchModoImagen?.checked ? 'TODOS' : 'PREDEFINIDO';
+}
+
+function actualizarTextoModoImagen() {
+  const modo = getModoImagen();
+
+  if (modo === 'TODOS') {
+    els.lblModoImagen.textContent = 'Todos';
+    els.txtModoImagen.textContent = 'Todos: descarga todos los grupos en el formato seleccionado.';
+  } else {
+    els.lblModoImagen.textContent = 'Predefinido';
+    els.txtModoImagen.textContent = 'Predefinido: solo descarga los grupos que pertenecen al formato seleccionado.';
+  }
+}
+
+async function generarImagenPorFormato(formatoSeleccionado) {
+  const formato = String(formatoSeleccionado || 'PIZARRA').toUpperCase();
+  const modo = getModoImagen();
+
+  const filas = getFilteredRows();
+  const busesSinHorario = (state.snapshot.buses_sin_horario || []).slice().sort(compareBusNatural);
+  const busesTaller = (state.snapshot.buses_taller || []).slice().sort(compareBusNatural);
+
+  const gruposPizarra = agruparFilasPorGrupoPizarra(filas);
+  const nombresGrupos = Object.keys(gruposPizarra).sort(compareTextNatural);
+
+  if (!nombresGrupos.length) {
+    showAlert('warning', 'No hay grupos disponibles para generar imagen.');
+    return;
+  }
+
+  let total = 0;
+
+  for (const nombreGrupo of nombresGrupos) {
+    const grupoInfo = gruposPizarra[nombreGrupo];
+    const filasGrupo = grupoInfo?.filas || [];
+    const tipoPredefinido = String(grupoInfo?.tipoImagen || 'PIZARRA').toUpperCase();
+
+    if (modo === 'PREDEFINIDO' && tipoPredefinido !== formato) {
+      continue;
+    }
+
+    if (formato === 'TABLA') {
+      await generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario, busesTaller);
+    } else {
+      await generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorario, busesTaller);
+    }
+
+    total++;
+    await pausa(180);
+  }
+
+  if (total === 0) {
+    showAlert(
+      'warning',
+      modo === 'PREDEFINIDO'
+        ? `No hay grupos configurados como ${formato}.`
+        : `No hay grupos para descargar como ${formato}.`
+    );
+    return;
+  }
+
+  showAlert(
+    'success',
+    modo === 'TODOS'
+      ? `Se generaron ${total} imagen(es) en formato ${formato}.`
+      : `Se generaron ${total} imagen(es) ${formato} según configuración personalizada.`
+  );
+}
+
 async function generarImagenPizarra() {
   const btn = els.btnExportImagen;
   const btnHtml = btn ? btn.innerHTML : '';
@@ -3906,14 +4269,14 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
   const anchoTotal = 1080;
   const anchoInterno = anchoTotal - (margen * 2);
 
-  const rowH = 46;              // más alto para que respire mejor
+  const rowH = 58;              // más alto para que respire mejor
   const tableHeaderH = 48;
   const headerH = 176;          // más alto para separar mejor el chip del título
   const resumenH = 92;
-  const tablaExtraPadding = 34;
+  const tablaExtraPadding = 2;
 
   const altoTabla = tableHeaderH + (filas.length * rowH);
-  const alto = 24 + headerH + 18 + altoTabla + tablaExtraPadding + 26 + resumenH + 34;
+  const alto = 24 + headerH + 2 + altoTabla + tablaExtraPadding + 2 + resumenH + 2;
 
   const { canvas, ctx } = createHiDPICanvas(anchoTotal, alto, 2);
 
@@ -3939,9 +4302,9 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
   const fOperativaChip = '900 18px "Segoe UI"';
   const fMetaLabel = '700 11px "Segoe UI"';
   const fMetaValue = '700 16px "Segoe UI"';
-  const fTableHead = '700 13px "Segoe UI"';
-  const fCell = '14px "Segoe UI"';   // más grande
-  const fCellStrong = '700 14px "Segoe UI"';
+  const fTableHead = '800 16px "Segoe UI"';
+  const fCell = '18px "Segoe UI"';
+  const fCellStrong = '800 18px "Segoe UI"';
 
   const fechas = state.snapshot.fechas || {};
   const fechaBaseTxt = fechas.fecha_base || '—';
@@ -4038,10 +4401,10 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
   const columnas = [
     { key: 'fecha_operativa', label: 'DÍA OPERATIVO', width: 150 },
     { key: 'hora',            label: 'HORA',            width: 90  },
-    { key: 'busplaca',        label: 'BUS (PLACA)',     width: 210 },
-    { key: 'servicio',        label: 'SERVICIO',        width: 160 },
-    { key: 'origen',          label: 'ORIGEN',          width: 155 },
-    { key: 'destino',         label: 'DESTINO',         width: 155 }
+    { key: 'busplaca',        label: 'BUS (PLACA)',     width: 150 },
+    { key: 'servicio',        label: 'SERVICIO',        width: 180 },
+    { key: 'origen',          label: 'ORIGEN',          width: 200 },
+    { key: 'destino',         label: 'DESTINO',         width: 200 }
   ];
 
   const tablaW = columnas.reduce((acc, c) => acc + c.width, 0);
@@ -4135,7 +4498,7 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
         ctx,
         fitText(ctx, String(valor), col.width - 18, fontCelda),
         xCell + 9,
-        yRow + 14,
+        yRow + 18,
         { font: fontCelda, color: colorCelda }
       );
 
@@ -4146,43 +4509,8 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
     yRow += rowH;
   });
 
-  const resumenY = tablaCardY + tablaH + 46;
-  const cardResumenW = 190;
-  const cardResumenH = 68;
-  const gapResumen = 16;
-  const totalResumenW = (cardResumenW * 3) + (gapResumen * 2);
-  const resumenX = (anchoTotal / 2) - (totalResumenW / 2);
-
-  const resumenData = [
-    { titulo: 'HORARIOS',    valor: filas.length,           color: blueSoft,  text: navy },
-    { titulo: 'SIN HORARIO', valor: busesSinHorario.length, color: greenSoft, text: greenText },
-    { titulo: 'EN TALLER',   valor: busesTaller.length,     color: redSoft,   text: redText }
-  ];
-
-  resumenData.forEach((item, i) => {
-    const x = resumenX + (i * (cardResumenW + gapResumen));
-
-    drawCard(ctx, x, resumenY, cardResumenW, cardResumenH, {
-      radius: 18,
-      fill: item.color,
-      stroke: border,
-      lineWidth: 1,
-      shadow: false
-    });
-
-    drawText(ctx, item.titulo, x + 16, resumenY + 13, {
-      font: fMetaLabel,
-      color: slate
-    });
-
-    drawText(ctx, String(item.valor), x + 16, resumenY + 32, {
-      font: '900 24px "Segoe UI"',
-      color: item.text
-    });
-  });
-
   const fechaBaseArchivo = slugify((state.snapshot.fechas || {}).fecha_base || 'operativo');
-  const nombreArchivo = `tabla_operativa_vertical_${slugify(nombreGrupo)}_${fechaBaseArchivo}.png`;
+  const nombreArchivo = `tabla_op_${slugify(nombreGrupo)}_${fechaBaseArchivo}.png`;
   descargarCanvas(canvas, nombreArchivo);
 }
 
@@ -4206,7 +4534,7 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
 
   const margen = 34;
   const panelDerechoW = 320;
-  const cuerpoW = 1450;
+  const cuerpoW = 1500;
   const anchoTotal = cuerpoW + panelDerechoW + (margen * 2);
 
   let alto = 220;
@@ -4259,10 +4587,10 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
   const fMetaValue = '700 18px "Segoe UI"';
   const fOrigen = '700 23px "Segoe UI"';
   const fCount = '11px "Segoe UI"';
-  const fHora = '700 31px "Segoe UI"';
-  const fBus = '700 24px "Segoe UI"';
-  const fDest = '700 11px "Segoe UI"';
-  const fSmall = '10px "Segoe UI"';
+const fHora = '800 34px "Segoe UI"';
+const fBus = '800 28px "Segoe UI"';
+const fDest = '800 18px "Segoe UI"';
+const fSmall = '12px "Segoe UI"';
   const fPanelHead = '700 22px "Segoe UI"';
   const fPanelBus = '700 17px "Segoe UI"';
   const fPanelSmall = '11px "Segoe UI"';
@@ -4438,7 +4766,7 @@ busesSinHorario.forEach(b => {
   const bloquePadX = 18;
   const bloquePadY = 16;
   const tituloH = 46;
-  const filaH = 68;
+  const filaH = 76;
   const bloqueW = cuerpoUtilW;
   const maxFilasPorSubcol = 6;
   const subGap = 28;
@@ -4521,19 +4849,30 @@ busesSinHorario.forEach(b => {
           drawText(ctx, fechaSigCorta, subX + 3, filaY + 38, { font: fSmall, color: slate });
         }
 
+        const xHora = subX;
+        const xBus = subX + 118;
+        const xDestino = subX + 285;
+
         if (bus) {
-          drawText(ctx, fitText(ctx, bus, subcolW - 132, fBus), subX + 116, filaY + 4, { font: fBus, color: blue });
+          drawText(
+            ctx,
+            fitText(ctx, bus, 145, fBus),
+            xBus,
+            filaY + 5,
+            { font: fBus, color: blue }
+          );
         } else {
-          drawLine(ctx, subX + 116, filaY + 24, subX + subcolW - 12, filaY + 24, lineEmpty, 3);
+          drawLine(ctx, xBus, filaY + 27, xBus + 130, filaY + 27, lineEmpty, 3);
         }
 
         if (destinoServicio) {
           const colorDest = destino.includes('TALLER') ? wine : slate;
+
           drawText(
             ctx,
-            fitText(ctx, destinoServicio, subcolW - 132, fDest),
-            subX + 116,
-            filaY + 34,
+            fitText(ctx, destinoServicio, subcolW - 300, fDest),
+            xDestino,
+            filaY + 11,
             { font: fDest, color: colorDest }
           );
         }
@@ -4546,7 +4885,7 @@ busesSinHorario.forEach(b => {
   });
 
   const fechaBaseArchivo = slugify((state.snapshot.fechas || {}).fecha_base || 'operativo');
-  const nombreArchivo = `pizarra_operativa_${slugify(nombreGrupo)}_${fechaBaseArchivo}.png`;
+  const nombreArchivo = `pizarra_op_${slugify(nombreGrupo)}_${fechaBaseArchivo}.png`;
   descargarCanvas(canvas, nombreArchivo);
 }
 
@@ -4770,6 +5109,28 @@ async function confirmBusSelection() {
   async function openHistorial(){ modalHistorial.show(); els.historialContainer.innerHTML=`<div class="empty-state">Cargando historial...</div>`; const data=await fetchJson('historial',{query:'limit=300'}); state.historialRows=data.historial||[]; if(!state.historialRows.length){ els.historialContainer.innerHTML=`<div class="empty-state">Sin historial disponible.</div>`; return; } els.historialContainer.innerHTML=state.historialRows.map(r=>{ let bdg=badge(r.accion||'—','warning'); if((r.accion||'').toUpperCase()==='INSERT') bdg=badge('INSERT','success'); if((r.accion||'').toUpperCase()==='DELETE') bdg=badge('DELETE','danger'); return `<div class="historial-card"><div class="historial-card__top"><div>${bdg}</div><div class="small text-secondary">${esc(r.fechaevento||'—')}</div></div><div class="fw-bold text-dark mb-1">${esc(fmtHora(r.clm_progbuses_horasalida||r.hora_fmt))} | ${esc(r.oficina_origen||'—')} → ${esc(r.oficina_destino||'—')}</div><div class="text-secondary mb-2">Bus: ${esc(r.bus||'SIN BUS')} · Placa: ${esc(r.placa||'—')}</div><div class="text-dark">Motivo: ${esc(r.motivo||'Sin motivo registrado')}</div></div>`; }).join(''); }
   async function openInhabilitados(){ modalInhabilitados.show(); els.inhabilitadosContainer.innerHTML=`<div class="empty-state">Cargando horarios inhabilitados...</div>`; const data=await fetchJson('inhabilitados'); state.disabledRows=data.inhabilitados||[]; renderInhabilitados(); }
   function renderInhabilitados(){ const rows=state.disabledRows||[]; if(!rows.length){ els.inhabilitadosContainer.innerHTML=`<div class="empty-state">No hay horarios inhabilitados.</div>`; return; } els.inhabilitadosContainer.innerHTML=rows.map(r=>`<div class="inh-card"><div class="inh-card__top"><div><div class="fw-bold text-dark">${esc(fmtHora(r.clm_progbuses_horasalida||r.hora_fmt))} | ${esc(r.oficina_origen||'—')} → ${esc(r.oficina_destino||'—')}</div><div class="text-secondary small mt-1">Bus anterior: ${esc(r.bus||'SIN BUS')} · Placa: ${esc(r.placa||'—')}</div></div>${badge('INHABILITADO','danger')}</div><div class="text-secondary small mb-3">Último motivo: ${esc(r.clm_progbuses_motivo||'—')}</div><div class="text-end"><button class="btn btn-success btn-sm" data-reactivar="${r.clm_progbuses_progid}"><i class="bi bi-check-circle me-1"></i>Activar horario</button></div></div>`).join(''); els.inhabilitadosContainer.querySelectorAll('[data-reactivar]').forEach(btn=>btn.addEventListener('click',async()=>{ const row=rows.find(r=>String(r.clm_progbuses_progid)===String(btn.dataset.reactivar)); if(!row) return; const motivo=await askMotivo({accion:'ACTIVAR',titulo:'Motivo de activación del horario',permitirTaller:false}); if(!motivo) return; await performAction('activar_horario',{progid:row.clm_progbuses_progid,motivo},'Horario activado correctamente.'); state.disabledRows=state.disabledRows.filter(r=>String(r.clm_progbuses_progid)!==String(row.clm_progbuses_progid)); renderInhabilitados(); })); }
+const btnExpandirAcordeones = document.getElementById('btnExpandirAcordeones');
+const btnContraerAcordeones = document.getElementById('btnContraerAcordeones');
+
+if (btnExpandirAcordeones) {
+  btnExpandirAcordeones.addEventListener('click', () => {
+    state.collapsedOrigins.clear();
+    renderBoard();
+  });
+}
+
+if (btnContraerAcordeones) {
+  btnContraerAcordeones.addEventListener('click', () => {
+    const rows = getFilteredRows();
+
+    rows.forEach(r => {
+      const origen = r.oficina_origen || 'SIN ORIGEN';
+      state.collapsedOrigins.add(origen);
+    });
+
+    renderBoard();
+  });
+} 
   els.filtro.addEventListener('input',renderBoard); els.btnRefresh.addEventListener('click',()=>refreshSnapshot(true).catch(err=>showAlert('danger',err.message||'No se pudo actualizar la programación.'))); els.btnNuevoHorario.addEventListener('click',openCreateModal); els.btnExportImagen.addEventListener('click', async () => {
   if (state.isBusy) return;
 
@@ -4782,6 +5143,49 @@ async function confirmBusSelection() {
     horarioEndLoading();
   }
 });
+
+els.btnAbrirModalImagen.addEventListener('click', () => {
+  modalExportImagen.show();
+});
+
+els.switchModoImagen.addEventListener('change', actualizarTextoModoImagen);
+
+els.btnAbrirModalImagen.addEventListener('click', () => {
+  if (els.switchModoImagen) els.switchModoImagen.checked = false;
+  actualizarTextoModoImagen();
+  modalExportImagen.show();
+});
+
+els.btnDescargarPizarra.addEventListener('click', async () => {
+  if (state.isBusy) return;
+
+  modalExportImagen.hide();
+  horarioBeginLoading();
+
+  try {
+    await generarImagenPorFormato('PIZARRA');
+  } catch (err) {
+    showAlert('danger', err.message || 'No se pudo generar la pizarra.');
+  } finally {
+    horarioEndLoading();
+  }
+});
+
+els.btnDescargarTabla.addEventListener('click', async () => {
+  if (state.isBusy) return;
+
+  modalExportImagen.hide();
+  horarioBeginLoading();
+
+  try {
+    await generarImagenPorFormato('TABLA');
+  } catch (err) {
+    showAlert('danger', err.message || 'No se pudo generar la tabla.');
+  } finally {
+    horarioEndLoading();
+  }
+});
+
 els.btnGuardarNuevoHorario.addEventListener('click',()=>saveNewHorario().catch(err=>showAlert('danger',err.message||'No se pudo crear el horario.'))); els.crearOrigen.addEventListener('change',updateCreatePreview); els.crearDestino.addEventListener('change',updateCreatePreview); els.crearHora.addEventListener('input',updateCreatePreview); els.btnSwapOficinas.addEventListener('click',()=>{ const o=els.crearOrigen.value; const d=els.crearDestino.value; els.crearOrigen.value=d; els.crearDestino.value=o; updateCreatePreview(); }); els.btnHistorial.addEventListener('click',()=>openHistorial().catch(err=>showAlert('danger',err.message||'No se pudo cargar el historial.'))); els.btnInhabilitados.addEventListener('click',()=>openInhabilitados().catch(err=>showAlert('danger',err.message||'No se pudieron cargar los horarios inhabilitados.'))); els.editarHoraInput.addEventListener('input',updateEditPreview); els.btnGuardarEditarHora.addEventListener('click',()=>saveEditedHora().catch(err=>showAlert('danger',err.message||'No se pudo actualizar la hora.'))); els.btnAceptarMotivo.addEventListener('click',acceptMotivo); els.busSearch.addEventListener('input',renderBusList); els.btnConfirmBus.addEventListener('click',()=>confirmBusSelection().catch(err=>showAlert('danger',err.message||'No se pudo completar la operación con el bus.')));
   fillQuickTimes(els.crearHora,els.quickTimeWrap,updateCreatePreview); fillQuickTimes(els.editarHoraInput,els.quickEditTimeWrap,updateEditPreview); updateAll();
 })();
