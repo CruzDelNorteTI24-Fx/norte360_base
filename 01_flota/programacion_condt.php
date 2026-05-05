@@ -2802,9 +2802,21 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 </div>
 
 <div id="modulo-flotayoperaciones" class="subnav" style="display: none;">
-  <a href="../01_flota/programacion_horarios.php">📋 Programación Horarios</a>
-  <a href="../01_flota/programacion_condt.php">👤 Conductores</a>
-  <a href="../01_flota/gest_plac.php">📝 Gestión de Placas</a>
+
+  <?php
+    // Programación de Conductores
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
+        echo '<a href="../01_flota/programacion_condt.php">👤 Conductores</a>';
+    }
+    // Programación de Horarios
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
+        echo '<a href="../01_flota/programacion_horarios.php">📋 Programación Horarios</a>';
+    }
+    // Historial Gerencial
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
+        echo '<a href="../01_flota/gest_plac.php">📝 Gestión de Placas</a>';
+    }
+  ?>
 </div>
 
 <button class="menu-toggle" onclick="toggleMenu()">☰</button>
@@ -2821,14 +2833,36 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   </div>
   <ul class="menu-list">
     <h3>Programación</h3>
-    <li><a href="programacion_condt.php"><i class="bi bi-person-plus-fill"></i> Programación de Conductores</a></li>
-    <li><a href="programacion_horarios.php" class="active"><i class="bi bi-clock-history"></i> Programación de Horarios</a></li>
-    <li><a href="gest_prog_horarios.php" class="active"><i class="bi bi-bar-chart-line-fill"></i> Historial Gerencial</a></li>
+
+  <?php
+    // Programación de Conductores
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
+        echo '<li><a href="programacion_condt.php"><i class="bi bi-person-plus-fill"></i> Programación de Conductores</a></li>';
+    }
+    // Programación de Horarios
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
+        echo '<li><a href="programacion_horarios.php" class="active"><i class="bi bi-clock-history"></i> Programación de Horarios</a></li>';
+    }
+    // Historial Gerencial
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghist", $vistas)) {
+        echo '<li><a href="gest_prog_horarios.php" class="active"><i class="bi bi-bar-chart-line-fill"></i> Historial Gerencial</a></li>';
+    }
+  ?>
   </ul>
-  <ul class="menu-list">
-    <h3>Vehículos</h3>
-    <li><a href="gest_plac.php"><i class="bi bi-bus-front"></i> Gestionar Placas</a></li>
-  </ul>
+
+  <?php
+    // Flota
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
+        echo '
+        <ul class="menu-list">
+          <h3>Vehículos</h3>
+          <li><a href="gest_plac.php"><i class="bi bi-bus-front"></i> Gestionar Placas</a></li>
+        </ul>
+        ';
+    }
+  ?>
+
+
 </nav>
 
 <button class="sidebar-show-btn" id="sidebarShowBtn" aria-label="Mostrar menú">

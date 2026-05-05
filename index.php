@@ -1263,9 +1263,21 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 </div>
 
 <div id="modulo-flotayoperaciones" class="subnav" style="display: none;">
-  <a href="01_flota\programacion_horarios.php">📋 Programación Horarios</a>
-  <a href="01_flota\programacion_condt.php">👤 Conductores</a>
-  <a href="01_flota\gest_plac.php">📝 Gestión de Placas</a>
+
+  <?php
+    // Programación de Conductores
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
+        echo '<a href="01_flota/programacion_condt.php">👤 Conductores</a>';
+    }
+    // Programación de Horarios
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
+        echo '<a href="01_flota/programacion_horarios.php">📋 Programación Horarios</a>';
+    }
+    // Historial Gerencial
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
+        echo '<a href="01_flota/gest_plac.php">📝 Gestión de Placas</a>';
+    }
+  ?>
 </div>
 
 <button class="menu-toggle" onclick="toggleMenu()">☰</button>
@@ -1315,9 +1327,26 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   if ($_SESSION['web_rol'] === 'Admin' || in_array(10, $permisos)) {
       echo '<h3>Roles</h3>
       <ul>';
-      echo '<li><a href="01_flota\programacion_condt.php">Programación de Conductor</a></li>';
+          // Programación de Conductores
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
+        echo '<li><a href="01_flota\programacion_condt.php">Programación de Conductor</a></li>';
+    }
+    // Programación de Horarios
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
+        echo '<li><a href="01_flota\programacion_horarios.php">Programación de Horarios</a></li>';
+    }
+    // Historial Gerencial
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghist", $vistas)) {
+        echo '<li><a href="01_flota\gest_prog_horarios.php">Historial Gerencial</a></li>';
+    }
+    // Flota
+    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
+        echo '<li><a href="01_flota\gest_plac.php">Gestionar Placas</a></li>';
+    }
       echo '</ul>';
   }
+
+  
   ?>
 </div>
 
@@ -1403,13 +1432,33 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
   </div>';
 }
 
-if ($_SESSION['web_rol'] === 'Admin' || in_array(10, $permisos)) {
+if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
   echo '
   <div class="product-card">
     <img src="img/icons/roles.png" alt="Roles">
     <h4>Programación</h4>
     <p>Programación de Conductores</p>
     <a href="01_flota/programacion_condt.php" class="btn-validar">Ingresar</a>
+  </div>';
+}
+
+if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
+  echo '
+  <div class="product-card">
+    <img src="img/icons/calendario.png" alt="Roles">
+    <h4>Programación</h4>
+    <p>Programación Horarios</p>
+    <a href="01_flota/programacion_horarios.php" class="btn-validar">Ingresar</a>
+  </div>';
+}
+
+if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
+  echo '
+  <div class="product-card">
+    <img src="img/icons/placa.png" alt="Roles">
+    <h4>Programación</h4>
+    <p>Gestión de Placas</p>
+    <a href="01_flota/gest_plac.php" class="btn-validar">Ingresar</a>
   </div>';
 }
 ?>
