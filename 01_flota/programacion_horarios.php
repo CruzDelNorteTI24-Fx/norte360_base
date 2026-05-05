@@ -237,14 +237,24 @@ $sql = "
         IFNULL(clm_sedes_abr, '') AS oficina,
         IFNULL(clm_sedes_origendestino, '') AS origendestino,
         IFNULL(clm_sedes_grupo_pizarra, 'SIN GRUPO') AS grupo_pizarra,
-        IFNULL(NULLIF(TRIM(clm_sedes_tipo_imagen_grupo), ''), 'PIZARRA') AS tipo_imagen_grupo
+        IFNULL(NULLIF(TRIM(clm_sedes_tipo_imagen_grupo), ''), 'PIZARRA') AS tipo_imagen_grupo,
+        clm_sedes_orden_pizarra
     FROM tb_sedes
     WHERE IFNULL(clm_sedes_estado, 0) = 1
 ";
     if ($tipo === 'ORIGEN') {
         $sql .= " AND UPPER(TRIM(IFNULL(clm_sedes_origendestino, ''))) = 'ORIGEN' ";
     }
-    $sql .= " ORDER BY clm_sedes_abr ASC ";
+
+    $sql .= "
+        ORDER BY
+            CASE
+                WHEN clm_sedes_orden_pizarra IS NULL THEN 999999
+                ELSE clm_sedes_orden_pizarra
+            END ASC,
+            clm_sedes_abr ASC
+    ";
+
     $res = $conn->query($sql);
     if (!$res) throw new RuntimeException(horario_mysqli_error($conn));
     return $res->fetch_all(MYSQLI_ASSOC);
@@ -272,7 +282,8 @@ $sql = "
         IFNULL(o1.clm_sedes_abr, '') AS oficina_origen,
         IFNULL(o2.clm_sedes_abr, '') AS oficina_destino,
         IFNULL(o1.clm_sedes_grupo_pizarra, 'SIN GRUPO') AS grupo_pizarra_origen,
-        IFNULL(NULLIF(TRIM(o1.clm_sedes_tipo_imagen_grupo), ''), 'PIZARRA') AS tipo_imagen_grupo_origen
+        IFNULL(NULLIF(TRIM(o1.clm_sedes_tipo_imagen_grupo), ''), 'PIZARRA') AS tipo_imagen_grupo_origen,
+        o1.clm_sedes_orden_pizarra AS orden_pizarra_origen
     FROM tb_progbuses pb
     LEFT JOIN tb_placas p ON p.clm_placas_id = pb.clm_progbuses_idplaca
     LEFT JOIN tb_progbuses_estado_actual ea ON ea.clm_pgbestado_idplaca = p.clm_placas_id
@@ -281,11 +292,16 @@ $sql = "
     WHERE pb.clm_progbuses_estado = ?
     ORDER BY 
         IFNULL(o1.clm_sedes_grupo_pizarra, 'SIN GRUPO') ASC,
+        CASE
+            WHEN o1.clm_sedes_orden_pizarra IS NULL THEN 999999
+            ELSE o1.clm_sedes_orden_pizarra
+        END ASC,
         o1.clm_sedes_abr ASC,
         pb.clm_progbuses_horasalida ASC,
         o2.clm_sedes_abr ASC,
         pb.clm_progbuses_progid ASC
 ";
+
     $stmt = $conn->prepare($sql);
     if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
     $stmt->bind_param('i', $estado);
@@ -3962,8 +3978,29 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
 
   const fechaSig = (state.snapshot.fechas || {}).fecha_sig_corta || '';
 
-  els.boardContainer.innerHTML = Object.keys(groups)
-    .sort((a,b) => a.localeCompare(b))
+els.boardContainer.innerHTML = Object.keys(groups)
+    .sort((a, b) => {
+      const ordenA = Math.min(
+        ...groups[a].map(r => {
+          const n = Number(r.orden_pizarra_origen);
+          return Number.isFinite(n) && n > 0 ? n : 999999;
+        })
+      );
+
+      const ordenB = Math.min(
+        ...groups[b].map(r => {
+          const n = Number(r.orden_pizarra_origen);
+          return Number.isFinite(n) && n > 0 ? n : 999999;
+        })
+      );
+
+      if (ordenA !== ordenB) return ordenA - ordenB;
+
+      return String(a || '').localeCompare(String(b || ''), 'es', {
+        numeric: true,
+        sensitivity: 'base'
+      });
+    })
     .map(origen => {
       const grp = groups[origen].slice().sort((a,b) => cmpArr(sortKey(a), sortKey(b)));
       const total = grp.length;
@@ -4805,7 +4842,25 @@ busesSinHorario.forEach(b => {
   const maxFilasPorSubcol = 6;
   const subGap = 28;
 
-  Object.keys(grupos).sort(compareTextNatural).forEach(origen => {
+  Object.keys(grupos).sort((a, b) => {
+  const ordenA = Math.min(
+    ...grupos[a].map(r => {
+      const n = Number(r.orden_pizarra_origen);
+      return Number.isFinite(n) && n > 0 ? n : 999999;
+    })
+  );
+
+  const ordenB = Math.min(
+    ...grupos[b].map(r => {
+      const n = Number(r.orden_pizarra_origen);
+      return Number.isFinite(n) && n > 0 ? n : 999999;
+    })
+  );
+
+  if (ordenA !== ordenB) return ordenA - ordenB;
+
+  return compareTextNatural(a, b);
+}).forEach(origen => {
     const items = grupos[origen];
     const usarDosCols = items.length > maxFilasPorSubcol;
     const subcols = usarDosCols ? 2 : 1;
