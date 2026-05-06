@@ -397,6 +397,7 @@ function horario_fetch_historial(mysqli $conn, int $limit = 300): array {
             h.clm_progbuses_horasalida,
             h.clm_progbuses_estado,
             h.clm_progbuses_idusuario,
+            IFNULL(u.usuario, CONCAT('Usuario #', h.clm_progbuses_idusuario)) AS usuario_realizo,
             h.clm_progbuses_datetimeupdated,
             IFNULL(h.clm_progbuses_motivo, '') AS motivo,
             IFNULL(p.clm_placas_BUS, '') AS bus,
@@ -407,6 +408,7 @@ function horario_fetch_historial(mysqli $conn, int $limit = 300): array {
         LEFT JOIN tb_placas p ON p.clm_placas_id = h.clm_progbuses_idplaca
         LEFT JOIN tb_sedes o1 ON o1.clm_sedes_id = h.clm_progbuses_idoficina_origen
         LEFT JOIN tb_sedes o2 ON o2.clm_sedes_id = h.clm_progbuses_idoficina_destino
+        LEFT JOIN tb_usuarios u ON u.id_usuario = h.clm_progbuses_idusuario
         ORDER BY h.clm_hist_progbuses_fechaevento DESC, h.clm_hist_progbuses_id DESC
         LIMIT {$limit}
     ";
@@ -3621,7 +3623,52 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
 <div class="modal fade" id="modalBus" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1" id="modalBusTitle">Asignar bus</h5><div class="small text-white-50" id="modalBusSubtitle"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="row g-3 mb-3 align-items-center"><div class="col-lg-8"><input type="text" id="busSearch" class="form-control" placeholder="Buscar por bus, placa o tipo..."></div><div class="col-lg-4 text-lg-end fw-bold text-secondary" id="busSelectedLabel">Seleccionado: ninguno</div></div><div class="bus-list" id="busList"></div></div><div class="modal-footer bg-white"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnConfirmBus">Confirmar</button></div></div></div></div>
 
-<div class="modal fade" id="modalHistorial" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Historial de movimientos</h5><div class="small text-white-50">Trazabilidad de inserciones, cambios, retiros, inhabilitaciones y reactivaciones.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div id="historialContainer"></div></div></div></div></div>
+<div class="modal fade" id="modalHistorial" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Historial de movimientos</h5>
+          <div class="small text-white-50">
+            Trazabilidad de inserciones, cambios, retiros, inhabilitaciones y reactivaciones.
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-bold text-secondary mb-2">
+            Buscar en historial
+          </label>
+          <input 
+            type="text" 
+            id="historialSearch" 
+            class="form-control" 
+            placeholder="Busca por usuario, bus, placa, origen, destino, motivo, hora o fecha..."
+            autocomplete="off"
+          >
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <button type="button" class="btn btn-outline-warning btn-sm" id="btnFiltroTransbordoHistorial">
+              <i class="bi bi-arrow-left-right me-1"></i>
+              Solo transbordos
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="btnLimpiarFiltroHistorial">
+              <i class="bi bi-x-circle me-1"></i>
+              Limpiar filtros
+            </button>
+          </div>
+          <div class="small text-secondary mt-2" id="historialSearchInfo">
+            El filtro se aplica sobre el historial cargado, sin consultar nuevamente la base de datos.
+          </div>
+        </div>
+
+        <div id="historialContainer"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="modal fade" id="modalInhabilitados" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Horarios inhabilitados</h5><div class="small text-white-50">Desde aquí puedes reactivar horarios sin mostrarlos en la pizarra principal.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div id="inhabilitadosContainer"></div></div></div></div></div>
 
@@ -3730,6 +3777,7 @@ window.horariosInitialError = <?= json_encode($initialError, JSON_UNESCAPED_UNIC
     busList: [],
     disabledRows: [],
     historialRows: [],
+    historialSoloTransbordo: false,
     pendingMotivoConfig: null,
     pendingMotivoResolver: null,
     editRow: null,
@@ -3790,7 +3838,11 @@ txtModoImagen: $('txtModoImagen'),
     busList: $('busList'),
     btnConfirmBus: $('btnConfirmBus'),
     historialContainer: $('historialContainer'),
+    historialSearch: $('historialSearch'),
+    historialSearchInfo: $('historialSearchInfo'),
     inhabilitadosContainer: $('inhabilitadosContainer'),
+    btnFiltroTransbordoHistorial: $('btnFiltroTransbordoHistorial'),
+    btnLimpiarFiltroHistorial: $('btnLimpiarFiltroHistorial'),
     };
 
     function horarioMostrarLoader() {
@@ -5215,7 +5267,51 @@ async function saveNewHorario(){
     state.editRow = null;
     showAlert('success','Horario actualizado correctamente.');
   }
-  function getMotivoConfig(config){ const accion=config.accion||'CAMBIO'; if(accion==='CAMBIO') return { titulo:config.titulo||'Motivo del cambio de bus', options:[{key:'NORMAL',label:'Cambio normal del día',preview:'Cambio de unidad por programación normal del día'}, ...(config.permitirTaller===false?[]:[{key:'TALLER',label:'TALLER',preview:'Cambio de unidad por envío a taller'}]), {key:'OTRO',label:'OTRO MOTIVO',preview:'Cambio de unidad por: '}], build:(sel,libre)=>sel==='NORMAL'?'Cambio de unidad por programación normal del día':sel==='TALLER'?'Cambio de unidad por envío a taller':`Cambio de unidad por: ${libre}`}; if(accion==='RETIRO') return { titulo:config.titulo||'Motivo del retiro de la unidad', options:[{key:'NORMAL',label:'Retiro normal del día',preview:'Retiro de unidad por programación normal del día'}, ...(config.permitirTaller===false?[]:[{key:'TALLER',label:'TALLER',preview:'TALLER'}]), {key:'OTRO',label:'OTRO MOTIVO',preview:'Retiro de unidad por: '}], build:(sel,libre)=>sel==='NORMAL'?'Retiro de unidad por programación normal del día':sel==='TALLER'?'TALLER':`Retiro de unidad por: ${libre}`}; if(accion==='INACTIVAR') return { titulo:config.titulo||'Motivo de inhabilitación del horario', options:[{key:'NORMAL',label:'Inactivación operativa',preview:'Horario inactivado por decisión operativa'},{key:'OTRO',label:'OTRO MOTIVO',preview:'Horario inactivado por: '}], build:(sel,libre)=>sel==='NORMAL'?'Horario inactivado por decisión operativa':`Horario inactivado por: ${libre}`}; if(accion==='ACTIVAR') return { titulo:config.titulo||'Motivo de activación del horario', options:[{key:'NORMAL',label:'Reactivación operativa',preview:'Horario reactivado para programación'},{key:'OTRO',label:'OTRO MOTIVO',preview:'Horario reactivado por: '}], build:(sel,libre)=>sel==='NORMAL'?'Horario reactivado para programación':`Horario reactivado por: ${libre}`}; return config; }
+  function getMotivoConfig(config){ const accion=config.accion||'CAMBIO'; 
+    if (accion === 'CAMBIO') {
+      return {
+        titulo: config.titulo || 'Motivo del cambio de bus',
+        options: [
+          {
+            key: 'NORMAL',
+            label: 'Cambio normal del día',
+            preview: 'Cambio de unidad por programación normal del día'
+          },
+          ...(config.permitirTaller === false ? [] : [
+            {
+              key: 'TALLER',
+              label: 'TALLER',
+              preview: 'Cambio de unidad por envío a taller'
+            }
+          ]),
+          {
+            key: 'TRANSBORDO',
+            label: 'TRANSBORDO',
+            preview: 'Transbordo operativo: unidad de reemplazo asignada para continuar el viaje hasta su destino'
+          },
+          {
+            key: 'OTRO',
+            label: 'OTRO MOTIVO',
+            preview: 'Cambio de unidad por: '
+          }
+        ],
+        build: (sel, libre) =>
+          sel === 'NORMAL'
+            ? 'Cambio de unidad por programación normal del día'
+            : sel === 'TALLER'
+              ? 'Cambio de unidad por envío a taller'
+              : sel === 'TRANSBORDO'
+                ? 'Transbordo operativo: unidad de reemplazo asignada por incidente en ruta para continuar el viaje hasta su destino'
+                : `Cambio de unidad por: ${libre}`
+      };
+    }
+
+    if(accion==='RETIRO') return { titulo:config.titulo||'Motivo del retiro de la unidad', options:[{key:'NORMAL',label:'Retiro normal del día',preview:'Retiro de unidad por programación normal del día'}, ...(config.permitirTaller===false?[]:[{key:'TALLER',label:'TALLER',preview:'TALLER'}]), {key:'OTRO',label:'OTRO MOTIVO',preview:'Retiro de unidad por: '}], build:(sel,libre)=>sel==='NORMAL'?'Retiro de unidad por programación normal del día':sel==='TALLER'?'TALLER':`Retiro de unidad por: ${libre}`}; 
+    
+    if(accion==='INACTIVAR') return { titulo:config.titulo||'Motivo de inhabilitación del horario', options:[{key:'NORMAL',label:'Inactivación operativa',preview:'Horario inactivado por decisión operativa'},{key:'OTRO',label:'OTRO MOTIVO',preview:'Horario inactivado por: '}], build:(sel,libre)=>sel==='NORMAL'?'Horario inactivado por decisión operativa':`Horario inactivado por: ${libre}`}; 
+    
+    if(accion==='ACTIVAR') return { titulo:config.titulo||'Motivo de activación del horario', options:[{key:'NORMAL',label:'Reactivación operativa',preview:'Horario reactivado para programación'},{key:'OTRO',label:'OTRO MOTIVO',preview:'Horario reactivado por: '}], build:(sel,libre)=>sel==='NORMAL'?'Horario reactivado para programación':`Horario reactivado por: ${libre}`}; return config; }
+
   function renderMotivoOptions(){ const conf=state.pendingMotivoConfig; if(!conf) return; els.motivoOptions.innerHTML=conf.options.map(opt=>`<div class="col-md-${conf.options.length>=3?'4':'6'}"><div class="motivo-option ${conf.selected===opt.key?'active':''}" data-key="${opt.key}"><strong>${esc(opt.label)}</strong><small>${esc(opt.preview)}</small></div></div>`).join(''); els.motivoOptions.querySelectorAll('.motivo-option').forEach(el=>el.addEventListener('click',()=>{ conf.selected=el.dataset.key; renderMotivoOptions(); })); const opt=conf.options.find(o=>o.key===conf.selected)||conf.options[0]; els.motivoPreview.textContent=opt.preview; els.motivoLibre.disabled=conf.selected!=='OTRO'; if(conf.selected!=='OTRO') els.motivoLibre.value=''; }
   function askMotivo(config){ const conf=getMotivoConfig(config||{}); state.pendingMotivoConfig={...conf,selected:'NORMAL'}; els.motivoTitulo.textContent=conf.titulo; els.motivoLibre.value=''; renderMotivoOptions(); modalMotivo.show(); return new Promise(resolve=>{ state.pendingMotivoResolver=resolve; }); }
   function resolveMotivo(value){ const resolver=state.pendingMotivoResolver; state.pendingMotivoResolver=null; state.pendingMotivoConfig=null; if(typeof resolver==='function') resolver(value); }
@@ -5280,6 +5376,221 @@ function renderBusList() {
 }
   
   async function openBusModal(row,mode){ state.currentRow=row; state.busMode=mode; state.busSelection=null; els.busSearch.value=''; els.modalBusTitle.textContent=mode==='asignar'?'Asignar bus al horario':'Cambiar bus del horario'; els.modalBusSubtitle.textContent=`${fmtHora(row.clm_progbuses_horasalida)} | ${row.oficina_origen||'—'} → ${row.oficina_destino||'—'}`; modalBus.show(); await loadBusList(); }
+function horaToMinutosOperativos(hora) {
+  const h = fmtHora(hora);
+  if (!h || !h.includes(':')) return null;
+
+  const [hhRaw, mmRaw] = h.split(':');
+  const hh = parseInt(hhRaw, 10);
+  const mm = parseInt(mmRaw, 10);
+
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+
+  // Regla operativa:
+  // 00:00 a 04:59 pertenecen al siguiente día operativo
+  let total = (hh * 60) + mm;
+  if (hh >= 0 && hh <= 4) {
+    total += 24 * 60;
+  }
+
+  return total;
+}
+
+function evaluarAlertaDescanso8Horas(idplacaNueva, rowDestino) {
+  const nuevaHoraMin = horaToMinutosOperativos(
+    rowDestino.clm_progbuses_horasalida || rowDestino.hora_fmt
+  );
+
+  if (nuevaHoraMin === null) return null;
+
+  const horarios = Array.isArray(state.snapshot.horarios)
+    ? state.snapshot.horarios
+    : [];
+
+  const conflictos = horarios
+    .filter(r => {
+      if (String(r.clm_progbuses_idplaca || '') !== String(idplacaNueva || '')) return false;
+      if (String(r.clm_progbuses_progid || '') === String(rowDestino.clm_progbuses_progid || '')) return false;
+      if (Number(r.clm_progbuses_estado || 0) !== 1) return false;
+      return true;
+    })
+    .map(r => {
+      const horaRefMin = horaToMinutosOperativos(r.clm_progbuses_horasalida || r.hora_fmt);
+      if (horaRefMin === null) return null;
+
+      const diferenciaMin = Math.abs(nuevaHoraMin - horaRefMin);
+      const diferenciaHoras = diferenciaMin / 60;
+
+      return {
+        row: r,
+        diferenciaMin,
+        diferenciaHoras
+      };
+    })
+    .filter(x => x && x.diferenciaMin < (8 * 60))
+    .sort((a, b) => a.diferenciaMin - b.diferenciaMin);
+
+  if (!conflictos.length) return null;
+
+  const c = conflictos[0];
+  const horas = Math.floor(c.diferenciaMin / 60);
+  const minutos = c.diferenciaMin % 60;
+
+  return {
+    horarioRelacionado: c.row,
+    diferenciaMin: c.diferenciaMin,
+    diferenciaTexto: `${horas}h ${String(minutos).padStart(2, '0')}min`
+  };
+}
+
+function confirmarDescanso8Horas(alerta, busSeleccionado, rowDestino) {
+  return new Promise(resolve => {
+    const modalId = 'modalAlertaDescanso8Horas';
+    const anterior = document.getElementById(modalId);
+    if (anterior) anterior.remove();
+
+    const rel = alerta.horarioRelacionado || {};
+    const horaActual = fmtHora(rowDestino.clm_progbuses_horasalida || rowDestino.hora_fmt);
+    const horaRelacionada = fmtHora(rel.clm_progbuses_horasalida || rel.hora_fmt);
+
+    const html = `
+      <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content" style="border:0;border-radius:22px;overflow:hidden;">
+            
+            <div class="modal-header" style="background:#b45309;color:white;border:0;">
+              <div>
+                <h5 class="modal-title mb-1">
+                  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                  Alerta de intervalo operativo
+                </h5>
+                <div class="small text-white-50">
+                  Validación preventiva antes de programar la unidad.
+                </div>
+              </div>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body" style="background:#fffaf0;">
+              <div class="alert mb-3" style="background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12;border-radius:16px;">
+                <div class="fw-bold mb-1">La unidad está por debajo del intervalo mínimo de 8 horas.</div>
+                <div>
+                  El sistema detectó que el vehículo tiene una programación cercana y aún no cumple el tiempo operativo recomendado.
+                </div>
+              </div>
+
+              <div class="p-3 rounded-4 bg-white border mb-3">
+                <div class="fw-bold text-dark mb-2">
+                  ${esc(busSeleccionado.bus || 'UNIDAD')} · ${esc(busSeleccionado.placa || '—')}
+                </div>
+
+                <div class="small text-secondary">Horario relacionado</div>
+                <div class="fw-bold text-dark mb-2">
+                  ${esc(horaRelacionada || '—')} | ${esc(rel.oficina_origen || '—')} → ${esc(rel.oficina_destino || '—')}
+                </div>
+
+                <div class="small text-secondary">Nuevo horario a asignar</div>
+                <div class="fw-bold text-dark mb-2">
+                  ${esc(horaActual || '—')} | ${esc(rowDestino.oficina_origen || '—')} → ${esc(rowDestino.oficina_destino || '—')}
+                </div>
+
+                <div class="mt-2">
+                  <span class="badge rounded-pill text-bg-warning">
+                    Diferencia detectada: ${esc(alerta.diferenciaTexto)}
+                  </span>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-4 border" style="background:#ffffff;">
+                <label class="form-label fw-bold text-dark mb-2">
+                  Contraseña de autorización
+                </label>
+                <input 
+                  type="password" 
+                  class="form-control" 
+                  id="inputPasswordDescanso8h"
+                  placeholder="Ingresa la contraseña para autorizar"
+                  autocomplete="off"
+                >
+                <div class="small text-secondary mt-2">
+                  Esta validación confirma que el movimiento fue revisado y autorizado.
+                </div>
+                <div class="small fw-bold text-danger mt-2 d-none" id="errorPasswordDescanso8h">
+                  Contraseña incorrecta. No se realizará el movimiento.
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer bg-white">
+              <button type="button" class="btn btn-light" id="btnCancelarDescanso8h">
+                Cancelar
+              </button>
+              <button type="button" class="btn btn-warning text-dark fw-bold" id="btnConfirmarDescanso8h">
+                Sí, realizar movimiento
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    const el = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(el, {
+      backdrop: 'static',
+      keyboard: false
+    });
+
+    const inputPass = document.getElementById('inputPasswordDescanso8h');
+    const errorPass = document.getElementById('errorPasswordDescanso8h');
+
+    const cerrar = (valor) => {
+      resolve(valor);
+      modal.hide();
+    };
+
+    document.getElementById('btnCancelarDescanso8h').addEventListener('click', () => {
+      cerrar(false);
+    });
+
+    document.getElementById('btnConfirmarDescanso8h').addEventListener('click', () => {
+      const pass = String(inputPass.value || '').trim();
+
+      if (pass !== 'phcdn26') {
+        errorPass.classList.remove('d-none');
+        inputPass.classList.add('is-invalid');
+        inputPass.focus();
+        return;
+      }
+
+      cerrar(true);
+    });
+
+    inputPass.addEventListener('input', () => {
+      errorPass.classList.add('d-none');
+      inputPass.classList.remove('is-invalid');
+    });
+
+    inputPass.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('btnConfirmarDescanso8h').click();
+      }
+    });
+
+    el.addEventListener('shown.bs.modal', () => {
+      inputPass.focus();
+    });
+
+    el.addEventListener('hidden.bs.modal', () => {
+      el.remove();
+    }, { once: true });
+
+    modal.show();
+  });
+}
+
 async function confirmBusSelection() {
   if (!state.currentRow || !state.busSelection) {
     showAlert('warning', 'Selecciona un bus disponible.');
@@ -5294,6 +5605,28 @@ async function confirmBusSelection() {
     return;
   }
 
+  const alerta8h = evaluarAlertaDescanso8Horas(
+    state.busSelection.clm_placas_id,
+    state.currentRow
+  );
+
+  if (alerta8h) {
+    modalBus.hide();
+    await waitModalHidden($('modalBus'));
+
+    const continuar = await confirmarDescanso8Horas(
+      alerta8h,
+      state.busSelection,
+      state.currentRow
+    );
+
+    if (!continuar) {
+      modalBus.show();
+      setTimeout(() => renderBusList(), 150);
+      return;
+    }
+  }
+
   if (state.busMode === 'asignar') {
     await performAction(
       'asignar_bus',
@@ -5303,11 +5636,11 @@ async function confirmBusSelection() {
       },
       'Bus asignado correctamente.'
     );
+
     modalBus.hide();
     return;
   }
 
-  // CAMBIAR BUS: cerrar primero el modal anterior para evitar superposición
   modalBus.hide();
   await waitModalHidden($('modalBus'));
 
@@ -5317,7 +5650,6 @@ async function confirmBusSelection() {
     permitirTaller: true
   });
 
-  // Si cancelan el motivo, regresamos al modal de selección de unidad
   if (!motivo) {
     modalBus.show();
     setTimeout(() => renderBusList(), 150);
@@ -5334,6 +5666,8 @@ async function confirmBusSelection() {
     'Bus cambiado correctamente.'
   );
 }
+
+
   async function performAction(action,payload,successMessage=''){
   if (state.isBusy) return;
 
@@ -5346,7 +5680,148 @@ async function confirmBusSelection() {
 
   if(successMessage) showAlert('success',successMessage);
 }
-  async function openHistorial(){ modalHistorial.show(); els.historialContainer.innerHTML=`<div class="empty-state">Cargando historial...</div>`; const data=await fetchJson('historial',{query:'limit=300'}); state.historialRows=data.historial||[]; if(!state.historialRows.length){ els.historialContainer.innerHTML=`<div class="empty-state">Sin historial disponible.</div>`; return; } els.historialContainer.innerHTML=state.historialRows.map(r=>{ let bdg=badge(r.accion||'—','warning'); if((r.accion||'').toUpperCase()==='INSERT') bdg=badge('INSERT','success'); if((r.accion||'').toUpperCase()==='DELETE') bdg=badge('DELETE','danger'); return `<div class="historial-card"><div class="historial-card__top"><div>${bdg}</div><div class="small text-secondary">${esc(r.fechaevento||'—')}</div></div><div class="fw-bold text-dark mb-1">${esc(fmtHora(r.clm_progbuses_horasalida||r.hora_fmt))} | ${esc(r.oficina_origen||'—')} → ${esc(r.oficina_destino||'—')}</div><div class="text-secondary mb-2">Bus: ${esc(r.bus||'SIN BUS')} · Placa: ${esc(r.placa||'—')}</div><div class="text-dark">Motivo: ${esc(r.motivo||'Sin motivo registrado')}</div></div>`; }).join(''); }
+function historialTextoBuscable(r) {
+  return [
+    r.accion,
+    r.fechaevento,
+    r.progid,
+    r.usuario_realizo,
+    r.clm_progbuses_idusuario,
+    fmtHora(r.clm_progbuses_horasalida || r.hora_fmt),
+    r.oficina_origen,
+    r.oficina_destino,
+    r.bus,
+    r.placa,
+    r.motivo
+  ].join(' | ').toLowerCase();
+}
+
+function renderHistorial() {
+  const q = (els.historialSearch?.value || '').trim().toLowerCase();
+  const rowsBase = Array.isArray(state.historialRows) ? state.historialRows : [];
+
+  let rows = rowsBase;
+
+  if (state.historialSoloTransbordo) {
+    rows = rows.filter(r => {
+      const motivo = String(r.motivo || '').toLowerCase();
+      return motivo.includes('transbordo');
+    });
+  }
+
+  if (q) {
+    rows = rows.filter(r => historialTextoBuscable(r).includes(q));
+  }
+
+  if (els.btnFiltroTransbordoHistorial) {
+    els.btnFiltroTransbordoHistorial.classList.toggle('btn-warning', state.historialSoloTransbordo);
+    els.btnFiltroTransbordoHistorial.classList.toggle('btn-outline-warning', !state.historialSoloTransbordo);
+    els.btnFiltroTransbordoHistorial.innerHTML = state.historialSoloTransbordo
+      ? `<i class="bi bi-check-circle me-1"></i> Transbordos activos`
+      : `<i class="bi bi-arrow-left-right me-1"></i> Solo transbordos`;
+  }
+
+  if (els.btnLimpiarFiltroHistorial) {
+    const hayFiltros = !!q || state.historialSoloTransbordo;
+    els.btnLimpiarFiltroHistorial.classList.toggle('d-none', !hayFiltros);
+  }
+
+  if (els.historialSearchInfo) {
+    let textoFiltro = 'Mostrando historial cargado.';
+
+    if (state.historialSoloTransbordo && q) {
+      textoFiltro = `Mostrando ${rows.length} de ${rowsBase.length} movimiento(s) cargado(s), filtrado por transbordo y texto.`;
+    } else if (state.historialSoloTransbordo) {
+      textoFiltro = `Mostrando ${rows.length} transbordo(s) de ${rowsBase.length} movimiento(s) cargado(s).`;
+    } else if (q) {
+      textoFiltro = `Mostrando ${rows.length} de ${rowsBase.length} movimiento(s) cargado(s).`;
+    } else {
+      textoFiltro = `Mostrando ${rowsBase.length} movimiento(s) cargado(s). El filtro no realiza consultas adicionales.`;
+    }
+
+    els.historialSearchInfo.textContent = textoFiltro;
+  }
+
+  if (!rowsBase.length) {
+    els.historialContainer.innerHTML = `<div class="empty-state">Sin historial disponible.</div>`;
+    return;
+  }
+
+  if (!rows.length) {
+    els.historialContainer.innerHTML = `<div class="empty-state">No se encontraron movimientos con los filtros aplicados.</div>`;
+    return;
+  }
+
+  els.historialContainer.innerHTML = rows.map(r => {
+    let bdg = badge(r.accion || '—', 'warning');
+
+    if ((r.accion || '').toUpperCase() === 'INSERT') {
+      bdg = badge('INSERT', 'success');
+    }
+
+    if ((r.accion || '').toUpperCase() === 'DELETE') {
+      bdg = badge('DELETE', 'danger');
+    }
+
+    const usuario = r.usuario_realizo || `Usuario #${r.clm_progbuses_idusuario || '—'}`;
+    const esTransbordo = String(r.motivo || '').toLowerCase().includes('transbordo');
+
+    return `
+      <div class="historial-card ${esTransbordo ? 'border-warning' : ''}">
+        <div class="historial-card__top">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            ${bdg}
+            ${esTransbordo ? `<span class="badge rounded-pill text-bg-warning"><i class="bi bi-arrow-left-right me-1"></i> TRANSBORDO</span>` : ''}
+          </div>
+          <div class="small text-secondary">${esc(r.fechaevento || '—')}</div>
+        </div>
+
+        <div class="fw-bold text-dark mb-1">
+          ${esc(fmtHora(r.clm_progbuses_horasalida || r.hora_fmt))} |
+          ${esc(r.oficina_origen || '—')} → ${esc(r.oficina_destino || '—')}
+        </div>
+
+        <div class="text-secondary mb-2">
+          Bus: ${esc(r.bus || 'SIN BUS')} · Placa: ${esc(r.placa || '—')}
+        </div>
+
+        <div class="small mb-2">
+          <span class="badge rounded-pill text-bg-light border text-dark">
+            <i class="bi bi-person-circle me-1"></i>
+            Realizado por: ${esc(usuario)}
+          </span>
+        </div>
+
+        <div class="text-dark">
+          <strong>Motivo:</strong> ${esc(r.motivo || 'Sin motivo registrado')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function openHistorial() {
+  modalHistorial.show();
+
+  if (els.historialSearch) {
+    els.historialSearch.value = '';
+  }
+
+  state.historialSoloTransbordo = false;
+
+  els.historialContainer.innerHTML = `<div class="empty-state">Cargando historial...</div>`;
+
+  const data = await fetchJson('historial', { query: 'limit=300' });
+
+  state.historialRows = data.historial || [];
+
+  renderHistorial();
+
+  setTimeout(() => {
+    if (els.historialSearch) els.historialSearch.focus();
+  }, 250);
+}
+
   async function openInhabilitados(){ modalInhabilitados.show(); els.inhabilitadosContainer.innerHTML=`<div class="empty-state">Cargando horarios inhabilitados...</div>`; const data=await fetchJson('inhabilitados'); state.disabledRows=data.inhabilitados||[]; renderInhabilitados(); }
   function renderInhabilitados(){ const rows=state.disabledRows||[]; if(!rows.length){ els.inhabilitadosContainer.innerHTML=`<div class="empty-state">No hay horarios inhabilitados.</div>`; return; } els.inhabilitadosContainer.innerHTML=rows.map(r=>`<div class="inh-card"><div class="inh-card__top"><div><div class="fw-bold text-dark">${esc(fmtHora(r.clm_progbuses_horasalida||r.hora_fmt))} | ${esc(r.oficina_origen||'—')} → ${esc(r.oficina_destino||'—')}</div><div class="text-secondary small mt-1">Bus anterior: ${esc(r.bus||'SIN BUS')} · Placa: ${esc(r.placa||'—')}</div></div>${badge('INHABILITADO','danger')}</div><div class="text-secondary small mb-3">Último motivo: ${esc(r.clm_progbuses_motivo||'—')}</div><div class="text-end"><button class="btn btn-success btn-sm" data-reactivar="${r.clm_progbuses_progid}"><i class="bi bi-check-circle me-1"></i>Activar horario</button></div></div>`).join(''); els.inhabilitadosContainer.querySelectorAll('[data-reactivar]').forEach(btn=>btn.addEventListener('click',async()=>{ const row=rows.find(r=>String(r.clm_progbuses_progid)===String(btn.dataset.reactivar)); if(!row) return; const motivo=await askMotivo({accion:'ACTIVAR',titulo:'Motivo de activación del horario',permitirTaller:false}); if(!motivo) return; await performAction('activar_horario',{progid:row.clm_progbuses_progid,motivo},'Horario activado correctamente.'); state.disabledRows=state.disabledRows.filter(r=>String(r.clm_progbuses_progid)!==String(row.clm_progbuses_progid)); renderInhabilitados(); })); }
 const btnExpandirAcordeones = document.getElementById('btnExpandirAcordeones');
@@ -5426,7 +5901,29 @@ els.btnDescargarTabla.addEventListener('click', async () => {
   }
 });
 
-els.btnGuardarNuevoHorario.addEventListener('click',()=>saveNewHorario().catch(err=>showAlert('danger',err.message||'No se pudo crear el horario.'))); els.crearOrigen.addEventListener('change',updateCreatePreview); els.crearDestino.addEventListener('change',updateCreatePreview); els.crearHora.addEventListener('input',updateCreatePreview); els.btnSwapOficinas.addEventListener('click',()=>{ const o=els.crearOrigen.value; const d=els.crearDestino.value; els.crearOrigen.value=d; els.crearDestino.value=o; updateCreatePreview(); }); els.btnHistorial.addEventListener('click',()=>openHistorial().catch(err=>showAlert('danger',err.message||'No se pudo cargar el historial.'))); els.btnInhabilitados.addEventListener('click',()=>openInhabilitados().catch(err=>showAlert('danger',err.message||'No se pudieron cargar los horarios inhabilitados.'))); els.editarHoraInput.addEventListener('input',updateEditPreview); els.editarDestino.addEventListener('change', updateEditPreview); els.btnGuardarEditarHora.addEventListener('click',()=>saveEditedHora().catch(err=>showAlert('danger',err.message||'No se pudo actualizar la hora.'))); els.btnAceptarMotivo.addEventListener('click',acceptMotivo); els.busSearch.addEventListener('input',renderBusList); els.btnConfirmBus.addEventListener('click',()=>confirmBusSelection().catch(err=>showAlert('danger',err.message||'No se pudo completar la operación con el bus.')));
+els.btnGuardarNuevoHorario.addEventListener('click',()=>saveNewHorario().catch(err=>showAlert('danger',err.message||'No se pudo crear el horario.'))); els.crearOrigen.addEventListener('change',updateCreatePreview); els.crearDestino.addEventListener('change',updateCreatePreview); els.crearHora.addEventListener('input',updateCreatePreview); els.btnSwapOficinas.addEventListener('click',()=>{ const o=els.crearOrigen.value; const d=els.crearDestino.value; els.crearOrigen.value=d; els.crearDestino.value=o; updateCreatePreview(); }); els.btnHistorial.addEventListener('click',()=>openHistorial().catch(err=>showAlert('danger',err.message||'No se pudo cargar el historial.'))); els.btnInhabilitados.addEventListener('click',()=>openInhabilitados().catch(err=>showAlert('danger',err.message||'No se pudieron cargar los horarios inhabilitados.'))); els.editarHoraInput.addEventListener('input',updateEditPreview); els.editarDestino.addEventListener('change', updateEditPreview); els.btnGuardarEditarHora.addEventListener('click',()=>saveEditedHora().catch(err=>showAlert('danger',err.message||'No se pudo actualizar la hora.'))); els.btnAceptarMotivo.addEventListener('click',acceptMotivo); els.busSearch.addEventListener('input',renderBusList); 
+if (els.historialSearch) {
+  els.historialSearch.addEventListener('input', renderHistorial);
+}
+if (els.btnFiltroTransbordoHistorial) {
+  els.btnFiltroTransbordoHistorial.addEventListener('click', () => {
+    state.historialSoloTransbordo = !state.historialSoloTransbordo;
+    renderHistorial();
+  });
+}
+
+if (els.btnLimpiarFiltroHistorial) {
+  els.btnLimpiarFiltroHistorial.addEventListener('click', () => {
+    state.historialSoloTransbordo = false;
+
+    if (els.historialSearch) {
+      els.historialSearch.value = '';
+    }
+
+    renderHistorial();
+  });
+}
+els.btnConfirmBus.addEventListener('click',()=>confirmBusSelection().catch(err=>showAlert('danger',err.message||'No se pudo completar la operación con el bus.')));
   fillQuickTimes(els.crearHora,els.quickTimeWrap,updateCreatePreview); fillQuickTimes(els.editarHoraInput,els.quickEditTimeWrap,updateEditPreview); updateAll();
 })();
 </script>
