@@ -92,7 +92,53 @@ function horario_format_hora(?string $value): string {
     $sql = horario_time_to_sql($value ?? '');
     return $sql ? substr($sql, 0, 5) : '';
 }
+function horario_normalizar_ruta(?string $value): ?string {
+    $value = trim((string)$value);
 
+    if ($value === '') {
+        return null;
+    }
+
+    $partes = array_filter(array_map('trim', explode(',', $value)), fn($x) => $x !== '');
+    $ids = [];
+
+    foreach ($partes as $p) {
+        if (!ctype_digit($p)) {
+            throw new RuntimeException('La ruta contiene una sede inválida.');
+        }
+
+        $id = (int)$p;
+
+        if ($id <= 0) {
+            throw new RuntimeException('La ruta contiene una sede inválida.');
+        }
+
+        if (!in_array($id, $ids, true)) {
+            $ids[] = $id;
+        }
+    }
+
+    return count($ids) ? implode(',', $ids) : null;
+}
+
+function horario_ruta_to_nombres(?string $ruta, array $mapSedes): string {
+    $ruta = trim((string)$ruta);
+
+    if ($ruta === '') {
+        return '';
+    }
+
+    $nombres = [];
+
+    foreach (explode(',', $ruta) as $idRaw) {
+        $id = (int)trim($idRaw);
+        if ($id > 0 && isset($mapSedes[$id])) {
+            $nombres[] = $mapSedes[$id];
+        }
+    }
+
+    return implode(' → ', $nombres);
+}
 function horario_operational_dates(): array {
     $tz = new DateTimeZone('America/Lima');
     $base = new DateTime('now', $tz);
@@ -268,6 +314,7 @@ $sql = "
         pb.clm_progbuses_idplaca,
         pb.clm_progbuses_idoficina_origen,
         pb.clm_progbuses_idoficina_destino,
+        pb.clm_progbuses_ruta,
         pb.clm_progbuses_horasalida,
         pb.clm_progbuses_estado,
         pb.clm_progbuses_idusuario,
@@ -394,6 +441,7 @@ function horario_fetch_historial(mysqli $conn, int $limit = 300): array {
             h.clm_progbuses_idplaca,
             h.clm_progbuses_idoficina_origen,
             h.clm_progbuses_idoficina_destino,
+            h.clm_progbuses_ruta,
             h.clm_progbuses_horasalida,
             h.clm_progbuses_estado,
             h.clm_progbuses_idusuario,
@@ -480,14 +528,45 @@ if (isset($_GET['ajax'])) {
         if ($ajax === 'create_horario') {
             $idOrigen = (int)($_POST['idof_origen'] ?? 0);
             $idDestino = (int)($_POST['idof_destino'] ?? 0);
+            $ruta = horario_normalizar_ruta($_POST['ruta'] ?? '');
             $hora = horario_time_to_sql($_POST['horasalida'] ?? '');
             if ($idOrigen <= 0 || $idDestino <= 0) throw new RuntimeException('Selecciona origen y destino válidos.');
             if ($idOrigen === $idDestino) throw new RuntimeException('Origen y destino no pueden ser iguales.');
+            if ($ruta !== null) {
+                $rutaIds = array_map('intval', explode(',', $ruta));
+
+                if (in_array($idOrigen, $rutaIds, true)) {
+                    throw new RuntimeException('La ruta no puede incluir la oficina de origen.');
+                }
+
+                if (in_array($idDestino, $rutaIds, true)) {
+                    throw new RuntimeException('La ruta no puede incluir la oficina de destino.');
+                }
+            }
             if (!$hora) throw new RuntimeException('La hora de salida es obligatoria.');
-            $sql = "INSERT INTO tb_progbuses (clm_progbuses_fechacreated, clm_progbuses_idplaca, clm_progbuses_idoficina_origen, clm_progbuses_idoficina_destino, clm_progbuses_horasalida, clm_progbuses_estado, clm_progbuses_idusuario, clm_progbuses_motivo) VALUES (" . horario_now_peru_sql() . ", NULL, ?, ?, ?, 1, ?, 'Creación inicial del horario')";
-            $stmt = $conn->prepare($sql);
-            if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
-            $stmt->bind_param('iisi', $idOrigen, $idDestino, $hora, $horario_uid);
+
+              $sql = "
+                  INSERT INTO tb_progbuses (
+                      clm_progbuses_fechacreated,
+                      clm_progbuses_idplaca,
+                      clm_progbuses_idoficina_origen,
+                      clm_progbuses_idoficina_destino,
+                      clm_progbuses_ruta,
+                      clm_progbuses_horasalida,
+                      clm_progbuses_estado,
+                      clm_progbuses_idusuario,
+                      clm_progbuses_motivo
+                  ) VALUES (
+                      " . horario_now_peru_sql() . ",
+                      NULL,
+                      ?, ?, ?, ?, 1, ?, 'Creación inicial del horario'
+                  )
+              ";
+
+              $stmt = $conn->prepare($sql);
+              if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
+              $stmt->bind_param('iissi', $idOrigen, $idDestino, $ruta, $hora, $horario_uid);
+
             if (!$stmt->execute()) { $err = $stmt->error ?: horario_mysqli_error($conn); $stmt->close(); throw new RuntimeException($err); }
             $stmt->close();
             $conn->commit();
@@ -498,6 +577,7 @@ if (isset($_GET['ajax'])) {
             $progid = (int)($_POST['progid'] ?? 0);
             $nuevaHora = horario_time_to_sql($_POST['horasalida'] ?? '');
             $nuevoDestino = (int)($_POST['idof_destino'] ?? 0);
+            $nuevaRuta = horario_normalizar_ruta($_POST['ruta'] ?? '');
 
             if ($progid <= 0 || !$nuevaHora || $nuevoDestino <= 0) {
                 throw new RuntimeException('Datos incompletos para editar el horario.');
@@ -508,6 +588,7 @@ if (isset($_GET['ajax'])) {
                     pb.clm_progbuses_horasalida,
                     pb.clm_progbuses_idoficina_origen,
                     pb.clm_progbuses_idoficina_destino,
+                    pb.clm_progbuses_ruta,
                     IFNULL(o1.clm_sedes_abr, '') AS origen,
                     IFNULL(o2.clm_sedes_abr, '') AS destino_actual
                 FROM tb_progbuses pb
@@ -538,7 +619,17 @@ if (isset($_GET['ajax'])) {
             if ($idOrigenActual === $nuevoDestino) {
                 throw new RuntimeException('El destino no puede ser igual al origen.');
             }
+            if ($nuevaRuta !== null) {
+                $rutaIds = array_map('intval', explode(',', $nuevaRuta));
 
+                if (in_array($idOrigenActual, $rutaIds, true)) {
+                    throw new RuntimeException('La ruta no puede incluir la oficina de origen.');
+                }
+
+                if (in_array($nuevoDestino, $rutaIds, true)) {
+                    throw new RuntimeException('La ruta no puede incluir la oficina de destino.');
+                }
+            }
             $stmt = $conn->prepare("
                 SELECT clm_sedes_abr 
                 FROM tb_sedes 
@@ -566,9 +657,12 @@ if (isset($_GET['ajax'])) {
 
             $cambioHora = ($horaAnterior !== $horaNuevaFmt);
             $cambioDestino = ($idDestinoActual !== $nuevoDestino);
+            $rutaAnterior = trim((string)($row['clm_progbuses_ruta'] ?? ''));
+            $rutaNueva = trim((string)($nuevaRuta ?? ''));
 
-            if (!$cambioHora && !$cambioDestino) {
-                throw new RuntimeException('La hora y el destino son iguales a los actuales.');
+            $cambioRuta = ($rutaAnterior !== $rutaNueva);
+            if (!$cambioHora && !$cambioDestino && !$cambioRuta) {
+                throw new RuntimeException('La hora, el destino y la ruta son iguales a los actuales.');
             }
 
             $partesMotivo = [];
@@ -580,24 +674,27 @@ if (isset($_GET['ajax'])) {
             if ($cambioDestino) {
                 $partesMotivo[] = "destino de {$destinoAnteriorTxt} a {$destinoNuevoTxt}";
             }
-
+            if ($cambioRuta) {
+                $partesMotivo[] = "ruta actualizada";
+            }
             $motivoAuto = "Reprogramación de horario: " . implode(' y ', $partesMotivo);
 
             horario_set_hist_motivo($conn, $motivoAuto);
 
             $stmt = $conn->prepare("
-                UPDATE tb_progbuses 
-                SET 
-                    clm_progbuses_horasalida = ?,
-                    clm_progbuses_idoficina_destino = ?,
-                    clm_progbuses_idusuario = ?,
-                    clm_progbuses_motivo = NULL
-                WHERE clm_progbuses_progid = ?
+              UPDATE tb_progbuses 
+              SET 
+                  clm_progbuses_horasalida = ?,
+                  clm_progbuses_idoficina_destino = ?,
+                  clm_progbuses_ruta = ?,
+                  clm_progbuses_idusuario = ?,
+                  clm_progbuses_motivo = NULL
+              WHERE clm_progbuses_progid = ?
             ");
 
             if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
 
-            $stmt->bind_param('siii', $nuevaHora, $nuevoDestino, $horario_uid, $progid);
+            $stmt->bind_param('sisii', $nuevaHora, $nuevoDestino, $nuevaRuta, $horario_uid, $progid);
 
             if (!$stmt->execute()) {
                 $err = $stmt->error ?: horario_mysqli_error($conn);
@@ -3347,7 +3444,86 @@ aside img {
   font-size: .78rem;
   font-weight: 800;
 }
+.ruta-box {
+  background: #ffffff;
+  border: 1px solid #dbe6f0;
+  border-radius: 16px;
+  padding: 14px;
+}
 
+.ruta-box__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ruta-box__title {
+  font-weight: 900;
+  color: #243447;
+  font-size: 14px;
+}
+
+.ruta-box__hint {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ruta-list {
+  max-height: 190px;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.ruta-item {
+  border: 1px solid #dbe4ec;
+  background: #f8fbfe;
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: .16s ease;
+}
+
+.ruta-item:hover {
+  background: #edf6fe;
+  border-color: #9ecbf2;
+}
+
+.ruta-item input {
+  margin: 0;
+}
+
+.ruta-preview {
+  margin-top: 10px;
+  background: #eef5fc;
+  border: 1px solid #d6e6f5;
+  color: #243447;
+  border-radius: 12px;
+  padding: 9px 11px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.schedule-card__ruta {
+  background: #f3f8fd;
+  border: 1px solid #dbe8f3;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: .78rem;
+  color: #425466;
+  font-weight: 700;
+  line-height: 1.35;
+}
     </style>
 </head>
 
@@ -3602,7 +3778,30 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
 </div>
 
-<div class="modal fade" id="modalCrearHorario" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Crear nuevo horario</h5><div class="small text-white-50">Origen: solo sedes ORIGEN activas · Destino: todas las sedes activas</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="alert alert-light border rounded-4 mb-4"><div class="small text-secondary fw-bold mb-1">Vista previa</div><div class="fs-5 fw-bold text-dark" id="previewNuevoHorario">16:00 | Origen → Destino</div></div><div class="row g-3 mb-3"><div class="col-md-5"><label class="form-label fw-bold">Origen</label><select id="crearOrigen" class="form-select"></select></div><div class="col-md-2 d-flex align-items-end justify-content-center"><button type="button" class="btn btn-outline-secondary w-100" id="btnSwapOficinas"><i class="bi bi-arrow-left-right"></i></button></div><div class="col-md-5"><label class="form-label fw-bold">Destino</label><select id="crearDestino" class="form-select"></select></div></div><div class="row g-3 mb-3"><div class="col-md-4"><label class="form-label fw-bold">Hora de salida</label><input type="time" id="crearHora" class="form-control" step="300" value="16:00"></div><div class="col-md-8"><label class="form-label fw-bold">Horarios rápidos</label><div class="quick-time" id="quickTimeWrap"></div></div></div></div><div class="modal-footer bg-white"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnGuardarNuevoHorario">Guardar horario</button></div></div></div></div>
+<div class="modal fade" id="modalCrearHorario" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Crear nuevo horario</h5><div class="small text-white-50">Origen: solo sedes ORIGEN activas · Destino: todas las sedes activas</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="alert alert-light border rounded-4 mb-4"><div class="small text-secondary fw-bold mb-1">Vista previa</div><div class="fs-5 fw-bold text-dark" id="previewNuevoHorario">16:00 | Origen → Destino</div></div><div class="row g-3 mb-3"><div class="col-md-5"><label class="form-label fw-bold">Origen</label><select id="crearOrigen" class="form-select"></select></div><div class="col-md-2 d-flex align-items-end justify-content-center"><button type="button" class="btn btn-outline-secondary w-100" id="btnSwapOficinas"><i class="bi bi-arrow-left-right"></i></button></div><div class="col-md-5"><label class="form-label fw-bold">Destino</label><select id="crearDestino" class="form-select"></select></div></div><div class="row g-3 mb-3"><div class="col-md-4"><label class="form-label fw-bold">Hora de salida</label><input type="time" id="crearHora" class="form-control" step="300" value="16:00"></div><div class="col-md-8"><label class="form-label fw-bold">Horarios rápidos</label><div class="quick-time" id="quickTimeWrap"></div></div></div>
+<div class="ruta-box">
+  <div class="ruta-box__head">
+    <div>
+      <div class="ruta-box__title">
+        <i class="bi bi-signpost-split me-1"></i> Ruta intermedia
+      </div>
+      <div class="ruta-box__hint">
+        Selecciona las sedes por donde pasará la unidad. No se mostrará origen ni destino.
+      </div>
+    </div>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLimpiarRutaCrear">
+      Limpiar
+    </button>
+  </div>
+
+  <div class="ruta-list" id="crearRutaList"></div>
+
+  <div class="ruta-preview" id="crearRutaPreview">
+    Ruta: directa, sin sedes intermedias.
+  </div>
+</div>
+
+</div><div class="modal-footer bg-white"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnGuardarNuevoHorario">Guardar horario</button></div></div></div></div>
 
 <div class="modal fade" id="modalEditarHora" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Cambiar hora del horario</h5><div class="small text-white-50" id="editarHoraSubtitulo">Horario</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="alert alert-light border rounded-4 mb-4"><div class="small text-secondary fw-bold mb-1">Vista previa de reprogramación</div><div class="fs-5 fw-bold text-dark" id="previewEditarHora">00:00 → 00:00</div></div>
     <div class="mb-3">
@@ -3616,7 +3815,27 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     </div>
 
     <div class="quick-time" id="quickEditTimeWrap"></div>
+<div class="ruta-box mt-3">
+  <div class="ruta-box__head">
+    <div>
+      <div class="ruta-box__title">
+        <i class="bi bi-signpost-split me-1"></i> Ruta intermedia
+      </div>
+      <div class="ruta-box__hint">
+        Se excluye automáticamente el origen y el destino seleccionado.
+      </div>
+    </div>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLimpiarRutaEditar">
+      Limpiar
+    </button>
+  </div>
 
+  <div class="ruta-list" id="editarRutaList"></div>
+
+  <div class="ruta-preview" id="editarRutaPreview">
+    Ruta: directa, sin sedes intermedias.
+  </div>
+</div>
       </div><div class="modal-footer bg-white"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnGuardarEditarHora">Actualizar hora</button></div></div></div></div>
 
 <div class="modal fade" id="modalMotivo" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1" id="motivoTitulo">Motivo requerido</h5><div class="small text-white-50">Selecciona un motivo rápido o escribe uno personalizado.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="row g-3 mb-3" id="motivoOptions"></div><div class="alert alert-light border rounded-4 mb-3"><div class="small fw-bold text-secondary mb-1">Así quedará guardado el motivo en el historial</div><div id="motivoPreview" class="fw-bold text-dark"></div></div><div><label class="form-label fw-bold">Motivo libre</label><textarea id="motivoLibre" class="form-control" rows="4" placeholder="Escribe el motivo si elegiste OTRO"></textarea></div></div><div class="modal-footer bg-white"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnAceptarMotivo">Aceptar</button></div></div></div></div>
@@ -3816,15 +4035,23 @@ txtModoImagen: $('txtModoImagen'),
     crearOrigen: $('crearOrigen'),
     crearDestino: $('crearDestino'),
     crearHora: $('crearHora'),
+    crearRutaList: $('crearRutaList'),
+    crearRutaPreview: $('crearRutaPreview'),
+    btnLimpiarRutaCrear: $('btnLimpiarRutaCrear'),
     previewNuevoHorario: $('previewNuevoHorario'),
     btnGuardarNuevoHorario: $('btnGuardarNuevoHorario'),
     btnSwapOficinas: $('btnSwapOficinas'),
     quickTimeWrap: $('quickTimeWrap'),
     editarHoraSubtitulo: $('editarHoraSubtitulo'),
     editarHoraInput: $('editarHoraInput'),
+
     editarDestino: $('editarDestino'),
+    editarRutaList: $('editarRutaList'),
+    editarRutaPreview: $('editarRutaPreview'),
+    btnLimpiarRutaEditar: $('btnLimpiarRutaEditar'),
     previewEditarHora: $('previewEditarHora'),
     btnGuardarEditarHora: $('btnGuardarEditarHora'),
+
     quickEditTimeWrap: $('quickEditTimeWrap'),
     motivoTitulo: $('motivoTitulo'),
     motivoOptions: $('motivoOptions'),
@@ -3961,9 +4188,140 @@ function waitModalHidden(modalElement) {
     modalElement.addEventListener('hidden.bs.modal', handler, { once: true });
   });
 }
+function getSedeNombreById(id) {
+  const sedes = state.snapshot.oficinas_destino || [];
+  const row = sedes.find(o => String(o.clm_sedes_id) === String(id));
+  return row ? (row.oficina || `Sede ${id}`) : `Sede ${id}`;
+}
 
+function rutaToArray(ruta) {
+  return String(ruta || '')
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean);
+}
 
-  function getFilteredRows(){ const q=(els.filtro.value||'').trim().toLowerCase(); const rows=Array.isArray(state.snapshot.horarios)?state.snapshot.horarios:[]; if(!q) return rows; return rows.filter(r=>[r.clm_progbuses_progid,r.oficina_origen,r.oficina_destino,r.bus,r.placa,r.tipo_vehiculo,fmtHora(r.clm_progbuses_horasalida),(Number(r.clm_progbuses_estado)===1?'ACTIVO':'INACTIVO')].join(' | ').toLowerCase().includes(q)); }
+function getRutaSeleccionada(container) {
+  if (!container) return [];
+
+  return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(chk => String(chk.value))
+    .filter(Boolean);
+}
+
+function rutaIdsToTexto(ids) {
+  const arr = Array.isArray(ids) ? ids : rutaToArray(ids);
+
+  if (!arr.length) {
+    return 'directa, sin sedes intermedias';
+  }
+
+  return arr.map(id => getSedeNombreById(id)).join(' → ');
+}
+
+function renderRutaSelector({
+  container,
+  preview,
+  origenId,
+  destinoId,
+  selectedIds = []
+}) {
+  if (!container) return;
+
+  const sedes = state.snapshot.oficinas_destino || [];
+  const origen = String(origenId || '');
+  const destino = String(destinoId || '');
+
+  const selectedSet = new Set(
+    (selectedIds || [])
+      .map(String)
+      .filter(id => id && id !== origen && id !== destino)
+  );
+
+  const disponibles = sedes.filter(o => {
+    const id = String(o.clm_sedes_id || '');
+    return id && id !== origen && id !== destino;
+  });
+
+  if (!disponibles.length) {
+    container.innerHTML = `<div class="empty-state">No hay sedes disponibles para ruta intermedia.</div>`;
+    if (preview) preview.textContent = 'Ruta: directa, sin sedes intermedias.';
+    return;
+  }
+
+  container.innerHTML = disponibles.map(o => {
+    const id = String(o.clm_sedes_id);
+    const checked = selectedSet.has(id) ? 'checked' : '';
+
+    return `
+      <label class="ruta-item">
+        <input type="checkbox" value="${esc(id)}" ${checked}>
+        <span>${esc(o.oficina || `Sede ${id}`)}</span>
+      </label>
+    `;
+  }).join('');
+
+  const updatePreview = () => {
+    const ids = getRutaSeleccionada(container);
+    if (preview) preview.textContent = `Ruta: ${rutaIdsToTexto(ids)}`;
+  };
+
+  container.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+    chk.addEventListener('change', updatePreview);
+  });
+
+  updatePreview();
+}
+
+function refreshCrearRutaSelector() {
+  const selected = getRutaSeleccionada(els.crearRutaList);
+
+  renderRutaSelector({
+    container: els.crearRutaList,
+    preview: els.crearRutaPreview,
+    origenId: els.crearOrigen.value,
+    destinoId: els.crearDestino.value,
+    selectedIds: selected
+  });
+}
+
+function refreshEditarRutaSelector() {
+  if (!state.editRow) return;
+
+  const selected = getRutaSeleccionada(els.editarRutaList);
+
+  renderRutaSelector({
+    container: els.editarRutaList,
+    preview: els.editarRutaPreview,
+    origenId: state.editRow.clm_progbuses_idoficina_origen,
+    destinoId: els.editarDestino.value,
+    selectedIds: selected
+  });
+}
+
+function getFilteredRows(){
+  const q = (els.filtro.value || '').trim().toLowerCase();
+  const rows = Array.isArray(state.snapshot.horarios) ? state.snapshot.horarios : [];
+
+  if (!q) return rows;
+
+  return rows.filter(r => {
+    const rutaTexto = rutaIdsToTexto(r.clm_progbuses_ruta || '');
+
+    return [
+      r.clm_progbuses_progid,
+      r.oficina_origen,
+      r.oficina_destino,
+      rutaTexto,
+      r.bus,
+      r.placa,
+      r.tipo_vehiculo,
+      fmtHora(r.clm_progbuses_horasalida),
+      Number(r.clm_progbuses_estado) === 1 ? 'ACTIVO' : 'INACTIVO'
+    ].join(' | ').toLowerCase().includes(q);
+  });
+}
+
   function renderDates(){ const f=state.snapshot.fechas||{}; els.datesWrap.innerHTML = `<span class="horario-date-chip"><i class="bi bi-calendar-date me-2"></i>Día Operativo: <strong>${esc(f.fecha_base||'—')}</strong></span><span class="horario-date-chip"><i class="bi bi-arrow-right-circle me-2"></i>Siguiente día operativo: <strong>${esc(f.fecha_sig||'—')}</strong></span><span class="horario-date-chip"><i class="bi bi-clock me-2"></i>Corte diario: 00:00 a 04:59</span>`; }
   function renderSummary(){ const s=state.snapshot.summary||{}; els.statTotalActivos.textContent=s.total_activos??0; els.statSinBus.textContent=s.total_sin_bus??0; els.statBusesSinHorario.textContent=s.buses_sin_horario??0; els.statBusesTaller.textContent=s.buses_taller??0; }
 function renderSideList(container, rows, emptyText, includeMotivo = false) {
@@ -4033,7 +4391,13 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
   const metaTexto = tieneBus
     ? `Tipo: ${row.tipo_vehiculo || '—'} · Horario #${row.clm_progbuses_progid || '0'}`
     : `Pendiente de asignación · Horario #${row.clm_progbuses_progid || '0'}`;
-      
+  const rutaTexto = rutaIdsToTexto(row.clm_progbuses_ruta || '');
+  const rutaHtml = row.clm_progbuses_ruta
+    ? `<div class="schedule-card__ruta">
+        <i class="bi bi-signpost-split me-1"></i>
+        Ruta: ${esc(rutaTexto)}
+      </div>`
+    : '';
       const tallerNota = estaEnTaller
         ? `<div class="schedule-card__taller-note">
             <i class="bi bi-tools me-1"></i> Esta unidad está actualmente en taller.
@@ -4061,7 +4425,7 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
       }</div>
       <div class="schedule-card__unit">${esc(unidadTexto)}</div>
       <div class="schedule-card__meta">${esc(metaTexto)}</div>
-
+      ${rutaHtml}
       ${tallerNota}
 
       <div class="schedule-card__footer">
@@ -5171,9 +5535,35 @@ async function fetchJson(action, options = {}) {
 }
   async function refreshSnapshot(showOk=false){ const data=await fetchJson('snapshot'); state.snapshot=data; updateAll(); if(showOk) showAlert('success','Programación actualizada correctamente.'); }
   function populateOfficeSelects(){ const origenes=state.snapshot.oficinas_origen||[]; const destinos=state.snapshot.oficinas_destino||[]; els.crearOrigen.innerHTML=`<option value="">Selecciona origen</option>`+origenes.map(o=>`<option value="${o.clm_sedes_id}">${esc(o.oficina||`Sede ${o.clm_sedes_id}`)}</option>`).join(''); els.crearDestino.innerHTML=`<option value="">Selecciona destino</option>`+destinos.map(o=>`<option value="${o.clm_sedes_id}">${esc(o.oficina||`Sede ${o.clm_sedes_id}`)}</option>`).join(''); }
-  function updateCreatePreview(){ const origenTxt=els.crearOrigen.options[els.crearOrigen.selectedIndex]?.text||'Origen'; const destinoTxt=els.crearDestino.options[els.crearDestino.selectedIndex]?.text||'Destino'; const hora=els.crearHora.value||'16:00'; els.previewNuevoHorario.textContent=`${hora} | ${origenTxt} → ${destinoTxt}`; }
+  function updateCreatePreview(){
+    const origenTxt = els.crearOrigen.options[els.crearOrigen.selectedIndex]?.text || 'Origen';
+    const destinoTxt = els.crearDestino.options[els.crearDestino.selectedIndex]?.text || 'Destino';
+    const hora = els.crearHora.value || '16:00';
+    const rutaIds = getRutaSeleccionada(els.crearRutaList);
+    const rutaTxt = rutaIds.length ? ` | Ruta: ${rutaIdsToTexto(rutaIds)}` : '';
+
+    els.previewNuevoHorario.textContent = `${hora} | ${origenTxt} → ${destinoTxt}${rutaTxt}`;
+  }
+
   function fillQuickTimes(input, wrap, onChange){ wrap.innerHTML=quickTimes.map(h=>`<button type="button" class="btn btn-outline-secondary btn-sm" data-time="${h}">${h}</button>`).join(''); wrap.querySelectorAll('[data-time]').forEach(btn=>btn.addEventListener('click',()=>{ input.value=btn.dataset.time; onChange&&onChange(); })); }
-  function openCreateModal(){ populateOfficeSelects(); els.crearHora.value='16:00'; els.crearOrigen.value=''; els.crearDestino.value=''; updateCreatePreview(); modalCreate.show(); }
+  function openCreateModal(){
+    populateOfficeSelects();
+
+    els.crearHora.value = '16:00';
+    els.crearOrigen.value = '';
+    els.crearDestino.value = '';
+
+    renderRutaSelector({
+      container: els.crearRutaList,
+      preview: els.crearRutaPreview,
+      origenId: '',
+      destinoId: '',
+      selectedIds: []
+    });
+
+    updateCreatePreview();
+    modalCreate.show();
+  }
 async function saveNewHorario(){
   if (state.isBusy) return;
 
@@ -5190,10 +5580,13 @@ async function saveNewHorario(){
     return;
   }
 
+  const rutaIds = getRutaSeleccionada(els.crearRutaList);
+
   const fd=new FormData();
   fd.append('idof_origen',els.crearOrigen.value);
   fd.append('idof_destino',els.crearDestino.value);
   fd.append('horasalida',els.crearHora.value);
+  fd.append('ruta', rutaIds.join(','));
 
   const data=await fetchJson('create_horario',{method:'POST',body:fd});
   state.snapshot=data;
@@ -5213,10 +5606,19 @@ async function saveNewHorario(){
     els.editarHoraInput.value = hora;
 
     const destinos = state.snapshot.oficinas_destino || [];
+
     els.editarDestino.innerHTML = `<option value="">Selecciona destino</option>` + destinos.map(o => {
       const selected = String(o.clm_sedes_id) === String(row.clm_progbuses_idoficina_destino) ? 'selected' : '';
       return `<option value="${o.clm_sedes_id}" ${selected}>${esc(o.oficina || `Sede ${o.clm_sedes_id}`)}</option>`;
     }).join('');
+
+    renderRutaSelector({
+      container: els.editarRutaList,
+      preview: els.editarRutaPreview,
+      origenId: row.clm_progbuses_idoficina_origen,
+      destinoId: row.clm_progbuses_idoficina_destino,
+      selectedIds: rutaToArray(row.clm_progbuses_ruta || '')
+    });
 
     els.editarHoraSubtitulo.textContent = `Horario #${row.clm_progbuses_progid} | ${row.oficina_origen || '—'} → ${row.oficina_destino || '—'}`;
 
@@ -5232,41 +5634,49 @@ async function saveNewHorario(){
     const destinoOriginal = state.editRow.oficina_destino || '—';
     const destinoNuevo = els.editarDestino.options[els.editarDestino.selectedIndex]?.text || destinoOriginal;
 
+    const rutaIds = getRutaSeleccionada(els.editarRutaList);
+    const rutaTxt = rutaIds.length ? ` | Ruta: ${rutaIdsToTexto(rutaIds)}` : '';
+
     els.previewEditarHora.textContent =
-      `${horaOriginal} → ${horaNueva} | ${state.editRow.oficina_origen || '—'} → ${destinoNuevo}`;
+      `${horaOriginal} → ${horaNueva} | ${state.editRow.oficina_origen || '—'} → ${destinoNuevo}${rutaTxt}`;
   }
 
-  async function saveEditedHora(){
-    if (state.isBusy) return;
-    if(!state.editRow) return;
+async function saveEditedHora(){
+  if (state.isBusy) return;
+  if(!state.editRow) return;
 
-    if(!els.editarHoraInput.value){
-      showAlert('warning','Selecciona la nueva hora.');
-      return;
-    }
-
-    if(!els.editarDestino.value){
-      showAlert('warning','Selecciona el nuevo destino.');
-      return;
-    }
-
-    if(String(els.editarDestino.value) === String(state.editRow.clm_progbuses_idoficina_origen)){
-      showAlert('warning','El destino no puede ser igual al origen.');
-      return;
-    }
-
-    const fd = new FormData();
-    fd.append('progid', state.editRow.clm_progbuses_progid);
-    fd.append('horasalida', els.editarHoraInput.value);
-    fd.append('idof_destino', els.editarDestino.value);
-
-    const data = await fetchJson('editar_hora', {method:'POST', body:fd});
-    state.snapshot = data;
-    updateAll();
-    modalEdit.hide();
-    state.editRow = null;
-    showAlert('success','Horario actualizado correctamente.');
+  if(!els.editarHoraInput.value){
+    showAlert('warning','Selecciona la nueva hora.');
+    return;
   }
+
+  if(!els.editarDestino.value){
+    showAlert('warning','Selecciona el nuevo destino.');
+    return;
+  }
+
+  if(String(els.editarDestino.value) === String(state.editRow.clm_progbuses_idoficina_origen)){
+    showAlert('warning','El destino no puede ser igual al origen.');
+    return;
+  }
+
+  const rutaIds = getRutaSeleccionada(els.editarRutaList);
+
+  const fd = new FormData();
+  fd.append('progid', state.editRow.clm_progbuses_progid);
+  fd.append('horasalida', els.editarHoraInput.value);
+  fd.append('idof_destino', els.editarDestino.value);
+  fd.append('ruta', rutaIds.join(','));
+
+  const data = await fetchJson('editar_hora', {method:'POST', body:fd});
+
+  state.snapshot = data;
+  updateAll();
+  modalEdit.hide();
+  state.editRow = null;
+  showAlert('success','Horario actualizado correctamente.');
+}
+
   function getMotivoConfig(config){ const accion=config.accion||'CAMBIO'; 
     if (accion === 'CAMBIO') {
       return {
@@ -5690,6 +6100,8 @@ function historialTextoBuscable(r) {
     fmtHora(r.clm_progbuses_horasalida || r.hora_fmt),
     r.oficina_origen,
     r.oficina_destino,
+    rutaIdsToTexto(r.clm_progbuses_ruta || ''),
+    r.clm_progbuses_ruta,
     r.bus,
     r.placa,
     r.motivo
@@ -5752,52 +6164,88 @@ function renderHistorial() {
     return;
   }
 
-  els.historialContainer.innerHTML = rows.map(r => {
-    let bdg = badge(r.accion || '—', 'warning');
+  
+els.historialContainer.innerHTML = rows.map(r => {
+  let bdg = badge(r.accion || '—', 'warning');
 
-    if ((r.accion || '').toUpperCase() === 'INSERT') {
-      bdg = badge('INSERT', 'success');
-    }
+  if ((r.accion || '').toUpperCase() === 'INSERT') {
+    bdg = badge('INSERT', 'success');
+  }
 
-    if ((r.accion || '').toUpperCase() === 'DELETE') {
-      bdg = badge('DELETE', 'danger');
-    }
+  if ((r.accion || '').toUpperCase() === 'DELETE') {
+    bdg = badge('DELETE', 'danger');
+  }
 
-    const usuario = r.usuario_realizo || `Usuario #${r.clm_progbuses_idusuario || '—'}`;
-    const esTransbordo = String(r.motivo || '').toLowerCase().includes('transbordo');
+  const usuario = r.usuario_realizo || `Usuario #${r.clm_progbuses_idusuario || '—'}`;
+  const motivo = String(r.motivo || '');
+  const esTransbordo = motivo.toLowerCase().includes('transbordo');
 
-    return `
-      <div class="historial-card ${esTransbordo ? 'border-warning' : ''}">
-        <div class="historial-card__top">
-          <div class="d-flex flex-wrap gap-2 align-items-center">
-            ${bdg}
-            ${esTransbordo ? `<span class="badge rounded-pill text-bg-warning"><i class="bi bi-arrow-left-right me-1"></i> TRANSBORDO</span>` : ''}
-          </div>
-          <div class="small text-secondary">${esc(r.fechaevento || '—')}</div>
+  const rutaRaw = String(r.clm_progbuses_ruta || '').trim();
+  const tieneRuta = rutaRaw !== '';
+  const rutaTexto = tieneRuta ? rutaIdsToTexto(rutaRaw) : '';
+
+  const esCambioRuta = motivo.toLowerCase().includes('ruta');
+
+  const rutaHtml = tieneRuta
+    ? `
+      <div class="mt-2 mb-2 p-2 rounded-4 border" style="background:#f3f8fd;border-color:#dbe8f3 !important;">
+        <div class="small fw-bold text-secondary mb-1">
+          <i class="bi bi-signpost-split me-1"></i>
+          Ruta registrada
+          ${esCambioRuta ? `<span class="badge rounded-pill text-bg-info ms-1">RUTA EDITADA</span>` : ''}
         </div>
-
-        <div class="fw-bold text-dark mb-1">
-          ${esc(fmtHora(r.clm_progbuses_horasalida || r.hora_fmt))} |
-          ${esc(r.oficina_origen || '—')} → ${esc(r.oficina_destino || '—')}
+        <div class="fw-bold text-dark">
+          ${esc(rutaTexto)}
         </div>
-
-        <div class="text-secondary mb-2">
-          Bus: ${esc(r.bus || 'SIN BUS')} · Placa: ${esc(r.placa || '—')}
+        <div class="small text-secondary mt-1">
+          IDs: ${esc(rutaRaw)}
         </div>
-
-        <div class="small mb-2">
-          <span class="badge rounded-pill text-bg-light border text-dark">
-            <i class="bi bi-person-circle me-1"></i>
-            Realizado por: ${esc(usuario)}
-          </span>
-        </div>
-
-        <div class="text-dark">
-          <strong>Motivo:</strong> ${esc(r.motivo || 'Sin motivo registrado')}
+      </div>
+    `
+    : `
+      <div class="mt-2 mb-2 p-2 rounded-4 border" style="background:#fff;border-color:#edf2f7 !important;">
+        <div class="small text-secondary">
+          <i class="bi bi-signpost me-1"></i>
+          Ruta directa, sin sedes intermedias.
         </div>
       </div>
     `;
-  }).join('');
+
+  return `
+    <div class="historial-card ${esTransbordo ? 'border-warning' : ''}">
+      <div class="historial-card__top">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          ${bdg}
+          ${esTransbordo ? `<span class="badge rounded-pill text-bg-warning"><i class="bi bi-arrow-left-right me-1"></i> TRANSBORDO</span>` : ''}
+          ${esCambioRuta ? `<span class="badge rounded-pill text-bg-info"><i class="bi bi-signpost-split me-1"></i> RUTA</span>` : ''}
+        </div>
+        <div class="small text-secondary">${esc(r.fechaevento || '—')}</div>
+      </div>
+
+      <div class="fw-bold text-dark mb-1">
+        ${esc(fmtHora(r.clm_progbuses_horasalida || r.hora_fmt))} |
+        ${esc(r.oficina_origen || '—')} → ${esc(r.oficina_destino || '—')}
+      </div>
+
+      ${rutaHtml}
+
+      <div class="text-secondary mb-2">
+        Bus: ${esc(r.bus || 'SIN BUS')} · Placa: ${esc(r.placa || '—')}
+      </div>
+
+      <div class="small mb-2">
+        <span class="badge rounded-pill text-bg-light border text-dark">
+          <i class="bi bi-person-circle me-1"></i>
+          Realizado por: ${esc(usuario)}
+        </span>
+      </div>
+
+      <div class="text-dark">
+        <strong>Motivo:</strong> ${esc(r.motivo || 'Sin motivo registrado')}
+      </div>
+    </div>
+  `;
+}).join('');
 }
 
 async function openHistorial() {
@@ -5901,7 +6349,65 @@ els.btnDescargarTabla.addEventListener('click', async () => {
   }
 });
 
-els.btnGuardarNuevoHorario.addEventListener('click',()=>saveNewHorario().catch(err=>showAlert('danger',err.message||'No se pudo crear el horario.'))); els.crearOrigen.addEventListener('change',updateCreatePreview); els.crearDestino.addEventListener('change',updateCreatePreview); els.crearHora.addEventListener('input',updateCreatePreview); els.btnSwapOficinas.addEventListener('click',()=>{ const o=els.crearOrigen.value; const d=els.crearDestino.value; els.crearOrigen.value=d; els.crearDestino.value=o; updateCreatePreview(); }); els.btnHistorial.addEventListener('click',()=>openHistorial().catch(err=>showAlert('danger',err.message||'No se pudo cargar el historial.'))); els.btnInhabilitados.addEventListener('click',()=>openInhabilitados().catch(err=>showAlert('danger',err.message||'No se pudieron cargar los horarios inhabilitados.'))); els.editarHoraInput.addEventListener('input',updateEditPreview); els.editarDestino.addEventListener('change', updateEditPreview); els.btnGuardarEditarHora.addEventListener('click',()=>saveEditedHora().catch(err=>showAlert('danger',err.message||'No se pudo actualizar la hora.'))); els.btnAceptarMotivo.addEventListener('click',acceptMotivo); els.busSearch.addEventListener('input',renderBusList); 
+els.btnGuardarNuevoHorario.addEventListener('click',()=>saveNewHorario().catch(err=>showAlert('danger',err.message||'No se pudo crear el horario.'))); 
+
+els.crearOrigen.addEventListener('change', () => {
+  refreshCrearRutaSelector();
+  updateCreatePreview();
+});
+
+els.crearDestino.addEventListener('change', () => {
+  refreshCrearRutaSelector();
+  updateCreatePreview();
+});
+
+els.crearHora.addEventListener('input', updateCreatePreview);
+
+els.btnSwapOficinas.addEventListener('click', () => {
+  const o = els.crearOrigen.value;
+  const d = els.crearDestino.value;
+
+  els.crearOrigen.value = d;
+  els.crearDestino.value = o;
+
+  refreshCrearRutaSelector();
+  updateCreatePreview();
+});
+
+els.btnHistorial.addEventListener('click',()=>openHistorial().catch(err=>showAlert('danger',err.message||'No se pudo cargar el historial.'))); els.btnInhabilitados.addEventListener('click',()=>openInhabilitados().catch(err=>showAlert('danger',err.message||'No se pudieron cargar los horarios inhabilitados.'))); els.editarHoraInput.addEventListener('input',updateEditPreview); 
+
+els.editarDestino.addEventListener('change', updateEditPreview);
+if (els.btnLimpiarRutaCrear) {
+  els.btnLimpiarRutaCrear.addEventListener('click', () => {
+    els.crearRutaList?.querySelectorAll('input[type="checkbox"]').forEach(chk => chk.checked = false);
+    updateCreatePreview();
+
+    if (els.crearRutaPreview) {
+      els.crearRutaPreview.textContent = 'Ruta: directa, sin sedes intermedias.';
+    }
+  });
+}
+
+if (els.btnLimpiarRutaEditar) {
+  els.btnLimpiarRutaEditar.addEventListener('click', () => {
+    els.editarRutaList?.querySelectorAll('input[type="checkbox"]').forEach(chk => chk.checked = false);
+    updateEditPreview();
+
+    if (els.editarRutaPreview) {
+      els.editarRutaPreview.textContent = 'Ruta: directa, sin sedes intermedias.';
+    }
+  });
+}
+
+if (els.crearRutaList) {
+  els.crearRutaList.addEventListener('change', updateCreatePreview);
+}
+
+if (els.editarRutaList) {
+  els.editarRutaList.addEventListener('change', updateEditPreview);
+}
+els.btnGuardarEditarHora.addEventListener('click',()=>saveEditedHora().catch(err=>showAlert('danger',err.message||'No se pudo actualizar la hora.'))); els.btnAceptarMotivo.addEventListener('click',acceptMotivo); els.busSearch.addEventListener('input',renderBusList); 
+
 if (els.historialSearch) {
   els.historialSearch.addEventListener('input', renderHistorial);
 }
