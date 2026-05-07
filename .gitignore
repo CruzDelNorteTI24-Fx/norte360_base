@@ -3,3 +3,4 @@
 /00_producción/
 /trash/NO VALE/
 *.env
+cron_cierre_operativo.log
