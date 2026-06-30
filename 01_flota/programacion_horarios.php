@@ -3524,6 +3524,40 @@ aside img {
   font-weight: 700;
   line-height: 1.35;
 }
+
+.export-pdf-divider {
+  background: #fff;
+  border: 1px dashed #d7e2ec;
+  border-radius: 16px;
+  padding: 12px 14px;
+  color: #243447;
+}
+
+.export-pdf-divider strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.export-pdf-divider small {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.export-option--pdf-pizarra {
+  color: #b42318;
+  border-color: #f2b8b5;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7f7 100%);
+}
+
+.export-option--pdf-tabla {
+  color: #8a4b00;
+  border-color: #f3d29a;
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf0 100%);
+}
+
     </style>
 </head>
 
@@ -3942,6 +3976,30 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
           </div>
         </div>
 
+        <div class="export-pdf-divider mt-3">
+          <div>
+            <strong>Versión PDF</strong>
+            <small>Genera un solo archivo PDF con cada grupo como página.</small>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-2">
+          <div class="col-md-6">
+            <button type="button" class="export-option export-option--pdf-pizarra" id="btnDescargarPizarraPDF">
+              <i class="bi bi-file-earmark-pdf"></i>
+              <span>Pizarra PDF</span>
+              <small>Un PDF con formato visual</small>
+            </button>
+          </div>
+
+          <div class="col-md-6">
+            <button type="button" class="export-option export-option--pdf-tabla" id="btnDescargarTablaPDF">
+              <i class="bi bi-file-earmark-pdf-fill"></i>
+              <span>Tabla PDF</span>
+              <small>Un PDF con listado operativo</small>
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -4026,6 +4084,8 @@ window.horariosInitialError = <?= json_encode($initialError, JSON_UNESCAPED_UNIC
 btnAbrirModalImagen: $('btnAbrirModalImagen'),
 btnDescargarPizarra: $('btnDescargarPizarra'),
 btnDescargarTabla: $('btnDescargarTabla'),
+btnDescargarPizarraPDF: $('btnDescargarPizarraPDF'),
+btnDescargarTablaPDF: $('btnDescargarTablaPDF'),
 switchModoImagen: $('switchModoImagen'),
 lblModoImagen: $('lblModoImagen'),
 txtModoImagen: $('txtModoImagen'),
@@ -4094,7 +4154,9 @@ txtModoImagen: $('txtModoImagen'),
         els.btnGuardarNuevoHorario,
         els.btnGuardarEditarHora,
         els.btnAceptarMotivo,
-        els.btnConfirmBus
+        els.btnConfirmBus,
+        els.btnDescargarPizarraPDF,
+        els.btnDescargarTablaPDF
       ].forEach(btn => {
         if (btn) btn.disabled = flag;
       });
@@ -4127,6 +4189,13 @@ txtModoImagen: $('txtModoImagen'),
 
   const modalCreate = new bootstrap.Modal($('modalCrearHorario')); const modalEdit = new bootstrap.Modal($('modalEditarHora'));
   const modalMotivo = new bootstrap.Modal($('modalMotivo')); const modalBus = new bootstrap.Modal($('modalBus'));
+  // Enfocar automáticamente el buscador al abrir el modal de bus
+$('modalBus').addEventListener('shown.bs.modal', () => {
+  if (els.busSearch) {
+    els.busSearch.focus({ preventScroll: true });
+    els.busSearch.select();
+  }
+});
   const modalHistorial = new bootstrap.Modal($('modalHistorial')); const modalInhabilitados = new bootstrap.Modal($('modalInhabilitados'));
   const modalExportImagen = new bootstrap.Modal($('modalExportImagen'));
 
@@ -4796,6 +4865,121 @@ async function generarImagenPorFormato(formatoSeleccionado) {
   );
 }
 
+
+async function generarCanvasPorFormato(formatoSeleccionado) {
+  const formato = String(formatoSeleccionado || 'PIZARRA').toUpperCase();
+  const modo = getModoImagen();
+
+  const filas = getFilteredRows();
+  const busesSinHorario = (state.snapshot.buses_sin_horario || []).slice().sort(compareBusNatural);
+  const busesTaller = (state.snapshot.buses_taller || []).slice().sort(compareBusNatural);
+
+  const gruposPizarra = agruparFilasPorGrupoPizarra(filas);
+  const nombresGrupos = Object.keys(gruposPizarra).sort(compareTextNatural);
+
+  if (!nombresGrupos.length) {
+    throw new Error('No hay grupos disponibles para generar PDF.');
+  }
+
+  const items = [];
+
+  for (const nombreGrupo of nombresGrupos) {
+    const grupoInfo = gruposPizarra[nombreGrupo];
+    const filasGrupo = grupoInfo?.filas || [];
+    const tipoPredefinido = String(grupoInfo?.tipoImagen || 'PIZARRA').toUpperCase();
+
+    if (modo === 'PREDEFINIDO' && tipoPredefinido !== formato) {
+      continue;
+    }
+
+    let item = null;
+
+    if (formato === 'TABLA') {
+      item = await generarImagenTablaGrupo(
+        nombreGrupo,
+        filasGrupo,
+        busesSinHorario,
+        busesTaller,
+        { salida: 'canvas' }
+      );
+    } else {
+      item = await generarImagenPizarraGrupo(
+        nombreGrupo,
+        filasGrupo,
+        busesSinHorario,
+        busesTaller,
+        { salida: 'canvas' }
+      );
+    }
+
+    if (item?.canvas) {
+      items.push(item);
+    }
+
+    await pausa(120);
+  }
+
+  if (!items.length) {
+    throw new Error(
+      modo === 'PREDEFINIDO'
+        ? `No hay grupos configurados como ${formato} para PDF.`
+        : `No hay grupos para generar PDF como ${formato}.`
+    );
+  }
+
+  return { formato, modo, items };
+}
+
+function descargarPDFDesdeCanvas(items, nombrePDF) {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    throw new Error('jsPDF no está cargado. Revisa el script CDN de jsPDF.');
+  }
+
+  const { jsPDF } = window.jspdf;
+
+  let pdf = null;
+
+  items.forEach((item, index) => {
+    const canvas = item.canvas;
+
+    // Tus canvas son HiDPI ratio 2, por eso se divide entre 2.
+    const pageW = canvas.width / 2;
+    const pageH = canvas.height / 2;
+    const orientation = pageW > pageH ? 'landscape' : 'portrait';
+
+    if (!pdf) {
+      pdf = new jsPDF({
+        orientation,
+        unit: 'px',
+        format: [pageW, pageH],
+        compress: true
+      });
+    } else {
+      pdf.addPage([pageW, pageH], orientation);
+    }
+
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+  });
+
+  pdf.save(nombrePDF);
+}
+
+async function generarPDFPorFormato(formatoSeleccionado) {
+  const { formato, modo, items } = await generarCanvasPorFormato(formatoSeleccionado);
+
+  const fechaBaseArchivo = slugify((state.snapshot.fechas || {}).fecha_base || 'operativo');
+  const nombrePDF = `programacion_${formato.toLowerCase()}_${modo.toLowerCase()}_${fechaBaseArchivo}.pdf`;
+
+  descargarPDFDesdeCanvas(items, nombrePDF);
+
+  showAlert(
+    'success',
+    `Se generó 1 PDF con ${items.length} página(s) en formato ${formato}.`
+  );
+}
+
+
 async function generarImagenPizarra() {
   const btn = els.btnExportImagen;
   const btnHtml = btn ? btn.innerHTML : '';
@@ -4852,8 +5036,7 @@ async function generarImagenPizarra() {
 }
 
 
-
-async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario, busesTaller) {
+async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario, busesTaller, options = {}) {
   const filas = (filasGrupo || []).slice().sort((a, b) => {
     return cmpArr(sortKey(a), sortKey(b));
   });
@@ -5104,7 +5287,20 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
 
   const fechaBaseArchivo = slugify((state.snapshot.fechas || {}).fecha_base || 'operativo');
   const nombreArchivo = `tabla_op_${slugify(nombreGrupo)}_${fechaBaseArchivo}.png`;
+
+  const resultado = {
+    canvas,
+    nombreArchivo,
+    nombreGrupo,
+    formato: 'TABLA'
+  };
+
+  if (options.salida === 'canvas') {
+    return resultado;
+  }
+
   descargarCanvas(canvas, nombreArchivo);
+  return resultado;
 }
 
 
@@ -5113,7 +5309,7 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
 
 
 
-async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorario, busesTaller) {
+async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorario, busesTaller, options = {}) {
   const grupos = {};
 
   filasGrupo.forEach(r => {
@@ -5497,7 +5693,20 @@ busesSinHorario.forEach(b => {
 
   const fechaBaseArchivo = slugify((state.snapshot.fechas || {}).fecha_base || 'operativo');
   const nombreArchivo = `pizarra_op_${slugify(nombreGrupo)}_${fechaBaseArchivo}.png`;
+
+  const resultado = {
+    canvas,
+    nombreArchivo,
+    nombreGrupo,
+    formato: 'PIZARRA'
+  };
+
+  if (options.salida === 'canvas') {
+    return resultado;
+  }
+
   descargarCanvas(canvas, nombreArchivo);
+  return resultado;
 }
 
 
@@ -6348,6 +6557,40 @@ els.btnDescargarTabla.addEventListener('click', async () => {
     horarioEndLoading();
   }
 });
+
+if (els.btnDescargarPizarraPDF) {
+  els.btnDescargarPizarraPDF.addEventListener('click', async () => {
+    if (state.isBusy) return;
+
+    modalExportImagen.hide();
+    horarioBeginLoading();
+
+    try {
+      await generarPDFPorFormato('PIZARRA');
+    } catch (err) {
+      showAlert('danger', err.message || 'No se pudo generar el PDF de pizarra.');
+    } finally {
+      horarioEndLoading();
+    }
+  });
+}
+
+if (els.btnDescargarTablaPDF) {
+  els.btnDescargarTablaPDF.addEventListener('click', async () => {
+    if (state.isBusy) return;
+
+    modalExportImagen.hide();
+    horarioBeginLoading();
+
+    try {
+      await generarPDFPorFormato('TABLA');
+    } catch (err) {
+      showAlert('danger', err.message || 'No se pudo generar el PDF de tabla.');
+    } finally {
+      horarioEndLoading();
+    }
+  });
+}
 
 els.btnGuardarNuevoHorario.addEventListener('click',()=>saveNewHorario().catch(err=>showAlert('danger',err.message||'No se pudo crear el horario.'))); 
 

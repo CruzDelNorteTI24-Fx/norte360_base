@@ -22,35 +22,145 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']); // eliminar la variable después de mostrar
-// =====================================================
-// AJAX: Obtener respuestas del Google Form desde Sheets
-// =====================================================
-if (isset($_GET['accion']) && $_GET['accion'] === 'google_form_respuestas') {
-    header('Content-Type: application/json; charset=utf-8');
 
-    if (!isset($_SESSION['usuario'])) {
-        http_response_code(401);
-        echo json_encode([
-            'ok' => false,
-            'mensaje' => 'Sesión expirada.'
-        ], JSON_UNESCAPED_UNICODE);
-        exit();
+
+// =====================================================
+// GOOGLE FORM RRHH - FUNCIONES BASE
+// =====================================================
+function gf_norm($txt) {
+    $txt = trim((string)$txt);
+
+    if (function_exists('mb_strtolower')) {
+        $txt = mb_strtolower($txt, 'UTF-8');
+    } else {
+        $txt = strtolower($txt);
     }
 
-    if ($_SESSION['web_rol'] !== 'Admin' && !in_array(6, $permisos)) {
-        http_response_code(403);
-        echo json_encode([
-            'ok' => false,
-            'mensaje' => 'No tienes permisos para visualizar estas respuestas.'
-        ], JSON_UNESCAPED_UNICODE);
-        exit();
+    $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $txt);
+    if ($ascii !== false) {
+        $txt = $ascii;
     }
 
-    // ID y GID tomados de tu Google Sheet de respuestas
+    $txt = preg_replace('/[^a-z0-9]+/i', ' ', $txt);
+    return trim(preg_replace('/\s+/', ' ', $txt));
+}
+
+function gf_cut($txt, $max) {
+    $txt = trim((string)$txt);
+    if (function_exists('mb_substr')) {
+        return mb_substr($txt, 0, $max, 'UTF-8');
+    }
+    return substr($txt, 0, $max);
+}
+
+function gf_field($row, $posibles) {
+    foreach ($posibles as $nombreBuscado) {
+        $nb = gf_norm($nombreBuscado);
+        foreach ($row as $k => $v) {
+            if (gf_norm($k) === $nb) {
+                return trim((string)$v);
+            }
+        }
+    }
+    return '';
+}
+
+function gf_hash_row($row) {
+    $base = implode('|', [
+        gf_field($row, ['Marca temporal']),
+        gf_field($row, ['Numero de DNI:', 'Número de DNI:', 'DNI']),
+        gf_field($row, ['Correo electrónico:', 'Dirección de correo electrónico'])
+    ]);
+
+    return hash('sha256', $base);
+}
+
+function gf_parse_marca_temporal($valor) {
+    $valor = trim((string)$valor);
+    $formatos = [
+        'd/m/Y H:i:s',
+        'd/m/Y H:i',
+        'Y-m-d H:i:s',
+        'Y-m-d H:i',
+        'Y-m-d'
+    ];
+
+    foreach ($formatos as $fmt) {
+        $dt = DateTime::createFromFormat($fmt, $valor);
+        if ($dt instanceof DateTime) {
+            return [
+                'fecha' => $dt->format('Y-m-d'),
+                'hora' => $dt->format('H:i:s')
+            ];
+        }
+    }
+
+    return [
+        'fecha' => date('Y-m-d'),
+        'hora' => date('H:i:s')
+    ];
+}
+
+function gf_calcular_edad($fechaNacimiento) {
+    $fechaNacimiento = trim((string)$fechaNacimiento);
+    if ($fechaNacimiento === '') return 0;
+
+    $formatos = ['d/m/Y', 'Y-m-d'];
+
+    foreach ($formatos as $fmt) {
+        $dt = DateTime::createFromFormat($fmt, $fechaNacimiento);
+        if ($dt instanceof DateTime) {
+            return (new DateTime())->diff($dt)->y;
+        }
+    }
+
+    return 0;
+}
+
+function gf_limpiar_dni($dni) {
+    $dni = preg_replace('/\D+/', '', (string)$dni);
+    return gf_cut($dni, 8);
+}
+
+function gf_observaciones($row) {
+    $campos = [
+        'Correo electrónico' => gf_field($row, ['Correo electrónico:', 'Dirección de correo electrónico']),
+        'Dirección actual' => gf_field($row, ['Dirección actual:']),
+        'Fecha de nacimiento' => gf_field($row, ['Fecha de nacimiento:']),
+        'Estado civil' => gf_field($row, ['Estado civil:']),
+        'Hijos' => gf_field($row, ['Hijos:']),
+        'Contacto con personal de la empresa' => gf_field($row, ['¿Ha tenido o tiene algún contacto directo, familiar o de amistad con personas que forman parte de nuestra empresa?']),
+        'Tipo de vínculo' => gf_field($row, ['Tipo de vínculo:']),
+        'Nombres / Puesto vínculo' => gf_field($row, ['Nombres y Apellidos / Puesto']),
+        'Ofimática' => gf_field($row, ['¿Cuenta con conocimientos en ofimática? (Word, Excel, PowerPoint u otros programas de oficina)', '¿Cuenta con conocimientos en ofimática?']),
+        'Nivel de estudios' => gf_field($row, ['Nivel de estudios alcanzados:']),
+        'Estudios técnicos / universitarios' => gf_field($row, ['Nombre de Estudios Técnicos / Universitarios:']),
+        'Cargo y funciones' => gf_field($row, ['Cargo desempeñado y funciones:']),
+        'Motivo de retiro' => gf_field($row, ['¿Cuál fue el motivo de retiro de su último trabajo?']),
+        'Referencias laborales' => gf_field($row, ['Referencias laborales (Nombre, cargo y número de teléfono)']),
+        'Disponibilidad de horario' => gf_field($row, ['¿Cuenta con disponibilidad de horario?']),
+        'Expectativa salarial' => gf_field($row, ['¿Cuál es su expectativa salarial? Brinda un rango de remuneración']),
+        'CV Google Forms' => gf_field($row, ['Adjuntar CV actualizado']),
+        'Estado de salud declarado' => gf_field($row, ['Estado de salud declarado (enfermedades crónicas, restricciones físicas o discapacidad)']),
+        'Cómo se enteró del puesto' => gf_field($row, ['¿Cómo se enteró del puesto?']),
+        'Calificación experiencia formulario' => gf_field($row, ['En una escala del 1 al 5, donde 1 significa muy insatisfecho y 5 significa muy satisfecho, ¿Cómo calificarías tu experiencia al completar este formulario de postulación?'])
+    ];
+
+    $texto = "Registro capturado desde Google Forms.\n\n";
+
+    foreach ($campos as $k => $v) {
+        if (trim((string)$v) !== '') {
+            $texto .= "{$k}: {$v}\n";
+        }
+    }
+
+    return trim($texto);
+}
+
+function gf_leer_respuestas_sheet() {
     $spreadsheetId = '1Nd4qaKbP_v-_rLQzEItx0uFjERaKWGbJFJJK-Bqopf8';
     $gid = '609459197';
 
-    // Lee solo columnas A:AA
     $url = "https://docs.google.com/spreadsheets/d/{$spreadsheetId}/gviz/tq?tqx=out:csv&gid={$gid}&range=A:AA";
 
     $context = stream_context_create([
@@ -64,20 +174,17 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'google_form_respuestas') {
     $csv = @file_get_contents($url, false, $context);
 
     if ($csv === false || trim($csv) === '') {
-        echo json_encode([
+        return [
             'ok' => false,
             'mensaje' => 'No se pudo leer el Google Sheet. Verifica que la hoja esté compartida o publicada correctamente.'
-        ], JSON_UNESCAPED_UNICODE);
-        exit();
+        ];
     }
 
-    // Si Google devuelve HTML, normalmente es porque la hoja está privada
     if (stripos($csv, '<html') !== false || stripos($csv, '<!doctype') !== false) {
-        echo json_encode([
+        return [
             'ok' => false,
-            'mensaje' => 'Google no devolvió CSV. Probablemente la hoja está privada. Debes compartirla como lectura o publicarla como CSV.'
-        ], JSON_UNESCAPED_UNICODE);
-        exit();
+            'mensaje' => 'Google no devolvió CSV. Probablemente la hoja está privada o no está compartida como lector.'
+        ];
     }
 
     $fp = fopen('php://temp', 'r+');
@@ -87,17 +194,14 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'google_form_respuestas') {
     $headers = fgetcsv($fp);
 
     if (!$headers) {
-        echo json_encode([
+        fclose($fp);
+        return [
             'ok' => false,
             'mensaje' => 'No se encontraron encabezados en la hoja.'
-        ], JSON_UNESCAPED_UNICODE);
-        exit();
+        ];
     }
 
-    // Limpia BOM del primer encabezado
     $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', $headers[0]);
-
-    // Forzar máximo A:AA = 27 columnas
     $headers = array_slice($headers, 0, 27);
 
     $rows = [];
@@ -114,32 +218,435 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'google_form_respuestas') {
             }
         }
 
-        if ($vacia) {
-            continue;
-        }
+        if ($vacia) continue;
 
         $fila = [];
         foreach ($headers as $i => $header) {
             $fila[$header] = $data[$i] ?? '';
         }
 
+        $fila['_gf_hash'] = gf_hash_row($fila);
         $rows[] = $fila;
     }
 
     fclose($fp);
 
-    // Últimas respuestas primero
     $rows = array_reverse($rows);
 
-    echo json_encode([
+    return [
         'ok' => true,
-        'total' => count($rows),
         'headers' => $headers,
         'rows' => $rows
-    ], JSON_UNESCAPED_UNICODE);
+    ];
+}
 
+function gf_buscar_row_por_hash($hash) {
+    $data = gf_leer_respuestas_sheet();
+
+    if (!$data['ok']) {
+        return null;
+    }
+
+    foreach ($data['rows'] as $row) {
+        if (($row['_gf_hash'] ?? '') === $hash) {
+            return $row;
+        }
+    }
+
+    return null;
+}
+
+function gf_json($arr) {
+    if (ob_get_length()) {
+        ob_clean();
+    }
+
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+    }
+
+    echo json_encode($arr, JSON_UNESCAPED_UNICODE);
     exit();
 }
+
+function gf_db() {
+    global $conn;
+
+    if (!defined('ACCESS_GRANTED')) {
+        define('ACCESS_GRANTED', true);
+    }
+
+    // Si ya existe una conexión válida, la reutilizamos
+    if (isset($conn) && $conn instanceof mysqli && @$conn->ping()) {
+        return $conn;
+    }
+
+    // Cargar conexión dentro del scope correcto
+    require_once("../.c0nn3ct/db_securebd2.php");
+
+    // Después del require, volvemos a validar
+    if (isset($conn) && $conn instanceof mysqli && @$conn->ping()) {
+        return $conn;
+    }
+
+    gf_json([
+        'ok' => false,
+        'mensaje' => 'No se pudo establecer conexión con la base de datos. Revisa si db_securebd2.php está creando $conn correctamente.'
+    ]);
+}
+
+function gf_validar_ajax_base($permisos) {
+    if (!isset($_SESSION['usuario'])) {
+        http_response_code(401);
+        gf_json([
+            'ok' => false,
+            'mensaje' => 'Sesión expirada.'
+        ]);
+    }
+
+    if ($_SESSION['web_rol'] !== 'Admin' && !in_array(6, $permisos)) {
+        http_response_code(403);
+        gf_json([
+            'ok' => false,
+            'mensaje' => 'No tienes permisos para esta acción.'
+        ]);
+    }
+}
+
+// =====================================================
+// AJAX: Listar respuestas del Google Form
+// =====================================================
+if (isset($_GET['accion']) && $_GET['accion'] === 'google_form_respuestas') {
+    header('Content-Type: application/json; charset=utf-8');
+    gf_validar_ajax_base($permisos);
+
+    $conn = gf_db();
+
+    $data = gf_leer_respuestas_sheet();
+
+    if (!$data['ok']) {
+        gf_json($data);
+    }
+
+    $rows = $data['rows'];
+    $hashes = [];
+    $dnis = [];
+
+    foreach ($rows as $r) {
+        $hashes[] = $r['_gf_hash'];
+        $dni = gf_limpiar_dni(gf_field($r, ['Numero de DNI:', 'Número de DNI:', 'DNI']));
+        if ($dni !== '') $dnis[] = $dni;
+    }
+
+    $controlMap = [];
+    if (!empty($hashes)) {
+        $placeholders = implode(',', array_fill(0, count($hashes), '?'));
+        $types = str_repeat('s', count($hashes));
+
+        $stmt = $conn->prepare("
+            SELECT gf_hash, gf_estado, gf_id_entrevista, gf_motivo
+            FROM tb_googleform_entrevista_estado
+            WHERE gf_hash IN ($placeholders)
+        ");
+
+        $stmt->bind_param($types, ...$hashes);
+        $stmt->execute();
+        $res = $stmt->get_result();
+
+        while ($x = $res->fetch_assoc()) {
+            $controlMap[$x['gf_hash']] = $x;
+        }
+
+        $stmt->close();
+    }
+
+    $dniMap = [];
+    $dnis = array_values(array_unique($dnis));
+
+    if (!empty($dnis)) {
+        $placeholders = implode(',', array_fill(0, count($dnis), '?'));
+        $types = str_repeat('s', count($dnis));
+
+        $stmt = $conn->prepare("
+            SELECT id_entrevista, dni
+            FROM entrevistas
+            WHERE dni IN ($placeholders)
+        ");
+
+        $stmt->bind_param($types, ...$dnis);
+        $stmt->execute();
+        $res = $stmt->get_result();
+
+        while ($x = $res->fetch_assoc()) {
+            $dniMap[$x['dni']] = $x['id_entrevista'];
+        }
+
+        $stmt->close();
+    }
+
+    foreach ($rows as &$r) {
+        $hash = $r['_gf_hash'];
+        $dni = gf_limpiar_dni(gf_field($r, ['Numero de DNI:', 'Número de DNI:', 'DNI']));
+
+        $r['_gf_dni_limpio'] = $dni;
+        $r['_gf_estado'] = 'PENDIENTE';
+        $r['_gf_estado_txt'] = 'Pendiente';
+        $r['_gf_id_entrevista'] = null;
+        $r['_gf_motivo'] = null;
+
+        if (isset($controlMap[$hash])) {
+            $estado = $controlMap[$hash]['gf_estado'];
+
+            if ($estado === 'DESCARTADO') {
+                $r['_gf_estado'] = 'DESCARTADO';
+                $r['_gf_estado_txt'] = 'Descartado';
+                $r['_gf_motivo'] = $controlMap[$hash]['gf_motivo'];
+            }
+
+            if ($estado === 'AGREGADO') {
+                $r['_gf_estado'] = 'AGREGADO';
+                $r['_gf_estado_txt'] = 'Agregado a entrevistas';
+                $r['_gf_id_entrevista'] = $controlMap[$hash]['gf_id_entrevista'];
+            }
+        } elseif ($dni !== '' && isset($dniMap[$dni])) {
+            $r['_gf_estado'] = 'YA_REGISTRADO';
+            $r['_gf_estado_txt'] = 'Ya registrado en entrevistas';
+            $r['_gf_id_entrevista'] = $dniMap[$dni];
+        }
+    }
+    unset($r);
+
+    $conn->close();
+
+    gf_json([
+        'ok' => true,
+        'total' => count($rows),
+        'headers' => $data['headers'],
+        'rows' => $rows
+    ]);
+}
+
+// =====================================================
+// AJAX: Agregar postulante del Google Form a entrevistas
+// =====================================================
+if (isset($_GET['accion']) && $_GET['accion'] === 'google_form_agregar') {
+    header('Content-Type: application/json; charset=utf-8');
+    gf_validar_ajax_base($permisos);
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        gf_json(['ok' => false, 'mensaje' => 'Método no permitido.']);
+    }
+
+    $csrf = $_POST['csrf'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'] ?? '', $csrf)) {
+        http_response_code(403);
+        gf_json(['ok' => false, 'mensaje' => 'CSRF inválido.']);
+    }
+
+    $hash = trim($_POST['hash'] ?? '');
+    if ($hash === '') {
+        gf_json(['ok' => false, 'mensaje' => 'Hash inválido.']);
+    }
+
+    $row = gf_buscar_row_por_hash($hash);
+    if (!$row) {
+        gf_json(['ok' => false, 'mensaje' => 'No se encontró el registro en el Google Sheet.']);
+    }
+
+    $conn = gf_db();
+
+    $nombre = gf_cut(gf_field($row, ['Nombres y Apellidos']), 50);
+    $dni = gf_limpiar_dni(gf_field($row, ['Numero de DNI:', 'Número de DNI:', 'DNI']));
+    $puesto = gf_cut(gf_field($row, ['Puesto al que postula:']), 100);
+    $contacto = gf_cut(gf_field($row, ['Número de teléfono:', 'Numero de teléfono:', 'Celular', 'Teléfono']), 20);
+    $sede = gf_cut(gf_field($row, ['Sede a la que postula:']), 50);
+    $fechaNac = gf_field($row, ['Fecha de nacimiento:']);
+    $edad = gf_calcular_edad($fechaNac);
+    $marca = gf_field($row, ['Marca temporal']);
+    $fh = gf_parse_marca_temporal($marca);
+
+    $fecha = $fh['fecha'];
+    $hora = $fh['hora'];
+    $sexo = 'No definido';
+    $observaciones = gf_observaciones($row);
+    $referencia = 'Registrado desde visualización del Formulario del Google Forms [Referencia automática]';
+    $usuarioreg = intval($_SESSION['id_usuario'] ?? 0);
+
+    if ($nombre === '' || $dni === '') {
+        gf_json([
+            'ok' => false,
+            'mensaje' => 'El registro no tiene nombre o DNI válido. No se puede agregar.'
+        ]);
+    }
+
+    if ($puesto === '') $puesto = 'No especificado';
+    if ($sede === '') $sede = 'No especificado';
+
+    $stmt = $conn->prepare("SELECT id_entrevista FROM entrevistas WHERE dni = ? LIMIT 1");
+    $stmt->bind_param("s", $dni);
+    $stmt->execute();
+    $existe = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($existe) {
+        $idEntrevista = intval($existe['id_entrevista']);
+
+        $stmt = $conn->prepare("
+            INSERT INTO tb_googleform_entrevista_estado
+                (gf_hash, gf_dni, gf_nombre, gf_estado, gf_id_entrevista, gf_motivo, gf_idusuario)
+            VALUES (?, ?, ?, 'AGREGADO', ?, 'Detectado automáticamente: el DNI ya existía en entrevistas.', ?)
+            ON DUPLICATE KEY UPDATE
+                gf_estado = 'AGREGADO',
+                gf_id_entrevista = VALUES(gf_id_entrevista),
+                gf_motivo = VALUES(gf_motivo),
+                gf_idusuario = VALUES(gf_idusuario)
+        ");
+        $stmt->bind_param("sssii", $hash, $dni, $nombre, $idEntrevista, $usuarioreg);
+        $stmt->execute();
+        $stmt->close();
+
+        $conn->close();
+
+        gf_json([
+            'ok' => true,
+            'mensaje' => 'Este DNI ya existía en entrevistas. Se marcó como ya registrado.',
+            'id_entrevista' => $idEntrevista
+        ]);
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO entrevistas
+            (nombre, fecha, hora, puesto, observaciones, dni, sexo, contacto, edad, clm_usuarioreg, clm_sede, clm_referencia, clm_estado, clm_yesorno)
+        VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)
+    ");
+
+    $stmt->bind_param(
+        "ssssssssiiss",
+        $nombre,
+        $fecha,
+        $hora,
+        $puesto,
+        $observaciones,
+        $dni,
+        $sexo,
+        $contacto,
+        $edad,
+        $usuarioreg,
+        $sede,
+        $referencia
+    );
+
+    if (!$stmt->execute()) {
+        $error = $stmt->error;
+        $stmt->close();
+        $conn->close();
+
+        gf_json([
+            'ok' => false,
+            'mensaje' => 'Error al guardar entrevista: ' . $error
+        ]);
+    }
+
+    $idEntrevista = $stmt->insert_id;
+    $stmt->close();
+
+    $stmt = $conn->prepare("
+        INSERT INTO tb_googleform_entrevista_estado
+            (gf_hash, gf_dni, gf_nombre, gf_estado, gf_id_entrevista, gf_motivo, gf_idusuario)
+        VALUES (?, ?, ?, 'AGREGADO', ?, 'Agregado desde visualización del Google Forms.', ?)
+        ON DUPLICATE KEY UPDATE
+            gf_estado = 'AGREGADO',
+            gf_id_entrevista = VALUES(gf_id_entrevista),
+            gf_motivo = VALUES(gf_motivo),
+            gf_idusuario = VALUES(gf_idusuario)
+    ");
+    $stmt->bind_param("sssii", $hash, $dni, $nombre, $idEntrevista, $usuarioreg);
+    $stmt->execute();
+    $stmt->close();
+
+    $conn->close();
+
+    gf_json([
+        'ok' => true,
+        'mensaje' => 'Postulante agregado correctamente a entrevistas.',
+        'id_entrevista' => $idEntrevista
+    ]);
+}
+
+// =====================================================
+// AJAX: Descartar registro del Google Form
+// =====================================================
+if (isset($_GET['accion']) && $_GET['accion'] === 'google_form_descartar') {
+    header('Content-Type: application/json; charset=utf-8');
+    gf_validar_ajax_base($permisos);
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        gf_json(['ok' => false, 'mensaje' => 'Método no permitido.']);
+    }
+
+    $csrf = $_POST['csrf'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'] ?? '', $csrf)) {
+        http_response_code(403);
+        gf_json(['ok' => false, 'mensaje' => 'CSRF inválido.']);
+    }
+
+    $hash = trim($_POST['hash'] ?? '');
+    $motivo = trim($_POST['motivo'] ?? '');
+
+    if ($hash === '') {
+        gf_json(['ok' => false, 'mensaje' => 'Hash inválido.']);
+    }
+
+    if ($motivo === '') {
+        $motivo = 'Descartado desde visualización del Google Forms.';
+    }
+
+    $row = gf_buscar_row_por_hash($hash);
+    if (!$row) {
+        gf_json(['ok' => false, 'mensaje' => 'No se encontró el registro en el Google Sheet.']);
+    }
+
+    $nombre = gf_cut(gf_field($row, ['Nombres y Apellidos']), 255);
+    $dni = gf_limpiar_dni(gf_field($row, ['Numero de DNI:', 'Número de DNI:', 'DNI']));
+    $usuarioreg = intval($_SESSION['id_usuario'] ?? 0);
+
+    $conn = gf_db();
+
+    $stmt = $conn->prepare("
+        INSERT INTO tb_googleform_entrevista_estado
+            (gf_hash, gf_dni, gf_nombre, gf_estado, gf_id_entrevista, gf_motivo, gf_idusuario)
+        VALUES (?, ?, ?, 'DESCARTADO', NULL, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            gf_estado = 'DESCARTADO',
+            gf_id_entrevista = NULL,
+            gf_motivo = VALUES(gf_motivo),
+            gf_idusuario = VALUES(gf_idusuario)
+    ");
+    $stmt->bind_param("ssssi", $hash, $dni, $nombre, $motivo, $usuarioreg);
+
+    if (!$stmt->execute()) {
+        $error = $stmt->error;
+        $stmt->close();
+        $conn->close();
+
+        gf_json([
+            'ok' => false,
+            'mensaje' => 'Error al descartar: ' . $error
+        ]);
+    }
+
+    $stmt->close();
+    $conn->close();
+
+    gf_json([
+        'ok' => true,
+        'mensaje' => 'Registro descartado correctamente. No se eliminó nada del Google Sheet.'
+    ]);
+}
+
 ?>
 
 
@@ -1507,6 +2014,78 @@ margin: 20px
         grid-template-columns: 1fr;
     }
 }
+
+.gf-chip {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.gf-pendiente {
+    background: #fff7e6;
+    color: #9a5b00;
+    border: 1px solid #ffd38a;
+}
+
+.gf-agregado {
+    background: #e8f7ee;
+    color: #0f7a3b;
+    border: 1px solid #9be0b5;
+}
+
+.gf-descartado {
+    background: #fdecec;
+    color: #b42318;
+    border: 1px solid #f5a3a3;
+}
+
+.gf-registrado {
+    background: #eaf4ff;
+    color: #1f5f99;
+    border: 1px solid #9dccf5;
+}
+
+.gf-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+.gf-btn-mini {
+    width: auto;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    border: none;
+    cursor: pointer;
+}
+
+.gf-btn-add {
+    background: #27ae60;
+    color: white;
+}
+
+.gf-btn-discard {
+    background: #e74c3c;
+    color: white;
+}
+
+.gf-btn-view {
+    background: #2980b9;
+    color: white;
+}
+
+.gf-btn-disabled {
+    background: #95a5a6;
+    color: white;
+    cursor: not-allowed;
+}
+
     </style>
 </head>
 
@@ -1638,7 +2217,10 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     <select id="filtroPuesto" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc;">
       <option value="">Todos los puestos</option>
       <?php
-        define('ACCESS_GRANTED', true);
+        if (!defined('ACCESS_GRANTED')) {
+            define('ACCESS_GRANTED', true);
+        }
+
         require_once("../.c0nn3ct/db_securebd2.php");
         $puestos = $conn->query("SELECT DISTINCT puesto FROM entrevistas WHERE puesto IS NOT NULL AND puesto != ''");
         while ($p = $puestos->fetch_assoc()) {
@@ -1829,7 +2411,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 <div id="modalGoogleDetalle" class="modal">
     <div class="modal-content" style="max-width:950px;">
         <span class="cerrar" onclick="cerrarModalGoogleDetalle()">&times;</span>
-        <h2 style="text-align:left;">📄 Detalle del registro</h2>
+        <h2 style="text-align:left;">📄 Detalle del Formulario Forms</h2>
         <div id="contenidoGoogleDetalle" class="google-detail-grid"></div>
     </div>
 </div>
@@ -2817,6 +3399,46 @@ function filtrarRowsGoogle() {
     });
 }
 
+function renderEstadoGF(row) {
+    const estado = row._gf_estado || "PENDIENTE";
+
+    if (estado === "AGREGADO") {
+        return `<span class="gf-chip gf-agregado">Agregado</span>`;
+    }
+
+    if (estado === "YA_REGISTRADO") {
+        return `<span class="gf-chip gf-registrado">Ya registrado</span>`;
+    }
+
+    if (estado === "DESCARTADO") {
+        return `<span class="gf-chip gf-descartado">Descartado</span>`;
+    }
+
+    return `<span class="gf-chip gf-pendiente">Pendiente</span>`;
+}
+
+function renderAccionesGF(row, index) {
+    const estado = row._gf_estado || "PENDIENTE";
+    const hash = row._gf_hash || "";
+
+    let html = `<div class="gf-actions">`;
+
+    html += `<button type="button" class="gf-btn-mini gf-btn-view" onclick="verDetalleGoogle(${index})">Ver</button>`;
+
+    if (estado === "PENDIENTE") {
+        html += `<button type="button" class="gf-btn-mini gf-btn-add" onclick="agregarGoogleAEntrevistas('${hash}')">Agregar</button>`;
+        html += `<button type="button" class="gf-btn-mini gf-btn-discard" onclick="descartarGoogleForm('${hash}')">Descartar</button>`;
+    } else if (estado === "DESCARTADO") {
+        html += `<button type="button" class="gf-btn-mini gf-btn-add" onclick="agregarGoogleAEntrevistas('${hash}')">Agregar</button>`;
+    } else {
+        html += `<button type="button" class="gf-btn-mini gf-btn-disabled" disabled>Gestionado</button>`;
+    }
+
+    html += `</div>`;
+
+    return html;
+}
+
 function renderTablaGoogleForm() {
     const thead = document.querySelector("#tablaGoogleForm thead");
     const tbody = document.querySelector("#tablaGoogleForm tbody");
@@ -2844,6 +3466,10 @@ function renderTablaGoogleForm() {
         trHead.appendChild(th);
     });
 
+    const thEstado = document.createElement("th");
+    thEstado.textContent = "Estado";
+    trHead.appendChild(thEstado);
+
     const thAccion = document.createElement("th");
     thAccion.textContent = "Acción";
     trHead.appendChild(thAccion);
@@ -2861,8 +3487,12 @@ function renderTablaGoogleForm() {
             tr.appendChild(td);
         });
 
+        const tdEstado = document.createElement("td");
+        tdEstado.innerHTML = renderEstadoGF(row);
+        tr.appendChild(tdEstado);
+
         const tdAccion = document.createElement("td");
-        tdAccion.innerHTML = `<button type="button" class="btn-ver-form" onclick="verDetalleGoogle(${index})">Ver</button>`;
+        tdAccion.innerHTML = renderAccionesGF(row, index);
         tr.appendChild(tdAccion);
 
         tr.addEventListener("dblclick", () => verDetalleGoogle(index));
@@ -2872,6 +3502,93 @@ function renderTablaGoogleForm() {
 
     document.getElementById("gfEstado").textContent = `Mostrando ${rowsFiltradas.length} de ${GF_ROWS.length} respuestas.`;
 }
+async function agregarGoogleAEntrevistas(hash) {
+    if (!hash) {
+        alert("Hash inválido.");
+        return;
+    }
+
+    if (!confirm("¿Agregar este postulante a la tabla de entrevistas?")) {
+        return;
+    }
+
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    try {
+        const resp = await fetch("bvisentrevisaf.php?accion=google_form_agregar", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `hash=${encodeURIComponent(hash)}&csrf=${encodeURIComponent(csrf)}`
+        });
+
+        const data = await resp.json();
+
+        if (!data.ok) {
+            alert("⚠️ " + (data.mensaje || "No se pudo agregar."));
+            return;
+        }
+
+        alert("✅ " + data.mensaje);
+
+        await cargarGoogleForm();
+
+        // Recarga la página principal para que la tabla entrevistas muestre el nuevo registro
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+
+    } catch (error) {
+        console.error(error);
+        alert("❌ Error al agregar el postulante.");
+    }
+}
+
+async function descartarGoogleForm(hash) {
+    if (!hash) {
+        alert("Hash inválido.");
+        return;
+    }
+
+    const motivo = prompt("Motivo del descarte:", "No cumple con el perfil requerido.");
+
+    if (motivo === null) {
+        return;
+    }
+
+    if (!confirm("¿Descartar este registro? No se eliminará nada del Google Sheet.")) {
+        return;
+    }
+
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    try {
+        const resp = await fetch("bvisentrevisaf.php?accion=google_form_descartar", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `hash=${encodeURIComponent(hash)}&motivo=${encodeURIComponent(motivo)}&csrf=${encodeURIComponent(csrf)}`
+        });
+
+        const data = await resp.json();
+
+        if (!data.ok) {
+            alert("⚠️ " + (data.mensaje || "No se pudo descartar."));
+            return;
+        }
+
+        alert("✅ " + data.mensaje);
+
+        await cargarGoogleForm();
+
+    } catch (error) {
+        console.error(error);
+        alert("❌ Error al descartar el registro.");
+    }
+}
+
 
 function verDetalleGoogle(indexFiltrado) {
     const rowsFiltradas = filtrarRowsGoogle();
@@ -2881,6 +3598,31 @@ function verDetalleGoogle(indexFiltrado) {
 
     const cont = document.getElementById("contenidoGoogleDetalle");
     cont.innerHTML = "";
+
+    const acciones = document.createElement("div");
+    acciones.className = "google-detail-item";
+    acciones.style.gridColumn = "1 / -1";
+
+    acciones.innerHTML = `
+        <small>Gestión del registro</small>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <div>${renderEstadoGF(row)}</div>
+            <div>${renderAccionesGF(row, indexFiltrado)}</div>
+        </div>
+    `;
+
+    cont.appendChild(acciones);
+
+    if (row._gf_motivo) {
+        const motivo = document.createElement("div");
+        motivo.className = "google-detail-item";
+        motivo.style.gridColumn = "1 / -1";
+        motivo.innerHTML = `
+            <small>Motivo / Observación de gestión</small>
+            <div>${escapeHtml(row._gf_motivo)}</div>
+        `;
+        cont.appendChild(motivo);
+    }
 
     GF_HEADERS.forEach(header => {
         const valor = row[header] ?? "";
