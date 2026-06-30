@@ -723,6 +723,81 @@ if (isset($_GET['ajax'])) {
             horario_json(true, horario_build_snapshot($conn), 'Bus asignado correctamente.');
         }
 
+        if ($ajax === 'marcar_bus_taller') {
+            $idplaca = (int)($_POST['idplaca'] ?? 0);
+            $motivo = trim((string)($_POST['motivo'] ?? ''));
+
+            if ($idplaca <= 0) {
+                throw new RuntimeException('Unidad inválida.');
+            }
+
+            if ($motivo === '') {
+                $motivo = 'TALLER: unidad enviada a taller desde estado en espera / sin horario';
+            }
+
+            $stmt = $conn->prepare("
+                SELECT
+                    p.clm_placas_id,
+                    IFNULL(p.clm_placas_BUS, '') AS bus,
+                    IFNULL(p.clm_placas_PLACA, '') AS placa,
+                    IFNULL(ea.clm_pgbestado_estado, 'SIN_HORARIO') AS estado_actual,
+                    (
+                        SELECT COUNT(*)
+                        FROM tb_progbuses pb
+                        WHERE pb.clm_progbuses_idplaca = p.clm_placas_id
+                          AND pb.clm_progbuses_estado = 1
+                    ) AS horarios_activos
+                FROM tb_placas p
+                LEFT JOIN tb_progbuses_estado_actual ea
+                    ON ea.clm_pgbestado_idplaca = p.clm_placas_id
+                WHERE p.clm_placas_id = ?
+                  AND UPPER(TRIM(IFNULL(p.clm_placas_ESTADO, 'ACTIVO'))) = 'ACTIVO'
+                  AND UPPER(TRIM(IFNULL(p.clm_placas_TIPO_VEHÍCULO, ''))) IN ('BUS', 'CARGUERO')
+                LIMIT 1
+            ");
+
+            if (!$stmt) {
+                throw new RuntimeException(horario_mysqli_error($conn));
+            }
+
+            $stmt->bind_param('i', $idplaca);
+            $stmt->execute();
+            $rowUnidad = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$rowUnidad) {
+                throw new RuntimeException('No se encontró la unidad activa.');
+            }
+
+            if ((int)($rowUnidad['horarios_activos'] ?? 0) > 0) {
+                throw new RuntimeException('Esta unidad tiene un horario activo. Usa la opción Retirar o Cambiar unidad.');
+            }
+
+            $estadoActual = strtoupper(trim((string)($rowUnidad['estado_actual'] ?? '')));
+
+            if ($estadoActual !== 'SIN_HORARIO') {
+                throw new RuntimeException('Solo puedes enviar a taller unidades que estén en espera / sin horario.');
+            }
+
+            horario_upsert_estado_bus(
+                $conn,
+                $horario_uid,
+                $idplaca,
+                'TALLER',
+                null,
+                $motivo
+            );
+
+            $conn->commit();
+
+            horario_json(
+                true,
+                horario_build_snapshot($conn),
+                'Unidad enviada a taller correctamente.'
+            );
+        }
+
+
         if (in_array($ajax, ['cambiar_bus', 'remover_bus', 'inactivar_horario', 'activar_horario'], true)) {
             $progid = (int)($_POST['progid'] ?? 0);
             if ($progid <= 0) throw new RuntimeException('Horario inválido.');
@@ -4161,7 +4236,7 @@ txtModoImagen: $('txtModoImagen'),
         if (btn) btn.disabled = flag;
       });
 
-      document.querySelectorAll('[data-action], [data-reactivar]').forEach(el => {
+      document.querySelectorAll('[data-action], [data-reactivar], [data-marcar-taller]').forEach(el => {
         if (flag) {
           el.style.pointerEvents = 'none';
           el.style.opacity = '0.65';
@@ -4393,7 +4468,7 @@ function getFilteredRows(){
 
   function renderDates(){ const f=state.snapshot.fechas||{}; els.datesWrap.innerHTML = `<span class="horario-date-chip"><i class="bi bi-calendar-date me-2"></i>Día Operativo: <strong>${esc(f.fecha_base||'—')}</strong></span><span class="horario-date-chip"><i class="bi bi-arrow-right-circle me-2"></i>Siguiente día operativo: <strong>${esc(f.fecha_sig||'—')}</strong></span><span class="horario-date-chip"><i class="bi bi-clock me-2"></i>Corte diario: 00:00 a 04:59</span>`; }
   function renderSummary(){ const s=state.snapshot.summary||{}; els.statTotalActivos.textContent=s.total_activos??0; els.statSinBus.textContent=s.total_sin_bus??0; els.statBusesSinHorario.textContent=s.buses_sin_horario??0; els.statBusesTaller.textContent=s.buses_taller??0; }
-function renderSideList(container, rows, emptyText, includeMotivo = false) {
+function renderSideList(container, rows, emptyText, includeMotivo = false, modo = '') {
   const orderedRows = (rows || []).slice().sort(compareBusNatural);
 
   if (!orderedRows.length) {
@@ -4401,17 +4476,89 @@ function renderSideList(container, rows, emptyText, includeMotivo = false) {
     return;
   }
 
-  container.innerHTML = orderedRows.map(r => `
-    <div class="side-list-item">
-      <div class="side-list-item__title">${esc(r.bus || 'SIN NOMBRE')}</div>
-      <div class="side-list-item__meta">
-        Placa: ${esc(r.placa || '—')} · Tipo: ${esc(r.tipo_vehiculo || '—')}
-      </div>
-      ${includeMotivo && r.motivo ? `<div class="side-list-item__meta mt-1">Motivo: ${esc(r.motivo)}</div>` : ''}
-    </div>
-  `).join('');
-}
+  container.innerHTML = orderedRows.map(r => {
+    const btnTaller = modo === 'sin_horario'
+      ? `
+        <div class="side-list-actions mt-2">
+          <button 
+            type="button" 
+            class="btn btn-sm btn-outline-danger btn-side-taller"
+            data-marcar-taller="${esc(r.clm_placas_id)}"
+            data-bus="${esc(r.bus || '')}"
+            data-placa="${esc(r.placa || '')}">
+            <i class="bi bi-tools me-1"></i>
+            Pasar a taller
+          </button>
+        </div>
+      `
+      : '';
 
+    return `
+      <div class="side-list-item">
+        <div class="side-list-item__title">${esc(r.bus || 'SIN NOMBRE')}</div>
+        <div class="side-list-item__meta">
+          Placa: ${esc(r.placa || '—')} · Tipo: ${esc(r.tipo_vehiculo || '—')}
+        </div>
+
+        ${includeMotivo && r.motivo ? `
+          <div class="side-list-item__meta mt-1">
+            Motivo: ${esc(r.motivo)}
+          </div>
+        ` : ''}
+
+        ${btnTaller}
+      </div>
+    `;
+  }).join('');
+
+  if (modo === 'sin_horario') {
+    attachMarcarTallerActions(container);
+  }
+}
+function attachMarcarTallerActions(container) {
+  container.querySelectorAll('[data-marcar-taller]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idplaca = btn.dataset.marcarTaller;
+      const bus = btn.dataset.bus || '';
+      const placa = btn.dataset.placa || '';
+
+      askMotivo({
+        accion: 'MARCAR_TALLER',
+        titulo: 'Motivo para enviar unidad a taller',
+        options: [
+          {
+            key: 'NORMAL',
+            label: 'Enviar a taller',
+            preview: `TALLER: unidad ${bus} ${placa ? '(' + placa + ')' : ''} enviada a taller desde estado en espera / sin horario`
+          },
+          {
+            key: 'OTRO',
+            label: 'OTRO MOTIVO',
+            preview: 'TALLER: '
+          }
+        ],
+        build: (sel, libre) => {
+          if (sel === 'NORMAL') {
+            return `TALLER: unidad ${bus} ${placa ? '(' + placa + ')' : ''} enviada a taller desde estado en espera / sin horario`;
+          }
+
+          return `TALLER: ${libre}`;
+        }
+      }).then(motivo => {
+        if (!motivo) return;
+
+        performAction(
+          'marcar_bus_taller',
+          {
+            idplaca,
+            motivo
+          },
+          'Unidad enviada a taller correctamente.'
+        );
+      });
+    });
+  });
+}
   function renderScheduleCard(row, fechaSig){
   const activo = Number(row.clm_progbuses_estado) === 1;
   const tieneBus = !!row.clm_progbuses_idplaca;
@@ -5710,7 +5857,17 @@ busesSinHorario.forEach(b => {
 }
 
 
-  function updateAll(){ renderDates(); renderSummary(); renderBoard(); renderSideList(els.sideTaller,state.snapshot.buses_taller||[],'No hay buses marcados en taller.',true); renderSideList(els.sideSinHorario,state.snapshot.buses_sin_horario||[],'Todos los buses activos ya tienen horario.'); els.sideTallerCount.textContent=(state.snapshot.buses_taller||[]).length; els.sideSinHorarioCount.textContent=(state.snapshot.buses_sin_horario||[]).length; }
+  function updateAll(){ renderDates(); renderSummary(); renderBoard(); renderSideList(els.sideTaller,state.snapshot.buses_taller||[],'No hay buses marcados en taller.',true); 
+  renderSideList(
+    els.sideSinHorario,
+    state.snapshot.buses_sin_horario || [],
+    'Todos los buses activos ya tienen horario.',
+    false,
+    'sin_horario'
+  );
+  
+  
+  els.sideTallerCount.textContent=(state.snapshot.buses_taller||[]).length; els.sideSinHorarioCount.textContent=(state.snapshot.buses_sin_horario||[]).length; }
 async function fetchJson(action, options = {}) {
   if (state.isBusy && options.skipBusy !== true) {
     throw new Error('Ya hay una operación en proceso. Espera un momento.');

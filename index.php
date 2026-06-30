@@ -1436,7 +1436,7 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
   echo '
   <div class="product-card">
     <img src="img/icons/roles.png" alt="Roles">
-    <h4>Programación</h4>
+    <h4>Conductores</h4>
     <p>Programación de Conductores</p>
     <a href="01_flota/programacion_condt.php" class="btn-validar">Ingresar</a>
   </div>';
@@ -1456,7 +1456,7 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
   echo '
   <div class="product-card">
     <img src="img/icons/placa.png" alt="Roles">
-    <h4>Programación</h4>
+    <h4>Vehículos</h4>
     <p>Gestión de Placas</p>
     <a href="01_flota/gest_plac.php" class="btn-validar">Ingresar</a>
   </div>';
