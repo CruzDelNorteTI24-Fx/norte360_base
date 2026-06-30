@@ -22,7 +22,124 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']); // eliminar la variable después de mostrar
+// =====================================================
+// AJAX: Obtener respuestas del Google Form desde Sheets
+// =====================================================
+if (isset($_GET['accion']) && $_GET['accion'] === 'google_form_respuestas') {
+    header('Content-Type: application/json; charset=utf-8');
 
+    if (!isset($_SESSION['usuario'])) {
+        http_response_code(401);
+        echo json_encode([
+            'ok' => false,
+            'mensaje' => 'Sesión expirada.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+
+    if ($_SESSION['web_rol'] !== 'Admin' && !in_array(6, $permisos)) {
+        http_response_code(403);
+        echo json_encode([
+            'ok' => false,
+            'mensaje' => 'No tienes permisos para visualizar estas respuestas.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+
+    // ID y GID tomados de tu Google Sheet de respuestas
+    $spreadsheetId = '1Nd4qaKbP_v-_rLQzEItx0uFjERaKWGbJFJJK-Bqopf8';
+    $gid = '609459197';
+
+    // Lee solo columnas A:AA
+    $url = "https://docs.google.com/spreadsheets/d/{$spreadsheetId}/gviz/tq?tqx=out:csv&gid={$gid}&range=A:AA";
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'timeout' => 20,
+            'header' => "User-Agent: Norte360-RRHH\r\n"
+        ]
+    ]);
+
+    $csv = @file_get_contents($url, false, $context);
+
+    if ($csv === false || trim($csv) === '') {
+        echo json_encode([
+            'ok' => false,
+            'mensaje' => 'No se pudo leer el Google Sheet. Verifica que la hoja esté compartida o publicada correctamente.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+
+    // Si Google devuelve HTML, normalmente es porque la hoja está privada
+    if (stripos($csv, '<html') !== false || stripos($csv, '<!doctype') !== false) {
+        echo json_encode([
+            'ok' => false,
+            'mensaje' => 'Google no devolvió CSV. Probablemente la hoja está privada. Debes compartirla como lectura o publicarla como CSV.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+
+    $fp = fopen('php://temp', 'r+');
+    fwrite($fp, $csv);
+    rewind($fp);
+
+    $headers = fgetcsv($fp);
+
+    if (!$headers) {
+        echo json_encode([
+            'ok' => false,
+            'mensaje' => 'No se encontraron encabezados en la hoja.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+
+    // Limpia BOM del primer encabezado
+    $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', $headers[0]);
+
+    // Forzar máximo A:AA = 27 columnas
+    $headers = array_slice($headers, 0, 27);
+
+    $rows = [];
+
+    while (($data = fgetcsv($fp)) !== false) {
+        $data = array_slice($data, 0, 27);
+        $data = array_pad($data, count($headers), '');
+
+        $vacia = true;
+        foreach ($data as $valor) {
+            if (trim((string)$valor) !== '') {
+                $vacia = false;
+                break;
+            }
+        }
+
+        if ($vacia) {
+            continue;
+        }
+
+        $fila = [];
+        foreach ($headers as $i => $header) {
+            $fila[$header] = $data[$i] ?? '';
+        }
+
+        $rows[] = $fila;
+    }
+
+    fclose($fp);
+
+    // Últimas respuestas primero
+    $rows = array_reverse($rows);
+
+    echo json_encode([
+        'ok' => true,
+        'total' => count($rows),
+        'headers' => $headers,
+        'rows' => $rows
+    ], JSON_UNESCAPED_UNICODE);
+
+    exit();
+}
 ?>
 
 
@@ -1176,7 +1293,220 @@ margin: 20px
   background: #e74c3c;
   color: white;
 }
+/* =====================================================
+   MODAL GOOGLE FORM - RESPUESTAS
+===================================================== */
 
+.btn-google-form {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: auto;
+    background: linear-gradient(120deg, #2c3e50, #2980b9);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(41, 128, 185, 0.25);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.btn-google-form:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(41, 128, 185, 0.35);
+}
+
+.modal-google-content {
+    max-width: 96vw;
+    width: 96vw;
+    height: 88vh;
+    margin: 3vh auto;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #f4f7fb;
+}
+
+.google-modal-header {
+    background: linear-gradient(120deg, #2c3e50, #34495e);
+    color: white;
+    padding: 18px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.google-modal-header h2 {
+    color: white;
+    margin: 0;
+    font-size: 22px;
+}
+
+.google-modal-body {
+    padding: 18px;
+    height: calc(88vh - 76px);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.google-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.google-kpi-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    border-left: 5px solid #2980b9;
+}
+
+.google-kpi-card span {
+    display: block;
+    color: #7f8c8d;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.google-kpi-card strong {
+    display: block;
+    color: #2c3e50;
+    font-size: 22px;
+    margin-top: 4px;
+}
+
+.google-toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: white;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.google-toolbar input,
+.google-toolbar select {
+    padding: 11px 12px;
+    border: 1px solid #d8dee6;
+    border-radius: 9px;
+    font-size: 14px;
+    outline: none;
+}
+
+.google-toolbar input {
+    flex: 1;
+}
+
+.google-table-wrap {
+    background: white;
+    border-radius: 12px;
+    overflow: auto;
+    flex: 1;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+#tablaGoogleForm {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+#tablaGoogleForm th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #2c3e50;
+    color: white;
+    font-size: 13px;
+    white-space: nowrap;
+    padding: 12px;
+}
+
+#tablaGoogleForm td {
+    font-size: 13px;
+    padding: 10px 12px;
+    max-width: 260px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tablaGoogleForm tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+#tablaGoogleForm tr:hover {
+    background: #eaf4ff;
+}
+
+.btn-ver-form {
+    width: auto;
+    padding: 7px 12px;
+    border-radius: 8px;
+    background: #2980b9;
+    font-size: 13px;
+}
+
+.google-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.google-detail-item {
+    background: #f8fafc;
+    border: 1px solid #e3e8ef;
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.google-detail-item small {
+    display: block;
+    color: #64748b;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.google-detail-item div {
+    color: #1f2937;
+    word-break: break-word;
+}
+
+.google-link {
+    color: #2980b9;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.google-link:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+    .google-kpis {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .google-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .google-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
     </style>
 </head>
 
@@ -1287,7 +1617,11 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   <hr>
 
   <h2>📝 Entrevistas Registradas</h2>
-
+<div style="text-align:center; margin: 12px 0 20px 0;">
+    <button type="button" class="btn-google-form" onclick="abrirModalGoogleForm()">
+        Ver registros del Formulario Google
+    </button>
+</div>
 <div class="filtros" style="background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); max-width: 900px; margin: 20px auto;">
 
   <div>
@@ -1435,7 +1769,70 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   </div>
 
   <div class="pagination" id="paginacion"></div>
+<!-- =====================================================
+     MODAL RESPUESTAS GOOGLE FORM
+===================================================== -->
+<div id="modalGoogleForm" class="modal">
+    <div class="modal-content modal-google-content">
+        <div class="google-modal-header">
+            <h2>Registros del Formulario Google</h2>
+            <span class="cerrar" onclick="cerrarModalGoogleForm()" style="color:white;">&times;</span>
+        </div>
 
+        <div class="google-modal-body">
+
+            <div class="google-kpis">
+                <div class="google-kpi-card">
+                    <span>Total respuestas</span>
+                    <strong id="gfTotal">0</strong>
+                </div>
+                <div class="google-kpi-card">
+                    <span>Última respuesta</span>
+                    <strong id="gfUltima" style="font-size:15px;">-</strong>
+                </div>
+                <div class="google-kpi-card">
+                    <span>Sedes detectadas</span>
+                    <strong id="gfSedes">0</strong>
+                </div>
+                <div class="google-kpi-card">
+                    <span>Vista</span>
+                    <strong style="font-size:15px;">A:AA</strong>
+                </div>
+            </div>
+
+            <div class="google-toolbar">
+                <input type="text" id="gfBuscar" placeholder="Buscar por nombre, DNI, teléfono, puesto, sede, correo...">
+                <select id="gfFiltroSede">
+                    <option value="">Todas las sedes</option>
+                </select>
+                <button type="button" class="btn-google-form" onclick="recargarGoogleForm()" style="padding:10px 14px;">
+                    🔄 Recargar
+                </button>
+            </div>
+
+            <div id="gfEstado" style="font-weight:700; color:#2c3e50;">
+                Presiona el botón para cargar respuestas.
+            </div>
+
+            <div class="google-table-wrap">
+                <table id="tablaGoogleForm">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal pequeño para detalle individual -->
+<div id="modalGoogleDetalle" class="modal">
+    <div class="modal-content" style="max-width:950px;">
+        <span class="cerrar" onclick="cerrarModalGoogleDetalle()">&times;</span>
+        <h2 style="text-align:left;">📄 Detalle del registro</h2>
+        <div id="contenidoGoogleDetalle" class="google-detail-grid"></div>
+    </div>
+</div>
 
   <div id="modalDetalle" class="modal">
     <div class="modal-content">
@@ -2266,7 +2663,263 @@ function guardarEtapa(key) {
 
 
 </script>
+<script>
+let GF_HEADERS = [];
+let GF_ROWS = [];
 
+function escapeHtml(valor) {
+    return String(valor ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function normalizarTexto(txt) {
+    return String(txt ?? '')
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function esUrl(valor) {
+    return /^https?:\/\//i.test(String(valor ?? '').trim());
+}
+
+function renderValor(valor) {
+    const v = String(valor ?? '').trim();
+
+    if (!v) return '<span style="color:#94a3b8;">-</span>';
+
+    if (esUrl(v)) {
+        return `<a class="google-link" href="${escapeHtml(v)}" target="_blank" rel="noopener noreferrer">Abrir archivo</a>`;
+    }
+
+    return escapeHtml(v);
+}
+
+function obtenerCampo(row, posiblesNombres) {
+    for (const nombre of posiblesNombres) {
+        const key = Object.keys(row).find(k => normalizarTexto(k) === normalizarTexto(nombre));
+        if (key) return row[key] ?? '';
+    }
+    return '';
+}
+
+function abrirModalGoogleForm() {
+    document.getElementById("modalGoogleForm").style.display = "block";
+
+    if (GF_ROWS.length === 0) {
+        cargarGoogleForm();
+    }
+}
+
+function cerrarModalGoogleForm() {
+    document.getElementById("modalGoogleForm").style.display = "none";
+}
+
+function cerrarModalGoogleDetalle() {
+    document.getElementById("modalGoogleDetalle").style.display = "none";
+}
+
+function recargarGoogleForm() {
+    GF_HEADERS = [];
+    GF_ROWS = [];
+    cargarGoogleForm();
+}
+
+async function cargarGoogleForm() {
+    const estado = document.getElementById("gfEstado");
+    estado.textContent = "Cargando respuestas desde Google Forms...";
+    estado.style.color = "#2c3e50";
+
+    try {
+        const resp = await fetch("bvisentrevisaf.php?accion=google_form_respuestas", {
+            method: "GET",
+            cache: "no-store"
+        });
+
+        const data = await resp.json();
+
+        if (!data.ok) {
+            estado.textContent = data.mensaje || "No se pudieron cargar las respuestas.";
+            estado.style.color = "#c0392b";
+            return;
+        }
+
+        GF_HEADERS = data.headers || [];
+        GF_ROWS = data.rows || [];
+
+        estado.textContent = `Respuestas cargadas correctamente: ${GF_ROWS.length}`;
+        estado.style.color = "#27ae60";
+
+        cargarFiltroSedesGoogle();
+        actualizarKpisGoogle();
+        renderTablaGoogleForm();
+
+    } catch (error) {
+        estado.textContent = "Error al consultar el formulario: " + error.message;
+        estado.style.color = "#c0392b";
+    }
+}
+
+function cargarFiltroSedesGoogle() {
+    const select = document.getElementById("gfFiltroSede");
+    select.innerHTML = '<option value="">Todas las sedes</option>';
+
+    const sedes = new Set();
+
+    GF_ROWS.forEach(row => {
+        const sede = obtenerCampo(row, ["Sede a la que postula:"]);
+        if (sede.trim()) sedes.add(sede.trim());
+    });
+
+    [...sedes].sort().forEach(sede => {
+        const opt = document.createElement("option");
+        opt.value = sede;
+        opt.textContent = sede;
+        select.appendChild(opt);
+    });
+}
+
+function actualizarKpisGoogle() {
+    document.getElementById("gfTotal").textContent = GF_ROWS.length;
+
+    const ultima = GF_ROWS.length > 0
+        ? obtenerCampo(GF_ROWS[0], ["Marca temporal"])
+        : "-";
+
+    document.getElementById("gfUltima").textContent = ultima || "-";
+
+    const sedes = new Set();
+    GF_ROWS.forEach(row => {
+        const sede = obtenerCampo(row, ["Sede a la que postula:"]);
+        if (sede.trim()) sedes.add(sede.trim());
+    });
+
+    document.getElementById("gfSedes").textContent = sedes.size;
+}
+
+function filtrarRowsGoogle() {
+    const q = normalizarTexto(document.getElementById("gfBuscar").value);
+    const sedeFiltro = normalizarTexto(document.getElementById("gfFiltroSede").value);
+
+    return GF_ROWS.filter(row => {
+        const textoFila = normalizarTexto(Object.values(row).join(" "));
+        const sede = normalizarTexto(obtenerCampo(row, ["Sede a la que postula:"]));
+
+        const coincideTexto = !q || textoFila.includes(q);
+        const coincideSede = !sedeFiltro || sede === sedeFiltro;
+
+        return coincideTexto && coincideSede;
+    });
+}
+
+function renderTablaGoogleForm() {
+    const thead = document.querySelector("#tablaGoogleForm thead");
+    const tbody = document.querySelector("#tablaGoogleForm tbody");
+
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+
+    const headersVista = [
+        "Marca temporal",
+        "Nombres y Apellidos",
+        "Numero de DNI:",
+        "Correo electrónico:",
+        "Número de teléfono:",
+        "Puesto al que postula:",
+        "Sede a la que postula:",
+        "Adjuntar CV actualizado",
+        "Dirección de correo electrónico"
+    ];
+
+    const trHead = document.createElement("tr");
+
+    headersVista.forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        trHead.appendChild(th);
+    });
+
+    const thAccion = document.createElement("th");
+    thAccion.textContent = "Acción";
+    trHead.appendChild(thAccion);
+
+    thead.appendChild(trHead);
+
+    const rowsFiltradas = filtrarRowsGoogle();
+
+    rowsFiltradas.forEach((row, index) => {
+        const tr = document.createElement("tr");
+
+        headersVista.forEach(h => {
+            const td = document.createElement("td");
+            td.innerHTML = renderValor(obtenerCampo(row, [h]));
+            tr.appendChild(td);
+        });
+
+        const tdAccion = document.createElement("td");
+        tdAccion.innerHTML = `<button type="button" class="btn-ver-form" onclick="verDetalleGoogle(${index})">Ver</button>`;
+        tr.appendChild(tdAccion);
+
+        tr.addEventListener("dblclick", () => verDetalleGoogle(index));
+
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById("gfEstado").textContent = `Mostrando ${rowsFiltradas.length} de ${GF_ROWS.length} respuestas.`;
+}
+
+function verDetalleGoogle(indexFiltrado) {
+    const rowsFiltradas = filtrarRowsGoogle();
+    const row = rowsFiltradas[indexFiltrado];
+
+    if (!row) return;
+
+    const cont = document.getElementById("contenidoGoogleDetalle");
+    cont.innerHTML = "";
+
+    GF_HEADERS.forEach(header => {
+        const valor = row[header] ?? "";
+
+        const item = document.createElement("div");
+        item.className = "google-detail-item";
+
+        item.innerHTML = `
+            <small>${escapeHtml(header)}</small>
+            <div>${renderValor(valor)}</div>
+        `;
+
+        cont.appendChild(item);
+    });
+
+    document.getElementById("modalGoogleDetalle").style.display = "block";
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const buscar = document.getElementById("gfBuscar");
+    const sede = document.getElementById("gfFiltroSede");
+
+    if (buscar) buscar.addEventListener("input", renderTablaGoogleForm);
+    if (sede) sede.addEventListener("change", renderTablaGoogleForm);
+});
+
+window.addEventListener("click", function(event) {
+    const modalGoogle = document.getElementById("modalGoogleForm");
+    const modalDetalleGoogle = document.getElementById("modalGoogleDetalle");
+
+    if (event.target === modalGoogle) {
+        cerrarModalGoogleForm();
+    }
+
+    if (event.target === modalDetalleGoogle) {
+        cerrarModalGoogleDetalle();
+    }
+});
+</script>
 </body>
 
 
