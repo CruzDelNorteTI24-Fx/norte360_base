@@ -113,7 +113,7 @@ function condt_fetch_placas_activas(): array {
         FROM tb_placas
         WHERE UPPER(TRIM(IFNULL(clm_placas_ESTADO, 'ACTIVO'))) = 'ACTIVO'
           AND clm_placas_TIPO_VEHÍCULO IN ('BUS', 'CARGUERO')
-        ORDER BY clm_placas_BUS ASC, clm_placas_PLACA ASC
+        ORDER BY clm_placas_TIPO_VEHÍCULO ASC, CAST(clm_placas_BUS AS UNSIGNED) ASC, clm_placas_PLACA ASC
     ";
     $rs = $db->query($sql);
     return $rs->fetch_all(MYSQLI_ASSOC);

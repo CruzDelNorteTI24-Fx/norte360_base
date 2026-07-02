@@ -1,18 +1,32 @@
 <?php
 session_start();
-if (!isset($_SESSION['usuario'])) {
+
+$QR_PROG_TOKEN = 'KfQxLmNvRpTsYzAaBcDeFgHiJkLmNoPqRsTuVwXyZaBcEfGh';
+$modo_qr_programacion = (
+    isset($_GET['qr']) &&
+    $_GET['qr'] === 'programacion' &&
+    hash_equals($QR_PROG_TOKEN, (string)($_GET['t'] ?? ''))
+);
+
+if (!$modo_qr_programacion && !isset($_SESSION['usuario'])) {
     header("Location: ../login/login.php");
     exit();
 }
 
-$permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
-$vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
+$session_permisos_raw = $_SESSION['permisos'] ?? [];
+$session_vistas_raw   = $_SESSION['vistas'] ?? [];
+$web_rol              = $_SESSION['web_rol'] ?? '';
+$usuario_session      = $_SESSION['usuario'] ?? 'QR Operativo';
+$dni_session          = $_SESSION['DNI'] ?? '—';
 
-if ($_SESSION['web_rol'] !== 'Admin') {
+$permisos = ($session_permisos_raw === 'all') ? [] : (array)$session_permisos_raw;
+$vistas   = ($session_permisos_raw === 'all') ? [] : (array)$session_vistas_raw;
+
+if (!$modo_qr_programacion && $web_rol !== 'Admin') {
     $modulo_actual = 10;
     $vista_actuales = ["f-proghor"];
 
-    if (!in_array($modulo_actual, $_SESSION['permisos']) || empty(array_intersect($vista_actuales, $_SESSION['vistas']))) {
+    if (!in_array($modulo_actual, $permisos) || empty(array_intersect($vista_actuales, $vistas))) {
         header("Location: ../../login/none_permisos.php");
         exit();
     }
@@ -512,6 +526,12 @@ if (isset($_GET['ajax'])) {
     try {
         horario_inicializar_estado_buses($conn, $horario_uid);
         $ajax = trim((string)$_GET['ajax']);
+
+        // MODO QR: SOLO LECTURA
+        // No permite crear, editar, cambiar bus, remover, taller, inhabilitar, activar, etc.
+        if ($modo_qr_programacion && $ajax !== 'snapshot') {
+            horario_json(false, [], 'Acción no permitida en modo QR.');
+        }
 
         if ($ajax === 'snapshot') horario_json(true, horario_build_snapshot($conn));
         if ($ajax === 'historial') horario_json(true, ['historial' => horario_fetch_historial($conn, (int)($_GET['limit'] ?? 300))]);
@@ -3708,11 +3728,130 @@ aside img {
   border-color: #f3d29a;
   background: linear-gradient(180deg, #ffffff 0%, #fffaf0 100%);
 }
+.panel-qr-programacion {
+    display: none;
+    margin: 16px;
+    padding: 18px;
+    border-radius: 18px;
+    background: #1f3a5f;
+    color: white;
+    box-shadow: 0 10px 25px rgba(0,0,0,.18);
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.panel-qr-programacion p {
+    margin: 4px 0 0 0;
+    color: #dbeafe;
+}
+
+.panel-qr-programacion button {
+    border: 0;
+    border-radius: 14px;
+    padding: 12px 18px;
+    background: #f2b149;
+    color: #111827;
+    font-weight: 800;
+}
+
+body.modo-qr-programacion .panel-qr-programacion {
+    display: flex;
+}
+
+
+/* =========================
+   MODO QR PROGRAMACIÓN
+   Solo descarga PDF
+========================= */
+
+body.modo-qr-programacion {
+    background: #0f172a;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* Ocultar navegación, header, footer, sidebar y soporte */
+body.modo-qr-programacion .main-header,
+body.modo-qr-programacion .nav-bar-pro,
+body.modo-qr-programacion .subnav,
+body.modo-qr-programacion .menu-lateral,
+body.modo-qr-programacion .sidebar-show-btn,
+body.modo-qr-programacion .menu-toggle,
+body.modo-qr-programacion .main-footer,
+body.modo-qr-programacion .btn-flotante {
+    display: none !important;
+}
+
+/* La interfaz existe para JS, pero no se muestra al usuario */
+body.modo-qr-programacion .main-content {
+    position: absolute !important;
+    left: -99999px !important;
+    top: -99999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Panel visible del QR */
+body.modo-qr-programacion .panel-qr-programacion {
+    display: flex !important;
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    border-radius: 0;
+    background:
+        radial-gradient(circle at top right, rgba(47, 113, 183, .35), transparent 35%),
+        linear-gradient(135deg, #0f172a, #1e293b);
+    color: white;
+    box-shadow: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 28px;
+    z-index: 999999;
+}
+
+body.modo-qr-programacion .panel-qr-programacion > div {
+    max-width: 620px;
+}
+
+body.modo-qr-programacion .panel-qr-programacion strong {
+    display: block;
+    font-size: clamp(1.5rem, 4vw, 2.3rem);
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+
+body.modo-qr-programacion .panel-qr-programacion p {
+    color: #cbd5e1;
+    font-size: 1rem;
+    margin-bottom: 22px;
+}
+
+body.modo-qr-programacion .panel-qr-programacion button {
+    width: auto;
+    min-width: 280px;
+    border: 0;
+    border-radius: 16px;
+    padding: 14px 24px;
+    background: #f2b149;
+    color: #111827;
+    font-weight: 900;
+    box-shadow: 0 14px 30px rgba(0,0,0,.28);
+}
+
+body.modo-qr-programacion .panel-qr-programacion button:hover {
+    background: #ffc766;
+}
 
     </style>
 </head>
 
-<body>
+<body class="<?= $modo_qr_programacion ? 'modo-qr-programacion' : '' ?>">
 <?php
 function calcularEdad($fechaNacimiento) {
     $hoy = new DateTime();
@@ -3877,7 +4016,19 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 </button>
 
 
+<div id="panelQRProgramacion" class="panel-qr-programacion">
+  <div>
+    <strong>Programación Operativa Norte 360°</strong>
+    <p>
+      Se generará un PDF oficial usando la configuración actual:
+      cada grupo saldrá como PIZARRA o TABLA según corresponda.
+    </p>
+  </div>
 
+  <button type="button" onclick="generarPDFQRDosHojas()">
+    Descargar PDF de programación
+  </button>
+</div>
 
 
 <div class="main-content">
@@ -5255,6 +5406,77 @@ function descargarPDFDesdeCanvas(items, nombrePDF) {
 
   pdf.save(nombrePDF);
 }
+
+async function generarPDFQRDosHojas() {
+  const filas = getFilteredRows();
+
+  const busesSinHorario = (state.snapshot.buses_sin_horario || [])
+    .slice()
+    .sort(compareBusNatural);
+
+  const busesTaller = (state.snapshot.buses_taller || [])
+    .slice()
+    .sort(compareBusNatural);
+
+  if (!filas.length && !busesSinHorario.length && !busesTaller.length) {
+    throw new Error('No hay información para generar el PDF de programación.');
+  }
+
+  const gruposPizarra = agruparFilasPorGrupoPizarra(filas);
+  const nombresGrupos = Object.keys(gruposPizarra).sort(compareTextNatural);
+
+  if (!nombresGrupos.length) {
+    throw new Error('No hay grupos de pizarra configurados en las sedes de origen.');
+  }
+
+  const items = [];
+
+  for (const nombreGrupo of nombresGrupos) {
+    const grupoInfo = gruposPizarra[nombreGrupo];
+    const filasGrupo = grupoInfo?.filas || [];
+
+    // Esta es la misma lógica del botón "Generar imágenes"
+    const tipoImagen = String(grupoInfo?.tipoImagen || 'PIZARRA')
+      .trim()
+      .toUpperCase();
+
+    let hoja = null;
+
+    if (tipoImagen === 'TABLA') {
+      hoja = await generarImagenTablaGrupo(
+        nombreGrupo,
+        filasGrupo,
+        busesSinHorario,
+        busesTaller,
+        { salida: 'canvas' }
+      );
+    } else {
+      hoja = await generarImagenPizarraGrupo(
+        nombreGrupo,
+        filasGrupo,
+        busesSinHorario,
+        busesTaller,
+        { salida: 'canvas' }
+      );
+    }
+
+    if (hoja?.canvas) {
+      items.push(hoja);
+    }
+
+    await pausa(120);
+  }
+
+  if (!items.length) {
+    throw new Error('No se pudo generar ninguna hoja para el PDF.');
+  }
+
+  const fechaBaseArchivo = slugify((state.snapshot.fechas || {}).fecha_base || 'operativo');
+  const nombrePDF = `programacion_qr_configurada_${fechaBaseArchivo}.pdf`;
+
+  descargarPDFDesdeCanvas(items, nombrePDF);
+}
+
 
 async function generarPDFPorFormato(formatoSeleccionado) {
   const { formato, modo, items } = await generarCanvasPorFormato(formatoSeleccionado);
@@ -6983,7 +7205,24 @@ if (els.btnLimpiarFiltroHistorial) {
   });
 }
 els.btnConfirmBus.addEventListener('click',()=>confirmBusSelection().catch(err=>showAlert('danger',err.message||'No se pudo completar la operación con el bus.')));
-  fillQuickTimes(els.crearHora,els.quickTimeWrap,updateCreatePreview); fillQuickTimes(els.editarHoraInput,els.quickEditTimeWrap,updateEditPreview); updateAll();
+fillQuickTimes(els.crearHora, els.quickTimeWrap, updateCreatePreview);
+fillQuickTimes(els.editarHoraInput, els.quickEditTimeWrap, updateEditPreview);
+updateAll();
+
+const paramsQR = new URLSearchParams(window.location.search);
+const esModoQRProgramacion = paramsQR.get('qr') === 'programacion';
+
+if (esModoQRProgramacion) {
+  document.body.classList.add('modo-qr-programacion');
+
+  setTimeout(async () => {
+    try {
+      await generarPDFQRDosHojas();
+    } catch (err) {
+      alert(err.message || 'No se pudo generar el PDF desde el QR.');
+    }
+  }, 1200);
+}
 })();
 </script>
 

@@ -2264,7 +2264,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   <hr>
 <?php
 // Consulta de placas
-$stmt = $conn->prepare("SELECT clm_placas_id, clm_placas_PLACA, clm_placas_DUEÑO, clm_placas_BUS, clm_placas_TIPO_VEHÍCULO, clm_placas_ESTADO, clm_placas_KILOMETRAJE, clm_placas_servicio FROM tb_placas ORDER BY clm_placas_ESTADO ASC, clm_placas_TIPO_VEHÍCULO , clm_placas_servicio DESC, clm_placas_BUS");
+$stmt = $conn->prepare("SELECT clm_placas_id, clm_placas_PLACA, clm_placas_DUEÑO, clm_placas_BUS, clm_placas_TIPO_VEHÍCULO, clm_placas_ESTADO, clm_placas_KILOMETRAJE, clm_placas_servicio FROM tb_placas ORDER BY clm_placas_ESTADO ASC, clm_placas_TIPO_VEHÍCULO , CAST(clm_placas_BUS AS UNSIGNED) ASC");
 $stmt->execute();
 $resultado = $stmt->get_result();
 ?>
