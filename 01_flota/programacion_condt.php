@@ -1,18 +1,32 @@
 <?php
 session_start();
-if (!isset($_SESSION['usuario'])) {
+
+$QR_CONDT_TOKEN = 'QmZrTnYpLaXcVeBsNtumamacalatasileesestodJfHgKuOpWiErTyUiAsDfGhparamichatbbnosinoparaelsapoJkLzXcVb';
+$modo_qr_conductores = (
+    isset($_GET['qr']) &&
+    $_GET['qr'] === 'conductores' &&
+    hash_equals($QR_CONDT_TOKEN, (string)($_GET['t'] ?? ''))
+);
+
+if (!$modo_qr_conductores && !isset($_SESSION['usuario'])) {
     header("Location: ../login/login.php");
     exit();
 }
 
-$permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
-$vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
+$session_permisos_raw = $_SESSION['permisos'] ?? [];
+$session_vistas_raw   = $_SESSION['vistas'] ?? [];
+$web_rol              = $_SESSION['web_rol'] ?? '';
+$usuario_session      = $_SESSION['usuario'] ?? 'QR Operativo';
+$dni_session          = $_SESSION['DNI'] ?? '—';
 
-if ($_SESSION['web_rol'] !== 'Admin') {
+$permisos = ($session_permisos_raw === 'all') ? [] : (array)$session_permisos_raw;
+$vistas   = ($session_permisos_raw === 'all') ? [] : (array)$session_vistas_raw;
+
+if (!$modo_qr_conductores && $web_rol !== 'Admin') {
     $modulo_actual = 10; // id_modulo de esta vista
     $vista_actuales = ["f-progcond"];
 
-    if (!in_array($modulo_actual, $_SESSION['permisos']) || empty(array_intersect($vista_actuales, $_SESSION['vistas']))) {
+    if (!in_array($modulo_actual, $permisos) || empty(array_intersect($vista_actuales, $vistas))) {
         header("Location: ../../login/none_permisos.php");
         exit();
     }
@@ -715,6 +729,15 @@ if (isset($_GET['ajax'])) {
     try {
         $ajax = $_GET['ajax'];
 
+        // MODO QR CONDUCTORES: SOLO LECTURA
+        // Solo permite cargar el panel necesario para generar PDF.
+        if ($modo_qr_conductores && $ajax !== 'panel') {
+            condt_json([
+                'ok' => false,
+                'msg' => 'Acción no permitida en modo QR.'
+            ], 403);
+        }
+
         if ($ajax === 'panel') {
             condt_json([
                 'ok' => true,
@@ -770,6 +793,12 @@ if (isset($_GET['ajax'])) {
     }
 }
 
+if ($modo_qr_conductores && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    condt_json([
+        'ok' => false,
+        'msg' => 'No se permiten modificaciones en modo QR.'
+    ], 403);
+}
 /* ============================
    AJAX POST
 ============================ */
@@ -2702,10 +2731,235 @@ aside img {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
 }
+
+/* =========================
+   MODO QR CONDUCTORES
+   Solo descarga PDF
+========================= */
+
+/* =========================
+   MODO QR CONDUCTORES
+   Estilo igual a QR Horarios
+========================= */
+
+.panel-qr-conductores {
+    display: none;
+    margin: 16px;
+    padding: 18px;
+    border-radius: 18px;
+    background: #1f3a5f;
+    color: white;
+    box-shadow: 0 10px 25px rgba(0,0,0,.18);
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.panel-qr-conductores p {
+    margin: 4px 0 0 0;
+    color: #dbeafe;
+}
+
+.panel-qr-conductores button {
+    border: 0;
+    border-radius: 14px;
+    padding: 12px 18px;
+    background: #f2b149;
+    color: #111827;
+    font-weight: 800;
+}
+
+body.modo-qr-conductores .panel-qr-conductores {
+    display: flex;
+}
+body.modo-qr-conductores .panel-qr-conductores {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+}
+
+body.modo-qr-conductores .panel-qr-conductores::after {
+    content: "";
+    position: absolute;
+    right: 40px;
+    bottom: 30px;
+    width: 220px;
+    height: 220px;
+    background: url('../img/norte360.png') center/contain no-repeat;
+    opacity: 0.05;
+    pointer-events: none;
+}
+
+.qr-condt-panel-inner {
+    position: relative;
+    z-index: 2;
+    max-width: 620px;
+}
+
+.qr-condt-logo-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.qr-condt-logo {
+    width: 78px;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,.22));
+    opacity: 0.96;
+}
+
+body.modo-qr-conductores {
+    background: #0f172a;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* Ocultar navegación, header, footer, sidebar y soporte */
+body.modo-qr-conductores .main-header,
+body.modo-qr-conductores .nav-bar-pro,
+body.modo-qr-conductores .subnav,
+body.modo-qr-conductores .menu-lateral,
+body.modo-qr-conductores .sidebar-show-btn,
+body.modo-qr-conductores .menu-toggle,
+body.modo-qr-conductores .main-footer,
+body.modo-qr-conductores .btn-flotante {
+    display: none !important;
+}
+
+/* La interfaz existe para JS, pero no se muestra al usuario */
+body.modo-qr-conductores .main-content {
+    position: absolute !important;
+    left: -99999px !important;
+    top: -99999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Panel visible del QR */
+body.modo-qr-conductores .panel-qr-conductores {
+    display: flex !important;
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    border-radius: 0;
+    background:
+        radial-gradient(circle at top right, rgba(47, 113, 183, .35), transparent 35%),
+        linear-gradient(135deg, #0f172a, #1e293b);
+    color: white;
+    box-shadow: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 28px;
+    z-index: 999999;
+}
+
+body.modo-qr-conductores .panel-qr-conductores > div {
+    max-width: 620px;
+}
+
+body.modo-qr-conductores .panel-qr-conductores strong {
+    display: block;
+    font-size: clamp(1.5rem, 4vw, 2.3rem);
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+
+body.modo-qr-conductores .panel-qr-conductores p {
+    color: #cbd5e1;
+    font-size: 1rem;
+    margin-bottom: 22px;
+    line-height: 1.55;
+}
+
+body.modo-qr-conductores .qr-condt-actions-simple {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+body.modo-qr-conductores .panel-qr-conductores button {
+    width: auto;
+    min-width: 280px;
+    border: 0;
+    border-radius: 16px;
+    padding: 14px 24px;
+    background: #f2b149;
+    color: #111827;
+    font-weight: 900;
+    box-shadow: 0 14px 30px rgba(0,0,0,.28);
+}
+
+body.modo-qr-conductores .panel-qr-conductores button:hover {
+    background: #ffc766;
+}
+
+body.modo-qr-conductores .panel-qr-conductores .qr-condt-btn-ghost {
+    background: rgba(255,255,255,.08);
+    color: #e5edf6;
+    border: 1px solid rgba(255,255,255,.18);
+    box-shadow: none;
+}
+
+body.modo-qr-conductores .panel-qr-conductores .qr-condt-btn-ghost:hover {
+    background: rgba(255,255,255,.16);
+    color: #ffffff;
+}
+
+@media (max-width: 768px) {
+    body.modo-qr-conductores .qr-condt-actions-simple {
+        width: 100%;
+    }
+
+    body.modo-qr-conductores .panel-qr-conductores button {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .qr-condt-card-main {
+        padding: 26px 20px 22px;
+        border-radius: 24px;
+    }
+
+    .qr-condt-brand-top {
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .qr-condt-brand-divider {
+        display: none;
+    }
+
+    .qr-condt-brand-logo {
+        height: 48px;
+    }
+
+    .qr-condt-brand-company-logo {
+        height: 34px;
+        max-width: 220px;
+    }
+
+    .qr-condt-btn-download,
+    .qr-condt-btn-secondary {
+        min-width: 100%;
+    }
+}
+
     </style>
 </head>
 
-<body>
+<body class="<?= $modo_qr_conductores ? 'modo-qr-conductores' : '' ?>">
 <?php
 function calcularEdad($fechaNacimiento) {
     $hoy = new DateTime();
@@ -2748,15 +3002,15 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
     <div class="usuario-contenedor" style="margin-left:auto; position: relative;">
       <div class="usuario-barra" onclick="toggleDropdown()">
-        <span>Hola, <?= htmlspecialchars($_SESSION['usuario']) ?></span>
+        <span>Hola, <?= htmlspecialchars($usuario_session) ?></span>
         <img src="../img/icons/user.png" alt="Usuario">
       </div>
       <div class="usuario-dropdown" id="usuarioDropdown">
         <p><strong>Nombre:</strong> <?= htmlspecialchars($_SESSION['usuario']) ?></p>
-        <p><strong>DNI:</strong> <?= htmlspecialchars($_SESSION['DNI']) ?></p>
+        <p><strong>DNI:</strong> <?= htmlspecialchars($dni_session) ?></p>
         <p><strong>Edad:</strong> <?= $edad ?> años</p>
         <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%); margin: 12px 0; border: none; border-top: 1px solid #eee;">
-        <p><strong>Rol:</strong> <?= htmlspecialchars($_SESSION['web_rol']) ?></p>
+        <p><strong>Rol:</strong> <?= htmlspecialchars($web_rol ?: 'QR') ?></p>
         <a href="../login/logout.php" class="btn-logout-dropdown">Cerrar sesión</a>
       </div>
     </div>
@@ -2767,16 +3021,16 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 <nav id="nav-modulos" class="nav-bar-pro">
   <ul class="nav-list-pro">
   <?php
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
+    if ($web_rol === 'Admin' || in_array(6, $permisos)) {
         echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-personal\')">👥 Recursos Humanos</a></li>';
     }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
+    if ($web_rol === 'Admin' || in_array(5, $permisos)) {
         echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-mantenimiento\')">🔧 Mantenimiento</a></li>';
     }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
+    if ($web_rol === 'Admin' || in_array(3, $permisos)) {
         echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-inventario\')">📦 Inventario</a></li>';
     }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(10, $permisos)) {
+    if ($web_rol === 'Admin' || in_array(10, $permisos)) {
         echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-flotayoperaciones\')">🚌 Flota y Operaciones</a></li>';
     }
   ?>
@@ -2870,7 +3124,28 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 </button>
 
 
+<div id="panelQRConductores" class="panel-qr-conductores">
+  <div class="qr-condt-panel-inner">
+    
+    <div class="qr-condt-logo-wrap">
+      <img src="../img/norte360.png" alt="Norte 360" class="qr-condt-logo">
+    </div>
 
+    <strong>Programación de Conductores Norte 360°</strong>
+
+    <p>
+      Se generará el PDF oficial de asignación de conductores por unidad.
+      La información se obtiene directamente del sistema en modo solo lectura.
+    </p>
+
+    <div class="qr-condt-actions-simple">
+      <button type="button" onclick="condtQRDescargarProgramacion()">
+        Descargar PDF de conductores
+      </button>
+
+    </div>
+  </div>
+</div>
 
 <div class="main-content">
   <hr>
@@ -4052,8 +4327,58 @@ document.getElementById('txtBuscarRetenPanel').addEventListener('input', condtDe
 document.getElementById('txtBuscarRetenModal').addEventListener('input', condtDebounce(() => condtCargarCatalogoRetenes(document.getElementById('txtBuscarRetenModal').value.trim()), 300));
 document.getElementById('txtBuscarPendienteReten').addEventListener('input', condtDebounce(() => condtCargarPendientesReten(document.getElementById('txtBuscarPendienteReten').value.trim()), 300));
 document.getElementById('txtBuscarHistorial').addEventListener('input', condtDebounce(() => condtCargarHistorial(document.getElementById('txtBuscarHistorial').value.trim()), 300));
+const CONDT_QR_MODE = new URLSearchParams(window.location.search).get('qr') === 'conductores';
 
+async function condtQRPrepararPanel() {
+    if (CONDT_STATE.panel && CONDT_STATE.panel.flotas) {
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+
+    const qr = params.get('qr') || '';
+    const token = params.get('t') || '';
+
+    const url = `programacion_condt.php?ajax=panel&qr=${encodeURIComponent(qr)}&t=${encodeURIComponent(token)}`;
+
+    const { data } = await condtGet(url, false);
+    CONDT_STATE.panel = data;
+}
+
+async function condtQRDescargarProgramacion() {
+    try {
+        await condtQRPrepararPanel();
+        condtGenerateProgramacionPdf();
+    } catch (err) {
+        alert(err.message || 'No se pudo generar el PDF de conductores.');
+    }
+}
+
+async function condtQRDescargarLicencias() {
+    try {
+        await condtQRPrepararPanel();
+        condtGenerateProgramacionPdfLicencias();
+    } catch (err) {
+        alert(err.message || 'No se pudo generar el PDF de licencias.');
+    }
+}
 document.addEventListener('DOMContentLoaded', async () => {
+    if (CONDT_QR_MODE) {
+        document.body.classList.add('modo-qr-conductores');
+
+        try {
+            await condtQRPrepararPanel();
+
+            setTimeout(() => {
+                condtQRDescargarProgramacion();
+            }, 900);
+        } catch (err) {
+            alert(err.message || 'No se pudo cargar la programación de conductores.');
+        }
+
+        return;
+    }
+
     condtMostrarLoader();
     try {
         await condtCargarPanel();
@@ -4145,7 +4470,7 @@ function condtDrawHeaderFooter(doc, pageNumber, totalPages, title, docCode) {
 
     doc.setFontSize(6);
     doc.text(`Fecha y hora de impresión: ${condtFormatDateTimeHuman()}`, 15, pageHeight - 9);
-    doc.text('Usuario: <?= htmlspecialchars($_SESSION['usuario']) ?>', pageWidth - 15, pageHeight - 9, { align: 'right' });
+    doc.text('Usuario: <?= htmlspecialchars($usuario_session) ?>', pageWidth - 15, pageHeight - 9, { align: 'right' });
 }
 
 function condtEnsureSpace(doc, y, neededHeight, title, docCode, pageState) {
