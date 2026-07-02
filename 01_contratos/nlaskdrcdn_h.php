@@ -1690,9 +1690,29 @@ input.addEventListener("input", () => {
     return;
   }
 
-  const filtrados = trabajadores.filter(t =>
-    t.clm_tra_nombres.toLowerCase().includes(valor) || String(t.clm_tra_id).includes(valor)
-  );
+  function normalizarTexto(texto) {
+    return String(texto ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  const palabras = normalizarTexto(valor)
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const filtrados = trabajadores.filter(t => {
+    const textoTrabajador = normalizarTexto([
+      t.clm_tra_id,
+      t.clm_tra_dni,
+      t.clm_tra_nombres,
+      t.clm_tra_cargo,
+      t.clm_tra_tipo_trabajador
+    ].join(" "));
+
+    return palabras.every(palabra => textoTrabajador.includes(palabra));
+  });
 
   function calcularEdad(fechaNacimiento) {
     const hoy = new Date();
