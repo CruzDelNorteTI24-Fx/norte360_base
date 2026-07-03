@@ -121,73 +121,146 @@ function detectar_columnas_anaquel(mysqli $conn): array {
 
 
 if ($codigo) {
-    $stmt = $conn->prepare("
-        SELECT 
-            e.clm_alm_etiquetado_FECHA AS fecha_etiquetado,
-            e.clm_alm_etiquetado_ESTADO AS estado_etiqueta,
-            e.clm_alm_etiquetado_idPRODUCTO AS id_producto,
-            e.clm_alm_etiquetado_idMOVIMIENTO AS id_movimiento,
-            a.clm_alm_anaquel_nombre  AS anaquel,
-            s.clm_sedes_name AS sede_nombre,
-            CONCAT('[', COALESCE(p.clm_alm_producto_codigo,''), '] ', COALESCE(p.clm_alm_producto_NOMBRE,'')) AS producto,
-            p.clm_alm_producto_unidad AS unidproducto,
-            p.clm_alm_producto_IMG AS producto_img,
-            c.clm_alm_categoria_NOMBRE AS categoria,
-            c.clm_alm_categoria_DESCRIPCION AS categoria_descripcion,
-            cod.clm_alm_codigo_NOMBRE AS codigo_categoria,
-            m.clm_alm_mov_IMG AS movimiento_img,
-            m.clm_alm_mov_OBSERVACION AS observacion_movimiento,
-            m.clm_alm_mov_cantidad AS cantidad_movimiento,
-            m.clm_alm_mov_fecha_registro AS fecha_movimiento
-        FROM tb_alm_etiquetado e
-        JOIN tb_alm_producto p ON e.clm_alm_etiquetado_idPRODUCTO = p.clm_alm_producto_id
-        JOIN tb_alm_categoria c ON p.clm_alm_producto_idCATEGORIA = c.clm_alm_categoria_id
-        JOIN tb_alm_codigo cod ON c.clm_alm_categoria_idCODIGO = cod.clm_alm_codigo_id
-        JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
-        LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
-        LEFT JOIN tb_alm_anaquel a ON e.clm_alm_etiquetado_anaquel = a.clm_alm_anaquel_id
-        WHERE e.clm_etiquetado_CODIGO = ?
-    ");
-    $stmt->bind_param("s", $codigo);
-    $stmt->execute();
-    $res = $stmt->get_result();
+    $codigo_busqueda = trim($codigo);
+    $codigo_html = htmlspecialchars($codigo_busqueda, ENT_QUOTES, 'UTF-8');
 
-    if ($row = $res->fetch_assoc()) {
-        $id_producto = $row['id_producto'];
+    // Regla:
+    // DE0215-1  => etiqueta/item específico con trazabilidad
+    // DE0215    => producto general sin detalle de trazabilidad
+    $es_etiqueta_item = (strpos($codigo_busqueda, '-') !== false);
 
-        $stock_query = $conn->query("SELECT Stock_Actual, Estado FROM vw_control_inventario WHERE ID = $id_producto");
-        $stock = $stock_query->fetch_assoc();
+    if ($es_etiqueta_item) {
+        // =========================================================
+        // BÚSQUEDA POR ETIQUETA / ITEM ESPECÍFICO
+        // =========================================================
+        $stmt = $conn->prepare("
+            SELECT 
+                e.clm_alm_etiquetado_FECHA AS fecha_etiquetado,
+                e.clm_alm_etiquetado_ESTADO AS estado_etiqueta,
+                e.clm_alm_etiquetado_idPRODUCTO AS id_producto,
+                e.clm_alm_etiquetado_idMOVIMIENTO AS id_movimiento,
+                a.clm_alm_anaquel_nombre  AS anaquel,
+                s.clm_sedes_name AS sede_nombre,
+                CONCAT('[', COALESCE(p.clm_alm_producto_codigo,''), '] ', COALESCE(p.clm_alm_producto_NOMBRE,'')) AS producto,
+                p.clm_alm_producto_unidad AS unidproducto,
+                p.clm_alm_producto_IMG AS producto_img,
+                c.clm_alm_categoria_NOMBRE AS categoria,
+                c.clm_alm_categoria_DESCRIPCION AS categoria_descripcion,
+                cod.clm_alm_codigo_NOMBRE AS codigo_categoria,
+                m.clm_alm_mov_IMG AS movimiento_img,
+                m.clm_alm_mov_OBSERVACION AS observacion_movimiento,
+                m.clm_alm_mov_cantidad AS cantidad_movimiento,
+                m.clm_alm_mov_fecha_registro AS fecha_movimiento
+            FROM tb_alm_etiquetado e
+            JOIN tb_alm_producto p ON e.clm_alm_etiquetado_idPRODUCTO = p.clm_alm_producto_id
+            JOIN tb_alm_categoria c ON p.clm_alm_producto_idCATEGORIA = c.clm_alm_categoria_id
+            JOIN tb_alm_codigo cod ON c.clm_alm_categoria_idCODIGO = cod.clm_alm_codigo_id
+            JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
+            LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
+            LEFT JOIN tb_alm_anaquel a ON e.clm_alm_etiquetado_anaquel = a.clm_alm_anaquel_id
+            WHERE e.clm_etiquetado_CODIGO = ?
+            LIMIT 1
+        ");
+        $stmt->bind_param("s", $codigo_busqueda);
+        $stmt->execute();
+        $res = $stmt->get_result();
 
-        $mensaje = "<div class='alerta ok'><i class='bi bi-check-circle'></i><strong>Código válido</strong></div>";
-        $mensaje .= "<section><h3>🔹 Código de Etiqueta Escaneado</h3><p class='codigo'>$codigo</p></section>";
+        if ($row = $res->fetch_assoc()) {
+            $id_producto = (int)$row['id_producto'];
 
-        $mensaje .= "<section><h3>📦 Información del Producto</h3>";
-        $mensaje .= "<ul>";
-        $mensaje .= "<li><strong>Categoría:</strong> " . $row['categoria'] . " (" . $row['categoria_descripcion'] . ")</li>";
-        $mensaje .= "<li><strong>Producto:</strong> " . $row['producto'] . " - " . $row['unidproducto'] . "</li>";
-        $mensaje .= "<li><strong>Stock Disponible:</strong> " . ($stock['Stock_Actual'] ?? 'No disponible') . " - " . $row['unidproducto'] . "</li>";
-        $mensaje .= "<li><strong>Estado del Inventario:</strong> " . ($stock['Estado'] ?? '-') . "</li>";
-        $mensaje .= "</ul>";
-        $mensaje .= "<div class='img-block'><p>Imagen del Producto</p><img src='scanner.php?img_prod=".(int)$id_producto."'></div>";
-        $mensaje .= "</section>";
+            $stock_stmt = $conn->prepare("SELECT Stock_Actual, Estado FROM vw_control_inventario WHERE ID = ? LIMIT 1");
+            $stock_stmt->bind_param("i", $id_producto);
+            $stock_stmt->execute();
+            $stock = $stock_stmt->get_result()->fetch_assoc() ?: [];
+            $stock_stmt->close();
 
-        $mensaje .= "<section><h3>🧾 Detalle de Trazabilidad</h3>";
-        $mensaje .= "<ul>";
-        $mensaje .= "<li><strong>Fecha de Ingreso:</strong> " . $row['fecha_movimiento'] . "</li>";
-        $mensaje .= "<li><strong>Oficina/Sede Actual:</strong> " . $row['sede_nombre'] . "</li>";
-        $mensaje .= "<li><strong>Anaquel:</strong> " . ($row['anaquel'] ?? '-') . "</li>";
-        $mensaje .= "<li><strong>Observaciones:</strong> " . $row['observacion_movimiento'] . "</li>";
-        $mensaje .= "<li><strong>Cantidad Ingresada:</strong> " . $row['cantidad_movimiento'] . "</li>";
-        $mensaje .= "<li><strong>Fecha de Etiquetado:</strong> " . $row['fecha_etiquetado'] . "</li>";
-        $mensaje .= "<li><strong>Estado de Etiqueta:</strong> " . $row['estado_etiqueta'] . "</li>";
-        $mensaje .= "</ul>";
-        $mensaje .= mostrar_imagen($row['movimiento_img'], 'Imagen del Movimiento');
-        $mensaje .= "</section>";
+            $mensaje = "<div class='alerta ok'><i class='bi bi-check-circle'></i><strong>Etiqueta válida · Item específico</strong></div>";
+            $mensaje .= "<section><h3>🔹 Código de Etiqueta Escaneado</h3><p class='codigo'>{$codigo_html}</p></section>";
+
+            $mensaje .= "<section><h3>📦 Información del Producto</h3>";
+            $mensaje .= "<ul>";
+            $mensaje .= "<li><strong>Categoría:</strong> " . htmlspecialchars(($row['codigo_categoria'] ? '(' . $row['codigo_categoria'] . ') ' : '') . ($row['categoria_descripcion'] ?: $row['categoria']), ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Producto:</strong> " . htmlspecialchars($row['producto'] . ' - ' . $row['unidproducto'], ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Stock Disponible:</strong> " . htmlspecialchars(($stock['Stock_Actual'] ?? 'No disponible') . ' - ' . $row['unidproducto'], ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Estado del Inventario:</strong> " . htmlspecialchars($stock['Estado'] ?? '-', ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "</ul>";
+            $mensaje .= "<div class='img-block'><p>Imagen del Producto</p><img src='scanner.php?img_prod={$id_producto}'></div>";
+            $mensaje .= "</section>";
+
+            $mensaje .= "<section><h3>🧾 Detalle de Trazabilidad</h3>";
+            $mensaje .= "<ul>";
+            $mensaje .= "<li><strong>Fecha de Ingreso:</strong> " . htmlspecialchars($row['fecha_movimiento'] ?? '-', ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Oficina/Sede Actual:</strong> " . htmlspecialchars($row['sede_nombre'] ?? '-', ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Anaquel:</strong> " . htmlspecialchars($row['anaquel'] ?? '-', ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Observaciones:</strong> " . htmlspecialchars($row['observacion_movimiento'] ?? '-', ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Cantidad Ingresada:</strong> " . htmlspecialchars($row['cantidad_movimiento'] ?? '-', ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Fecha de Etiquetado:</strong> " . htmlspecialchars($row['fecha_etiquetado'] ?? '-', ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "<li><strong>Estado de Etiqueta:</strong> " . htmlspecialchars($row['estado_etiqueta'] ?? '-', ENT_QUOTES, 'UTF-8') . "</li>";
+            $mensaje .= "</ul>";
+            $mensaje .= mostrar_imagen($row['movimiento_img'], 'Imagen del Movimiento');
+            $mensaje .= "</section>";
+        } else {
+            $mensaje = "<div class='alerta bad'><i class='bi bi-x-circle'></i><strong>Etiqueta no encontrada</strong></div>";
+            $mensaje .= "<section><h3>🔎 Código consultado</h3><p class='codigo'>{$codigo_html}</p><p class='text-muted'>Se buscó como item específico porque contiene guion.</p></section>";
+        }
+
+        $stmt->close();
+
     } else {
-        $mensaje = "<div class='alerta bad'><i class='bi bi-x-circle'></i><strong>Código no encontrado</strong></div>";
-    }
+        // =========================================================
+        // BÚSQUEDA POR PRODUCTO GENERAL
+        // =========================================================
+        $stmt = $conn->prepare("
+            SELECT 
+                p.clm_alm_producto_id AS id_producto,
+                p.clm_alm_producto_codigo AS codigo_producto,
+                p.clm_alm_producto_NOMBRE AS producto_nombre,
+                p.clm_alm_producto_unidad AS unidproducto,
+                p.clm_alm_producto_IMG AS producto_img,
+                c.clm_alm_categoria_NOMBRE AS categoria,
+                c.clm_alm_categoria_DESCRIPCION AS categoria_descripcion,
+                cod.clm_alm_codigo_NOMBRE AS codigo_categoria,
+                COALESCE(v.Stock_Actual, 0) AS Stock_Actual,
+                COALESCE(v.Estado, 'Sin estado') AS Estado
+            FROM tb_alm_producto p
+            JOIN tb_alm_categoria c ON p.clm_alm_producto_idCATEGORIA = c.clm_alm_categoria_id
+            JOIN tb_alm_codigo cod ON c.clm_alm_categoria_idCODIGO = cod.clm_alm_codigo_id
+            LEFT JOIN vw_control_inventario v ON v.ID = p.clm_alm_producto_id
+            WHERE p.clm_alm_producto_codigo = ?
+            LIMIT 1
+        ");
+        $stmt->bind_param("s", $codigo_busqueda);
+        $stmt->execute();
+        $res = $stmt->get_result();
 
-    $stmt->close();
+        if ($row = $res->fetch_assoc()) {
+            $id_producto = (int)$row['id_producto'];
+            $codigo_producto = htmlspecialchars($row['codigo_producto'] ?? '', ENT_QUOTES, 'UTF-8');
+            $producto_nombre = htmlspecialchars($row['producto_nombre'] ?? '', ENT_QUOTES, 'UTF-8');
+            $unidad = htmlspecialchars($row['unidproducto'] ?? '', ENT_QUOTES, 'UTF-8');
+            $categoria_full = htmlspecialchars((($row['codigo_categoria'] ?? '') ? '(' . $row['codigo_categoria'] . ') ' : '') . ($row['categoria_descripcion'] ?: $row['categoria']), ENT_QUOTES, 'UTF-8');
+            $stock_actual = htmlspecialchars((string)($row['Stock_Actual'] ?? '0'), ENT_QUOTES, 'UTF-8');
+            $estado_inv = htmlspecialchars($row['Estado'] ?? 'Sin estado', ENT_QUOTES, 'UTF-8');
+
+            $mensaje = "<div class='alerta ok'><i class='bi bi-check-circle'></i><strong>Producto encontrado · Consulta general</strong></div>";
+            $mensaje .= "<section><h3>🔹 Código de Producto Consultado</h3><p class='codigo'>{$codigo_producto}</p></section>";
+
+            $mensaje .= "<section><h3>📦 Detalle del Producto</h3>";
+            $mensaje .= "<ul>";
+            $mensaje .= "<li><strong>Categoría:</strong> {$categoria_full}</li>";
+            $mensaje .= "<li><strong>Producto:</strong> [{$codigo_producto}] {$producto_nombre}" . ($unidad ? " - {$unidad}" : "") . "</li>";
+            $mensaje .= "<li><strong>Stock Disponible:</strong> {$stock_actual}" . ($unidad ? " - {$unidad}" : "") . "</li>";
+            $mensaje .= "<li><strong>Estado del Inventario:</strong> {$estado_inv}</li>";
+            $mensaje .= "</ul>";
+            $mensaje .= "<div class='img-block'><p>Imagen del Producto</p><img src='scanner.php?img_prod={$id_producto}'></div>";
+            $mensaje .= "</section>";
+        } else {
+            $mensaje = "<div class='alerta bad'><i class='bi bi-x-circle'></i><strong>Producto no encontrado</strong></div>";
+            $mensaje .= "<section><h3>🔎 Código consultado</h3><p class='codigo'>{$codigo_html}</p><p class='text-muted'>Se buscó como producto general porque no contiene guion.</p></section>";
+        }
+
+        $stmt->close();
+    }
 }
 
 if ($anaquel) {
@@ -376,6 +449,7 @@ $conn->close();
     <title>Validación de Código | Norte 360°</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="../img/norte360.png">  
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
         <!-- Bootstrap 5 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">   
@@ -1345,6 +1419,495 @@ $conn->close();
 }
 
 
+
+
+/* =========================================================
+   REDISEÑO PRO - SCANNER / VALIDACIÓN NORTE 360
+   Mantiene la lógica: DE0215 = producto, DE0215-1 = trazabilidad
+   ========================================================= */
+:root{
+  --scan-bg:#eef3f8;
+  --scan-ink:#0f172a;
+  --scan-muted:#64748b;
+  --scan-line:#dbe4ef;
+  --scan-primary:#172033;
+  --scan-primary-2:#2c3e50;
+  --scan-accent:#0ea5e9;
+  --scan-green:#16a34a;
+  --scan-red:#dc2626;
+  --scan-orange:#f59e0b;
+  --scan-card:#ffffff;
+}
+body{
+  background:linear-gradient(180deg,#f8fbff 0%,var(--scan-bg) 48%,#e9f0f7 100%)!important;
+  color:var(--scan-ink);
+}
+hr{display:none!important;}
+.scanner-shell{
+  width:min(1500px, 100%);
+  margin:0 auto;
+  padding:24px 26px 34px;
+  box-sizing:border-box;
+}
+
+/* Cuando el menú lateral está visible */
+@media (min-width: 1201px){
+  body:not(.sidebar-collapsed) .scanner-shell{
+    width:min(1500px, calc(100% - 250px));
+    margin-left:250px;
+    margin-right:auto;
+  }
+}
+
+/* Cuando ocultas el menú lateral */
+body.sidebar-collapsed .scanner-shell{
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+.scanner-hero{
+  position:relative;
+  overflow:hidden;
+  border-radius:22px;
+  padding:24px;
+  margin:0 auto 16px;
+  color:#fff;
+  background:radial-gradient(circle at top right,rgba(14,165,233,.24),transparent 34%),linear-gradient(135deg,#172033,#2c3e50 62%,#111827);
+  box-shadow:0 18px 40px rgba(15,23,42,.18);
+  display:grid;
+  grid-template-columns:minmax(280px,1fr) auto;
+  gap:20px;
+  align-items:center;
+}
+.scanner-hero:after{
+  content:"";
+  position:absolute;
+  left:24px;right:24px;bottom:0;
+  height:3px;
+  border-radius:999px;
+  opacity:.95;
+}
+.scanner-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  padding:6px 11px;
+  color:#dbeafe;
+  font-size:.82rem;
+  font-weight:850;
+  margin-bottom:10px;
+}
+.scanner-hero h1{
+  margin:0;
+  font-size:clamp(1.55rem,2.2vw,2.35rem);
+  font-weight:950;
+  letter-spacing:-.04em;
+}
+.scanner-hero p{
+  margin:7px 0 0;
+  color:#cbd5e1;
+  max-width:760px;
+  font-size:.98rem;
+}
+.scanner-hero-logo{
+  width:145px;
+  max-width:100%;
+  filter:drop-shadow(0 14px 18px rgba(0,0,0,.24));
+}
+.scanner-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px;
+  gap:16px;
+  align-items:start;
+}
+.scanner-panel,
+.scan-side-card,
+.scan-methods-pro,
+.camera-box{
+  background:#fff;
+  border:1px solid var(--scan-line);
+  border-radius:20px;
+  box-shadow:0 14px 34px rgba(15,23,42,.09);
+}
+.scanner-panel{
+  overflow:hidden;
+}
+.scanner-panel-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  padding:18px 20px;
+  background:linear-gradient(180deg,#fff,#f8fafc);
+  border-bottom:1px solid #e8eef6;
+}
+.scanner-panel-head h2{
+  text-align:left!important;
+  margin:0!important;
+  color:#172033!important;
+  font-size:1.15rem!important;
+  font-weight:950!important;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+.scanner-panel-head p{
+  margin:4px 0 0;
+  color:#64748b;
+  font-size:.88rem;
+}
+.scan-mode-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  border-radius:999px;
+  padding:7px 11px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  font-size:.82rem;
+  font-weight:900;
+  white-space:nowrap;
+}
+.scanner-panel-body{padding:18px 20px 20px;}
+.scanner-logo-soft{
+  width:118px;
+  max-width:45%;
+  height:auto;
+  display:block;
+  margin:0 auto 12px;
+  opacity:.96;
+  filter:drop-shadow(0 8px 12px rgba(15,23,42,.10));
+}
+.tab-switch{
+  margin:0 0 16px!important;
+  padding:7px!important;
+  background:#f3f7fb!important;
+  border:1px solid #dbe4ef!important;
+  border-radius:16px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9)!important;
+}
+.tab-btn{
+  min-height:45px!important;
+  border-radius:13px!important;
+  color:#334155!important;
+  font-weight:900!important;
+  letter-spacing:.01em;
+  width:100%!important;
+}
+.tab-btn.active{
+  background:#172033!important;
+  color:#fff!important;
+  box-shadow:0 12px 22px rgba(23,32,51,.18)!important;
+}
+.tab-btn:hover{background:#e0f2fe!important;color:#075985!important;transform:translateY(-1px)!important;}
+.tab-btn.active:hover{background:#172033!important;color:#fff!important;}
+.tab-subtitle{
+  text-align:left!important;
+  background:#f8fafc;
+  border:1px solid #e8eef6;
+  border-radius:14px;
+  padding:11px 13px;
+  color:#475569!important;
+  font-weight:750!important;
+  margin:0 0 12px!important;
+}
+.scan-form-line{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 170px;
+  gap:10px;
+  align-items:center;
+  margin-bottom:16px;
+}
+.scan-input-wrap{
+  position:relative;
+}
+.scan-input-wrap i{
+  position:absolute;
+  left:13px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#64748b;
+  font-size:1.05rem;
+}
+.scan-input-wrap input[type=text],
+.scanner-panel input[type=text]{
+  width:100%!important;
+  height:48px!important;
+  padding:0 14px 0 42px!important;
+  border-radius:14px!important;
+  border:1px solid #dbe4ef!important;
+  background:#fff!important;
+  color:#0f172a!important;
+  font-weight:850;
+  margin:0!important;
+  box-shadow:0 1px 0 rgba(15,23,42,.02)!important;
+}
+.scan-input-wrap input:focus,
+.scanner-panel input[type=text]:focus{
+  outline:none!important;
+  border-color:#0ea5e9!important;
+  box-shadow:0 0 0 .20rem rgba(14,165,233,.14)!important;
+}
+.btn-validar{
+  height:48px!important;
+  border-radius:14px!important;
+  background:linear-gradient(135deg,#172033,#0f172a)!important;
+  border:1px solid #172033!important;
+  color:#fff!important;
+  font-weight:950!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  padding:0 14px!important;
+  width:100%!important;
+  animation:none!important;
+  box-shadow:0 12px 22px rgba(15,23,42,.15);
+}
+.btn-validar:hover{transform:translateY(-1px)!important;background:#0f172a!important;}
+.resultado{
+  font-size:.95rem!important;
+  color:#334155!important;
+  line-height:1.45!important;
+}
+.resultado:empty{display:none;}
+.alerta{
+  border-radius:15px!important;
+  padding:13px 14px!important;
+  margin:0 0 14px!important;
+  font-weight:900!important;
+  box-shadow:0 8px 18px rgba(15,23,42,.05);
+}
+.alerta.ok{background:#ecfdf5!important;color:#166534!important;border-color:#bbf7d0!important;}
+.alerta.bad{background:#fef2f2!important;color:#991b1b!important;border-color:#fecaca!important;}
+.alerta.warn{background:#fffbeb!important;color:#92400e!important;border-color:#fde68a!important;}
+.scanner-panel .resultado section{
+  background:#fff;
+  border:1px solid #e8eef6!important;
+  border-radius:18px;
+  padding:16px!important;
+  margin:0 0 14px!important;
+  box-shadow:0 10px 24px rgba(15,23,42,.06);
+}
+.scanner-panel .resultado section h3{
+  margin:0 0 12px!important;
+  padding:0 0 10px;
+  border-bottom:1px solid #eef2f7;
+  color:#172033!important;
+  font-size:1rem!important;
+  font-weight:950!important;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.scanner-panel .resultado ul{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin:0!important;
+  padding:0!important;
+}
+.scanner-panel .resultado ul li{
+  margin:0!important;
+  background:#f8fafc;
+  border:1px solid #eef2f7;
+  border-radius:13px;
+  padding:10px 11px;
+  color:#334155;
+}
+.scanner-panel .resultado ul li strong{
+  display:block;
+  color:#64748b;
+  font-size:.72rem;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+  margin-bottom:3px;
+}
+.codigo{
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  min-width:180px;
+  background:#eff6ff!important;
+  border:1px solid #bfdbfe;
+  color:#1d4ed8!important;
+  padding:11px 16px!important;
+  border-radius:999px!important;
+  font-size:1.12rem!important;
+  letter-spacing:.035em;
+  box-shadow:0 8px 18px rgba(29,78,216,.08);
+}
+.img-block{
+  margin-top:14px!important;
+  background:linear-gradient(180deg,#f8fafc,#eef3f8);
+  border:1px solid #e8eef6;
+  border-radius:18px;
+  padding:14px;
+  text-align:center;
+}
+.img-block p{
+  margin:0 0 10px!important;
+  color:#64748b!important;
+  font-size:.76rem;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  font-weight:950!important;
+}
+.img-block img{
+  max-height:230px!important;
+  object-fit:contain!important;
+  border-radius:14px!important;
+  box-shadow:none!important;
+  background:#fff;
+  padding:8px;
+}
+.no-image{
+  background:#f8fafc;
+  border:1px dashed #cbd5e1;
+  border-radius:14px;
+  padding:18px;
+  color:#94a3b8!important;
+  text-align:center;
+  font-weight:800;
+}
+.scanner-side{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.scan-side-card,
+.scan-methods-pro{padding:16px;}
+.scan-side-card h3,
+.scan-methods-pro h3{
+  margin:0 0 10px!important;
+  color:#172033!important;
+  font-size:1rem!important;
+  font-weight:950!important;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.rule-list{display:grid;gap:9px;margin:0;padding:0;list-style:none;}
+.rule-item{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  background:#f8fafc;
+  border:1px solid #e8eef6;
+  border-radius:14px;
+  padding:10px;
+}
+.rule-ic{
+  width:34px;height:34px;
+  border-radius:11px;
+  display:grid;
+  place-items:center;
+  background:#eff6ff;
+  color:#1d4ed8;
+  flex:0 0 auto;
+}
+.rule-item strong{display:block;color:#0f172a;font-size:.88rem;}
+.rule-item span{display:block;color:#64748b;font-size:.80rem;margin-top:2px;line-height:1.35;}
+.scan-methods-pro .opciones-validacion{
+  display:grid!important;
+  grid-template-columns:1fr;
+  gap:10px!important;
+}
+.card-opcion{
+  width:100%!important;
+  min-height:46px;
+  border-radius:14px!important;
+  padding:0 14px!important;
+  background:#fff!important;
+  color:#172033!important;
+  border:1px solid #dbe4ef!important;
+  box-shadow:0 8px 18px rgba(15,23,42,.06)!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:9px;
+  font-size:.92rem!important;
+  font-weight:950!important;
+}
+.card-opcion:hover{
+  background:#172033!important;
+  color:#fff!important;
+  transform:translateY(-1px)!important;
+}
+.camera-box{
+  display:none;
+  margin-top:16px;
+  padding:16px;
+  overflow:hidden;
+}
+#reader.camera-reader,
+.camera-reader{
+  width:100%!important;
+  max-width:780px!important;
+  margin:16px auto 0!important;
+  display:none;
+  background:#fff;
+  border:1px solid #dbe4ef;
+  border-radius:20px;
+  padding:16px;
+  box-shadow:0 14px 34px rgba(15,23,42,.10);
+}
+#reader video{border-radius:16px!important;}
+#reader button{
+  width:auto!important;
+  border-radius:12px!important;
+  background:#172033!important;
+  color:#fff!important;
+  padding:9px 12px!important;
+  font-weight:850!important;
+}
+.scan-result{
+  max-width:780px;
+  margin:10px auto 0!important;
+  padding:10px 14px;
+  border-radius:14px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  border:1px solid #bfdbfe;
+  text-align:center!important;
+}
+.hint-box{
+  background:#f8fafc!important;
+  border:1px solid #e8eef6!important;
+  border-radius:16px!important;
+  padding:14px!important;
+}
+.tabla-wrap{border-radius:16px!important;border:1px solid #e8eef6;box-shadow:0 10px 24px rgba(15,23,42,.06)!important;}
+.tabla-pro{box-shadow:none!important;border-radius:0!important;}
+.tabla-pro thead th{background:#172033!important;font-size:.75rem!important;text-transform:uppercase;letter-spacing:.035em;}
+.tabla-pro tbody td{font-size:.86rem!important;}
+.mini-img{width:52px!important;height:52px!important;border-radius:13px!important;object-fit:contain!important;background:#f8fafc;border:1px solid #e8eef6;padding:4px;}
+.distbar span{background:linear-gradient(90deg,#0ea5e9,#2563eb)!important;}
+.btn-flotante{z-index:1000!important;}
+@media(max-width:1200px){
+  .scanner-shell{
+    width:100%;
+    margin:0 auto!important;
+    padding:18px;
+  }
+
+  .scanner-grid{grid-template-columns:1fr;}
+  .scanner-side{grid-template-columns:1fr 1fr;display:grid;}
+  .scanner-hero{grid-template-columns:1fr;}
+  .scanner-hero-logo{display:none;}
+}
+@media(max-width:760px){
+  .scanner-shell{padding:14px;}
+  .scanner-panel-head{flex-direction:column;}
+  .scanner-side{display:flex;}
+  .scan-form-line{grid-template-columns:1fr;}
+  .scanner-panel .resultado ul{grid-template-columns:1fr;}
+  .scanner-hero{padding:18px;}
+  .scanner-panel-body{padding:14px;}
+}
+
     </style>
 </head>
 <body>
@@ -1451,84 +2014,124 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
 
 
-<div class="card" id="cardBusqueda" data-tab="<?= htmlspecialchars($tab_activa) ?>">
-  <img src="../img/cdn_etiquetas_lg.png" alt="Logo del sistema" class="logo-inicio">
+<div class="scanner-shell">
+  <section class="scanner-hero">
+    <div>
+      <div class="scanner-eyebrow"><i class="bi bi-upc-scan"></i> Inventario · Scaner</div>
+      <h1>Scanner de Productos y Trazabilidad</h1>
+    </div>
+    <img src="../img/cdn_etiquetas_lg.png" alt="Scanner Norte 360" class="scanner-hero-logo">
+  </section>
 
-  <h2 style="margin-bottom:12px;">Búsqueda</h2>
+  <div class="scanner-grid">
+    <section class="scanner-panel" id="cardBusqueda" data-tab="<?= htmlspecialchars($tab_activa) ?>">
+      <div class="scanner-panel-head">
+        <div>
+          <h2><i class="bi bi-search"></i> Búsqueda operativa</h2>
+        </div>
+        <span class="scan-mode-pill"><i class="bi bi-lightning-charge"></i> Lectura rápida</span>
+      </div>
 
-  <!-- Tabs -->
-  <div class="tab-switch">
-    <button type="button" class="tab-btn" data-tab="producto">
-      <i class="bi bi-upc-scan"></i> Producto
-    </button>
-    <button type="button" class="tab-btn" data-tab="anaquel">
-      <i class="bi bi-grid-3x3-gap"></i> Anaquel
-    </button>
-  </div>
+      <div class="scanner-panel-body">
+        <img src="../img/cdn_etiquetas_lg.png" alt="Logo del sistema" class="scanner-logo-soft">
 
-  <!-- TAB: PRODUCTO -->
-  <div class="tab-pane" id="tab-producto">
-    <div class="tab-subtitle">Validación de etiqueta: trazabilidad y stock disponible</div>
+        <div class="tab-switch">
+          <button type="button" class="tab-btn" data-tab="producto">
+            <i class="bi bi-upc-scan"></i> Producto / Etiqueta
+          </button>
+          <button type="button" class="tab-btn" data-tab="anaquel">
+            <i class="bi bi-grid-3x3-gap"></i> Anaquel
+          </button>
+        </div>
 
-    <form method="get" class="form-pro">
-      <input
-        type="text"
-        name="codigo"
-        placeholder="Ingrese el código de barra (Etiqueta)..."
-        value="<?= htmlspecialchars($codigo) ?>"
-        autocomplete="off"
-        <?= ($tab_activa === 'producto' ? 'required' : '') ?>
-      >
-      <button type="submit" class="btn-validar">Validar Producto</button>
-    </form>
+        <div class="tab-pane" id="tab-producto">
 
-    <div class="resultado"><?= $mensaje ?></div>
-  </div>
+          <form method="get" class="form-pro">
+            <div class="scan-form-line">
+              <div class="scan-input-wrap">
+                <i class="bi bi-upc"></i>
+                <input
+                  type="text"
+                  name="codigo"
+                  placeholder="Etiqueta de Producto o ítem ..."
+                  value="<?= htmlspecialchars($codigo) ?>"
+                  autocomplete="off"
+                  <?= ($tab_activa === 'producto' ? 'required' : '') ?>
+                >
+              </div>
+              <button type="submit" class="btn-validar"><i class="bi bi-check2-circle"></i> Validar</button>
+            </div>
+          </form>
 
-  <!-- TAB: ANAQUEL -->
-  <div class="tab-pane" id="tab-anaquel">
-    <div class="tab-subtitle">Consulta de anaquel: productos asociados</div>
+          <div class="resultado"><?= $mensaje ?></div>
+        </div>
 
-    <form method="get" class="form-pro">
-      <input
-        type="text"
-        name="anaquel"
-        placeholder="Ingrese el código del anaquel..."
-        value="<?= htmlspecialchars($anaquel) ?>"
-        autocomplete="off"
-        <?= ($tab_activa === 'anaquel' ? 'required' : '') ?>
-      >
-      <button type="submit" class="btn-validar">Buscar Anaquel</button>
-    </form>
+        <div class="tab-pane" id="tab-anaquel">
+          <div class="tab-subtitle">
+            <i class="bi bi-info-circle"></i>
+            Consulta un anaquel para visualizar productos asociados, stock y distribución por ubicación.
+          </div>
 
-    <div class="resultado"><?= $mensaje_anaquel ?></div>
-  </div>
-</div>
+          <form method="get" class="form-pro">
+            <div class="scan-form-line">
+              <div class="scan-input-wrap">
+                <i class="bi bi-grid-3x3-gap"></i>
+                <input
+                  type="text"
+                  name="anaquel"
+                  placeholder="Código del anaquel..."
+                  value="<?= htmlspecialchars($anaquel) ?>"
+                  autocomplete="off"
+                  <?= ($tab_activa === 'anaquel' ? 'required' : '') ?>
+                >
+              </div>
+              <button type="submit" class="btn-validar"><i class="bi bi-search"></i> Buscar</button>
+            </div>
+          </form>
 
-    <!-- Subir imagen DESDE PRIMERA LIBERÍA -->
-    <hr>
-<!-- SECCIÓN DE OTRAS MANERAS DE ESCANEAR -->
+          <div class="resultado"><?= $mensaje_anaquel ?></div>
+        </div>
+      </div>
+    </section>
 
-<div class="metodos-extra">
-    <h3>Métodos de captura</h3>
+    <aside class="scanner-side">
+      <div class="scan-side-card">
+        <h3><i class="bi bi-diagram-3"></i> Regla de lectura</h3>
+        <ul class="rule-list">
+          <li class="rule-item">
+            <div class="rule-ic"><i class="bi bi-box-seam"></i></div>
+            <div><strong>Producto general</strong><span>Muestra stock, estado, categoría e imagen.</span></div>
+          </li>
+          <li class="rule-item">
+            <div class="rule-ic"><i class="bi bi-geo-alt"></i></div>
+            <div><strong>Item específico</strong><span>Muestra trazabilidad, anaquel, sede y movimiento.</span></div>
+          </li>
+          <li class="rule-item">
+            <div class="rule-ic"><i class="bi bi-grid-3x3-gap"></i></div>
+            <div><strong>Anaquel</strong><span>Usa la pestaña Anaquel para revisar distribución de productos por ubicación.</span></div>
+          </li>
+        </ul>
+      </div>
 
-    <div class="opciones-validacion">
-        <label class="card-opcion">
+      <div class="scan-methods-pro">
+        <h3><i class="bi bi-camera"></i> Métodos de captura</h3>
+        <div class="opciones-validacion">
+          <label class="card-opcion">
             <i class="bi bi-upload"></i> Subir imagen
             <input type="file" id="imgUpload" accept="image/*" hidden>
-        </label>
+          </label>
 
-        <button id="startScanner" class="card-opcion">
-            <i class="bi bi-camera"></i> Usar cámara
-        </button>
-    </div>
+          <button id="startScanner" class="card-opcion" type="button">
+            <i class="bi bi-camera-video"></i> Usar cámara
+          </button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="reader" class="camera-reader"></div>
+  <p id="scan-result" class="scan-result" style="display:none;"></p>
 </div>
-
-
-
-    <!-- Escáner en vivo DESDE SEGUNDA LIBERÍA-->
-    <div id="reader" style="width:100%; max-width:400px; margin:30px auto; display:none;"></div>
-    <p id="scan-result" style="text-align:center; font-weight:bold;"></p>
 
     <!-- PRIMERA LIBERÍA -->
     <script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
@@ -1587,7 +2190,9 @@ document.getElementById('startScanner').addEventListener('click', function() {
         qrScanner.render(
             (decodedText) => {
                 encontrado = true;
-                document.getElementById("scan-result").innerText = "Código detectado: " + decodedText;
+                const scanResult = document.getElementById("scan-result");
+                scanResult.style.display = "block";
+                scanResult.innerText = "Código detectado: " + decodedText;
                 setTimeout(() => {
                     const tab = (window.__scanTab || 'producto');
                     const param = (tab === 'anaquel') ? 'anaquel' : 'codigo';
@@ -1605,7 +2210,9 @@ document.getElementById('startScanner').addEventListener('click', function() {
             if (btnStop) {
                 btnStop.addEventListener('click', () => {
                     if (!encontrado) {
-                        document.getElementById("scan-result").innerText = "No se detectó ningún código.";
+                        const scanResult = document.getElementById("scan-result");
+                        scanResult.style.display = "block";
+                        scanResult.innerText = "No se detectó ningún código.";
                     }
                 });
             }

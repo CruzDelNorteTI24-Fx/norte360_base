@@ -5839,7 +5839,7 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
   const cuerpoW = 1500;
   const anchoTotal = cuerpoW + panelDerechoW + (margen * 2);
 
-  let alto = 220;
+  let alto = 60;
   Object.keys(grupos).forEach(origen => {
     const items = grupos[origen];
     const filasVisuales = items.length > 6 ? Math.max(1, Math.ceil(items.length / 2)) : items.length;

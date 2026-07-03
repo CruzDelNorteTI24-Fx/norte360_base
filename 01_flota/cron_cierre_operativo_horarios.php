@@ -1,9 +1,6 @@
 <?php
 date_default_timezone_set('America/Lima');
 
-define('ACCESS_GRANTED', true);
-require_once(__DIR__ . '/../.c0nn3ct/db_securebd2.php');
-
 header('Content-Type: text/plain; charset=utf-8');
 
 $logFile = __DIR__ . '/cron_cierre_operativo.log';
@@ -17,22 +14,32 @@ function cron_log(string $mensaje): void {
     );
 }
 
+$runId = date('Ymd_His') . '_' . bin2hex(random_bytes(3));
+
+cron_log("PING_CRON | run={$runId} | sapi=" . php_sapi_name() . " | ip=" . ($_SERVER['REMOTE_ADDR'] ?? 'CLI'));
+
 $tokenPermitido = 'NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
 $tokenRecibido = $_GET['token'] ?? '';
 
 if ($tokenRecibido !== $tokenPermitido) {
-    cron_log('ACCESO DENEGADO');
+    cron_log("ACCESO DENEGADO | run={$runId}");
     http_response_code(403);
     echo "Acceso denegado.";
     exit;
 }
 
+define('ACCESS_GRANTED', true);
+
 try {
-    if (!$conn) {
+    cron_log("CARGANDO_CONEXION | run={$runId}");
+
+    require_once(__DIR__ . '/../.c0nn3ct/db_securebd2.php');
+
+    if (!isset($conn) || !$conn) {
         throw new Exception("No existe conexión a la base de datos.");
     }
 
-    cron_log('INICIO DE EJECUCIÓN');
+    cron_log("INICIO DE EJECUCIÓN | run={$runId}");
 
     if (!$conn->query("CALL sp_cierre_operativo_progbuses()")) {
         throw new Exception($conn->error);
@@ -63,19 +70,20 @@ try {
         $estado = $row['clm_cierre_estado'] ?? 'SIN ESTADO';
         $motivo = $row['clm_cierre_motivo'] ?? '';
 
-        cron_log("OK | Día operativo cerrado: {$fechaOperativa} | Ejecución BD: {$fechaEjecucion} | Unidades retiradas: {$total} | Estado: {$estado} | {$motivo}");
+        cron_log("OK | run={$runId} | Día operativo cerrado: {$fechaOperativa} | Ejecución BD: {$fechaEjecucion} | Unidades retiradas: {$total} | Estado: {$estado} | {$motivo}");
 
         echo "OK - Cierre operativo ejecutado\n";
+        echo "Run: {$runId}\n";
         echo "Día operativo cerrado: {$fechaOperativa}\n";
         echo "Unidades retiradas: {$total}\n";
         echo "Estado: {$estado}";
     } else {
-        cron_log('OK - Procedure ejecutado, pero no se encontró registro de cierre.');
+        cron_log("OK_SIN_REGISTRO | run={$runId} | Procedure ejecutado, pero no se encontró registro de cierre.");
         echo "OK - Procedure ejecutado, pero no se encontró registro de cierre.";
     }
 
 } catch (Throwable $e) {
-    cron_log('ERROR - ' . $e->getMessage());
+    cron_log("ERROR | run={$runId} | " . $e->getMessage());
     http_response_code(500);
     echo "ERROR - " . $e->getMessage();
 }
