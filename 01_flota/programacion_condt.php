@@ -37,7 +37,7 @@ require_once("../.c0nn3ct/db_securebd2.php");
 require_once("../trash/copidb_secure.php");
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
-
+//01_flota\programacion_condt.php
 ?>
 <?php
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);

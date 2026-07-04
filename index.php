@@ -8,7 +8,10 @@ if (!isset($_SESSION['usuario'])) {
 define('ACCESS_GRANTED', true);
 require_once("trash/copidb_secure copy.php");
 
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', './');
 
+require_once __DIR__ . '/layout/sidebar_n360.php';
 
 $permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
 $vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
@@ -24,6 +27,8 @@ unset($_SESSION['exito']);
     <meta charset="UTF-8">
     <title>Norte360 | Panel Principal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="./assets/css/sidebar_n360.css">
     <link rel="icon" href="img/norte360.png">    
     <style>
         body {
@@ -1390,7 +1395,7 @@ $mensaje_extra = $frases[array_rand($frases)];
 
 <div class="catalogo-container">
 
-
+<?php n360_render_sidebar(); ?>
 <?php
 if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
   echo '
@@ -1532,7 +1537,7 @@ function toggleMenu() {
   menu.classList.toggle('active');
 }
 </script>
-
+<script src="./assets/js/sidebar_n360.js"></script>
 </body>
 
 

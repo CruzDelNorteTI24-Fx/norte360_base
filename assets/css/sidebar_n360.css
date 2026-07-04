@@ -1,0 +1,335 @@
+:root {
+    --n360-sidebar-w: 270px;
+    --n360-dark: #24384c;
+    --n360-blue: #1683d8;
+    --n360-bg: #f5f8fc;
+    --n360-border: #dce6f1;
+    --n360-text: #243447;
+    --n360-muted: #7b8a9b;
+}
+
+.sidebar-n360 {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--n360-sidebar-w);
+    height: 100vh;
+    background: linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
+    border-right: 1px solid var(--n360-border);
+    box-shadow: 8px 0 24px rgba(31, 52, 74, 0.08);
+    z-index: 900;
+    overflow-y: auto;
+    padding: 18px 14px;
+    box-sizing: border-box;
+    transition: transform .25s ease;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 8px 18px;
+    border-bottom: 1px solid var(--n360-border);
+    margin-bottom: 14px;
+}
+
+.sidebar-brand img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.sidebar-brand strong {
+    display: block;
+    color: var(--n360-dark);
+    font-size: 15px;
+}
+
+.sidebar-brand span {
+    display: block;
+    color: var(--n360-muted);
+    font-size: 12px;
+}
+
+.sidebar-search {
+    margin-bottom: 14px;
+}
+
+.sidebar-search input {
+    width: 100%;
+    border: 1px solid var(--n360-border);
+    border-radius: 12px;
+    padding: 11px 12px;
+    outline: none;
+    font-size: 13px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.sidebar-search input:focus {
+    border-color: var(--n360-blue);
+    box-shadow: 0 0 0 3px rgba(22, 131, 216, 0.12);
+}
+
+.sidebar-module {
+    margin-bottom: 9px;
+}
+
+.sidebar-module-btn {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--n360-text);
+    border-radius: 12px;
+    padding: 10px;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 8px;
+    transition: .2s ease;
+}
+
+.sidebar-module-btn:hover {
+    background: #eaf3fb;
+}
+
+.module-left {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.module-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    background: #eaf3fb;
+}
+
+.module-title {
+    font-weight: 700;
+    font-size: 14px;
+    text-align: left;
+}
+
+.module-count {
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    background: var(--n360-blue);
+    border-radius: 999px;
+    padding: 3px 7px;
+}
+
+.module-arrow {
+    color: var(--n360-muted);
+    transition: transform .25s ease;
+}
+
+.sidebar-module.open .module-arrow {
+    transform: rotate(180deg);
+}
+
+.sidebar-module-content {
+    display: none;
+    padding: 5px 0 4px 8px;
+    margin-left: 12px;
+    border-left: 2px solid #d9e8f6;
+}
+
+.sidebar-module.open .sidebar-module-content {
+    display: block;
+}
+
+.sidebar-group {
+    margin: 7px 0 10px;
+}
+
+.sidebar-group-title {
+    color: var(--n360-blue);
+    font-size: 12px;
+    font-weight: 800;
+    padding: 6px 8px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+
+.sidebar-link {
+    color: #334155;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: .2s ease;
+}
+
+.sidebar-link:hover {
+    background: #edf6ff;
+    color: var(--n360-blue);
+    transform: translateX(3px);
+}
+
+.sidebar-link.active {
+    background: linear-gradient(90deg, #1683d8, #2f9ceb);
+    color: white;
+    box-shadow: 0 6px 14px rgba(22, 131, 216, 0.25);
+}
+
+.sidebar-collapse-btn,
+.sidebar-show-btn,
+.sidebar-mobile-btn {
+    border: 0;
+    cursor: pointer;
+}
+
+.sidebar-collapse-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: #e9eef5;
+    color: #2c3e50;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.sidebar-show-btn {
+    position: fixed;
+    top: 160px;
+    left: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #e9eef5;
+    color: #2c3e50;
+    font-size: 24px;
+    z-index: 1002;
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,.12);
+    transition: opacity .2s ease;
+}
+
+.sidebar-mobile-btn {
+    display: none;
+}
+
+body {
+    transition: padding-left .25s ease;
+}
+
+body.with-sidebar {
+    padding-left: var(--n360-sidebar-w);
+}
+
+body.sidebar-collapsed {
+    padding-left: 0;
+}
+
+body.sidebar-collapsed .sidebar-n360 {
+    transform: translateX(-100%);
+}
+
+body.sidebar-collapsed .sidebar-show-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sidebar-overlay {
+    display: none;
+}
+
+@media (max-width: 991px) {
+    body.with-sidebar {
+        padding-left: 0;
+    }
+
+    .sidebar-n360 {
+        transform: translateX(-100%);
+        z-index: 1001;
+    }
+
+    .sidebar-n360.active {
+        transform: translateX(0);
+    }
+
+    .sidebar-mobile-btn {
+        display: block;
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: #1683d8;
+        color: white;
+        z-index: 1002;
+        font-size: 22px;
+        box-shadow: 0 8px 18px rgba(0,0,0,.18);
+    }
+
+    .sidebar-show-btn,
+    .sidebar-collapse-btn {
+        display: none;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .45);
+        z-index: 1000;
+    }
+}
+.sidebar-n360 i {
+    line-height: 1;
+}
+
+.module-icon i {
+    font-size: 15px;
+    color: #1683d8;
+}
+
+.sidebar-link i {
+    width: 18px;
+    min-width: 18px;
+    text-align: center;
+    font-size: 14px;
+    color: #64748b;
+}
+
+.sidebar-link:hover i {
+    color: #1683d8;
+}
+
+.sidebar-link.active i {
+    color: #ffffff;
+}
+
+.module-arrow i {
+    font-size: 12px;
+}
+
+.sidebar-module.open .module-arrow {
+    transform: rotate(180deg);
+}
+
+.sidebar-collapse-btn i,
+.sidebar-show-btn i,
+.sidebar-mobile-btn i {
+    font-size: 18px;
+}
+
+.sidebar-mobile-btn i {
+    color: #ffffff;
+}

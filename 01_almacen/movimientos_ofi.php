@@ -87,7 +87,7 @@ if ($estadoetiq !== '') {
 }
 
 // ---------- Paginación ----------
-$por_pagina = 25;
+$por_pagina = 100;
 $pagina = isset($_GET['pagina']) && is_numeric($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
 $offset = ($pagina - 1) * $por_pagina;
 
@@ -1459,7 +1459,7 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
 .table-head-pro p{margin:3px 0 0;color:#64748b;font-size:.86rem;}
 .table-head-count{background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:7px 11px;font-size:.84rem;font-weight:800;white-space:nowrap;}
 .table-shell{margin-top:0!important;}
-.table-wrap{max-height:calc(100vh - 360px);min-height:340px;overflow:auto!important;padding-bottom:10px;background:#fff;}
+.table-wrap{max-height:calc(150vh - 360px);min-height:340px;overflow:auto!important;padding-bottom:10px;background:#fff;}
 .mov-table{
   min-width:1450px!important;
   width:100%;
