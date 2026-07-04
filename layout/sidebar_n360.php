@@ -32,8 +32,24 @@ function n360_puede_vista(string $vista): bool {
     return n360_is_admin() || in_array($vista, n360_vistas());
 }
 
+function n360_puede_alguna_vista(array $vistas): bool {
+    if (n360_is_admin()) return true;
+
+    foreach ($vistas as $vista) {
+        if (n360_puede_vista((string)$vista)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function n360_puede_item(array $item): bool {
     if (n360_is_admin()) return true;
+
+    if (!empty($item['vistas'])) {
+        return n360_puede_alguna_vista((array)$item['vistas']);
+    }
 
     if (!empty($item['vista'])) {
         return n360_puede_vista($item['vista']);
@@ -61,6 +77,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Nuevo trabajador',
                                 'icono' => 'bi bi-person-plus-fill',
                                 'url' => '01_contratos/nregrcdn_h.php',
+                                'vistas' => ['r-gen'],
                                 'modulo' => 6
                             ],
                             [
@@ -78,6 +95,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Nueva entrevista',
                                 'icono' => 'bi bi-clipboard-plus-fill',
                                 'url' => '01_entrevistas/reentrev.php',
+                                'vistas' => ['e-gen'],
                                 'modulo' => 6
                             ],
                             [
@@ -120,6 +138,14 @@ function n360_menu_config(): array {
                                 'titulo' => 'Checklist',
                                 'icono' => 'bi bi-ui-checks-grid',
                                 'url' => '01_amantenimiento/lista_cheklist.php',
+                                'vistas' => ['c-limp', 'c-sab', 'c-lalu'],
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Validacion de buses',
+                                'icono' => 'bi bi-bus-front',
+                                'url' => '01_amantenimiento/interbus_vld.php',
+                                'vistas' => ['c-limp', 'c-sab'],
                                 'modulo' => 5
                             ],
                         ]
@@ -147,6 +173,13 @@ function n360_menu_config(): array {
                                 'url' => '01_almacen/gen_np9823.php',
                                 'modulo' => 3
                             ],
+                            [
+                                'titulo' => 'Registrar movimiento',
+                                'icono' => 'bi bi-box-arrow-in-down',
+                                'url' => '01_almacen/formulario_movalm.php',
+                                'vistas' => ['a-formulreg'],
+                                'modulo' => 3
+                            ],
                         ]
                     ],
                 ]
@@ -157,6 +190,18 @@ function n360_menu_config(): array {
                 'icono' => 'bi bi-bus-front-fill',
                 'modulo' => 10,
                 'grupos' => [
+                    [
+                        'titulo' => 'General',
+                        'items' => [
+                            [
+                                'titulo' => 'Panel principal',
+                                'icono' => 'bi bi-speedometer2',
+                                'url' => 'index.php',
+                                'vistas' => ['f-flotayoperaciones'],
+                                'modulo' => 10
+                            ],
+                        ]
+                    ],
                     [
                         'titulo' => 'Programación',
                         'items' => [
@@ -187,7 +232,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Gestionar placas',
                                 'icono' => 'bi bi-truck-front-fill',
                                 'url' => '01_flota/gest_plac.php',
-                                'vista' => 'f-flotas'
+                                'vistas' => ['f-placas', 'f-flotas']
                             ],
                         ]
                     ],

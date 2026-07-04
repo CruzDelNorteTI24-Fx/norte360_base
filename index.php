@@ -13,9 +13,6 @@ define('N360_BASE_URL', './');
 
 require_once __DIR__ . '/layout/sidebar_n360.php';
 
-$permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
-$vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
-
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
 
@@ -844,97 +841,6 @@ margin: 20px
     font-size: 20px;
     margin-right: 10px;
 }
-.nav-bar-pro {
-    background: #34495e;
-    box-shadow: inset 0 -2px 4px rgba(0,0,0,0.1);
-    overflow-x: auto;
-    white-space: nowrap;
-}
-
-.nav-list-pro {
-    list-style: none;
-    margin: 0;
-    padding: 0 20px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 30px;
-}
-
-.nav-list-pro li a {
-    color: white;
-    font-weight: bold;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    border-radius: 30px;
-    transition: background 0.3s, transform 0.3s;
-    position: relative;
-}
-
-.nav-list-pro li a:hover {
-    background: #2c3e50;
-    transform: scale(1.05);
-}
-
-.nav-list-pro li a::after {
-    content: '';
-    position: absolute;
-    height: 3px;
-    background: #3498db;
-    width: 0%;
-    left: 50%;
-    bottom: 4px;
-    transition: all 0.3s ease-in-out;
-    transform: translateX(-50%);
-}
-
-.nav-list-pro li a:hover::after {
-    width: 60%;
-}
-
-@media (max-width: 768px) {
-  .nav-list-pro {
-    gap: 16px;
-    padding: 10px;
-  }
-
-  .nav-list-pro li a {
-    font-size: 14px;
-    padding: 8px 12px;
-  }
-}
-.subnav {
-  display: flex;
-  gap: 20px;
-  padding: 12px 30px;
-  background: #dff3f9;
-  border-bottom: 3px solid #3498db;
-  animation: fadeIn 0.3s ease;
-}
-
-.subnav a {
-  color: #2c3e50;
-  font-weight: 600;
-  text-decoration: none;
-  background: #ecf0f1;
-  padding: 8px 16px;
-  border-radius: 20px;
-  transition: all 0.3s ease;
-}
-
-.subnav a:hover {
-  background: #3498db;
-  color: white;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .usuario-barra {
   margin-left: auto;
   display: flex;
@@ -998,143 +904,7 @@ margin: 20px
   transform: scale(1.03);
 }
 
-.menu-lateral {
-  overflow-y: auto;
-  position: fixed;
-  left: 0;
-  width: 240px;
-  height: calc(100% - 140px);
-  background: #f7f9fb;
-  color: #2d3436;
-  padding: 30px 20px;
-  box-shadow: 4px 0 12px rgba(0,0,0,0.06);
-  box-sizing: border-box;
-  z-index: 900;
-  transition: transform 0.4s ease;
-  border-right: 1px solid #e0e0e0;
-}
-
-.menu-lateral h3 {
-  font-size: 17px;
-  margin-bottom: 20px;
-  color: #0984e3;
-  border-bottom: 2px solid #0984e3;
-  padding-bottom: 10px;
-  font-weight: 600;
-}
-
-.menu-lateral ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.menu-lateral ul li {
-  margin-bottom: 14px;
-}
-
-.menu-lateral ul li a {
-  color: #2d3436;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: all 0.3s;
-  padding: 8px 12px;
-  border-radius: 6px;
-}
-
-.menu-lateral ul li a:hover {
-  background: #dcdde1;
-  color: #0984e3;
-  transform: translateX(4px);
-}
-
-.menu-toggle {
-  display: none;
-  position: fixed;
-  top: 100px;
-  left: 20px;
-  background: #0984e3;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-size: 20px;
-  z-index: 1001;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  cursor: pointer;
-}
-
-/* Responsive en móviles */
-@media (max-width: 768px) {
-  .menu-lateral {
-    position: fixed; /* Mejor experiencia móvil */
-    top: 0;
-    left: 0;
-    width: 250px;
-    height: 100%;
-    background: #fff; /* O el color de tu menú */
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    z-index: 9;
-  }
-
-  .menu-lateral.active {
-    transform: translateX(0);
-  }
-
-  .main-content {
-    margin-left: 0 !important;
-    transition: margin-left 0.3s ease;
-  }
-
-  .menu-toggle {
-    position: fixed; /* Para que siempre sea visible */
-    top: 15px;
-    left: 15px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    width: 30px;
-    height: 30px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    z-index: 10;
-  }
-
-  .menu-toggle span {
-    width: 100%;
-    height: 3px;
-    background-color: #333; /* Cambia según tu paleta */
-    border-radius: 2px;
-    transition: all 0.3s ease-in-out;
-    transform-origin: 1px;
-  }
-
-  /* ANIMACIÓN AL ACTIVAR (hamburger a X) */
-  .menu-toggle.active span:nth-child(1) {
-    transform: rotate(45deg) translate(5px, 5px);
-  }
-
-  .menu-toggle.active span:nth-child(2) {
-    opacity: 0;
-  }
-
-  .menu-toggle.active span:nth-child(3) {
-    transform: rotate(-45deg) translate(5px, -5px);
-  }
-}
-
-
-
 .main-content {
-    margin-left: 240px;
     padding: 30px;
 }
 @keyframes fadeIn {
@@ -1230,130 +1000,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     </div>
 </header>
 
-<nav id="nav-modulos" class="nav-bar-pro">
-  <ul class="nav-list-pro">
-  <?php
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-personal\')">👥 Recursos Humanos</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-mantenimiento\')">🔧 Mantenimiento</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-inventario\')">📦 Inventario</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(10, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-flotayoperaciones\')">🚌 Flota y Operaciones</a></li>';
-    }
-  ?>
-  </ul>
-</nav>
-
-<div id="modulo-personal" class="subnav" style="display: none;">
-  <a href="01_contratos/nregrcdn_h.php">➕ Nuevo Personal</a>
-  <a href="01_entrevistas/reentrev.php">➕ Nueva Entrevista</a>
-  <a href="01_contratos/documentacion/agregadocu.php">➕ Nueva Documentación</a>
-  <a href="01_contratos/nlaskdrcdn_h.php">👤 Personal</a>
-  <a href="01_entrevistas/bvisentrevisaf.php">📝 Entrevistas</a>
-  <a href="01_contratos/dorrhcdn.php">📁 Documentación</a>
-</div>
-
-<div id="modulo-inventario" class="subnav" style="display: none;">
-  <a href="01_almacen/scanner.php"> 🏷️ Código de Barra</a>
-  <a href="01_almacen/gen_np9823.php">📋 Catálogo Productos</a>
-</div>
-
-<div id="modulo-mantenimiento" class="subnav" style="display: none;">
-  <a href="01_amantenimiento\lista_cheklist.php">📝 CheckList</a>
-</div>
-
-<div id="modulo-flotayoperaciones" class="subnav" style="display: none;">
-
-  <?php
-    // Programación de Conductores
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
-        echo '<a href="01_flota/programacion_condt.php">👤 Conductores</a>';
-    }
-    // Programación de Horarios
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
-        echo '<a href="01_flota/programacion_horarios.php">📋 Programación Horarios</a>';
-    }
-    // Historial Gerencial
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
-        echo '<a href="01_flota/gest_plac.php">📝 Gestión de Placas</a>';
-    }
-  ?>
-</div>
-
-<button class="menu-toggle" onclick="toggleMenu()">☰</button>
-
-<div class="menu-lateral" id="menuLateral">
-  <?php
-  // Ejemplo de tus variables de sesión
-
-
-  // ENTREVISTAS
-  if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-      echo '<h3>Entrevistas</h3>
-      <ul>
-        <li><a href="01_entrevistas/reentrev.php">➕ Nueva Entrevista</a></li>
-      </ul>';
-  }
-
-  // RECURSOS HUMANOS
-  if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-      echo '<h3>Recursos Humanos</h3>
-      <ul>';
-      
-      echo '<li><a href="01_contratos/nregrcdn_h.php">➕ Nuevo Trabajador</a></li>';
-      echo '<li><a href="01_contratos/documentacion/agregadocu.php">➕ Nueva Documentación</a></li>';
-      
-      echo '</ul>';
-  }
-
-  // MANTENIMIENTO
-  if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
-      echo '<h3>Mantenimiento</h3>
-      <ul>';
-      echo '<li><a href="01_amantenimiento/lista_cheklist.php">Lista de CheckList</a></li>';
-      echo '</ul>';
-  }
-
-  // INVENTARIO
-  if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
-      echo '<h3>Inventario</h3>
-      <ul>';
-      echo '<li><a href="01_almacen/scanner.php">Código de Barras</a></li>';
-      echo '<li><a href="01_almacen/gen_np9823.php">Productos</a></li>';
-      echo '</ul>';
-  }
-
-  // ROLES
-  if ($_SESSION['web_rol'] === 'Admin' || in_array(10, $permisos)) {
-      echo '<h3>Roles</h3>
-      <ul>';
-          // Programación de Conductores
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
-        echo '<li><a href="01_flota\programacion_condt.php">Programación de Conductor</a></li>';
-    }
-    // Programación de Horarios
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
-        echo '<li><a href="01_flota\programacion_horarios.php">Programación de Horarios</a></li>';
-    }
-    // Historial Gerencial
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghist", $vistas)) {
-        echo '<li><a href="01_flota\gest_prog_horarios.php">Historial Gerencial</a></li>';
-    }
-    // Flota
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
-        echo '<li><a href="01_flota\gest_plac.php">Gestionar Placas</a></li>';
-    }
-      echo '</ul>';
-  }
-
-  
-  ?>
-</div>
+<?php n360_render_sidebar(); ?>
 
 <div class="main-content">
     <hr>
@@ -1394,10 +1041,8 @@ $mensaje_extra = $frases[array_rand($frases)];
     <p style="text-align:center; font-size:18px; color:#555;">Selecciona un módulo para iniciar</p>
 
 <div class="catalogo-container">
-
-<?php n360_render_sidebar(); ?>
 <?php
-if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
+if (n360_puede_modulo(6)) {
   echo '
   <div class="product-card">
     <img src="img/icons/entrevistas.png" alt="Entrevistas">
@@ -1407,7 +1052,7 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
   </div>';
 }
 
-if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
+if (n360_puede_modulo(6)) {
   echo '
   <div class="product-card">
     <img src="img/icons/personal-information.png" alt="Personal">
@@ -1417,7 +1062,7 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
   </div>';
 }
 
-if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
+if (n360_puede_modulo(5)) {
   echo '
   <div class="product-card">
     <img src="img/icons/mantenimiento.png" alt="Mantenimiento">
@@ -1427,7 +1072,7 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
   </div>';
 }
 
-if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
+if (n360_puede_modulo(3)) {
   echo '
   <div class="product-card">
     <img src="img/icons/almacen.png" alt="Inventario">
@@ -1437,7 +1082,7 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
   </div>';
 }
 
-if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
+if (n360_puede_vista('f-progcond')) {
   echo '
   <div class="product-card">
     <img src="img/icons/roles.png" alt="Roles">
@@ -1447,7 +1092,7 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
   </div>';
 }
 
-if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
+if (n360_puede_vista('f-proghor')) {
   echo '
   <div class="product-card">
     <img src="img/icons/calendario.png" alt="Roles">
@@ -1457,7 +1102,7 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
   </div>';
 }
 
-if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
+if (n360_puede_alguna_vista(['f-placas', 'f-flotas'])) {
   echo '
   <div class="product-card">
     <img src="img/icons/placa.png" alt="Roles">
@@ -1503,19 +1148,6 @@ if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
 </footer>
 
 <script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-</script>
-
-<script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
@@ -1530,12 +1162,6 @@ document.addEventListener("click", function (e) {
     dropdown.style.display = "none";
   }
 });
-</script>
-<script>
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
 </script>
 <script src="./assets/js/sidebar_n360.js"></script>
 </body>
