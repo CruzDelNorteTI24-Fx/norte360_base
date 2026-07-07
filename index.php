@@ -13,6 +13,8 @@ define('N360_BASE_URL', './');
 
 require_once __DIR__ . '/layout/sidebar_n360.php';
 require_once __DIR__ . '/layout/header_n360.php';
+require_once __DIR__ . '/layout/footer_n360.php';
+require_once __DIR__ . '/layout/content_n360.php';
 
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
@@ -28,6 +30,9 @@ unset($_SESSION['exito']);
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="./assets/css/sidebar_n360.css">
     <link rel="stylesheet" href="./assets/css/header_n360.css">
+    <link rel="stylesheet" href="./assets/css/main_n360.css">
+    <link rel="stylesheet" href="./assets/css/footer_n360.css">
+    <link rel="stylesheet" href="./assets/css/content_n360.css">
     <link rel="icon" href="img/norte360.png">    
     <style>
         body {
@@ -193,14 +198,7 @@ unset($_SESSION['exito']);
     transform: scale(1.05);
 }
 
-hr {
-    border: none;
-    height: 2px;
-    background: linear-gradient(to right, #3498db, yellow, #3498db);
-    margin: 50px auto 30px auto;
-    width: 80%;
-    border-radius: 4px;
-}
+
 /* BOTÓN FLOTANTE DE SOPORTE */
 .btn-flotante {
     position: fixed;
@@ -221,74 +219,6 @@ hr {
     background: #218838;
     transform: scale(1.1);
 }
-.logo-header3 {
-    align-items: center;
-
-    max-width: 150px;
-    height: auto;
-    width: auto;
-}
-.main-footer {
-    background: #2c3e50;
-    color: white;
-    padding: 30px 20px;
-    font-size: 14px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.footer-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 20px;
-    flex-wrap: wrap;
-}
-
-
-.footer-info {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-}
-
-.footer-title {
-    font-weight: bold;
-    font-size: 16px;
-    margin: 0 0 10px 0;
-}
-
-.footer-cajas {
-    display: flex;
-    gap: 15px;
-}
-
-.footer-box {
-    padding: 10px;
-    border-radius: 8px;
-    width: 40px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.footer-box img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-}
-
-.footer-copy {
-    text-align: center;
-    margin-top: 30px;
-    font-size: 13px;
-    color: #ccc;
-}
-
-
-
 
 @media (max-width: 600px) {
             .card, .metodos-extra {
@@ -782,9 +712,7 @@ margin: 20px
     font-size: 20px;
     margin-right: 10px;
 }
-.main-content {
-    padding: 30px;
-}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -841,8 +769,9 @@ margin: 20px
 
 <?php n360_render_sidebar(); ?>
 
-<div class="main-content">
-    <hr>
+<main class="main-content n360-main n360-main--dashboard" role="main">
+    <div class="n360-main__inner">
+        <?php n360_render_content_separator('top'); ?>
 
 <?php
 date_default_timezone_set('America/Lima');
@@ -962,29 +891,14 @@ if (n360_puede_alguna_vista(['f-placas', 'f-flotas'])) {
     <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20una%20etiqueta.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank" title="Soporte por WhatsApp">
         <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="Soporte" style="width:30px; height:30px;">
     </a>
-    <hr>
-</div>
-
-
-
-
-<footer class="main-footer animated-border">
-  <div class="footer-top">
-    <img src="img/norte360.png" alt="Logo Empresa" class="logo-header3">
-    <div class="footer-info">
-      <p class="footer-title">Contáctanos</p>
-      <div class="footer-cajas">
-        <div class="footer-box"><img src="img/icons/facebook.png" alt="Función 1"></div>
-        <div class="footer-box"><img src="img/icons/social.png" alt="Función 2"></div>
-      </div>
+        <?php n360_render_content_separator('bottom'); ?>
     </div>
-  </div>
-  <p class="footer-copy">© <?= date('Y') ?> Norte 360° (v1.1.6). Todos los derechos reservados.</p>
-  <style>.footer-h2bd {position: absolute;bottom: 10px;right: 10px;opacity: 0;transition: opacity 0.4s ease;width: 80px;}.main-footer:hover .footer-h2bd {opacity: 0.6;}.footer-h2bd {filter: grayscale(40%);}</style>
-  <div id="h2bd" style="display:none; position:fixed; bottom:10px; left:10px; z-index:9999; text-align:center;"><img src="<?= $h2bd_img ?>" alt="icong" style="width:80px; opacity:0.8; filter: grayscale(40%); display:block; margin:0 auto;"><p style="color:white; font-size:12px; margin:4px 0 0 0;"><?= $h2bd_name ?></p></div>
-  <script>document.addEventListener('keydown', function(e) {if (e.ctrlKey && e.altKey && e.key === 'm') {const egg = document.getElementById('h2bd');egg.style.display = egg.style.display === 'none' ? 'block' : 'none';}});</script>
+</main>
 
-</footer>
+
+
+
+<?php n360_render_footer(); ?>
 
 <script src="./assets/js/header_n360.js"></script>
 <script src="./assets/js/sidebar_n360.js"></script>

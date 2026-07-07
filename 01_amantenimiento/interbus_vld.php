@@ -4,12 +4,10 @@ ob_start();                           // Buffer para poder imprimir algo incluso
 ini_set('display_errors','0');        // No mostrar HTML feo de PHP
 ini_set('log_errors','1');            // (opcional) deja registro en error_log del hosting
 error_reporting(E_ALL);
-
 function __console_print($type, $payload) {
     $json = json_encode($payload, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     echo "<script>console[$type]($json);</script>";
 }
-
 set_error_handler(function($severity, $message, $file, $line){
     // Avisos/Warnings/Notices -> consola
     $names = [
@@ -28,7 +26,6 @@ set_error_handler(function($severity, $message, $file, $line){
     ]);
     return false; // deja que PHP siga su flujo normal
 });
-
 set_exception_handler(function($ex){
     __console_print('error', [
         'type'    => 'Uncaught Exception',
@@ -38,7 +35,6 @@ set_exception_handler(function($ex){
         'trace'   => explode("\n", $ex->getTraceAsString())
     ]);
 });
-
 /* Captura FATALES (E_ERROR/E_PARSE/…) y los envía a consola aunque sea 500) */
 register_shutdown_function(function(){
     $e = error_get_last();
@@ -49,14 +45,12 @@ register_shutdown_function(function(){
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
         header('Pragma: no-cache');
         header_remove('Content-Length'); // evita que el proxy/envíe length=0
-
         $json = json_encode([
             'type'    => 'FATAL',
             'message' => $e['message'],
             'file'    => $e['file'],
             'line'    => $e['line']
         ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-
         // devolvemos una mini-página con JS para que el navegador NO muestre su página 500 genérica
         echo "<!doctype html><meta charset='utf-8'><script>
                 console.group('%cPHP FATAL','color:#c00;font-weight:bold');
@@ -68,40 +62,33 @@ register_shutdown_function(function(){
     }
 });
 /* ==== Fin del puente PHP->Consola ==== */
-
-
 session_start();
-
 if (!isset($_SESSION['usuario'])) {
     header("Location: ../login/login.php");
     exit();
 }
-
 $permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
 $vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
-
 if ($_SESSION['web_rol'] !== 'Admin') {
     $modulo_actual = 5; // id_modulo de esta vista
     $vista_actuales = ["c-limp", "c-sab"];
-
     if (!in_array($modulo_actual, $_SESSION['permisos']) || empty(array_intersect($vista_actuales, $_SESSION['vistas']))) {
         header("Location: ../login/none_permisos.php");
         exit();
     }
 }
-
 define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
 require_once("../.c0nn3ct/db_securebd2.php");
-
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
 require_once __DIR__ . '/../layout/sidebar_n360.php';
+require_once __DIR__ . '/../layout/header_n360.php';
+require_once __DIR__ . '/../layout/footer_n360.php';
+require_once __DIR__ . '/../layout/content_n360.php';
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
-
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -110,35 +97,27 @@ unset($_SESSION['exito']);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="../img/norte360.png">      
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-
     <style>
         body {
             background: #f0f2f5;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
         }
-
         .card {
 transition: transform 0.2s;
             max-width: 700px;
             margin: 40px auto 20px auto;
             border-radius: 12px;
         }
-
-
         h2 {
             text-align: center;
             color: #2c3e50;
         }
-
         form {
             margin-bottom: 25px;
         }
-
         input[type=text] {
             width: 100%;
             padding: 14px;
@@ -148,7 +127,6 @@ transition: transform 0.2s;
             box-sizing: border-box;
             margin-bottom: 15px;
         }
-
         button {
             background: #2980b9;
             color: white;
@@ -159,43 +137,35 @@ transition: transform 0.2s;
             cursor: pointer;
             width: 100%;
         }
-
         button:hover {
             background: #1c5980;
         }
-
         .resultado {
             font-size: 16px;
             color: #34495e;
             line-height: 1.7;
         }
-
         section {
             margin-bottom: 30px;
             border-bottom: 1px solid #eee;
             padding-bottom: 15px;
         }
-
         section h3 {
             color: #2c3e50;
             margin-bottom: 10px;
             font-size: 18px;
         }
-
         ul {
             list-style: none;
             padding-left: 0;
         }
-
         ul li {
             margin-bottom: 8px;
         }
-
         .img-block {
             text-align: center;
             margin-top: 15px;
         }
-
         .img-block img {
             max-width: 100%;
             height: auto;
@@ -203,18 +173,15 @@ transition: transform 0.2s;
             border-radius: 6px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
-
         .img-block p {
             margin-bottom: 6px;
             font-weight: bold;
             color: #555;
         }
-
         .no-image {
             color: #aaa;
             font-style: italic;
         }
-
         .codigo {
             background: #ecf0f1;
             padding: 10px;
@@ -223,10 +190,8 @@ transition: transform 0.2s;
             font-size: 18px;
             text-align: center;
         }
-
         .valid { color: #27ae60; font-weight: bold; text-align: center; margin-bottom: 15px; }
         .invalid { color: #c0392b; font-weight: bold; text-align: center; margin-bottom: 15px; }
-
         .logo-inicio {
     display: block;
     margin: 0 auto 20px auto;
@@ -243,20 +208,17 @@ transition: transform 0.2s;
     box-shadow: 0 8px 20px rgba(0,0,0,0.08);
     text-align: center;
 }
-
 .metodos-extra h3 {
     font-size: 20px;
     margin-bottom: 25px;
     color: #2c3e50;
 }
-
 .opciones-validacion {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
     gap: 20px;
 }
-
 .card-opcion {
     background: #3498db;
     color: white;
@@ -271,12 +233,10 @@ transition: transform 0.2s;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     transition: background 0.3s, transform 0.3s;
 }
-
 .card-opcion:hover {
     background: #21618c;
     transform: scale(1.05);
 }
-
 hr {
     border: none;
     height: 2px;
@@ -300,7 +260,6 @@ hr {
     transition: background 0.3s, transform 0.3s;
     z-index: 1000;
 }
-
 .btn-flotante:hover {
     background: #218838;
     transform: scale(1.1);
@@ -313,7 +272,6 @@ hr {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     box-sizing: border-box;
 }
-
 .header-content {
     display: flex;
     align-items: center;
@@ -325,12 +283,10 @@ hr {
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .logo-bloque {
     display: flex;
     align-items: center;
 }
-
 .logo-header {
     max-width: 60px;
     height: auto;
@@ -343,7 +299,6 @@ hr {
 }
 .logo-header3 {
     align-items: center;
-
     max-width: 150px;
     height: auto;
     width: auto;
@@ -354,9 +309,6 @@ hr {
     background: #ecf0f1;
     margin: 0 10px;
 }
-
-
-
 .main-footer {
     background: #2c3e50;
     color: white;
@@ -365,7 +317,6 @@ hr {
     width: 100%;
     box-sizing: border-box;
 }
-
 .footer-top {
     display: flex;
     align-items: flex-start;
@@ -373,26 +324,21 @@ hr {
     gap: 20px;
     flex-wrap: wrap;
 }
-
-
 .footer-info {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
 }
-
 .footer-title {
     font-weight: bold;
     font-size: 16px;
     margin: 0 0 10px 0;
 }
-
 .footer-cajas {
     display: flex;
     gap: 15px;
 }
-
 .footer-box {
     padding: 10px;
     border-radius: 8px;
@@ -402,23 +348,17 @@ hr {
     align-items: center;
     justify-content: center;
 }
-
 .footer-box img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
 }
-
 .footer-copy {
     text-align: center;
     margin-top: 30px;
     font-size: 13px;
     color: #ccc;
 }
-
-
-
-
 @media (max-width: 600px) {
     .header-content {
         flex-direction: column;
@@ -430,27 +370,20 @@ hr {
     .separador-vertical {
         display: none;
     }
-    
     .logo-header {
         display: none;
-
 }
-    
             .card, .metodos-extra {
                 padding: 20px;
 margin: 20px
             }
-
             h2 {
                 font-size: 22px;
             }
-
             section h3 {
                 font-size: 16px;
             }
         }
-
-
         @keyframes pulse {
     0% {
         transform: scale(1);
@@ -465,7 +398,6 @@ margin: 20px
         box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
     }
 }
-
 .btn-flotante {
     animation: pulse 6s infinite;
 }
@@ -477,7 +409,6 @@ margin: 20px
         background-position: 200% 0;
     }
 }
-
 .btn-validar {
     background: linear-gradient(120deg, #2980b9 30%, #3498db 50%, #2980b9 70%);
     background-size: 200% auto;
@@ -491,7 +422,6 @@ margin: 20px
     animation: shimmer 4s infinite linear;
     transition: transform 0.3s ease;
 }
-
 .btn-validar:hover {
     transform: scale(1.05);
 }
@@ -503,7 +433,6 @@ margin: 20px
     background-position: 200% 0;
   }
 }
-
 .animated-border {
   background: linear-gradient(
     110deg,
@@ -520,7 +449,6 @@ margin: 20px
     gap: 20px;
     padding-top: 20px;
 }
-
 .product-card {
     background: white;
     border-radius: 12px;
@@ -531,11 +459,9 @@ margin: 20px
     align-items: center;
     transition: transform 0.2s;
 }
-
 .product-card:hover {
     transform: scale(1.02);
 }
-
 .product-card img {
     max-width: 100%;
     max-height: 150px;
@@ -543,26 +469,22 @@ margin: 20px
     object-fit: cover;
     margin-bottom: 12px;
 }
-
 .product-card h4 {
     color: #2c3e50;
     font-size: 16px;
     margin-bottom: 8px;
     text-align: center;
 }
-
 .product-card p {
     font-size: 14px;
     color: #555;
     margin: 2px 0;
     text-align: center;
 }
-
 .pagination {
     text-align: center;
     margin-top: 30px;
 }
-
 .pagination a {
     margin: 0 5px;
     text-decoration: none;
@@ -573,18 +495,13 @@ margin: 20px
     font-weight: bold;
     transition: background 0.3s;
 }
-
 .pagination a:hover {
     background: #21618c;
 }
-
 .pagination strong {
     margin: 0 5px;
     color: #2980b9;
 }
-
-
-
 .modal {
   display: none;
   position: fixed;
@@ -596,7 +513,6 @@ margin: 20px
   background-color: rgba(0,0,0,0.5);
   overflow: auto;
 }
-
 .modal-content {
   background-color: #fff;
   margin: 5% auto;
@@ -607,12 +523,10 @@ margin: 20px
   animation: fadeIn 0.3s ease;
   box-shadow: 0 8px 20px rgba(0,0,0,0.2);
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .cerrar {
   float: right;
   font-size: 24px;
@@ -620,34 +534,27 @@ margin: 20px
   font-weight: bold;
   cursor: pointer;
 }
-
 .cerrar:hover {
   color: #e74c3c;
 }
-
 /* Estilo tabla dentro del modal */
 .modal-content table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
 }
-
 .modal-content th, .modal-content td {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid #ddd;
 }
-
 .modal-content th {
   background-color: #2c3e50;
   color: white;
 }
-
 .modal-content tr:hover {
   background-color: #f1f1f1;
 }
-
-
 #popup-exito {
     position: fixed;
     top: 0;
@@ -661,7 +568,6 @@ margin: 20px
     z-index: 9999;
     animation: fadeIn 0.4s ease forwards;
 }
-
 #popup-exito .mensaje {
     background: linear-gradient(to left, #2ecc71, #27ae60);
     padding: 20px 40px;
@@ -675,28 +581,23 @@ margin: 20px
     transform: scale(0.8);
     opacity: 0;
 }
-
 @keyframes fadeIn {
     to {
         opacity: 1;
     }
 }
-
 @keyframes scaleIn {
     to {
         transform: scale(1);
         opacity: 1;
     }
 }
-
 @keyframes fadeOut {
     to {
         opacity: 0;
         transform: scale(0.9);
     }
 }
-
-
 .check-icon {
   width: 80px;
   height: 80px;
@@ -711,19 +612,16 @@ margin: 20px
   margin: 0 auto 10px auto;
   display: block;
 }
-
 .check-circle {
   stroke-dasharray: 157;
   stroke-dashoffset: 157;
   animation: drawCircle 0.6s ease-out forwards;
 }
-
 .check-mark {
   stroke-dasharray: 36;
   stroke-dashoffset: 36;
   animation: drawCheck 0.4s ease-out 0.5s forwards;
 }
-
 .texto-popup {
   margin-top: 10px;
   font-size: 18px;
@@ -732,19 +630,16 @@ margin: 20px
   animation: fadeInText 0.4s ease-in 0.8s forwards;
   opacity: 0;
 }
-
 @keyframes drawCircle {
   to {
     stroke-dashoffset: 0;
   }
 }
-
 @keyframes drawCheck {
   to {
     stroke-dashoffset: 0;
   }
 }
-
 @keyframes fadeInText {
   to {
     opacity: 1;
@@ -755,18 +650,15 @@ margin: 20px
     flex-direction: column;
     gap: 15px;
 }
-
 .campo-form {
     display: flex;
     flex-direction: column;
 }
-
 .campo-form label {
     font-weight: bold;
     color: #2c3e50;
     margin-bottom: 6px;
 }
-
 .campo-form input,
 .campo-form textarea {
     padding: 12px;
@@ -775,24 +667,20 @@ margin: 20px
     font-size: 15px;
     transition: border 0.3s;
 }
-
 .campo-form input:focus,
 .campo-form textarea:focus {
     border-color: #3498db;
     outline: none;
     box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
 }
-
 .grupo-flex {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .grupo-flex .campo-form {
     flex: 1;
 }
-
     .filtros {
       display: flex;
       flex-wrap: wrap;
@@ -800,7 +688,6 @@ margin: 20px
       gap: 20px;
       margin: 20px;
     }
-
     .filtros input, .filtros select {
       padding: 10px;
       border-radius: 8px;
@@ -814,7 +701,6 @@ margin: 20px
             justify-content: center;
         padding: 10px;
         }
-
         table {
             width: 70%;
             border-collapse: collapse;
@@ -823,24 +709,19 @@ margin: 20px
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
             overflow: hidden;
             min-width: 600px;
-            
         }
-
         th, td {
             padding: 14px;
             border-bottom: 1px solid #ddd;
             text-align: left;
         }
-
         th {
             background-color: #2c3e50;
             color: white;
         }
-
         tr:hover {
             background-color: #f1f1f1;
         }
-
         .volver-btn {
             display: inline-block;
             margin: 20px auto;
@@ -856,12 +737,9 @@ margin: 20px
             animation: shimmer 3s infinite linear;
             text-align: center;
         }
-
         .volver-btn:hover {
             background: #1c5980;
         }
-
-
         @keyframes shimmer {
             0% {
                 background-position: -200% 0;
@@ -870,7 +748,6 @@ margin: 20px
                 background-position: 200% 0;
             }
         }
-
         @media (max-width: 600px) {
         .tabla-contenedor {
             overflow-x: auto;
@@ -889,13 +766,11 @@ margin: 20px
   transition: border 0.3s, box-shadow 0.3s;
   font-family: 'Segoe UI', sans-serif;
 }
-
 .input-evaluacion:focus {
   border-color: #3498db;
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.4);
   outline: none;
 }
-
 #estadoSelect {
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg fill='%233498db' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
@@ -916,13 +791,11 @@ margin: 20px
     transition: all 0.3s ease;
     position: relative;
 }
-
 .btn-cv-profesional:hover {
     background: linear-gradient(90deg, #16a085, #1abc9c);
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(22, 160, 133, 0.5);
 }
-
 .icono-pdf {
     font-size: 20px;
     margin-right: 10px;
@@ -933,7 +806,6 @@ margin: 20px
     overflow-x: auto;
     white-space: nowrap;
 }
-
 .nav-list-pro {
     list-style: none;
     margin: 0;
@@ -943,7 +815,6 @@ margin: 20px
     justify-content: flex-start;
     gap: 30px;
 }
-
 .nav-list-pro li a {
     color: white;
     font-weight: bold;
@@ -956,12 +827,10 @@ margin: 20px
     transition: background 0.3s, transform 0.3s;
     position: relative;
 }
-
 .nav-list-pro li a:hover {
     background: #2c3e50;
     transform: scale(1.05);
 }
-
 .nav-list-pro li a::after {
     content: '';
     position: absolute;
@@ -973,17 +842,14 @@ margin: 20px
     transition: all 0.3s ease-in-out;
     transform: translateX(-50%);
 }
-
 .nav-list-pro li a:hover::after {
     width: 60%;
 }
-
 @media (max-width: 768px) {
   .nav-list-pro {
     gap: 16px;
     padding: 10px;
   }
-
   .nav-list-pro li a {
     font-size: 14px;
     padding: 8px 12px;
@@ -997,7 +863,6 @@ margin: 20px
   border-bottom: 3px solid #3498db;
   animation: fadeIn 0.3s ease;
 }
-
 .subnav a {
   color: #2c3e50;
   font-weight: 600;
@@ -1007,17 +872,14 @@ margin: 20px
   border-radius: 20px;
   transition: all 0.3s ease;
 }
-
 .subnav a:hover {
   background: #3498db;
   color: white;
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .usuario-barra {
   margin-left: auto;
   display: flex;
@@ -1055,11 +917,9 @@ margin: 20px
   animation: fadeIn 0.3s ease-in-out;
     transition: all 0.3s ease-in-out;
 }
-
 .usuario-dropdown p {
   margin: 8px 0;
 }
-
 .usuario-barra {
   cursor: pointer;
   position: relative;
@@ -1075,12 +935,10 @@ margin: 20px
   font-weight: bold;
   transition: background 0.3s, transform 0.2s;
 }
-
 .btn-logout-dropdown:hover {
   background: #c0392b;
   transform: scale(1.03);
 }
-
 .menu-lateral {
   position: fixed;
   left: 0;
@@ -1095,7 +953,6 @@ margin: 20px
   transition: transform 0.4s ease;
   border-right: 1px solid #e0e0e0;
 }
-
 .menu-lateral h3 {
   font-size: 17px;
   margin-bottom: 20px;
@@ -1104,17 +961,14 @@ margin: 20px
   padding-bottom: 10px;
   font-weight: 600;
 }
-
 .menu-lateral ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .menu-lateral ul li {
   margin-bottom: 14px;
 }
-
 .menu-lateral ul li a {
   color: #2d3436;
   text-decoration: none;
@@ -1127,13 +981,11 @@ margin: 20px
   padding: 8px 12px;
   border-radius: 6px;
 }
-
 .menu-lateral ul li a:hover {
   background: #dcdde1;
   color: #0984e3;
   transform: translateX(4px);
 }
-
 .menu-toggle {
   display: none;
   position: fixed;
@@ -1149,7 +1001,6 @@ margin: 20px
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   cursor: pointer;
 }
-
 /* Responsive en móviles */
 /* Responsive en móviles */
 @media (max-width: 768px) {
@@ -1165,16 +1016,13 @@ margin: 20px
     transition: transform 0.3s ease;
     z-index: 9;
   }
-
   .menu-lateral.active {
     transform: translateX(0);
   }
-
   .main-content {
     margin-left: 0 !important;
     transition: margin-left 0.3s ease;
   }
-
   .menu-toggle {
     position: fixed; /* Para que siempre sea visible */
     top: 15px;
@@ -1190,7 +1038,6 @@ margin: 20px
     padding: 0;
     z-index: 10;
   }
-
   .menu-toggle span {
     width: 100%;
     height: 3px;
@@ -1199,21 +1046,17 @@ margin: 20px
     transition: all 0.3s ease-in-out;
     transform-origin: 1px;
   }
-
   /* ANIMACIÓN AL ACTIVAR (hamburger a X) */
   .menu-toggle.active span:nth-child(1) {
     transform: rotate(45deg) translate(5px, 5px);
   }
-
   .menu-toggle.active span:nth-child(2) {
     opacity: 0;
   }
-
   .menu-toggle.active span:nth-child(3) {
     transform: rotate(-45deg) translate(5px, -5px);
   }
 }
-
 .main-content {
     margin-left: 200px;
     padding: 30px;
@@ -1259,7 +1102,6 @@ input[type=date] {
 .mensaje-error button:hover {
   background: #1c5980;
 }
-
 /* Grid general responsive para cards checklist */
 .checklist-grid {
   display: grid;
@@ -1268,7 +1110,6 @@ input[type=date] {
   max-width: 1400px;
   margin: 0 auto;
 }
-
 /* Títulos de tipo en grid */
 .checklist-tipo-titulo {
   grid-column: 1 / -1;
@@ -1279,7 +1120,6 @@ input[type=date] {
   font-size: 18px;
   font-weight: bold;
 }
-
 /* Card checklist */
 .checklist-card {
   background: white;
@@ -1292,11 +1132,9 @@ input[type=date] {
   gap: 12px;
   transition: transform 0.2s;
 }
-
 .checklist-card:hover {
   transform: scale(1.02);
 }
-
 /* Estado badge */
 .checklist-estado {
   padding: 6px 12px;
@@ -1305,7 +1143,6 @@ input[type=date] {
   font-size: 13px;
   color: white;
 }
-
 /* Botón Ver/Llenar */
 .checklist-btn {
   margin-top: auto;
@@ -1318,11 +1155,9 @@ input[type=date] {
   font-weight: bold;
   transition: background 0.3s;
 }
-
 .checklist-btn:hover {
   background: #1c5980;
 }
-
 /* Responsive celular */
 @media (max-width: 600px) {
   .checklist-grid {
@@ -1333,7 +1168,6 @@ input[type=date] {
 form input[type="date"], form button {
   width: auto;
 }
-
 @media (max-width: 600px) {
   form {
     flex-direction: column;
@@ -1353,16 +1187,13 @@ form input[type="date"], form button {
   z-index: 1000;
   width: calc(100% - 40px);
 }
-
 .sugerencia-item {
   padding: 10px;
   cursor: pointer;
 }
-
 .sugerencia-item:hover {
   background: #f0f0f0;
 }
-
 .no-result {
   padding: 10px;
   color: #888;
@@ -1373,7 +1204,6 @@ form input[type="date"], form button {
   gap: 20px;
   margin-top: 20px;
 }
-
 .checklist-card-item {
   background: white;
   border-radius: 12px;
@@ -1384,23 +1214,19 @@ form input[type="date"], form button {
   transition: transform 0.2s;
   border-left: 5px solid #2980b9;
 }
-
 .checklist-card-item:hover {
   transform: scale(1.02);
 }
-
 .checklist-card-item h4 {
   margin: 0 0 10px 0;
   font-size: 16px;
   color: #2c3e50;
 }
-
 .checklist-card-item p {
   margin: 4px 0;
   font-size: 14px;
   color: #555;
 }
-
 .checklist-card-item .estado {
   display: inline-block;
   margin-top: 8px;
@@ -1411,11 +1237,9 @@ form input[type="date"], form button {
   color: white;
   background: #27ae60;
 }
-
 .checklist-card-item .estado.pendiente {
   background: #e67e22;
 }
-
 .checklist-card-item .ver-btn {
   margin-top: auto;
   background: linear-gradient(120deg, #2980b9, #3498db);
@@ -1427,7 +1251,6 @@ form input[type="date"], form button {
   font-weight: bold;
   transition: background 0.3s;
 }
-
 .checklist-card-item .ver-btn:hover {
   background: #1c5980;
 }
@@ -1437,7 +1260,6 @@ form input[type="date"], form button {
   gap: 20px;
   margin-top: 20px;
 }
-
 .checklist-card-item {
   background: white;
   border-radius: 12px;
@@ -1449,12 +1271,10 @@ form input[type="date"], form button {
   border-left: 6px solid #3498db;
   position: relative;
 }
-
 .checklist-card-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(0,0,0,0.12);
 }
-
 .checklist-card-item h4 {
   margin: 0 0 10px 0;
   font-size: 17px;
@@ -1463,17 +1283,14 @@ form input[type="date"], form button {
   align-items: center;
   gap: 8px;
 }
-
 .checklist-card-item h4 i {
   color: #3498db;
 }
-
 .checklist-card-item p {
   margin: 4px 0;
   font-size: 14px;
   color: #555;
 }
-
 .checklist-card-item .estado {
   display: inline-block;
   margin-top: 12px;
@@ -1485,15 +1302,12 @@ form input[type="date"], form button {
   background: #27ae60;
   align-self: flex-start;
 }
-
 .checklist-card-item .estado.pendiente {
   background: #e67e22;
 }
-
 .checklist-card-item .estado.inactivo {
   background: #c0392b;
 }
-
 .checklist-card-item .ver-btn {
   margin-top: auto;
   background: linear-gradient(120deg, #2980b9, #3498db);
@@ -1505,11 +1319,9 @@ form input[type="date"], form button {
   font-weight: bold;
   transition: background 0.3s;
 }
-
 .checklist-card-item .ver-btn:hover {
   background: #1c5980;
 }
-
 .checklist-icon {
   position: absolute;
   top: 20px;
@@ -1530,7 +1342,6 @@ form input[type="date"], form button {
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   transition: all 0.3s ease;
 }
-
 .checklist-card-item .ver-btn:hover {
   background: #1c5980;
   transform: translateY(-2px);
@@ -1556,12 +1367,10 @@ form input[type="date"], form button {
   align-items: center;
   gap: 10px;
 }
-
 .folder-title i {
   color: #f1c40f;
   font-size: 20px;
 }
-
 .bus-info-banner {
   background: linear-gradient(135deg, #005bac, #0088cc);
   color: white;
@@ -1580,22 +1389,18 @@ form input[type="date"], form button {
   gap: 20px;
   flex-wrap: wrap;
 }
-
 .bus-info-banner i {
   font-size: 38px;
 }
-
 .bus-info-banner h3 {
   margin: 0;
   font-size: 26px;
 }
-
 .bus-info-banner p {
   margin: 0;
   font-size: 18px;
   font-weight: 500;
 }
-
 .bus-info-banner .tag {
   background: rgba(255,255,255,0.2);
   padding: 8px 16px;
@@ -1603,15 +1408,12 @@ form input[type="date"], form button {
   font-weight: bold;
   font-size: 16px;
 }
-
-
 .bus-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
 }
-
 .bus-header h3 {
   margin: 0;
   font-size: 26px;
@@ -1619,7 +1421,6 @@ form input[type="date"], form button {
   align-items: center;
   gap: 10px;
 }
-
 .bus-tag {
   background: rgba(255,255,255,0.2);
   padding: 8px 16px;
@@ -1634,19 +1435,16 @@ form input[type="date"], form button {
   gap: 20px;
   margin-top: 20px;
 }
-
 .bus-detail-item {
   background: rgba(255,255,255,0.1);
   border-radius: 12px;
   padding: 12px 16px;
   text-align: center;
 }
-
 .bus-detail-item i {
   font-size: 20px;
   margin-bottom: 8px;
 }
-
 .bus-detail-item p {
   margin: 0;
   font-size: 14px;
@@ -1657,19 +1455,16 @@ form input[type="date"], form button {
   gap: 20px;
   margin-top: 20px;
 }
-
 .bus-detail-item {
   background: rgba(255,255,255,0.1);
   border-radius: 12px;
   padding: 12px 16px;
   text-align: center;
 }
-
 .bus-detail-item i {
   font-size: 20px;
   margin-bottom: 8px;
 }
-
 .bus-detail-item p {
   margin: 0;
   font-size: 14px;
@@ -1679,7 +1474,6 @@ form input[type="date"], form button {
   font-size: 14px;
   line-height: 1.4;
 }
-
 .bus-detail-item strong {
   font-size: 15px;
   display: block;
@@ -1692,7 +1486,6 @@ form input[type="date"], form button {
   margin: 20px auto;
   max-width: 900px;
 }
-
 .bus-detail-item {
   background: #fff;
   border-radius: 12px;
@@ -1701,23 +1494,19 @@ form input[type="date"], form button {
   text-align: center;
   transition: transform 0.2s;
 }
-
 .bus-detail-item:hover {
   transform: scale(1.05);
 }
-
 .bus-detail-item i {
   font-size: 20px;
   margin-bottom: 8px;
   color: #2980b9;
 }
-
 .bus-detail-item p {
   margin: 0;
   font-size: 14px;
   line-height: 1.4;
 }
-
 .bus-detail-item strong {
   display: block;
   margin-bottom: 4px;
@@ -1750,11 +1539,9 @@ form input[type="date"], form button {
   margin: 30px auto;
   position: relative;
 }
-
 .input-container {
   position: relative;
 }
-
 .input-container i {
   position: absolute;
   left: 15px;
@@ -1763,7 +1550,6 @@ form input[type="date"], form button {
   color: #2980b9;
   font-size: 18px;
 }
-
 .input-container input[type=text] {
   width: 100%;
   padding: 14px 14px 14px 45px; /* espacio para el icono */
@@ -1773,7 +1559,6 @@ form input[type="date"], form button {
   box-sizing: border-box;
   transition: all 0.3s ease;
 }
-
 .input-container input[type=text]:focus {
   border-color: #1c5980;
   box-shadow: 0 0 5px rgba(28, 89, 128, 0.4);
@@ -1786,12 +1571,10 @@ form input[type="date"], form button {
     border-radius: 8px;
     transition: background 0.3s, border 0.3s;
 }
-
 .input-conductor.readonly {
     background: #f0f0f0; /* gris claro */
     color: #666;
 }
-
 .input-conductor.editable {
     background: #e6f7ff; /* azul claro */
     border-color: #3498db;
@@ -1804,12 +1587,10 @@ form input[type="date"], form button {
     border-radius: 8px;
     transition: background 0.3s, border 0.3s;
 }
-
 .input-fumigacion.readonly {
     background: #f0f0f0; /* gris claro */
     color: #666;
 }
-
 .input-fumigacion.editable {
     background: #e6f7ff; /* azul claro */
     border-color: #3498db;
@@ -1832,25 +1613,20 @@ form input[type="date"], form button {
   transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
-
 .btn-checklist i {
   font-size: 18px;
 }
-
 .btn-checklist.imprimir {
   background: linear-gradient(120deg, #2980b9, #3498db);
 }
-
 .btn-checklist.imprimir:hover {
   background: #1c5980;
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(0,0,0,0.2);
 }
-
 .btn-checklist.registrar {
   background: linear-gradient(120deg, #27ae60, #2ecc71);
 }
-
 .btn-checklist.registrar:hover {
   background: #1e8449;
   transform: translateY(-2px);
@@ -1867,17 +1643,18 @@ form input[type="date"], form button {
 .fa-pulse {
   animation: fa-spin 1s infinite linear;
 }
-
 @keyframes fa-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(359deg); }
 }
-
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+    <link rel="stylesheet" href="../assets/css/header_n360.css">
+<link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+<link rel="stylesheet" href="../assets/css/main_n360.css">
+<link rel="stylesheet" href="../assets/css/footer_n360.css">
+<link rel="stylesheet" href="../assets/css/content_n360.css">
 </head>
-
 <body>
 <?php
 function calcularEdad($fechaNacimiento) {
@@ -1886,11 +1663,9 @@ function calcularEdad($fechaNacimiento) {
     $edad = $hoy->diff($nac);
     return $edad->y;
 }
-
 $edad = calcularEdad("2000-04-12"); // ejemplo
 ?>
 <?php if ($exito): ?>
-    
 <div id="popup-exito">
   <div class="mensaje">
     <svg class="check-icon" viewBox="0 0 52 52">
@@ -1900,12 +1675,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     <p class="texto-popup">¡Registrado correctamente!</p>
   </div>
 </div>
-
-
 <?php endif; ?>
-
-
-
 <?php if (isset($_SESSION['error_fecha']) && $_SESSION['error_fecha'] === true): ?>
 <div id="popup-error">
   <div class="mensaje-error">
@@ -1914,49 +1684,13 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   </div>
 </div>
 <?php unset($_SESSION['error_fecha']); endif; ?>
-<header class="main-header animated-border">
-  <div class="header-content">
-    <a href="../index.php">
-        <div class="logo-bloque">
-            <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header">
-        </div>
-    </a>
-
-    <div class="separador-vertical"></div>
-        <a href="javascript:location.reload()">
-            <div class="logo-bloque">
-            <img src="../img/completo.png" alt="Logo Sistema" class="logo-header2">
-            </div>
-        </a>
-
-
-    <div class="usuario-contenedor" style="margin-left:auto; position: relative;">
-      <div class="usuario-barra" onclick="toggleDropdown()">
-        <span>Hola, <?= htmlspecialchars($_SESSION['usuario']) ?></span>
-        <img src="../img/icons/user.png" alt="Usuario">
-      </div>
-      <div class="usuario-dropdown" id="usuarioDropdown">
-        <p><strong>Nombre:</strong> <?= htmlspecialchars($_SESSION['usuario']) ?></p>
-        <p><strong>DNI:</strong> <?= htmlspecialchars($_SESSION['DNI']) ?></p>
-        <p><strong>Edad:</strong> <?= $edad ?> años</p>
-        <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%); margin: 12px 0; border: none; border-top: 1px solid #eee;">
-        <p><strong>Rol:</strong> <?= htmlspecialchars($_SESSION['web_rol']) ?></p>
-        <a href="../login/logout.php" class="btn-logout-dropdown">Cerrar sesión</a>
-      </div>
-    </div>
-
-    </div>
-</header>
+<?php n360_render_header(); ?>
 <?php n360_render_sidebar(); ?>
-<div class="main-content" id="areaPDF">
-  <hr>
-
-
+<div class="main-content n360-main n360-main--module" id="areaPDF">
+<?php n360_render_content_separator('top'); ?>
   <h2>Generar Rutas</h2>
-
 <form class="busqueda-form" method="GET" action="" style="background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 25px; max-width: 700px; margin: 30px auto;">
   <div class="grupo-flex">
-
     <!-- Bus -->
     <div class="campo-form" style="flex:1; min-width:250px; position: relative;">
       <label for="bus_input"><i class="fas fa-bus" style="color:#2980b9;"></i> Seleccionar Bus</label>
@@ -1972,53 +1706,37 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
       <label for="fecha_input"><i class="fas fa-calendar-alt" style="color:#2980b9;"></i> Fecha</label>
       <input type="date" name="fecha" id="fecha_input" value="<?= htmlspecialchars($_GET['fecha'] ?? date('Y-m-d')) ?>" required>
     </div>
-
-
   </div>
 </form>
-
 <div class="fondointerbusllenado">
   <?php include("inter_bus/interbus_logic.php"); ?>
 </div>
-
-
 <div class="btn-checklist-container" id="botonesChecklist" style="display:none;">
   <button class="btn-checklist imprimir" onclick="generarChecklist('imprimir')">
     <i class="fas fa-file-pdf"></i> Imprimir PDF
   </button>
-
   <button class="btn-checklist registrar" onclick="generarChecklist('guardar_imprimir')">
     <i class="fas fa-save"></i> Imprimir y Registrar
   </button>
 </div>
 <!-- Modal de Carga -->
 <div id="modal-cargando" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
-
   <div style="background:white; padding:30px 50px; border-radius:12px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
     <i class="fas fa-spinner fa-pulse" style="font-size:30px; color:#2980b9;"></i>
     <p style="margin-top:15px; font-size:18px; font-weight:bold;">Procesando...<br>Por favor espere</p>
   </div>
 </div>
-
-
-  <hr>
 </div>
-
-
-
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const inputBus = document.getElementById("bus_input");
     const sugerenciasDiv = document.getElementById("sugerencias_bus");
     const busIdInput = document.getElementById("bus_id");
-
     inputBus.addEventListener("input", function() {
         const valor = this.value.trim();
         const modal = document.getElementById("modal-cargando"); // ✅ Referencia al modal
-
         if (valor.length > 0) {
             modal.style.display = "flex"; // ✅ Mostrar modal antes de la petición
-
             fetch("inter_bus/ajax_buses.php?query=" + encodeURIComponent(valor))
                 .then(response => response.json())
                 .then(data => {
@@ -2033,7 +1751,6 @@ document.addEventListener("DOMContentLoaded", function() {
                                 inputBus.value = this.textContent;
                                 busIdInput.value = this.dataset.busId;
                                 sugerenciasDiv.innerHTML = "";
-
                                 // Envío automático del formulario al seleccionar
                                 inputBus.form.submit();
                             });
@@ -2054,7 +1771,6 @@ document.addEventListener("DOMContentLoaded", function() {
         sugerenciasDiv.innerHTML = "";
     }
 });
-
     // Cierra sugerencias si se hace clic fuera
     document.addEventListener("click", function(e) {
         if (!inputBus.contains(e.target) && !sugerenciasDiv.contains(e.target)) {
@@ -2068,7 +1784,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const urlParams = new URLSearchParams(window.location.search);
     const bus_id = urlParams.get('bus_id');
     const fecha = urlParams.get('fecha');
-
     if (bus_id && !fecha) {
         // Si hay bus_id pero no fecha, recarga agregando la fecha actual
         const today = new Date();
@@ -2076,27 +1791,21 @@ document.addEventListener("DOMContentLoaded", function() {
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
         const fecha_actual = `${year}-${month}-${day}`;
-
         // Construir la nueva URL con fecha
         urlParams.set('fecha', fecha_actual);
         window.location.search = urlParams.toString();
     }
-
-
     // 🔽 NUEVO BLOQUE: mostrar botones según fecha buscada
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     const fecha_actual = `${year}-${month}-${day}`;
-
     const botonesChecklist = document.getElementById("botonesChecklist");
     const btnImprimir = botonesChecklist.querySelector(".btn-checklist.imprimir");
     const btnRegistrar = botonesChecklist.querySelector(".btn-checklist.registrar");
-
     if (fecha) {
         botonesChecklist.style.display = "flex";
-
         if (fecha === fecha_actual) {
             btnImprimir.style.display = "none";
             btnRegistrar.style.display = "inline-flex";
@@ -2105,14 +1814,12 @@ document.addEventListener("DOMContentLoaded", function() {
             btnRegistrar.style.display = "none";
         }
     }
-
 });
 </script>
 <script>
 function toggleFolder(element) {
     const content = element.nextElementSibling;
     const icon = element.querySelector('i.fa-chevron-down');
-
     if (content.style.display === "none" || content.style.display === "") {
         content.style.display = "grid";
         icon.style.transform = "rotate(180deg)";
@@ -2122,27 +1829,8 @@ function toggleFolder(element) {
     }
 }
 </script>
-
-
-
-
-<footer class="main-footer animated-border">
-  <div class="footer-top">
-    <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header3">
-    <div class="footer-info">
-      <p class="footer-title">Contáctanos</p>
-      <div class="footer-cajas">
-        <div class="footer-box"><img src="../img/icons/facebook.png" alt="Función 1"></div>
-        <div class="footer-box"><img src="../img/icons/social.png" alt="Función 2"></div>
-      </div>
-    </div>
-  </div>
-  <p class="footer-copy">© <?= date('Y') ?> Norte 360° (v1.0.6). Todos los derechos reservados.</p>
-  <style>.footer-h2bd {position: absolute;bottom: 10px;right: 10px;opacity: 0;transition: opacity 0.4s ease;width: 80px;}.main-footer:hover .footer-h2bd {opacity: 0.6;}.footer-h2bd {filter: grayscale(40%);}</style>
-  <div id="h2bd" style="display:none; position:fixed; bottom:10px; left:10px; z-index:9999; text-align:center;"><img src="<?= $h2bd_img ?>" alt="icong" style="width:80px; opacity:0.8; filter: grayscale(40%); display:block; margin:0 auto;"><p style="color:white; font-size:12px; margin:4px 0 0 0;"><?= $h2bd_name ?></p></div>
-  <script>document.addEventListener('keydown', function(e) {if (e.ctrlKey && e.altKey && e.key === 'm') {const egg = document.getElementById('h2bd');egg.style.display = egg.style.display === 'none' ? 'block' : 'none';}});</script>
-
-</footer>
+<?php n360_render_content_separator('bottom'); ?>
+<?php n360_render_footer(); ?>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const popup = document.getElementById("popup-exito");
@@ -2155,76 +1843,59 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 </script>
-
 <script>
 const originalValues = {};
 const conductorStatus = {
     conductor1: false,
     conductor2: false
 };
-
 function toggleEdit(inputId) {
     const input = document.getElementById(inputId);
     const btn = document.getElementById('btn_' + inputId);
-
     if (!originalValues[inputId]) {
         originalValues[inputId] = input.value;
     }
-
     if (input.readOnly) {
         input.readOnly = false;
         input.classList.remove('readonly');
         input.classList.add('editable');
         input.focus();
-
         // Marca como editado (seleccionado)
         conductorStatus[inputId] = true;
-
         // Cambia botón a estado 'Cancelar'
         btn.style.background = '#c0392b'; // rojo
         btn.innerHTML = "<i class='fas fa-times'></i> Cancelar";
-
     } else {
         input.value = originalValues[inputId];
         input.readOnly = true;
         input.classList.remove('editable');
         input.classList.add('readonly');
-
         // Marca como NO editado (revertido)
         conductorStatus[inputId] = false;
-
         // Cambia botón a estado 'Editar'
         btn.style.background = '#3498db'; // azul
         btn.innerHTML = "<i class='fas fa-edit'></i> Editar";
     }
-
     // console.log("Estado actual de conductores:", conductorStatus);
 }
-
 function verificarTransbordo() {
     const origen = document.getElementById('origen').value;
     const destino = document.getElementById('destino').value;
     const tag = document.getElementById('transbordoTag');
-
     if (origen && destino && origen === destino) {
         tag.style.display = 'inline-block';
     } else {
         tag.style.display = 'none';
     }
 }
-
-
 async function generarChecklist(modo = "imprimir") {
   const modal = document.getElementById('modal-cargando');
   modal.style.display = 'flex'; // ✅ Mostrar modal antes de ejecutar
-
   const { busId, fecha, horaActual, usuarioSesion, origen, destino, conductor1, conductor2 } = obtenerVariablesChecklist();
-
   if (!busId) {
     alert("Seleccione un bus antes de continuar.");
     return;
   }
-
   // ✅ Si el modo es guardar_imprimir, valida origen y destino antes de continuar
   if (modo === "guardar_imprimir") {
     if (!origen || origen.trim() === "") {
@@ -2232,34 +1903,26 @@ async function generarChecklist(modo = "imprimir") {
       modal.style.display = 'none'; // ✅ Ocultar modal al finalizar
       return;
     }
-
     if (!destino || destino.trim() === "") {
       alert("Por favor, seleccione un DESTINO antes de registrar el viaje.");
       modal.style.display = 'none'; // ✅ Ocultar modal al finalizar
       return;
     }
   }
-
   try {
     const response = await fetch(`inter_bus/interbus_logic_api.php?bus_id=${busId}&fecha=${fecha}`);
     const data = await response.json();
-
     if (data.error) {
       alert(data.error);
       return;
     }
-
     // 👉 Generar PDF
     generarPDFDesdeData(data, { fecha, horaActual, usuarioSesion, origen, destino, conductor1, conductor2});
-
     // 👉 Si el modo es imprimir, genera y descarga TXT
-
-
     // 👉 Si el modo es guardar_imprimir, registra viaje después de generar PDF
     if (modo === "guardar_imprimir") {
       registrarViajeDespuesDeMostrar();
     }
-
   } catch (err) {
     console.error(err);
     alert("Error al generar el checklist.");
@@ -2267,31 +1930,25 @@ async function generarChecklist(modo = "imprimir") {
     modal.style.display = 'none'; // ✅ Ocultar modal al finalizar
   }
 }
-
 function mostrarDatosViaje() {
   const fecha = new Date().toISOString().split('T')[0];
   const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
   let busId = document.getElementById('bus_id').value;
   if (!busId) {
     const urlParams = new URLSearchParams(window.location.search);
     busId = urlParams.get('bus_id');
   }
-
   const origen = document.getElementById('origen') ? document.getElementById('origen').value : null;
   const destino = document.getElementById('destino') ? document.getElementById('destino').value : null;
   const conductor1 = document.getElementById('conductor1') ? document.getElementById('conductor1').value : null;
   const conductor2 = document.getElementById('conductor2') ? document.getElementById('conductor2').value : null;
   const observaciones = document.getElementById('observaciones') ? document.getElementById('observaciones').value : null;
   const transbordo = (origen && destino && origen === destino);
-
   const usuario = "<?= $_SESSION['usuario'] ?>";
   const usuario_id = "<?= $_SESSION['id_usuario'] ?>";
-
   const checklistCards = document.querySelectorAll('.checklist-card-item');
   const checklistIds = [];
   const checklistKpis = [];
-
   checklistCards.forEach((card, index) => {
     const h4 = card.querySelector('h4');
     let corr = null;
@@ -2299,28 +1956,23 @@ function mostrarDatosViaje() {
       const corrMatch = h4.textContent.match(/Checklist N°\s*([A-Za-z0-9\-]+)/);
       corr = corrMatch ? corrMatch[1] : null;
     }
-
     const verBtn = card.querySelector('.ver-btn');
     const href = verBtn ? verBtn.getAttribute('href') : "";
     const idMatch = href.match(/id=([0-9]+)/);
     const checklistId = idMatch ? idMatch[1] : null;
-
     checklistIds.push({
       index: index,
       id: checklistId,
       correlativo: corr
     });
-
     const kpiBlocks = card.querySelectorAll("div[style*='background:#f8f9fa']");
     kpiBlocks.forEach(kpiBlock => {
       const titulo = kpiBlock.querySelector('h4') ? kpiBlock.querySelector('h4').textContent.trim() : "";
       const items = [];
       const kpiItems = kpiBlock.querySelectorAll('div, p');
-
       kpiItems.forEach(k => {
         const strong = k.querySelector('strong');
         const spans = k.querySelectorAll('span');
-
         if (strong && spans.length > 0) {
           const conductor = strong.textContent.trim();
           const valor = spans[0].textContent.trim();
@@ -2332,7 +1984,6 @@ function mostrarDatosViaje() {
           items.push({ key, valor: value });
         }
       });
-
       checklistKpis.push({
         checklist_index: index,
         checklist_id: checklistId,
@@ -2342,7 +1993,6 @@ function mostrarDatosViaje() {
       });
     });
   });
-
   const datosViaje = {
     fecha_viaje: fecha,
     hora_viaje: hora,
@@ -2360,7 +2010,6 @@ function mostrarDatosViaje() {
   };
   return datosViaje;
 }
-
 /** 🔧 Función para obtener variables de contexto */
 function obtenerVariablesChecklist() {
   let busId = document.getElementById('bus_id').value;
@@ -2368,77 +2017,57 @@ function obtenerVariablesChecklist() {
     const urlParams = new URLSearchParams(window.location.search);
     busId = urlParams.get('bus_id');
   }
-
   const urlParams = new URLSearchParams(window.location.search);
   const fecha = urlParams.get('fecha') || new Date().toISOString().split('T')[0];
   const horaActual = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   const usuarioSesion = "<?= $_SESSION['usuario'] ?>";
-  
   const origen = document.getElementById('origen') ? document.getElementById('origen').value : "No registrado";
   const destino = document.getElementById('destino') ? document.getElementById('destino').value : "No registrado";
   const conductor1 = document.getElementById('conductor1') ? document.getElementById('conductor1').value : "No registrado";
   const conductor2 = document.getElementById('conductor2') ? document.getElementById('conductor2').value : "No registrado";
-
   return { busId, fecha, horaActual, usuarioSesion, origen, destino, conductor1, conductor2};
 }
-
-
-
-
-
-
 /** 🔧 Función para generar PDF desde la data */
 function generarPDFDesdeData(data, info) {
   const pdf = new jspdf.jsPDF();
   const logoUrl = "../img/IMG_3004_fb.jpg";
   const logoDerechaUrl = "../img/norte360_blanco.jpg";
-
   // Header simple, profesional y serio
   pdf.addImage(logoUrl, 'PNG', 10, 10, 35, 18);
   pdf.addImage(logoDerechaUrl, 'PNG', 165, 10, 35, 18); // posición x=165 para alinearlo a la derecha
-
   pdf.setFont("helvetica", "bold").setFontSize(15).setTextColor(0, 51, 102)
     .text("Reporte Checklist", 105, 18, null, null, "center");
   pdf.setFontSize(9).setFont("helvetica", "normal").setTextColor(90, 90, 90)
     .text("Cruz del Norte | Norte 360°", 105, 24, null, null, "center");
   pdf.line(10, 28, 200, 28);
-
   pdf.setFontSize(10).setTextColor(60, 60, 60)
     .text(`Fecha impresión: ${data.fecha} ${info.horaActual}`, 10, 34)
     .text(`Usuario: ${info.usuarioSesion}`, 150, 34);
-
   pdf.setLineDashPattern([2, 2], 0); // [punto, espacio], fase=0
     pdf.line(10, 40, 200, 40);
   pdf.setLineDashPattern([], 0); // Restablece a línea sólida
-
   pdf.setFontSize(10).setTextColor(60, 60, 60)
     .text(`Bus: ${data.bus.clm_placas_BUS} | Placa: ${data.bus.clm_placas_placa}`, 10, 45)
     .text(`Servicio: ${data.bus.clm_placas_SERVICIO} | Tipo: ${data.bus.clm_placas_TIPO_VEHÍCULO}`, 10, 52)
     .text(`Fecha registro: ${info.fecha}`, 110, 45)
     .text(`Origen: ${info.origen} | Destino: ${info.destino}`, 110, 52)
     .text(`Conductor 1: ${info.conductor1} | Conductor 2: ${info.conductor2}`, 10, 59);
-
   pdf.setLineDashPattern([2, 2], 0); // [punto, espacio], fase=0
     pdf.line(10, 62, 200, 62);
   pdf.setLineDashPattern([], 0); // Restablece a línea sólida
-
   let y = 71;
-
   data.tipos.forEach(tipo => {
     pdf.setFontSize(12).setTextColor(255).setFillColor(0, 102, 204)
       .rect(10, y - 5, 190, 8, 'F')
       .text(`Tipo: ${tipo.nombre} | Estado: ${tipo.completitud}`, 12, y);
     y += 8;
-
     pdf.setFontSize(10).setTextColor(80, 80, 80)
       .text(`Items respondidos: ${tipo.respondidos} / ${tipo.total}`, 12, y);
     y += 5;
-
     pdf.setFillColor(230, 240, 255).setTextColor(0, 51, 102)
       .rect(10, y - 4, 190, 6, 'F')
       .text("N°", 12, y).text("Fecha", 30, y).text("Hora", 80, y).text("Estado", 130, y).text("Corr", 170, y);
     y += 6;
-
     tipo.checklists.forEach(chk => {
       pdf.setFontSize(9).setTextColor(80, 80, 80)
         .text(`${chk.clm_checklist_id}`, 12, y)
@@ -2449,13 +2078,11 @@ function generarPDFDesdeData(data, info) {
       y += 5;
       if (y > 280) { pdf.addPage(); y = 20; }
     });
-
     pdf.setFontSize(10).setTextColor(80, 80, 80)
       .text(`Responsable: ${tipo.responsable || 'No registrado'}`, 12, y);
     y += 5;
     pdf.text(`Observaciones: ${tipo.observaciones || 'Sin observaciones'}`, 12, y);
     y += 8;
-
     if (tipo.kpi) {
       pdf.setTextColor(0, 102, 204).text(`KPI: ${tipo.kpi.titulo}`, 12, y);
       y += 5;
@@ -2471,21 +2098,16 @@ function generarPDFDesdeData(data, info) {
       y += 5;
     }
   });
-
   pdf.setDrawColor(0, 102, 204).line(10, 285, 200, 285);
   pdf.setFontSize(9).setTextColor(150, 150, 150)
     .text("Generado automáticamente por Norte 360° | Sistema Integrado de Gestión Empresarial", 105, 290, null, null, "center");
-
-
   // ✅ MOSTRAR VIAJES SI LA FECHA ES PASADA
   if (data.es_fecha_pasada && data.viajes_realizados && data.viajes_realizados.length > 0) {
     if (y > 260) { pdf.addPage(); y = 20; }
-
     pdf.setFontSize(12).setTextColor(255).setFillColor(0, 102, 204)
       .rect(10, y - 5, 190, 8, 'F')
       .text(`Viajes realizados – Bus: ${data.bus.clm_placas_BUS} | Placa: ${data.bus.clm_placas_placa} - Fecha: ${info.fecha}`, 12, y);
     y += 10;
-
     pdf.setFillColor(230, 240, 255).setTextColor(0, 51, 102)
       .rect(10, y - 4, 190, 6, 'F')
       .text("Hora", 12, y)
@@ -2494,7 +2116,6 @@ function generarPDFDesdeData(data, info) {
       .text("Cond. 1", 125, y)
       .text("Cond. 2", 160, y);
     y += 6;
-
     data.viajes_realizados.forEach(viaje => {
       pdf.setFontSize(9).setTextColor(60, 60, 60)
         .text(`${viaje.clm_viarut_hora}`, 12, y)
@@ -2505,27 +2126,16 @@ function generarPDFDesdeData(data, info) {
       y += 5;
       if (y > 280) { pdf.addPage(); y = 20; }
     });
-
     y += 8;
   }
-
   pdf.setDrawColor(0, 102, 204).line(10, 285, 200, 285);
   pdf.setFontSize(9).setTextColor(150, 150, 150)
     .text("Generado automáticamente por Norte 360° | Sistema Integrado de Gestión Empresarial", 105, 290, null, null, "center");
-
   pdf.save(`Checklist_Bus_${data.bus.clm_placas_BUS}_${info.fecha}.pdf`);
 }
-
-
-
-
-
-
 /** 🔧 Mostrar y descargar datos viaje como TXT */
-
 async function registrarViajeDespuesDeMostrar() {
   const datosViaje = mostrarDatosViaje(); // genera objeto datos (sin descargar txt)
-
   const formData = new FormData();
   formData.append("fecha", datosViaje.fecha_viaje);
   formData.append("hora", datosViaje.hora_viaje);
@@ -2539,7 +2149,6 @@ async function registrarViajeDespuesDeMostrar() {
   formData.append("checklist_ids", JSON.stringify(datosViaje.checklist_ids));
   formData.append("checklist_kpis", JSON.stringify(datosViaje.checklist_kpis));
   formData.append("usuario_id", datosViaje.usuario_id);
-
   try {
     const response = await fetch('inter_bus/registrar_viaje.php', {
       method: 'POST',
@@ -2553,32 +2162,22 @@ async function registrarViajeDespuesDeMostrar() {
     alert("Error al registrar viaje.");
   }
 }
-
-
 </script>
-
-
 <script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
 }
-
 // Cierra si haces clic fuera
 document.addEventListener("click", function (e) {
   const barra = document.querySelector(".usuario-barra");
   const dropdown = document.getElementById("usuarioDropdown");
-
   if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
     dropdown.style.display = "none";
   }
 });
 </script>
-
+<script src="../assets/js/header_n360.js"></script>
 <script src="../assets/js/sidebar_n360.js"></script>
 </body>
-
-
-
 </html>
-

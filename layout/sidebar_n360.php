@@ -404,7 +404,7 @@ function n360_render_sidebar(): void {
     $menu = n360_menu_config();
     $currentUri = str_replace('\\', '/', $_SERVER['REQUEST_URI'] ?? '');
 
-    echo '<button class="sidebar-mobile-btn" type="button" onclick="n360ToggleSidebarMobile()"><i class="bi bi-list"></i></button>';
+    echo '<button class="sidebar-mobile-btn" type="button" onclick="n360ToggleSidebarMobile()" data-sidebar-mobile-toggle aria-controls="sidebarN360" aria-expanded="false" aria-label="Abrir menu"><i class="bi bi-list"></i></button>';
     echo '<button class="sidebar-show-btn" id="sidebarShowBtn" type="button" onclick="n360ToggleSidebarDesktop()"><i class="bi bi-chevron-right"></i></button>';
 
     echo '<aside class="sidebar-n360" id="sidebarN360">';
@@ -501,5 +501,5 @@ function n360_render_sidebar(): void {
     }
 
     echo '</aside>';
-    echo '<div class="sidebar-overlay" id="sidebarOverlay" onclick="n360ToggleSidebarMobile()"></div>';
+    echo '<div class="sidebar-overlay" id="sidebarOverlay" onclick="n360ToggleSidebarMobile()" aria-hidden="true"></div>';
 }

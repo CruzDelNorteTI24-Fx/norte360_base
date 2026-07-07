@@ -6,7 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const menu = header.querySelector('[data-n360-user-menu]');
     const toggle = header.querySelector('[data-n360-user-toggle]');
-    const clock = header.querySelector('[data-n360-now]');
+
+    function syncHeaderShadow() {
+        header.classList.toggle('is-scrolled', window.scrollY > 6);
+    }
 
     function closeMenu() {
         if (!menu || !toggle) return;
@@ -38,23 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.key === 'Escape') closeMenu();
     });
 
-    function updateClock() {
-        if (!clock) return;
-
-        const now = new Date();
-        const formatted = new Intl.DateTimeFormat('es-PE', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-            timeZone: 'America/Lima'
-        }).format(now);
-
-        clock.textContent = formatted.replace(',', '');
-    }
-
-    updateClock();
-    setInterval(updateClock, 30000);
+    window.addEventListener('scroll', syncHeaderShadow, { passive: true });
+    syncHeaderShadow();
 });

@@ -7,6 +7,9 @@ require_once("../.c0nn3ct/db_securebd2.php");
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
 require_once __DIR__ . '/../layout/sidebar_n360.php';
+require_once __DIR__ . '/../layout/header_n360.php';
+require_once __DIR__ . '/../layout/footer_n360.php';
+require_once __DIR__ . '/../layout/content_n360.php';
 $permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
 $vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
 
@@ -1913,7 +1916,11 @@ body.sidebar-collapsed .scanner-shell{
 }
 
     </style>
+    <link rel="stylesheet" href="../assets/css/header_n360.css">
     <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+    <link rel="stylesheet" href="../assets/css/main_n360.css">
+    <link rel="stylesheet" href="../assets/css/footer_n360.css">
+    <link rel="stylesheet" href="../assets/css/content_n360.css">
 </head>
 <body>
 <?php
@@ -1926,44 +1933,15 @@ function calcularEdad($fechaNacimiento) {
 
 $edad = calcularEdad("2000-04-12"); // ejemplo
 ?>
-<header class="main-header animated-border">
-  <div class="header-content">
-    <a href="../index.php"">
-        <div class="logo-bloque">
-            <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header">
-        </div>
-    </a>
-
-    <div class="separador-vertical"></div>
-        <a href="javascript:location.reload()">
-            <div class="logo-bloque">
-            <img src="../img/completo.png" alt="Logo Sistema" class="logo-header2">
-            </div>
-        </a>
-
-
-    <div class="usuario-contenedor" style="margin-left:auto; position: relative;">
-      <div class="usuario-barra" onclick="toggleDropdown()">
-        <span>Hola, <?= htmlspecialchars($_SESSION['usuario']) ?></span>
-        <img src="../img/icons/user.png" alt="Usuario">
-      </div>
-      <div class="usuario-dropdown" id="usuarioDropdown">
-        <p><strong>Nombre:</strong> <?= htmlspecialchars($_SESSION['usuario']) ?></p>
-        <p><strong>DNI:</strong> <?= htmlspecialchars($_SESSION['DNI']) ?></p>
-        <p><strong>Edad:</strong> <?= $edad ?> años</p>
-        <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%); margin: 12px 0; border: none; border-top: 1px solid #eee;">
-        <p><strong>Rol:</strong> <?= htmlspecialchars($_SESSION['web_rol']) ?></p>
-        <a href="../login/logout.php" class="btn-logout-dropdown">Cerrar sesión</a>
-      </div>
-    </div>
-
-    </div>
-
-</header>
+<?php n360_render_header(['title' => 'Scanner de productos', 'subtitle' => 'Inventario y trazabilidad']); ?>
 
 <?php n360_render_sidebar(); ?>
 
-<div class="scanner-shell">
+<main class="main-content n360-main n360-main--module" role="main">
+  <div class="n360-main__inner">
+    <?php n360_render_content_separator('top'); ?>
+
+    <div class="scanner-shell">
   <section class="scanner-hero">
     <div>
       <div class="scanner-eyebrow"><i class="bi bi-upc-scan"></i> Inventario · Scaner</div>
@@ -2080,7 +2058,9 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
   <div id="reader" class="camera-reader"></div>
   <p id="scan-result" class="scan-result" style="display:none;"></p>
-</div>
+    </div>
+  </div>
+</main>
 
     <!-- PRIMERA LIBERÍA -->
     <script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
@@ -2182,20 +2162,9 @@ document.getElementById('startScanner').addEventListener('click', function() {
 <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20una%20etiqueta.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank" title="Soporte por WhatsApp">
     <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="Soporte" style="width:30px; height:30px;">
 </a>
+<?php n360_render_content_separator('bottom'); ?>
 
-<footer class="main-footer animated-border">
-  <div class="footer-top">
-    <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header3">
-    <div class="footer-info">
-      <p class="footer-title">Contáctanos</p>
-      <div class="footer-cajas">
-        <div class="footer-box"><img src="../img/icons/facebook.png" alt="Función 1"></div>
-        <div class="footer-box"><img src="../img/icons/social.png" alt="Función 2"></div>
-      </div>
-    </div>
-  </div>
-  <p class="footer-copy">© <?= date('Y') ?> Norte 360° (v1.0.6). Todos los derechos reservados.</p>
-</footer>
+<?php n360_render_footer(); ?>
 
 <script>
 function toggleDropdown() {
@@ -2272,6 +2241,7 @@ document.addEventListener("click", function (e) {
   })();
 </script>
 
+<script src="../assets/js/header_n360.js"></script>
 <script src="../assets/js/sidebar_n360.js"></script>
 </body>
 </html>

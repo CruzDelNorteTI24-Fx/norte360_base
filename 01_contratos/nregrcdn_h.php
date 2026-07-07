@@ -1,7 +1,6 @@
 <?php
 ini_set('session.gc_maxlifetime', (string) (8 * 60 * 60));
 session_start();
-
 if (!isset($_SESSION['usuario'])) {
     header("Location: ../login/login.php");
     exit();
@@ -10,31 +9,25 @@ $permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []
 $vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
 if ($_SESSION['web_rol'] !== 'Admin') {
     $modulo_actual = 6; // id_modulo de esta vista
-
     if (!in_array($modulo_actual, $_SESSION['permisos'])) {
         header("Location: ../login/none_permisos.php");
         exit();
     }
 }
-
 function n360_registro_trabajador_csrf(): string {
     if (!isset($_SESSION['csrf_tokens']) || !is_array($_SESSION['csrf_tokens'])) {
         $_SESSION['csrf_tokens'] = [];
     }
-
     $key = 'registro_trabajador';
-
     if (empty($_SESSION['csrf_tokens'][$key]['value'])) {
         $_SESSION['csrf_tokens'][$key] = [
             'value' => bin2hex(random_bytes(32)),
             'created_at' => time(),
         ];
     }
-
     $_SESSION['csrf_tokens'][$key]['touched_at'] = time();
     return $_SESSION['csrf_tokens'][$key]['value'];
 }
-
 if (isset($_GET['csrf_refresh']) && $_GET['csrf_refresh'] === 'registro_trabajador') {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
@@ -43,27 +36,20 @@ if (isset($_GET['csrf_refresh']) && $_GET['csrf_refresh'] === 'registro_trabajad
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit();
 }
-
 $csrf = n360_registro_trabajador_csrf();
 define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
-
 $datos_pre = $_SESSION['prellenar_trabajador'] ?? null;
 unset($_SESSION['prellenar_trabajador']);
-
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']); // eliminar la variable después de mostrar
-
-
-
-
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
 require_once __DIR__ . '/../layout/sidebar_n360.php';
+require_once __DIR__ . '/../layout/header_n360.php';
+require_once __DIR__ . '/../layout/footer_n360.php';
+require_once __DIR__ . '/../layout/content_n360.php';
 ?>
-
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -75,13 +61,11 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
-      
         body {
             background: #f0f2f5;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
         }
-
         .card {
             background: #fff;
             max-width: 700px;
@@ -90,16 +74,13 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             border-radius: 12px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
         }
-
         h2 {
             text-align: center;
             color: #2c3e50;
         }
-
         form {
             margin-bottom: 25px;
         }
-
         input[type=text] {
             width: 100%;
             padding: 14px;
@@ -126,7 +107,6 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
         padding-right: 38px; /* espacio para ícono flecha */
         box-sizing: border-box;
       }
-
       .campo-form select:focus {
         border-color: #3498db;
         box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
@@ -142,43 +122,35 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             cursor: pointer;
             width: 100%;
         }
-
         button:hover {
             background: #1c5980;
         }
-
         .resultado {
             font-size: 16px;
             color: #34495e;
             line-height: 1.7;
         }
-
         section {
             margin-bottom: 30px;
             border-bottom: 1px solid #eee;
             padding-bottom: 15px;
         }
-
         section h3 {
             color: #2c3e50;
             margin-bottom: 10px;
             font-size: 18px;
         }
-
         ul {
             list-style: none;
             padding-left: 0;
         }
-
         ul li {
             margin-bottom: 8px;
         }
-
         .img-block {
             text-align: center;
             margin-top: 15px;
         }
-
         .img-block img {
             max-width: 100%;
             height: auto;
@@ -186,18 +158,15 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             border-radius: 6px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
-
         .img-block p {
             margin-bottom: 6px;
             font-weight: bold;
             color: #555;
         }
-
         .no-image {
             color: #aaa;
             font-style: italic;
         }
-
         .codigo {
             background: #ecf0f1;
             padding: 10px;
@@ -206,10 +175,8 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             font-size: 18px;
             text-align: center;
         }
-
         .valid { color: #27ae60; font-weight: bold; text-align: center; margin-bottom: 15px; }
         .invalid { color: #c0392b; font-weight: bold; text-align: center; margin-bottom: 15px; }
-
         .logo-inicio {
     display: block;
     margin: 0 auto 20px auto;
@@ -226,20 +193,17 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
     box-shadow: 0 8px 20px rgba(0,0,0,0.08);
     text-align: center;
 }
-
 .metodos-extra h3 {
     font-size: 20px;
     margin-bottom: 25px;
     color: #2c3e50;
 }
-
 .opciones-validacion {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
     gap: 20px;
 }
-
 .card-opcion {
     background: #3498db;
     color: white;
@@ -254,12 +218,10 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     transition: background 0.3s, transform 0.3s;
 }
-
 .card-opcion:hover {
     background: #21618c;
     transform: scale(1.05);
 }
-
 hr {
     border: none;
     height: 2px;
@@ -283,7 +245,6 @@ hr {
     transition: background 0.3s, transform 0.3s;
     z-index: 1000;
 }
-
 .btn-flotante:hover {
     background: #218838;
     transform: scale(1.1);
@@ -296,7 +257,6 @@ hr {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     box-sizing: border-box;
 }
-
 .header-content {
     display: flex;
     align-items: center;
@@ -308,12 +268,10 @@ hr {
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .logo-bloque {
     display: flex;
     align-items: center;
 }
-
 .logo-header {
     max-width: 60px;
     height: auto;
@@ -326,7 +284,6 @@ hr {
 }
 .logo-header3 {
     align-items: center;
-
     max-width: 150px;
     height: auto;
     width: auto;
@@ -337,9 +294,6 @@ hr {
     background: #ecf0f1;
     margin: 0 10px;
 }
-
-
-
 .main-footer {
     background: #2c3e50;
     color: white;
@@ -348,7 +302,6 @@ hr {
     width: 100%;
     box-sizing: border-box;
 }
-
 .footer-top {
     display: flex;
     align-items: flex-start;
@@ -356,26 +309,21 @@ hr {
     gap: 20px;
     flex-wrap: wrap;
 }
-
-
 .footer-info {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
 }
-
 .footer-title {
     font-weight: bold;
     font-size: 16px;
     margin: 0 0 10px 0;
 }
-
 .footer-cajas {
     display: flex;
     gap: 15px;
 }
-
 .footer-box {
     padding: 10px;
     border-radius: 8px;
@@ -385,23 +333,17 @@ hr {
     align-items: center;
     justify-content: center;
 }
-
 .footer-box img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
 }
-
 .footer-copy {
     text-align: center;
     margin-top: 30px;
     font-size: 13px;
     color: #ccc;
 }
-
-
-
-
 @media (max-width: 600px) {
     .header-content {
         flex-direction: column;
@@ -413,27 +355,20 @@ hr {
     .separador-vertical {
         display: none;
     }
-    
     .logo-header {
         display: none;
-
 }
-    
             .card, .metodos-extra {
                 padding: 20px;
 margin: 20px
             }
-
             h2 {
                 font-size: 22px;
             }
-
             section h3 {
                 font-size: 16px;
             }
         }
-
-
         @keyframes pulse {
     0% {
         transform: scale(1);
@@ -448,7 +383,6 @@ margin: 20px
         box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
     }
 }
-
 .btn-flotante {
     animation: pulse 6s infinite;
 }
@@ -460,7 +394,6 @@ margin: 20px
         background-position: 200% 0;
     }
 }
-
 .btn-validar {
     background: linear-gradient(120deg, #2980b9 30%, #3498db 50%, #2980b9 70%);
     background-size: 200% auto;
@@ -474,7 +407,6 @@ margin: 20px
     animation: shimmer 4s infinite linear;
     transition: transform 0.3s ease;
 }
-
 .btn-validar:hover {
     transform: scale(1.05);
 }
@@ -486,7 +418,6 @@ margin: 20px
     background-position: 200% 0;
   }
 }
-
 .animated-border {
   background: linear-gradient(
     110deg,
@@ -503,7 +434,6 @@ margin: 20px
     gap: 20px;
     padding-top: 20px;
 }
-
 .product-card {
     background: white;
     border-radius: 12px;
@@ -514,11 +444,9 @@ margin: 20px
     align-items: center;
     transition: transform 0.2s;
 }
-
 .product-card:hover {
     transform: scale(1.02);
 }
-
 .product-card img {
     max-width: 100%;
     max-height: 150px;
@@ -526,26 +454,22 @@ margin: 20px
     object-fit: cover;
     margin-bottom: 12px;
 }
-
 .product-card h4 {
     color: #2c3e50;
     font-size: 16px;
     margin-bottom: 8px;
     text-align: center;
 }
-
 .product-card p {
     font-size: 14px;
     color: #555;
     margin: 2px 0;
     text-align: center;
 }
-
 .pagination {
     text-align: center;
     margin-top: 30px;
 }
-
 .pagination a {
     margin: 0 5px;
     text-decoration: none;
@@ -556,18 +480,13 @@ margin: 20px
     font-weight: bold;
     transition: background 0.3s;
 }
-
 .pagination a:hover {
     background: #21618c;
 }
-
 .pagination strong {
     margin: 0 5px;
     color: #2980b9;
 }
-
-
-
 .modal {
   display: none;
   position: fixed;
@@ -579,7 +498,6 @@ margin: 20px
   background-color: rgba(0,0,0,0.5);
   overflow: auto;
 }
-
 .modal-content {
   background-color: #fff;
   margin: 5% auto;
@@ -590,12 +508,10 @@ margin: 20px
   animation: fadeIn 0.3s ease;
   box-shadow: 0 8px 20px rgba(0,0,0,0.2);
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .cerrar {
   float: right;
   font-size: 24px;
@@ -603,34 +519,27 @@ margin: 20px
   font-weight: bold;
   cursor: pointer;
 }
-
 .cerrar:hover {
   color: #e74c3c;
 }
-
 /* Estilo tabla dentro del modal */
 .modal-content table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
 }
-
 .modal-content th, .modal-content td {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid #ddd;
 }
-
 .modal-content th {
   background-color: #2c3e50;
   color: white;
 }
-
 .modal-content tr:hover {
   background-color: #f1f1f1;
 }
-
-
 #popup-exito {
     position: fixed;
     top: 0;
@@ -644,7 +553,6 @@ margin: 20px
     z-index: 9999;
     animation: fadeIn 0.4s ease forwards;
 }
-
 #popup-exito .mensaje {
     background: linear-gradient(to left, #2ecc71, #27ae60);
     padding: 20px 40px;
@@ -658,28 +566,23 @@ margin: 20px
     transform: scale(0.8);
     opacity: 0;
 }
-
 @keyframes fadeIn {
     to {
         opacity: 1;
     }
 }
-
 @keyframes scaleIn {
     to {
         transform: scale(1);
         opacity: 1;
     }
 }
-
 @keyframes fadeOut {
     to {
         opacity: 0;
         transform: scale(0.9);
     }
 }
-
-
 .check-icon {
   width: 80px;
   height: 80px;
@@ -694,19 +597,16 @@ margin: 20px
   margin: 0 auto 10px auto;
   display: block;
 }
-
 .check-circle {
   stroke-dasharray: 157;
   stroke-dashoffset: 157;
   animation: drawCircle 0.6s ease-out forwards;
 }
-
 .check-mark {
   stroke-dasharray: 36;
   stroke-dashoffset: 36;
   animation: drawCheck 0.4s ease-out 0.5s forwards;
 }
-
 .texto-popup {
   margin-top: 10px;
   font-size: 18px;
@@ -715,19 +615,16 @@ margin: 20px
   animation: fadeInText 0.4s ease-in 0.8s forwards;
   opacity: 0;
 }
-
 @keyframes drawCircle {
   to {
     stroke-dashoffset: 0;
   }
 }
-
 @keyframes drawCheck {
   to {
     stroke-dashoffset: 0;
   }
 }
-
 @keyframes fadeInText {
   to {
     opacity: 1;
@@ -738,18 +635,15 @@ margin: 20px
     flex-direction: column;
     gap: 15px;
 }
-
 .campo-form {
     display: flex;
     flex-direction: column;
 }
-
 .campo-form label {
     font-weight: bold;
     color: #2c3e50;
     margin-bottom: 6px;
 }
-
 .campo-form input,
 .campo-form textarea {
     padding: 12px;
@@ -758,20 +652,17 @@ margin: 20px
     font-size: 15px;
     transition: border 0.3s;
 }
-
 .campo-form input:focus,
 .campo-form textarea:focus {
     border-color: #3498db;
     outline: none;
     box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
 }
-
 .grupo-flex {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .grupo-flex .campo-form {
     flex: 1;
 }
@@ -784,22 +675,18 @@ margin: 20px
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
             overflow: hidden;
         }
-
         th, td {
             padding: 14px;
             border-bottom: 1px solid #ddd;
             text-align: left;
         }
-
         th {
             background-color: #2c3e50;
             color: white;
         }
-
         tr:hover {
             background-color: #f1f1f1;
         }
-
         .volver-btn {
             display: block;
             width: fit-content;
@@ -812,7 +699,6 @@ margin: 20px
             text-decoration: none;
             font-size: 16px;
         }
-
         .volver-btn:hover {
             background: #1c5980;
         }
@@ -822,11 +708,9 @@ margin: 20px
   margin-top: 8px;
   flex-wrap: wrap;
 }
-
 .radio-group input[type="radio"] {
   display: none;
 }
-
 .radio-label {
   padding: 10px 20px;
   border-radius: 20px;
@@ -838,7 +722,6 @@ margin: 20px
   border: 2px solid transparent;
   user-select: none;
 }
-
 .radio-group input[type="radio"]:checked + .radio-label {
   background: linear-gradient(90deg, #2980b9, #3498db);
   color: white;
@@ -856,7 +739,6 @@ margin: 20px
   border-radius: 10px;
   transition: background 0.3s ease;
 }
-
 .upload-label {
   padding: 10px 16px;
   background: #2980b9;
@@ -866,17 +748,14 @@ margin: 20px
   cursor: pointer;
   transition: background 0.3s ease;
 }
-
 .upload-label:hover {
   background: #1f5e87;
 }
-
 .nombre-archivo {
   font-size: 14px;
   color: #34495e;
   font-style: italic;
 }
-
 input[type="file"] {
   display: none;
 }
@@ -886,7 +765,6 @@ input[type="file"] {
     overflow-x: auto;
     white-space: nowrap;
 }
-
 .nav-list-pro {
     list-style: none;
     margin: 0;
@@ -896,7 +774,6 @@ input[type="file"] {
     justify-content: flex-start;
     gap: 30px;
 }
-
 .nav-list-pro li a {
     color: white;
     font-weight: bold;
@@ -909,12 +786,10 @@ input[type="file"] {
     transition: background 0.3s, transform 0.3s;
     position: relative;
 }
-
 .nav-list-pro li a:hover {
     background: #2c3e50;
     transform: scale(1.05);
 }
-
 .nav-list-pro li a::after {
     content: '';
     position: absolute;
@@ -926,17 +801,14 @@ input[type="file"] {
     transition: all 0.3s ease-in-out;
     transform: translateX(-50%);
 }
-
 .nav-list-pro li a:hover::after {
     width: 60%;
 }
-
 @media (max-width: 768px) {
   .nav-list-pro {
     gap: 16px;
     padding: 10px;
   }
-
   .nav-list-pro li a {
     font-size: 14px;
     padding: 8px 12px;
@@ -951,7 +823,6 @@ input[type="file"] {
   cursor: pointer;
   text-align: center;
 }
-
 .img-preview {
   position: relative;
   width: 100%;
@@ -963,19 +834,16 @@ input[type="file"] {
   justify-content: center;
   align-items: center;
 }
-
 .img-preview img {
   max-width: 100%;
   max-height: 100%;
   display: block;
   border-radius: 6px;
 }
-
 .texto-previo {
   color: #7f8c8d;
   font-style: italic;
 }
-
 .boton-cancelar {
   position: absolute;
   top: 6px;
@@ -991,10 +859,6 @@ input[type="file"] {
   line-height: 20px;
   text-align: center;
 }
-
-
-
-
 .no-familiares {
   font-style: italic;
   color: #7f8c8d;
@@ -1003,7 +867,6 @@ input[type="file"] {
   background: #ecf0f1;
   border-radius: 6px;
 }
-
 .fila-familiar {
   display: flex;
   gap: 10px;
@@ -1015,18 +878,15 @@ input[type="file"] {
   border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
-
 .fila-familiar .campo-form input,
 .fila-familiar .campo-form select {
   width: 100%;
   margin-bottom: 0;
 }
-
 .fila-familiar .campo-form {
   flex: 1;
   min-width: 180px;
 }
-
 .fila-familiar {
   display: flex;
   gap: 15px;
@@ -1038,12 +898,10 @@ input[type="file"] {
   border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
-
 .btn-eliminar-familiar:hover {
   background: #c0392b;
   transform: scale(1.05);
 }
-
 .btn-agregar-familiar {
   background: #3498db;
   color: white;
@@ -1055,7 +913,6 @@ input[type="file"] {
   width: 100%;
   transition: background 0.3s ease;
 }
-
 .btn-agregar-familiar:hover {
   background: #1f618d;
 }
@@ -1076,13 +933,11 @@ input[type="file"] {
   padding-right: 38px; /* espacio para ícono flecha */
   box-sizing: border-box;
 }
-
 .fila-familiar select:focus {
   border-color: #3498db;
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
   outline: none;
 }
-
 .subnav {
   display: flex;
   gap: 20px;
@@ -1091,7 +946,6 @@ input[type="file"] {
   border-bottom: 3px solid #3498db;
   animation: fadeIn 0.3s ease;
 }
-
 .subnav a {
   color: #2c3e50;
   font-weight: 600;
@@ -1101,17 +955,14 @@ input[type="file"] {
   border-radius: 20px;
   transition: all 0.3s ease;
 }
-
 .subnav a:hover {
   background: #3498db;
   color: white;
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .usuario-barra {
   margin-left: auto;
   display: flex;
@@ -1149,11 +1000,9 @@ input[type="file"] {
   animation: fadeIn 0.3s ease-in-out;
     transition: all 0.3s ease-in-out;
 }
-
 .usuario-dropdown p {
   margin: 8px 0;
 }
-
 .usuario-barra {
   cursor: pointer;
   position: relative;
@@ -1169,24 +1018,20 @@ input[type="file"] {
   font-weight: bold;
   transition: background 0.3s, transform 0.2s;
 }
-
 .btn-logout-dropdown:hover {
   background: #c0392b;
   transform: scale(1.03);
 }
-
 #progreso-registro .paso {
   margin-bottom: 10px;
   color: #2c3e50;
   font-size: 15px;
 }
-
 #progreso-registro .paso .estado {
   font-size: 13px;
   color: #888;
   margin-left: 6px;
 }
-
 #progreso-registro a {
   text-decoration: none;
   color: inherit;
@@ -1201,7 +1046,6 @@ input[type="file"] {
     width: auto;
     margin-bottom: 20px;
   }
-
   main {
     padding-left: 0 !important;
   }
@@ -1231,21 +1075,17 @@ input[type="file"] {
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
   transition: background 0.3s, transform 0.2s;
 }
-
 .btn-validar-mini:hover {
   background: #2980b9;
   transform: scale(1.05);
 }
-
 .btn-validar-mini i {
   font-size: 16px;
 }
-
 .tooltip {
   position: relative;
   display: inline-block;
 }
-
 .tooltip .tooltiptext {
   visibility: hidden;
   width: 120px;
@@ -1263,20 +1103,16 @@ input[type="file"] {
   transition: opacity 0.3s;
   font-size: 12px;
 }
-
 .tooltip:hover .tooltiptext {
   visibility: visible;
   opacity: 1;
 }
-
 #popup-error .mensaje {
   background: linear-gradient(to left, #3498db, #2980b9) !important;
 }
 .check-icon {
   background: #3498db !important;
 }
-
-
 .menu-lateral {
   position: fixed;
   top: 0; /* Se fija desde la parte superior de la pantalla */
@@ -1292,8 +1128,6 @@ input[type="file"] {
   overflow-y: auto; /* Para que el menú lateral pueda hacer scroll interno si hay muchos elementos */
   transition: transform .3s ease;
 }
-
-
 .menu-lateral h3 {
   font-size: 17px;
   margin-bottom: 20px;
@@ -1302,17 +1136,14 @@ input[type="file"] {
   padding-bottom: 10px;
   font-weight: 600;
 }
-
 .menu-lateral ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .menu-lateral ul li {
   margin-bottom: 14px;
 }
-
 .menu-lateral ul li a {
   color: #2d3436;
   text-decoration: none;
@@ -1325,13 +1156,11 @@ input[type="file"] {
   padding: 8px 12px;
   border-radius: 6px;
 }
-
 .menu-lateral ul li a:hover {
   background: #dcdde1;
   color: #0984e3;
   transform: translateX(4px);
 }
-
 .menu-toggle {
   display: none;
   position: fixed;
@@ -1347,8 +1176,6 @@ input[type="file"] {
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   cursor: pointer;
 }
-
-
 /* ---------- Escritorio ---------- */
 @media (min-width: 992px) {
   /* Botón para ocultar (dentro del menú) */
@@ -1369,7 +1196,6 @@ input[type="file"] {
         padding: 0px 0px;
   }
   .sidebar-toggle-btn:hover { background: #dbe7f6; }
-
   /* Botón para mostrar (fuera, flotante en el borde izquierdo) */
   .sidebar-show-btn {
     position: fixed;
@@ -1392,7 +1218,6 @@ input[type="file"] {
     padding: 0px 0px;
   }
   .sidebar-show-btn:hover { background: #dbe7f6; }
-
   /* Cuando el body tiene el colapso activado */
   body.sidebar-collapsed .menu-lateral {
     transform: translateX(-100%);   /* se sale de pantalla a la izquierda */
@@ -1405,16 +1230,11 @@ input[type="file"] {
     pointer-events: auto;
   }
 }
-
 /* ---------- Móvil/Tablet: no mostrar botón flotante de escritorio ---------- */
 @media (max-width: 991px) {
   .sidebar-toggle-btn,
   .sidebar-show-btn { display: none !important; }
 }
-
-
-
-
 /* Responsive en móviles */
 @media (max-width: 768px) {
   .menu-lateral {
@@ -1429,16 +1249,13 @@ input[type="file"] {
     transition: transform 0.3s ease;
     z-index: 9;
   }
-
   .menu-lateral.active {
     transform: translateX(0);
   }
-
   .main-content {
     margin-left: 0 !important;
     transition: margin-left 0.3s ease;
   }
-
   .menu-toggle {
     position: fixed; /* Para que siempre sea visible */
     top: 15px;
@@ -1454,7 +1271,6 @@ input[type="file"] {
     padding: 0;
     z-index: 10;
   }
-
   .menu-toggle span {
     width: 100%;
     height: 3px;
@@ -1463,16 +1279,13 @@ input[type="file"] {
     transition: all 0.3s ease-in-out;
     transform-origin: 1px;
   }
-
   /* ANIMACIÓN AL ACTIVAR (hamburger a X) */
   .menu-toggle.active span:nth-child(1) {
     transform: rotate(45deg) translate(5px, 5px);
   }
-
   .menu-toggle.active span:nth-child(2) {
     opacity: 0;
   }
-
   .menu-toggle.active span:nth-child(3) {
     transform: rotate(-45deg) translate(5px, -5px);
   }
@@ -1481,15 +1294,10 @@ input[type="file"] {
   transform: scale(1.3);
   cursor: pointer;
 }
-
 .main-content {
     margin-left: 240px;
     padding: 30px;
 }
-
-
-
-
 @media (max-width: 600px) {
   #progreso-registro {
     width: 90vw !important;
@@ -1512,9 +1320,12 @@ input[type="file"] {
     margin-left: .5rem !important;
 }
     </style>
-    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+    <link rel="stylesheet" href="../assets/css/header_n360.css">
+<link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+<link rel="stylesheet" href="../assets/css/main_n360.css">
+<link rel="stylesheet" href="../assets/css/footer_n360.css">
+<link rel="stylesheet" href="../assets/css/content_n360.css">
 </head>
-
 <body>
 <?php
 function calcularEdad($fechaNacimiento) {
@@ -1523,11 +1334,9 @@ function calcularEdad($fechaNacimiento) {
     $edad = $hoy->diff($nac);
     return $edad->y;
 }
-
 $edad = calcularEdad("2000-04-12"); // ejemplo
 ?>
 <?php if ($exito): ?>
-    
 <div id="popup-exito">
   <div class="mensaje">
     <svg class="check-icon" viewBox="0 0 52 52">
@@ -1537,16 +1346,12 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     <p class="texto-popup">¡Trabajador registrado correctamente!</p>
   </div>
 </div>
-
 <?php endif; ?>
-
 <aside id="progreso-registro" style="position: fixed; top: 250px; right: 10px; width: 220px; background: #ffffff; border-radius: 10px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-  
   <!-- Botón solo visible en móvil para minimizar/mostrar progreso -->
   <button id="btn-minimizar-progreso" type="button" style="display:none;position:absolute;top:8px;right:8px;z-index:10;background:#2c3e50;color:white;border:none;border-radius:50%;width:36px;height:36px;box-shadow:0 2px 8px #0002;font-size:22px;align-items:center;justify-content:center;">
     <span id="icono-progreso">–</span>
   </button>
-
   <h4 style="margin-bottom: 20px; color: #2c3e50;">Barra de Progreso</h4>
   <ul style="list-style: none; padding: 0; font-weight: 500;">
     <li id="paso-general" class="paso activo"><a href="#seccion-general">Datos Generales <span style="color: #84082B;">*</span> <span class="estado">(completo)</span></li>
@@ -1566,52 +1371,12 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     </span>
   </div>
 </aside>
-
-<header class="main-header animated-border">
-  <div class="header-content">
-    <a href="../index.php">
-        <div class="logo-bloque">
-            <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header">
-        </div>
-    </a>
-
-    <div class="separador-vertical"></div>
-        <a href="javascript:location.reload()">
-            <div class="logo-bloque">
-            <img src="../img/completo.png" alt="Logo Sistema" class="logo-header2">
-            </div>
-        </a>
-
-
-    <div class="usuario-contenedor" style="margin-left:auto; position: relative;">
-      <div class="usuario-barra" onclick="toggleDropdown()">
-        <span>Hola, <?= htmlspecialchars($_SESSION['usuario']) ?></span>
-        <img src="../img/icons/user.png" alt="Usuario">
-      </div>
-      <div class="usuario-dropdown" id="usuarioDropdown">
-        <p><strong>Nombre:</strong> <?= htmlspecialchars($_SESSION['usuario']) ?></p>
-        <p><strong>DNI:</strong> <?= htmlspecialchars($_SESSION['DNI']) ?></p>
-        <p><strong>Edad:</strong> <?= $edad ?> años</p>
-        <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%); margin: 12px 0; border: none; border-top: 1px solid #eee;">
-        <p><strong>Rol:</strong> <?= htmlspecialchars($_SESSION['web_rol']) ?></p>
-        <a href="../login/logout.php" class="btn-logout-dropdown">Cerrar sesión</a>
-      </div>
-    </div>
-
-    </div>
-
-
-<!-- Agrega más según módulos -->
-
-</header>
+<?php n360_render_header(); ?>
 <?php n360_render_sidebar(); ?>
-<div class="main-content">
+<div class="main-content n360-main n360-main--module">
 <main>
-
-  <hr>
-
+<?php n360_render_content_separator('top'); ?>
   <h2>Registro de Trabajador</h2>
-
   <div class="card">  
     <div style="text-align:right; margin-top: 25px;">
       <div class="tooltip">
@@ -1621,14 +1386,10 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
         <span class="tooltiptext">Verificar campos obligatorios</span>
       </div>
     </div>
-
     <form action="../php/guardar_trabajador.php" method="POST" enctype="multipart/form-data" class="formulario-entrevista">
-
       <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
       <input type="hidden" name="id_entrevista" id="id_entrevista" value="<?= $datos_pre['id_entrevista'] ?? '' ?>">
-
       <div id="seccion-general">
-                
         <!-- RÉGIMEN DE CONTRATACIÓN -->
         <div class="campo-form">
           <label>Régimen de contratación <span style="color:#84082B;">*</span></label>
@@ -1639,27 +1400,22 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
             <input type="radio" id="regimen_planilla" name="regimen" value="PLANILLA"
                   <?= ($regPre === 'PLANILLA') ? 'checked' : '' ?> required>
             <label for="regimen_planilla" class="radio-label">Planilla</label>
-
             <input type="radio" id="regimen_rph" name="regimen" value="RPH"
                   <?= ($regPre === 'RPH') ? 'checked' : '' ?>>
             <label for="regimen_rph" class="radio-label">Recibos por Honorarios</label>
           </div>
         </div>
-
-
       <div class="campo-form">
           <label for="nombre">Nombre del Trabajador <span style="color: #84082B;">*</span></label>
           <input type="text" name="nombre" id="nombre" placeholder="Ej. Juanito Alimaña" required
                 value="<?= $datos_pre['nombre'] ?? '' ?>">
         </div>
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="correo">Correo Electrónico  <span style="color: #84082B;">*</span></label>
             <input type="email" name="correo" id="correo" placeholder="Ej. correo@ejemplo.com" required>
             <small id="mensaje-correo" style="color: #e74c3c; font-weight: bold; display: none; margin-top: 5px;">✉️ Ingresa un correo válido.</small>
           </div>
-          
           <div class="campo-form">
             <label for="celular">Celular  <span style="color: #84082B;">*</span></label>
             <input type="number" name="celular" id="celular" minlength="9" maxlength="9"
@@ -1667,12 +1423,10 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                 value="<?= $datos_pre['celular'] ?? '' ?>" placeholder="Ej. 963852741" required>
           </div>
         </div>
-
         <div class="campo-form">
           <label for="domicilio">Domicilio <span style="color: #84082B;">*</span></label>
           <input type="text" name="domicilio" id="domicilio" placeholder="Ej. Av. Siempre Viva 742" required>
         </div>
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="tipo_trabajador">Tipo de Trabajador <span style="color: #84082B;">*</span></label>
@@ -1680,33 +1434,27 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
               <option value="">Seleccionar</option>
               <option value="Personal" <?= (isset($datos_pre['puesto']) && $datos_pre['puesto'] === 'Personal') ? 'selected' : '' ?>>Personal</option>
               <option value="Conductor" <?= (isset($datos_pre['puesto']) && $datos_pre['puesto'] === 'Conductor') ? 'selected' : '' ?>>Conductor</option>
-
             </select>
           </div>
-
           <div class="campo-form">
             <label for="puesto">Cargo <span style="color: #84082B;">*</span></label>
             <input type="text" name="puesto" id="puesto" placeholder="Ej. Mecánico, Operador" required
                 value="<?= $datos_pre['cargo'] ?? '' ?>">
           </div>
         </div>
-
         <div class="campo-form">
           <label>Sexo  <span style="color: #84082B;">*</span></label>
           <div class="radio-group">
             <input type="radio" id="sexo_m" name="sexo" value="Masculino" required>
             <label for="sexo_m" class="radio-label">Masculino</label>
-
             <input type="radio" id="sexo_f" name="sexo" value="Femenino">
             <label for="sexo_f" class="radio-label">Femenino</label>
           </div>
         </div>
-        
         <div class="campo-form">
           <label for="observaciones">Observaciones</label>
           <textarea name="observaciones" id="observaciones" rows="4" placeholder="Detalles, impresiones, recomendaciones..."></textarea>
         </div>
-              
         <div class="campo-form">
           <label for="cv_pdf">📎 Adjuntar CV (PDF)  <span style="color: #84082B;">*</span></label>
           <div class="custom-file-upload">
@@ -1715,7 +1463,6 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
             <input type="file" name="cv_pdf" id="cv_pdf" accept="application/pdf" onchange="mostrarNombreArchivo(this)">
           </div>
         </div>
-
         <div class="campo-form">
           <label for="img_personal">🖼️ Foto del Trabajador (+)  <span style="color: #84082B;">*</span></label>
           <div class="preview-container">
@@ -1725,52 +1472,40 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
             </div>
           </div>
         </div>
-
-
-
         <div class="campo-form">
           <label>
             <input type="checkbox" id="check_licencia" name="check_licencia" onchange="activarPasoLicencia()">
             Licencia de Conducir
           </label>
         </div>
-
       </div>
-
       <div id="bloque_licencia" style="display: none;">
         <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%);">
-
         <b style="text-align: center;">INFORMACIÓN DE LICENCIA DE CONDUCIR</b> 
-
         <div class="grupo-flex">
           <div class="campo-form">
               <label for="nlicencia">N° de Licencia</label>
               <input type="text" name="nlicencia" id="nlicencia" placeholder="Ej. ABC">
           </div>
-
           <div class="campo-form">
               <label for="tipo_licencia">Tipo de Licencia</label>
               <input type="text" name="tipo_licencia" id="tipo_licencia" placeholder="Ej. A, B o C">
           </div>
-
           <div class="campo-form">
               <label for="categoría_licencia">Categoría de Licencia</label>
               <input type="text" name="categoría_licencia" id="categoría_licencia" placeholder="Ej. A, B o C">
           </div>
         </div>
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="fecha">📅 Fecha de Expedición</label>
             <input type="date" name="fecha_licencia_expedicion" id="fecha_licencia_expedicion">
           </div>
-
           <div class="campo-form">
             <label for="fecha">📅 Fecha de Revaluación</label>
             <input type="date" name="fecha_licencia_revaluacion" id="fecha_licencia_revaluacion">
           </div>
         </div>
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="img_lic_frontal">🖼️ Imagen Frontal de Licencia (+)</label>
@@ -1781,7 +1516,6 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
               </div>
             </div>
           </div>
-
           <div class="campo-form">
             <label for="img_lic_trasera">🖼️ Imagen Trasera de Licencia (+)</label>
             <div class="preview-container">
@@ -1792,14 +1526,11 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
             </div>
           </div>
         </div>
-
         <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%);">
       </div>
-
       <div id="seccion-dni" style="display:none;">
         <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%);">
         <b style="text-align: center;">INFORMACIÓN DEL DNI</b> 
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="dni">DNI <span style="color: #84082B;">*</span></label>
@@ -1808,32 +1539,27 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                 value="<?= $datos_pre['dni'] ?? '' ?>">
           </div>
         </div>
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="ubigeo">Ubigeo <span style="color: #84082B;">*</span></label>
             <input type="number" name="ubigeo" id="ubigeo" placeholder="8 dígitos" minlength="8" maxlength="8" required
             oninput="if(this.value.length>8)this.value=this.value.slice(0,8)">
           </div>
-          
           <div class="campo-form">
             <label for="fecha">📅 Fecha de Nacimiento <span style="color: #84082B;">*</span></label>
             <input type="date" name="fecha_nacimiento" id="fecha_nacimiento" required>
           </div>
         </div>
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="fecha">📅 Fecha de Emisión <span style="color: #84082B;">*</span></label>
             <input type="date" name="fecha_dni_emision" id="fecha_dni_emision" required>
           </div>
-
           <div class="campo-form">
             <label for="fecha">📅 Fecha de Caducidad <span style="color: #84082B;">*</span></label>
             <input type="date" name="fecha_dni_caducidad" id="fecha_dni_caducidad" required>
           </div>
         </div>
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="img_dni_frontal">🖼️ Imagen Frontal del DNI (+)</label>
@@ -1844,7 +1570,6 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
               </div>
             </div>
           </div>
-
           <div class="campo-form">
             <label for="img_dni_trasera">🖼️ Imagen Trasera del DNI (+)</label>
             <div class="preview-container">
@@ -1855,27 +1580,18 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
             </div>
           </div>
         </div>
-        
         <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%);">
       </div>
-
       <div  id="seccion-familiares" class="campo-form" style="display: none">
         <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%);">
-
         <label>👨‍👩‍👧 Familiares Relacionados</label>
-
         <div id="contenedor-familiares">
           <div id="sin-familiares" class="no-familiares">No hay familiares por añadir</div>
         </div>
-
         <button type="button" class="btn-agregar-familiar" onclick="agregarFamiliar()">➕ Añadir familiar</button>
-
         <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%);">
-
         <label>🚨 Contacto de Emergencia</label>
-
         <div class="grupo-flex">
-
           <div class="campo-form">
             <label for="emerg_parentesco">Parentesco</label>
             <select id="emerg_parentesco" name="emerg_parentesco">
@@ -1888,34 +1604,27 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
               <option value="Amistad Cercana">Amistad Cercana</option>
             </select>
           </div>
-
           <div class="campo-form">
             <label for="emerg_nombre">Nombre del contacto</label>
             <input type="text" id="emerg_nombre" name="emerg_nombre" placeholder="Ej. Rosa Pérez">
           </div>
-
         </div>
-
-
         <div class="grupo-flex">
           <div class="campo-form">
             <label for="emerg_dni">Dni</label>
             <input type="number" id="emerg_dni" name="emerg_dni" placeholder="8 dígitos" minlength="8" maxlength="8"
               oninput="if(this.value.length>8)this.value=this.value.slice(0,8)">
           </div>
-
           <div class="campo-form">
             <label for="emerg_celular">Celular</label>
             <input type="number" id="emerg_celular" name="emerg_celular" placeholder="9 dígitos" minlength="9" maxlength="9"
               oninput="if(this.value.length>9)this.value=this.value.slice(0,9)">
           </div>
         </div>
-
         <div style="text-align:center; margin-top: 25px;">
           <button type="submit" class="btn-validar">Registrar Trabajador</button>
         </div>
       </div>
-
       </div>
       <script>
         function mostrarNombreArchivo(input) {
@@ -1930,32 +1639,12 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
       </script>
     </form>
   </div>
-
   <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20una%20etiqueta.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank" title="Soporte por WhatsApp">
       <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="Soporte" style="width:30px; height:30px;">
   </a>
-
-  <hr>
 </main>
-
-<footer class="main-footer animated-border">
-  <div class="footer-top">
-    <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header3">
-    <div class="footer-info">
-      <p class="footer-title">Contáctanos</p>
-      <div class="footer-cajas">
-        <div class="footer-box"><img src="../img/icons/facebook.png" alt="Función 1"></div>
-        <div class="footer-box"><img src="../img/icons/social.png" alt="Función 2"></div>
-      </div>
-    </div>
-  </div>
-  <p class="footer-copy">© <?= date('Y') ?> Norte 360° (v1.0.6). Todos los derechos reservados.</p>
-  <style>.footer-h2bd {position: absolute;bottom: 10px;right: 10px;opacity: 0;transition: opacity 0.4s ease;width: 80px;}.main-footer:hover .footer-h2bd {opacity: 0.6;}.footer-h2bd {filter: grayscale(40%);}</style>
-  <div id="h2bd" style="display:none; position:fixed; bottom:10px; left:10px; z-index:9999; text-align:center;"><img src="<?= $h2bd_img ?>" alt="icong" style="width:80px; opacity:0.8; filter: grayscale(40%); display:block; margin:0 auto;"><p style="color:white; font-size:12px; margin:4px 0 0 0;"><?= $h2bd_name ?></p></div>
-  <script>document.addEventListener('keydown', function(e) {if (e.ctrlKey && e.altKey && e.key === 'm') {const egg = document.getElementById('h2bd');egg.style.display = egg.style.display === 'none' ? 'block' : 'none';}});</script>
-
-</footer>
-
+<?php n360_render_content_separator('bottom'); ?>
+<?php n360_render_footer(); ?>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const popup = document.getElementById("popup-exito");
@@ -1967,17 +1656,12 @@ document.addEventListener("DOMContentLoaded", function () {
         }, 1000);
     }
 });
-
-
-
 function mostrarPreview(input, idPreview) {
   const preview = document.getElementById(idPreview);
   preview.innerHTML = ''; // Limpiar contenido previo
-
   if (input.files && input.files[0]) {
     const img = document.createElement("img");
     const reader = new FileReader();
-
     const botonCancelar = document.createElement("button");
     botonCancelar.textContent = "×";
     botonCancelar.classList.add("boton-cancelar");
@@ -1985,7 +1669,6 @@ function mostrarPreview(input, idPreview) {
       input.value = "";
       preview.innerHTML = '<span class="texto-previo">Haz clic para seleccionar imagen</span>';
     };
-
     reader.onload = function (e) {
       img.src = e.target.result;
       preview.appendChild(img);
@@ -1995,18 +1678,14 @@ function mostrarPreview(input, idPreview) {
   }
 }
 </script>
-
 <script>
 let contadorFamiliares = 0;
 const maxFamiliares = 3;
-
 function agregarFamiliar() {
   if (contadorFamiliares >= maxFamiliares) return;
-
   document.getElementById("sin-familiares").style.display = "none";
   const contenedor = document.getElementById("contenedor-familiares");
   const botonAgregar = document.querySelector(".btn-agregar-familiar");
-
   const fila = document.createElement("div");
   fila.className = "grupo-flex fila-familiar";
   fila.innerHTML = `
@@ -2035,35 +1714,28 @@ function agregarFamiliar() {
       <button type="button" class="btn-eliminar-familiar" onclick="eliminarFamiliar(this)">[X Borrar parentesco]</button>
     </div>
   `;
-  
   contenedor.appendChild(fila);
   contadorFamiliares++;
-
   if (contadorFamiliares >= maxFamiliares) {
     botonAgregar.style.display = "none";
   }
 }
-
 function eliminarFamiliar(boton) {
   const fila = boton.closest(".fila-familiar");
   fila.remove();
   contadorFamiliares--;
-
   if (contadorFamiliares < maxFamiliares) {
     document.querySelector(".btn-agregar-familiar").style.display = "block";
   }
-
   if (contadorFamiliares === 0) {
     document.getElementById("sin-familiares").style.display = "block";
   }
 }
 </script>
-
 <script>
 document.addEventListener("DOMContentLoaded", function () {
   const correoInput = document.getElementById("correo");
   const mensaje = document.getElementById("mensaje-correo");
-
   correoInput.addEventListener("input", () => {
     if (correoInput.validity.typeMismatch || correoInput.validity.patternMismatch) {
       mensaje.style.display = "block";
@@ -2085,27 +1757,22 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 });
 </script>
-
 <script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
 }
-
 // Cierra si haces clic fuera
 document.addEventListener("click", function (e) {
   const barra = document.querySelector(".usuario-barra");
   const dropdown = document.getElementById("usuarioDropdown");
-
   if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
     dropdown.style.display = "none";
   }
 });
 </script>
-
 <script>
 function actualizarProgreso() {
-
   const secciones = [
     {
       id: "general",
@@ -2132,12 +1799,9 @@ function actualizarProgreso() {
       paso: "paso-familiares"
     }
   ];
-
-
   let totalSecciones = secciones.length;
   let seccionesCompletas = 0;
   let porcentajeTotal = 0;
-
   secciones.forEach(seccion => {
     if (seccion.id === "licencia" && !document.getElementById("check_licencia").checked) {
         // Si la sección es licencia y el check está desmarcado, la ignoras
@@ -2151,9 +1815,7 @@ function actualizarProgreso() {
     }
     let completos = 0;
     let visibles = 0;
-
     seccion.campos.forEach(id => {
-
         // Caso especial para sexo (radio group)
         if (id === "sexo") {
           const m = document.getElementById("sexo_m");
@@ -2174,7 +1836,6 @@ function actualizarProgreso() {
         }
       }
     });
-
     let estado = "incompleto";
     if (visibles === 0) {
       estado = "pendiente";
@@ -2184,7 +1845,6 @@ function actualizarProgreso() {
     } else if (completos > 0) {
       estado = "parcial";
     }
-
     // Actualiza el texto de estado visual
     const paso = document.querySelector(`#${seccion.paso} .estado`);
     if (paso) {
@@ -2195,44 +1855,35 @@ function actualizarProgreso() {
         "#c0392b";
     }
   });
-
   // Progreso calculado por % de secciones completas
   porcentajeTotal = Math.round((seccionesCompletas / totalSecciones) * 100);
-
   // Para hacerlo más progresivo, puedes ponderar 'parciales' también
   // Ejemplo: por cada sección parcial, suma la mitad de puntos
   let parciales = secciones.filter(seccion => {
     const paso = document.querySelector(`#${seccion.paso} .estado`);
     return paso && paso.textContent.includes("parcial");
   }).length;
-
   porcentajeTotal += Math.round((parciales / totalSecciones) * 50);
-
   if (porcentajeTotal > 100) porcentajeTotal = 100;
-
   document.getElementById("barra-progreso").style.width = porcentajeTotal + "%";
   document.getElementById("texto-progreso").textContent = porcentajeTotal + "% completo";
-
 const badge = document.getElementById("badge-opcional");
 if (porcentajeTotal >= 75 && porcentajeTotal < 100) {
     badge.style.display = "block";
 } else {
     badge.style.display = "none";
 }
-
 }
 // Escuchar cambios
 document.querySelectorAll("input, select").forEach(el => {
   el.addEventListener("input", actualizarProgreso);
 });
-
 document.addEventListener("DOMContentLoaded", actualizarProgreso);
 // Escuchar todos los cambios en los inputs de las secciones
 document.querySelectorAll("input, select, textarea").forEach(el => {
   el.addEventListener("input", actualizarProgreso);
 });
 document.addEventListener("DOMContentLoaded", actualizarProgreso);
-
 </script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -2242,48 +1893,39 @@ document.addEventListener("DOMContentLoaded", function () {
     "paso-dni": "seccion-dni",
     "paso-familiares": "seccion-familiares"
   };
-
   Object.keys(pasos).forEach(idPaso => {
     const item = document.getElementById(idPaso);
     item.addEventListener("click", function (e) {
       e.preventDefault();
-
       // Ocultar todas las secciones
       Object.values(pasos).forEach(idSeccion => {
         const seccion = document.getElementById(idSeccion);
         if (seccion) seccion.style.display = "none";
       });
-
       // Mostrar la seleccionada
       const seccionMostrar = document.getElementById(pasos[idPaso]);
       if (seccionMostrar) seccionMostrar.style.display = "block";
-
       // Quitar clase 'activo' de todos los pasos
       document.querySelectorAll("#progreso-registro .paso").forEach(p => {
         p.classList.remove("activo");
       });
-
       // Agregar clase 'activo' al seleccionado
       item.classList.add("activo");
-
       // Scroll suave hacia la sección
       seccionMostrar.scrollIntoView({ behavior: "smooth" });
     });
   });
 });
 </script>
-
 <script>
 function activarPasoLicencia() {
   const checkbox = document.getElementById("check_licencia");
   const pasoLicencia = document.getElementById("paso-licencia");
   const bloqueLicencia = document.getElementById("bloque_licencia");
-
   if (checkbox.checked) {
     pasoLicencia.style.pointerEvents = "auto";
     pasoLicencia.style.opacity = "1";
     pasoLicencia.classList.remove("desactivado");
-    
   } else {
     pasoLicencia.style.pointerEvents = "none";
     pasoLicencia.style.opacity = "0.5";
@@ -2294,12 +1936,10 @@ function activarPasoLicencia() {
 <!-- MODAL DE ERROR -->
 <div id="popup-error" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
   <div class="mensaje" style="background: linear-gradient(to left, #3498db, #2980b9); padding: 20px 40px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3); font-size: 20px; font-weight: bold; color: white; text-align: center; animation: scaleIn 0.4s ease forwards; transform: scale(0.8); opacity: 0;">
-    
     <!-- Ícono de información -->
     <svg xmlns="http://www.w3.org/2000/svg" style="width:60px; height:60px; margin:0 auto 10px auto; display:block; background:#3498db; border-radius:50%; padding:10px; box-shadow:0 0 15px rgba(0,0,0,0.3);" fill="white" viewBox="0 0 24 24">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 17c-.55 0-1-.45-1-1v-6c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1zm0-10c-.55 0-1-.45-1-1V7c0-.55.45-1 1-1s1 .45 1 1v1c0 .55-.45 1-1 1z"/>
     </svg>
-
     <p class="texto-popup">ℹ️ Verifica los campos obligatorios antes de continuar.</p>
   </div>
 </div>
@@ -2310,7 +1950,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const btn = document.getElementById('btn-minimizar-progreso');
   const icono = document.getElementById('icono-progreso');
   let minimizado = false;
-
   if (btn && aside) {
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -2326,7 +1965,6 @@ document.addEventListener('DOMContentLoaded', function() {
         icono.textContent = '–';
       }
     });
-
     // Opcional: si el usuario cambia de tamaño la ventana, restaurar el aside
     window.addEventListener('resize', () => {
       if (window.innerWidth > 600) {
@@ -2338,9 +1976,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
-
 </script>
-
 <script>
 function validarfo() {
   const camposObligatorios = [
@@ -2353,70 +1989,55 @@ function validarfo() {
     { id: "fecha_dni_emision", label: "Fecha de emisión del DNI" },
     { id: "fecha_dni_caducidad", label: "Fecha de caducidad del DNI" }
   ];
-
   let camposFaltantes = [];
-
   for (const campo of camposObligatorios) {
     const el = document.getElementById(campo.id);
     if (el && el.offsetParent !== null && !el.checkValidity()) {
       camposFaltantes.push(campo.label);
     }
   }
-
   const popupError = document.getElementById("popup-error");
   const mensaje = popupError.querySelector(".mensaje");
   const texto = popupError.querySelector(".texto-popup");
-
   if (camposFaltantes.length > 0) {
     const listaErrores = camposFaltantes.map(txt => `• ${txt}`).join("<br>");
     texto.innerHTML = `Faltan campos por completar:<br><br>${listaErrores}`;
   } else {
     texto.innerHTML = `Todos los campos obligatorios visibles están completos.`;
   }
-
   popupError.style.display = "flex";
   mensaje.style.animation = "scaleIn 0.4s ease forwards";
-
   setTimeout(() => {
     mensaje.style.animation = 'fadeOut 0.4s ease forwards';
     setTimeout(() => popupError.style.display = "none", 500);
   }, 3500);
 }
 </script>
-
-
-
 <script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
 }
-
 // Cierra si haces clic fuera
 document.addEventListener("click", function (e) {
   const barra = document.querySelector(".usuario-barra");
   const dropdown = document.getElementById("usuarioDropdown");
-
   if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
     dropdown.style.display = "none";
   }
 });
 </script>
-
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const form = document.querySelector('form[action="../php/guardar_trabajador.php"]');
   const csrfInput = document.querySelector('input[name="csrf_token"]');
   let csrfRefreshPromise = null;
   let submittingRegistroTrabajador = false;
-
   async function refreshRegistroTrabajadorCsrf() {
     if (!csrfInput) return false;
-
     if (csrfRefreshPromise) {
       return csrfRefreshPromise;
     }
-
     csrfRefreshPromise = fetch(`${window.location.pathname}?csrf_refresh=registro_trabajador`, {
       method: 'GET',
       credentials: 'same-origin',
@@ -2424,10 +2045,8 @@ document.addEventListener('DOMContentLoaded', function () {
     })
       .then(async response => {
         if (!response.ok) return false;
-
         const data = await response.json();
         if (!data || !data.ok || !data.token) return false;
-
         csrfInput.value = data.token;
         return true;
       })
@@ -2435,36 +2054,28 @@ document.addEventListener('DOMContentLoaded', function () {
       .finally(() => {
         csrfRefreshPromise = null;
       });
-
     return csrfRefreshPromise;
   }
-
   setInterval(refreshRegistroTrabajadorCsrf, 4 * 60 * 1000);
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) refreshRegistroTrabajadorCsrf();
   });
-
   if (form) {
     form.addEventListener('submit', async function (event) {
       if (submittingRegistroTrabajador) return;
-
       event.preventDefault();
       const refreshed = await refreshRegistroTrabajadorCsrf();
-
       if (!refreshed) {
         alert('No se pudo renovar la sesion del formulario. Actualiza la pagina e intenta nuevamente.');
         return;
       }
-
       submittingRegistroTrabajador = true;
       HTMLFormElement.prototype.submit.call(form);
     });
   }
 });
 </script>
+<script src="../assets/js/header_n360.js"></script>
 <script src="../assets/js/sidebar_n360.js"></script>
 </body>
-
-
 </html>
-

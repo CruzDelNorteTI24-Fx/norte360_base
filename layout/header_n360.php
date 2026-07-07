@@ -13,14 +13,6 @@ if (!function_exists('n360_base_url')) {
 function n360_header_h($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
-function n360_header_now_label(): string {
-    try {
-        $now = new DateTimeImmutable('now', new DateTimeZone('America/Lima'));
-        return $now->format('d/m/Y H:i');
-    } catch (Throwable $e) {
-        return date('d/m/Y H:i');
-    }
-}
 
 function n360_header_initials(string $name): string {
     $name = trim($name);
@@ -183,8 +175,6 @@ function n360_header_user_data(): array {
 
 function n360_render_header(array $options = []): void {
     $user = n360_header_user_data();
-    $title = $options['title'] ?? 'Panel principal';
-    $subtitle = $options['subtitle'] ?? 'Norte 360';
     $homeUrl = $options['home_url'] ?? n360_base_url('index.php');
     $logoutUrl = $options['logout_url'] ?? n360_base_url('login/logout.php');
     $logoEmpresa = $options['logo_empresa'] ?? n360_base_url('img/norte360.png');
@@ -198,27 +188,18 @@ function n360_render_header(array $options = []): void {
                 </span>
                 <span class="n360-header__brand-copy">
                     <img src="<?= n360_header_h($logoSistema) ?>" alt="Norte 360" class="n360-header__logo-system">
-                    <span class="n360-header__brand-sub">Sistema operativo web</span>
+                    <span class="n360-header__brand-sub">ERP Operativo de Transporte</span>
                 </span>
             </a>
 
-            <div class="n360-header__context" aria-label="Contexto actual">
-                <span class="n360-header__eyebrow">Vista actual</span>
-                <strong><?= n360_header_h($title) ?></strong>
-                <span><?= n360_header_h($subtitle) ?></span>
-            </div>
-
             <div class="n360-header__actions">
-                <div class="n360-header__clock" aria-label="Fecha y hora actual">
-                    <i class="bi bi-clock-history"></i>
-                    <span data-n360-now><?= n360_header_h(n360_header_now_label()) ?></span>
-                </div>
-
                 <div class="n360-user-menu" data-n360-user-menu>
                     <button type="button" class="n360-user-trigger" data-n360-user-toggle aria-expanded="false" aria-controls="n360UserDropdown">
-                        <span class="n360-user-avatar"><?= n360_header_h($user['initials']) ?></span>
+                        <span class="n360-user-avatar" aria-hidden="true">
+                            <i class="bi bi-person-badge-fill"></i>
+                        </span>
                         <span class="n360-user-summary">
-                            <strong><?= n360_header_h($user['display_name']) ?></strong>
+                            <strong><?= n360_header_h($user['username']) ?></strong>
                             <span><?= n360_header_h($user['role']) ?></span>
                         </span>
                         <i class="bi bi-chevron-down n360-user-chevron" aria-hidden="true"></i>

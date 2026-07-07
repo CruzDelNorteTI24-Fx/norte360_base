@@ -8,17 +8,14 @@ $permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []
 $vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
 if ($_SESSION['web_rol'] !== 'Admin') {
     $modulo_actual = 6; // id_modulo de esta vista
-
     if (!in_array($modulo_actual, $_SESSION['permisos'])) {
         header("Location: ../login/none_permisos.php");
         exit();
     }
 }
-
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
 require_once("../trash/copidb_secure.php");
-
 // Obtener trabajadores
 // --- CAPACITACIONES (lista con cantidad de inscritos) ---
 $capacitaciones = [];
@@ -34,7 +31,6 @@ $CAP_ESTILOS = [
   2 => 'success',
   3 => 'danger'
 ];
-
 $sqlCap = "
 SELECT 
   c.clm_cap_id,
@@ -55,7 +51,6 @@ FROM tb_capacitaciones c
 LEFT JOIN tb_trabincapacitaciones t ON t.clm_trcap_capid = c.clm_cap_id
 GROUP BY c.clm_cap_id
 ORDER BY c.clm_cap_id DESC;
-
 ";
 $resCap = $conn->query($sqlCap);
 if ($resCap) {
@@ -73,19 +68,15 @@ if ($resCap) {
   }
   $resCap->free();
 }
-
-
-
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
-
-
-
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
 require_once __DIR__ . '/../layout/sidebar_n360.php';
+require_once __DIR__ . '/../layout/header_n360.php';
+require_once __DIR__ . '/../layout/footer_n360.php';
+require_once __DIR__ . '/../layout/content_n360.php';
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -97,14 +88,12 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-
     <style>
         body {
             background: #f0f2f5;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
         }
-
         .card {
             background: #fff;
             max-width: 700px;
@@ -113,16 +102,13 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             border-radius: 12px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
         }
-
         h2 {
             text-align: center;
             color: #2c3e50;
         }
-
         form {
             margin-bottom: 25px;
         }
-
         input[type=text] {
             width: 100%;
             padding: 14px;
@@ -132,7 +118,6 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             box-sizing: border-box;
             margin-bottom: 15px;
         }
-
         button {
             background: #2980b9;
             color: white;
@@ -143,43 +128,35 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             cursor: pointer;
             width: 100%;
         }
-
         button:hover {
             background: #1c5980;
         }
-
         .resultado {
             font-size: 16px;
             color: #34495e;
             line-height: 1.7;
         }
-
         section {
             margin-bottom: 30px;
             border-bottom: 1px solid #eee;
             padding-bottom: 15px;
         }
-
         section h3 {
             color: #2c3e50;
             margin-bottom: 10px;
             font-size: 18px;
         }
-
         ul {
             list-style: none;
             padding-left: 0;
         }
-
         ul li {
             margin-bottom: 8px;
         }
-
         .img-block {
             text-align: center;
             margin-top: 15px;
         }
-
         .img-block img {
             max-width: 100%;
             height: auto;
@@ -187,18 +164,15 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             border-radius: 6px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
-
         .img-block p {
             margin-bottom: 6px;
             font-weight: bold;
             color: #555;
         }
-
         .no-image {
             color: #aaa;
             font-style: italic;
         }
-
         .codigo {
             background: #ecf0f1;
             padding: 10px;
@@ -207,10 +181,8 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             font-size: 18px;
             text-align: center;
         }
-
         .valid { color: #27ae60; font-weight: bold; text-align: center; margin-bottom: 15px; }
         .invalid { color: #c0392b; font-weight: bold; text-align: center; margin-bottom: 15px; }
-
         .logo-inicio {
     display: block;
     margin: 0 auto 20px auto;
@@ -227,20 +199,17 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
     box-shadow: 0 8px 20px rgba(0,0,0,0.08);
     text-align: center;
 }
-
 .metodos-extra h3 {
     font-size: 20px;
     margin-bottom: 25px;
     color: #2c3e50;
 }
-
 .opciones-validacion {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
     gap: 20px;
 }
-
 .card-opcion {
     background: #3498db;
     color: white;
@@ -255,12 +224,10 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     transition: background 0.3s, transform 0.3s;
 }
-
 .card-opcion:hover {
     background: #21618c;
     transform: scale(1.05);
 }
-
 hr {
     border: none;
     height: 2px;
@@ -284,7 +251,6 @@ hr {
     transition: background 0.3s, transform 0.3s;
     z-index: 1000;
 }
-
 .btn-flotante:hover {
     background: #218838;
     transform: scale(1.1);
@@ -297,7 +263,6 @@ hr {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     box-sizing: border-box;
 }
-
 .header-content {
     display: flex;
     align-items: center;
@@ -309,12 +274,10 @@ hr {
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .logo-bloque {
     display: flex;
     align-items: center;
 }
-
 .logo-header {
     max-width: 60px;
     height: auto;
@@ -327,7 +290,6 @@ hr {
 }
 .logo-header3 {
     align-items: center;
-
     max-width: 150px;
     height: auto;
     width: auto;
@@ -338,9 +300,6 @@ hr {
     background: #ecf0f1;
     margin: 0 10px;
 }
-
-
-
 .main-footer {
     background: #2c3e50;
     color: white;
@@ -349,7 +308,6 @@ hr {
     width: 100%;
     box-sizing: border-box;
 }
-
 .footer-top {
     display: flex;
     align-items: flex-start;
@@ -357,26 +315,21 @@ hr {
     gap: 20px;
     flex-wrap: wrap;
 }
-
-
 .footer-info {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
 }
-
 .footer-title {
     font-weight: bold;
     font-size: 16px;
     margin: 0 0 10px 0;
 }
-
 .footer-cajas {
     display: flex;
     gap: 15px;
 }
-
 .footer-box {
     padding: 10px;
     border-radius: 8px;
@@ -386,23 +339,17 @@ hr {
     align-items: center;
     justify-content: center;
 }
-
 .footer-box img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
 }
-
 .footer-copy {
     text-align: center;
     margin-top: 30px;
     font-size: 13px;
     color: #ccc;
 }
-
-
-
-
 @media (max-width: 600px) {
     .header-content {
         flex-direction: column;
@@ -414,27 +361,20 @@ hr {
     .separador-vertical {
         display: none;
     }
-    
     .logo-header {
         display: none;
-
 }
-    
             .card, .metodos-extra {
                 padding: 20px;
 margin: 20px
             }
-
             h2 {
                 font-size: 22px;
             }
-
             section h3 {
                 font-size: 16px;
             }
         }
-
-
         @keyframes pulse {
     0% {
         transform: scale(1);
@@ -449,7 +389,6 @@ margin: 20px
         box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
     }
 }
-
 .btn-flotante {
     animation: pulse 6s infinite;
 }
@@ -461,7 +400,6 @@ margin: 20px
         background-position: 200% 0;
     }
 }
-
 .btn-validar {
     background: linear-gradient(120deg, #2980b9 30%, #3498db 50%, #2980b9 70%);
     background-size: 200% auto;
@@ -475,7 +413,6 @@ margin: 20px
     animation: shimmer 4s infinite linear;
     transition: transform 0.3s ease;
 }
-
 .btn-validar:hover {
     transform: scale(1.05);
 }
@@ -487,7 +424,6 @@ margin: 20px
     background-position: 200% 0;
   }
 }
-
 .animated-border {
   background: linear-gradient(
     110deg,
@@ -504,7 +440,6 @@ margin: 20px
     gap: 20px;
     padding-top: 20px;
 }
-
 .product-card {
     background: white;
     border-radius: 12px;
@@ -515,11 +450,9 @@ margin: 20px
     align-items: center;
     transition: transform 0.2s;
 }
-
 .product-card:hover {
     transform: scale(1.02);
 }
-
 .product-card img {
     max-width: 100%;
     max-height: 150px;
@@ -527,26 +460,22 @@ margin: 20px
     object-fit: cover;
     margin-bottom: 12px;
 }
-
 .product-card h4 {
     color: #2c3e50;
     font-size: 16px;
     margin-bottom: 8px;
     text-align: center;
 }
-
 .product-card p {
     font-size: 14px;
     color: #555;
     margin: 2px 0;
     text-align: center;
 }
-
 .pagination {
     text-align: center;
     margin-top: 30px;
 }
-
 .pagination a {
     margin: 0 5px;
     text-decoration: none;
@@ -557,18 +486,13 @@ margin: 20px
     font-weight: bold;
     transition: background 0.3s;
 }
-
 .pagination a:hover {
     background: #21618c;
 }
-
 .pagination strong {
     margin: 0 5px;
     color: #2980b9;
 }
-
-
-
 .modal {
   display: none;
   position: fixed;
@@ -580,7 +504,6 @@ margin: 20px
   background-color: rgba(0,0,0,0.5);
   overflow: auto;
 }
-
 .modal-content {
   background-color: #fff;
   margin: 5% auto;
@@ -591,12 +514,10 @@ margin: 20px
   animation: fadeIn 0.3s ease;
   box-shadow: 0 8px 20px rgba(0,0,0,0.2);
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .cerrar {
   float: right;
   font-size: 24px;
@@ -604,34 +525,27 @@ margin: 20px
   font-weight: bold;
   cursor: pointer;
 }
-
 .cerrar:hover {
   color: #e74c3c;
 }
-
 /* Estilo tabla dentro del modal */
 .modal-content table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
 }
-
 .modal-content th, .modal-content td {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid #ddd;
 }
-
 .modal-content th {
   background-color: #2c3e50;
   color: white;
 }
-
 .modal-content tr:hover {
   background-color: #f1f1f1;
 }
-
-
 #popup-exito {
     position: fixed;
     top: 0;
@@ -645,7 +559,6 @@ margin: 20px
     z-index: 9999;
     animation: fadeIn 0.4s ease forwards;
 }
-
 #popup-exito .mensaje {
     background: linear-gradient(to left, #2ecc71, #27ae60);
     padding: 20px 40px;
@@ -659,28 +572,23 @@ margin: 20px
     transform: scale(0.8);
     opacity: 0;
 }
-
 @keyframes fadeIn {
     to {
         opacity: 1;
     }
 }
-
 @keyframes scaleIn {
     to {
         transform: scale(1);
         opacity: 1;
     }
 }
-
 @keyframes fadeOut {
     to {
         opacity: 0;
         transform: scale(0.9);
     }
 }
-
-
 .check-icon {
   width: 80px;
   height: 80px;
@@ -695,19 +603,16 @@ margin: 20px
   margin: 0 auto 10px auto;
   display: block;
 }
-
 .check-circle {
   stroke-dasharray: 157;
   stroke-dashoffset: 157;
   animation: drawCircle 0.6s ease-out forwards;
 }
-
 .check-mark {
   stroke-dasharray: 36;
   stroke-dashoffset: 36;
   animation: drawCheck 0.4s ease-out 0.5s forwards;
 }
-
 .texto-popup {
   margin-top: 10px;
   font-size: 18px;
@@ -716,19 +621,16 @@ margin: 20px
   animation: fadeInText 0.4s ease-in 0.8s forwards;
   opacity: 0;
 }
-
 @keyframes drawCircle {
   to {
     stroke-dashoffset: 0;
   }
 }
-
 @keyframes drawCheck {
   to {
     stroke-dashoffset: 0;
   }
 }
-
 @keyframes fadeInText {
   to {
     opacity: 1;
@@ -739,18 +641,15 @@ margin: 20px
     flex-direction: column;
     gap: 15px;
 }
-
 .campo-form {
     display: flex;
     flex-direction: column;
 }
-
 .campo-form label {
     font-weight: bold;
     color: #2c3e50;
     margin-bottom: 6px;
 }
-
 .campo-form input,
 .campo-form textarea {
     padding: 12px;
@@ -759,24 +658,20 @@ margin: 20px
     font-size: 15px;
     transition: border 0.3s;
 }
-
 .campo-form input:focus,
 .campo-form textarea:focus {
     border-color: #3498db;
     outline: none;
     box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
 }
-
 .grupo-flex {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .grupo-flex .campo-form {
     flex: 1;
 }
-
     .filtros {
       display: flex;
       flex-wrap: wrap;
@@ -784,7 +679,6 @@ margin: 20px
       gap: 20px;
       margin: 20px;
     }
-
     .filtros input, .filtros select {
       padding: 10px;
       border-radius: 8px;
@@ -798,7 +692,6 @@ margin: 20px
             justify-content: center;
         padding: 10px;
         }
-
         table {
             width: 70%;
             border-collapse: collapse;
@@ -807,24 +700,19 @@ margin: 20px
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
             overflow: hidden;
             min-width: 600px;
-            
         }
-
         th, td {
             padding: 14px;
             border-bottom: 1px solid #ddd;
             text-align: left;
         }
-
         th {
             background-color: #2c3e50;
             color: white;
         }
-
         tr:hover {
             background-color: #f1f1f1;
         }
-
         .volver-btn {
             display: inline-block;
             margin: 20px auto;
@@ -840,12 +728,9 @@ margin: 20px
             animation: shimmer 3s infinite linear;
             text-align: center;
         }
-
         .volver-btn:hover {
             background: #1c5980;
         }
-
-
         @keyframes shimmer {
             0% {
                 background-position: -200% 0;
@@ -854,7 +739,6 @@ margin: 20px
                 background-position: 200% 0;
             }
         }
-
         @media (max-width: 600px) {
         .tabla-contenedor {
             overflow-x: auto;
@@ -873,13 +757,11 @@ margin: 20px
   transition: border 0.3s, box-shadow 0.3s;
   font-family: 'Segoe UI', sans-serif;
 }
-
 .input-evaluacion:focus {
   border-color: #3498db;
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.4);
   outline: none;
 }
-
 #estadoSelect {
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg fill='%233498db' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
@@ -900,13 +782,11 @@ margin: 20px
     transition: all 0.3s ease;
     position: relative;
 }
-
 .btn-cv-profesional:hover {
     background: linear-gradient(90deg, #16a085, #1abc9c);
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(22, 160, 133, 0.5);
 }
-
 .icono-pdf {
     font-size: 20px;
     margin-right: 10px;
@@ -917,7 +797,6 @@ margin: 20px
     overflow-x: auto;
     white-space: nowrap;
 }
-
 .nav-list-pro {
     list-style: none;
     margin: 0;
@@ -927,7 +806,6 @@ margin: 20px
     justify-content: flex-start;
     gap: 30px;
 }
-
 .nav-list-pro li a {
     color: white;
     font-weight: bold;
@@ -940,12 +818,10 @@ margin: 20px
     transition: background 0.3s, transform 0.3s;
     position: relative;
 }
-
 .nav-list-pro li a:hover {
     background: #2c3e50;
     transform: scale(1.05);
 }
-
 .nav-list-pro li a::after {
     content: '';
     position: absolute;
@@ -957,17 +833,14 @@ margin: 20px
     transition: all 0.3s ease-in-out;
     transform: translateX(-50%);
 }
-
 .nav-list-pro li a:hover::after {
     width: 60%;
 }
-
 @media (max-width: 768px) {
   .nav-list-pro {
     gap: 16px;
     padding: 10px;
   }
-
   .nav-list-pro li a {
     font-size: 14px;
     padding: 8px 12px;
@@ -981,7 +854,6 @@ margin: 20px
   border-bottom: 3px solid #3498db;
   animation: fadeIn 0.3s ease;
 }
-
 .subnav a {
   color: #2c3e50;
   font-weight: 600;
@@ -991,17 +863,14 @@ margin: 20px
   border-radius: 20px;
   transition: all 0.3s ease;
 }
-
 .subnav a:hover {
   background: #3498db;
   color: white;
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .usuario-barra {
   margin-left: auto;
   display: flex;
@@ -1039,11 +908,9 @@ margin: 20px
   animation: fadeIn 0.3s ease-in-out;
     transition: all 0.3s ease-in-out;
 }
-
 .usuario-dropdown p {
   margin: 8px 0;
 }
-
 .usuario-barra {
   cursor: pointer;
   position: relative;
@@ -1059,12 +926,10 @@ margin: 20px
   font-weight: bold;
   transition: background 0.3s, transform 0.2s;
 }
-
 .btn-logout-dropdown:hover {
   background: #c0392b;
   transform: scale(1.03);
 }
-
 .menu-lateral {
   position: fixed;
   top: 0; /* Se fija desde la parte superior de la pantalla */
@@ -1080,8 +945,6 @@ margin: 20px
   overflow-y: auto; /* Para que el menú lateral pueda hacer scroll interno si hay muchos elementos */
   transition: transform .3s ease;
 }
-
-
 .menu-lateral h3 {
   font-size: 17px;
   margin-bottom: 20px;
@@ -1090,17 +953,14 @@ margin: 20px
   padding-bottom: 10px;
   font-weight: 600;
 }
-
 .menu-lateral ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .menu-lateral ul li {
   margin-bottom: 14px;
 }
-
 .menu-lateral ul li a {
   color: #2d3436;
   text-decoration: none;
@@ -1113,13 +973,11 @@ margin: 20px
   padding: 8px 12px;
   border-radius: 6px;
 }
-
 .menu-lateral ul li a:hover {
   background: #dcdde1;
   color: #0984e3;
   transform: translateX(4px);
 }
-
 .menu-toggle {
   display: none;
   position: fixed;
@@ -1135,7 +993,6 @@ margin: 20px
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   cursor: pointer;
 }
-
 /* ---------- Escritorio ---------- */
 @media (min-width: 992px) {
   /* Botón para ocultar (dentro del menú) */
@@ -1156,7 +1013,6 @@ margin: 20px
         padding: 0px 0px;
   }
   .sidebar-toggle-btn:hover { background: #dbe7f6; }
-
   /* Botón para mostrar (fuera, flotante en el borde izquierdo) */
   .sidebar-show-btn {
     position: fixed;
@@ -1179,7 +1035,6 @@ margin: 20px
     padding: 0px 0px;
   }
   .sidebar-show-btn:hover { background: #dbe7f6; }
-
   /* Cuando el body tiene el colapso activado */
   body.sidebar-collapsed .menu-lateral {
     transform: translateX(-100%);   /* se sale de pantalla a la izquierda */
@@ -1192,16 +1047,11 @@ margin: 20px
     pointer-events: auto;
   }
 }
-
 /* ---------- Móvil/Tablet: no mostrar botón flotante de escritorio ---------- */
 @media (max-width: 991px) {
   .sidebar-toggle-btn,
   .sidebar-show-btn { display: none !important; }
 }
-
-
-
-
 /* Responsive en móviles */
 @media (max-width: 768px) {
   .menu-lateral {
@@ -1216,16 +1066,13 @@ margin: 20px
     transition: transform 0.3s ease;
     z-index: 9;
   }
-
   .menu-lateral.active {
     transform: translateX(0);
   }
-
   .main-content {
     margin-left: 0 !important;
     transition: margin-left 0.3s ease;
   }
-
   .menu-toggle {
     position: fixed; /* Para que siempre sea visible */
     top: 15px;
@@ -1241,7 +1088,6 @@ margin: 20px
     padding: 0;
     z-index: 10;
   }
-
   .menu-toggle span {
     width: 100%;
     height: 3px;
@@ -1250,35 +1096,28 @@ margin: 20px
     transition: all 0.3s ease-in-out;
     transform-origin: 1px;
   }
-
   /* ANIMACIÓN AL ACTIVAR (hamburger a X) */
   .menu-toggle.active span:nth-child(1) {
     transform: rotate(45deg) translate(5px, 5px);
   }
-
   .menu-toggle.active span:nth-child(2) {
     opacity: 0;
   }
-
   .menu-toggle.active span:nth-child(3) {
     transform: rotate(-45deg) translate(5px, -5px);
   }
 }
-
 .main-content {
     margin-left: 240px;
     padding: 30px;
     transition: margin-left .3s ease; 
 }
-
-
 .accordion-button.fw-bold:hover, 
 .accordion-button.fw-bold:focus {
   background-color: #2c3e50 !important; /* Cambia este color por el que prefieras */
   color: white !important; /* Cambia el texto si quieres */
   transition: background 0.25s;
 }
-
 .btn-action {
   font-weight: bold;
   box-shadow: 0 3px 12px rgba(52,152,219,0.06);
@@ -1349,13 +1188,11 @@ margin: 20px
 .action-btn:hover i, .action-btn:focus i {
   color: #2082da;
 }
-
 .action-btn.action-new     { border-left: 5px solid #4ade80; }
 .action-btn.action-view    { border-left: 5px solid #60a5fa; }
 .action-btn.action-license { border-left: 5px solid #fbbf24; }
 .action-btn.action-job     { border-left: 5px solid #818cf8; }
 .action-btn.action-alert   { border-left: 5px solid #f87171; }
-
 @media (max-width: 650px) {
   .action-bar-pro {
     gap: 10px;
@@ -1420,7 +1257,6 @@ aside img {
 }
 /* ===== Modal "Nueva capacitación" — look & feel ===== */
 #modalNuevaCap .cerrar { display: none; } /* oculto la X antigua */
-
 #modalNuevaCap .cap-modal {
   border: 0;
   border-radius: 14px;
@@ -1429,7 +1265,6 @@ aside img {
   background: #fff;
   position: relative;
 }
-
 #modalNuevaCap .cap-modal::before {
   content: "";
   position: absolute;
@@ -1437,7 +1272,6 @@ aside img {
   height: 4px;
   background: linear-gradient(90deg,#2c3e50, #3e5873, #2c3e50);
 }
-
 #modalNuevaCap .cap-modal-header {
   background: linear-gradient(135deg,#2c3e50 0%, #3b4b62 100%);
   color: #fff;
@@ -1446,7 +1280,6 @@ aside img {
   gap: 10px;
   padding: 16px 20px;
 }
-
 #modalNuevaCap .cap-modal-title {
   display: flex;
   align-items: center;
@@ -1454,7 +1287,6 @@ aside img {
   font-weight: 700;
   letter-spacing: .2px;
 }
-
 #modalNuevaCap .cap-close {
   margin-left: auto;
   background: transparent;
@@ -1466,12 +1298,10 @@ aside img {
   cursor: pointer;
 }
 #modalNuevaCap .cap-close:hover { opacity: 1; transform: scale(1.05); }
-
 #modalNuevaCap .cap-modal-body {
   background: #f7f9fc;
   padding: 18px 20px;
 }
-
 #modalNuevaCap .cap-modal-footer {
   background: #f0f4f8;
   border-top: 1px solid #e6eef5;
@@ -1480,7 +1310,6 @@ aside img {
   justify-content: flex-end;
   gap: 10px;
 }
-
 /* Inputs con icono */
 #modalNuevaCap .input-with-icon { position: relative; }
 #modalNuevaCap .input-with-icon > i {
@@ -1492,13 +1321,11 @@ aside img {
 #modalNuevaCap .input-with-icon > textarea {
   padding-left: 40px;
 }
-
 #modalNuevaCap .field-hint {
   font-size: .85rem;
   color: #6b7a90;
   margin-top: 6px;
 }
-
 /* Enfoque de marca */
 #modalNuevaCap .form-control:focus,
 #modalNuevaCap .form-select:focus,
@@ -1506,7 +1333,6 @@ aside img {
   border-color: #2c3e50;
   box-shadow: 0 0 0 .2rem rgba(44,62,80,.15);
 }
-
 /* Resumen en chips */
 #modalNuevaCap .cap-preview {
   background: #fff;
@@ -1523,7 +1349,6 @@ aside img {
   color: #2c3e50;
 }
 #modalNuevaCap .cap-chip b { margin-right: 6px; }
-
 /* Botón primario de marca */
 #modalNuevaCap .btn-brand {
   background: #2c3e50;
@@ -1545,13 +1370,13 @@ aside img {
 }
 /* No estirar los botones dentro de la tabla de Capacitaciones */
 #tablaCap .btn { width: auto !important; }
-
-
-
     </style>
-    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+    <link rel="stylesheet" href="../assets/css/header_n360.css">
+<link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+<link rel="stylesheet" href="../assets/css/main_n360.css">
+<link rel="stylesheet" href="../assets/css/footer_n360.css">
+<link rel="stylesheet" href="../assets/css/content_n360.css">
 </head>
-
 <body>
 <?php
 function calcularEdad($fechaNacimiento) {
@@ -1560,11 +1385,9 @@ function calcularEdad($fechaNacimiento) {
     $edad = $hoy->diff($nac);
     return $edad->y;
 }
-
 $edad = calcularEdad("2000-04-12"); // ejemplo
 ?>
 <?php if ($exito): ?>
-    
 <div id="popup-exito">
   <div class="mensaje">
     <svg class="check-icon" viewBox="0 0 52 52">
@@ -1574,53 +1397,14 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     <p class="texto-popup">¡Trabajador registrado correctamente!</p>
   </div>
 </div>
-
 <?php endif; ?>
-
-<header class="main-header animated-border">
-  <div class="header-content">
-    <a href="../index.php"">
-        <div class="logo-bloque">
-            <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header">
-        </div>
-    </a>
-
-    <div class="separador-vertical"></div>
-        <a href="javascript:location.reload()">
-            <div class="logo-bloque">
-            <img src="../img/completo.png" alt="Logo Sistema" class="logo-header2">
-            </div>
-        </a>
-
-
-    <div class="usuario-contenedor" style="margin-left:auto; position: relative;">
-      <div class="usuario-barra" onclick="toggleDropdown()">
-        <span>Hola, <?= htmlspecialchars($_SESSION['usuario']) ?></span>
-        <img src="../img/icons/user.png" alt="Usuario">
-      </div>
-      <div class="usuario-dropdown" id="usuarioDropdown">
-        <p><strong>Nombre:</strong> <?= htmlspecialchars($_SESSION['usuario']) ?></p>
-        <p><strong>DNI:</strong> <?= htmlspecialchars($_SESSION['DNI']) ?></p>
-        <p><strong>Edad:</strong> <?= $edad ?> años</p>
-        <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%); margin: 12px 0; border: none; border-top: 1px solid #eee;">
-        <p><strong>Rol:</strong> <?= htmlspecialchars($_SESSION['web_rol']) ?></p>
-        <a href="../login/logout.php" class="btn-logout-dropdown">Cerrar sesión</a>
-      </div>
-    </div>
-
-    </div>
-</header>
+<?php n360_render_header(); ?>
 <?php n360_render_sidebar(); ?>
-<div class="main-content">
-        <hr>
-
-
+<div class="main-content n360-main n360-main--module">
+<?php n360_render_content_separator('top'); ?>
 <!-- <img src="img/cdn_productos_lg.png" alt="Logo del sistema" class="logo-inicio"> -->
 <div class="container mt-4 mb-5">
-
-
 <h3 class="mb-4 text-black fw-bold">Capacitaciones</h3>
-
 <!-- Barra superior: botón crear + buscador -->
 <div class="d-flex flex-wrap align-items-center mb-3 gap-2">
   <button class="ms-auto action-btn action-new" data-bs-toggle="modal" data-bs-target="#modalNuevaCap">
@@ -1630,7 +1414,6 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     <input id="filtroCap" class="form-control" type="text" placeholder="Buscar por nombre o estado...">
   </div>
 </div>
-
 <?php
 function fmtMin($min) {
   $min = (int)$min;
@@ -1662,37 +1445,28 @@ function fmtMin($min) {
       <?php else: ?>
         <?php foreach ($capacitaciones as $c): ?>
         <?php $estado = (int)$c['clm_cap_estado']; ?>
-
           <tr>
             <td class="fw-semibold">#<?= (int)$c['clm_cap_id'] ?></td>
             <td>
               <div class="fw-semibold"><?= htmlspecialchars($c['clm_cap_capacitacion']) ?></div>
               <small class="text-muted">Creada: <?= date('d/m/Y H:i', strtotime($c['clm_cap_fecharegistro'])) ?></small>
             </td>
-
             <td><?= date('d/m/Y H:i', strtotime($c['clm_cap_fechainicio'])) ?></td>
-
             <td><?= fmtMin($c['clm_cap_duracion_minutos']) ?></td>
-
             <td><?= $c['clm_cap_fechafin'] ? date('d/m/Y H:i', strtotime($c['clm_cap_fechafin'])) : '<span class="text-muted">—</span>' ?></td>
-
             <td>
               <span class="badge bg-<?= $c['estado_badge'] ?? 'secondary' ?>">
                 <?= htmlspecialchars($c['estado_texto']) ?>
               </span>
             </td>
-
             <td><span class="fw-bold"><?= (int)$c['inscritos'] ?></span></td>
-
             <td class="text-nowrap">
               <a class="btn btn-sm btn-outline-primary btn-action me-1"
                 href="#"
                 onclick="openDetalle(<?= (int)$c['clm_cap_id'] ?>)">
                 <i class="bi bi-eye"></i> Ver
               </a>
-
             <?php $urlDoc = 'api/capacitaciones_ver_documento.php?id='.(int)$c['clm_cap_id'].'&disposition=inline'; ?>
-
             <?php if ((int)$c['has_doc'] === 1): ?>
               <a class="btn btn-sm btn-outline-secondary btn-action me-1"
                 href="<?= $urlDoc ?>" target="_blank" title="Ver documento">
@@ -1703,7 +1477,6 @@ function fmtMin($min) {
                 <i class="bi bi-paperclip"></i> Doc
               </button>
             <?php endif; ?>
-
             <?php if ($estado !== 2 && $estado !== 3): ?>
               <a class="btn btn-sm btn-outline-success btn-action me-1"
                 href="#"
@@ -1715,12 +1488,9 @@ function fmtMin($min) {
                 <i class="bi bi-person-plus"></i> Inscribir
               </button>
             <?php endif; ?>
-
               <button class="btn btn-sm btn-outline-danger btn-action" onclick="eliminarCap(<?= (int)$c['clm_cap_id'] ?>)">
                 <i class="bi bi-trash"></i> Cancelar
               </button>
-
-              
             </td>
           </tr>
         <?php endforeach; ?>
@@ -1728,19 +1498,13 @@ function fmtMin($min) {
     </tbody>
   </table>
 </div>
-
-
   </div>
 </div>
-        <hr>
   </div>
-
-
 <!-- <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20el%20servicio.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank">💬 Soporte</a> -->
 <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20una%20etiqueta.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank" title="Soporte por WhatsApp">
     <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="Soporte" style="width:30px; height:30px;">
 </a>
-
 <!-- Modal: Nueva Capacitación (mejorado) -->
 <div class="modal" id="modalNuevaCap" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1751,7 +1515,6 @@ function fmtMin($min) {
           <span>Nueva capacitación</span>
         </div>
       </div>
-
       <form id="formNuevaCap" method="post" action="api/capacitaciones_guardar.php" enctype="multipart/form-data">
         <div class="cap-modal-body">
           <div class="row g-3">
@@ -1763,7 +1526,6 @@ function fmtMin($min) {
               </div>
               <div class="field-hint">Escribe un título claro y corto.</div>
             </div>
-
             <div class="col-md-4">
               <label class="form-label">Estado</label>
               <div class="input-with-icon">
@@ -1776,7 +1538,6 @@ function fmtMin($min) {
                 </select>
               </div>
             </div>
-
             <div class="col-md-4">
               <label class="form-label">Fecha y hora de inicio</label>
               <div class="input-with-icon">
@@ -1784,7 +1545,6 @@ function fmtMin($min) {
                 <input type="datetime-local" name="fechainicio" id="cap_fechainicio" class="form-control" required>
               </div>
             </div>
-
             <div class="col-md-4">
               <label class="form-label">Duración (minutos)</label>
               <div class="input-with-icon">
@@ -1797,7 +1557,6 @@ function fmtMin($min) {
               <input type="hidden" name="duracion" id="cap_duracion">
               <div class="field-hint">Ingresa minutos (p. ej., 90). El fin se calcula automáticamente.</div>
             </div>
-
             <div class="col-12">
               <label class="form-label">Fin Estimado (Representativo)</label>
               <div class="input-with-icon">
@@ -1806,8 +1565,6 @@ function fmtMin($min) {
                       placeholder="Se calcula automáticamente..." readonly>
               </div>
             </div>
-
-
             <div class="col-12">
               <label class="form-label">Observación (opcional)</label>
               <div class="input-with-icon">
@@ -1824,7 +1581,6 @@ function fmtMin($min) {
               </div>
               <div class="field-hint">PDF/imagen/Office. Máx. 10 MB.</div>
             </div>
-
             <div class="col-12">
               <div class="cap-preview">
                 <span class="cap-chip"><b>Tema:</b> <span id="prevTema">—</span></span>
@@ -1833,12 +1589,10 @@ function fmtMin($min) {
                 <span class="cap-chip"><b>Fin Estimado:</b> <span id="prevFin">—</span></span>
                 <span class="cap-chip"><b>Duración:</b> <span id="prevDur">—</span></span>
                 <span class="cap-chip"><b>Documento:</b> <span id="prevDoc">—</span></span>
-
               </div>
             </div>
           </div>
         </div>
-
         <div class="cap-modal-footer">
           <button type="button" class="btn btn-light" id="capBtnLimpiar">
             <i class="bi bi-eraser"></i> Limpiar
@@ -1854,7 +1608,6 @@ function fmtMin($min) {
     </div>
   </div>
 </div>
-
 <!-- Modal: Inscribir personal -->
 <div class="modal" id="modalInscribir" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1862,7 +1615,6 @@ function fmtMin($min) {
       <span class="cerrar" onclick="closeInscribir()">&times;</span>
       <h4 class="mb-3">Inscribir a: <span id="capNombreX" class="fw-bold"></span></h4>
       <input type="hidden" id="capIdX">
-
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-label">Buscar trabajador</label>
@@ -1872,18 +1624,15 @@ function fmtMin($min) {
           <button class="btn btn-primary w-100" onclick="buscarTrabAJAX()">Buscar</button>
         </div>
       </div>
-
       <div class="mt-3">
         <div id="resTrabX" class="table-responsive" style="max-height:260px; overflow:auto; border:1px solid #eee; border-radius:8px;">
           <!-- resultados -->
         </div>
       </div>
-
       <div class="mt-3">
         <h6 class="mb-2">Seleccionados</h6>
         <div id="selChips" class="d-flex flex-wrap gap-2"></div>
       </div>
-
       <div class="d-flex justify-content-end gap-2 mt-3">
         <button class="btn btn-light" onclick="closeInscribir()">Cancelar</button>
         <button class="btn btn-success" onclick="enviarInscripciones()">Inscribir</button>
@@ -1891,13 +1640,11 @@ function fmtMin($min) {
     </div>
   </div>
 </div>
-
 <!-- Modal: Detalle de capacitación -->
 <div class="modal" id="modalDetalle" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content">
       <span class="cerrar" onclick="closeDetalle()">&times;</span>
-
       <div id="detHeader" class="mb-2">
         <h4 class="mb-1">Capacitación</h4>
         <div class="text-muted">Cargando...</div>
@@ -1908,10 +1655,8 @@ function fmtMin($min) {
           <i class="bi bi-flag-checkered"></i> Finalizar ahora
         </button>
       </div>
-
       <div id="detResumen" class="row g-3 mb-2" style="display:none;">
         <div class="col-md-8">
-
           <div class="p-3 rounded" style="background:#f8fafc;border:1px solid #e9eef5;">
             <div class="d-flex flex-wrap gap-2 align-items-center">
               <span id="detCapNombre" class="fw-bold fs-5"></span>
@@ -1924,7 +1669,6 @@ function fmtMin($min) {
               <div class="mt-1"><b>Registrada:</b> <span id="detRegs"></span></div>
             </div>
           </div>
-          
           <!-- Visor de documento — AHORA DENTRO DE LA COLUMNA -->
 <div id="detDocContainer" class="mt-3 d-none">
   <div class="p-3 rounded" style="background:#f8fafc;border:1px solid #e9eef5;">
@@ -1943,12 +1687,7 @@ function fmtMin($min) {
     </div>
   </div>
 </div>
-
         </div>
-
-
-
-
           <div class="col-md-4">
           <div class="p-3 rounded" style="background:#f8fafc;border:1px solid #e9eef5;">
             <div class="fw-bold mb-2">Resumen de inscritos</div>
@@ -1956,9 +1695,6 @@ function fmtMin($min) {
           </div>
         </div>
       </div>
-
-
-
       <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mb-2" id="detFiltros" style="display:none;">
         <input id="detBuscador" class="form-control" style="max-width:320px" placeholder="Buscar por nombre o DNI">
         <select id="detFiltroEstado" class="form-select" style="max-width:220px">
@@ -1971,7 +1707,6 @@ function fmtMin($min) {
           <option value="5">NO ASISTIÓ</option>
         </select>
       </div>
-
       <div id="detTablaWrap" class="table-responsive" style="max-height:420px;overflow:auto;border:1px solid #eee;border-radius:8px;display:none;">
         <table class="table table-hover align-middle mb-0" id="detTabla">
           <thead class="table-light" style="position:sticky;top:0;z-index:1;">
@@ -1987,57 +1722,30 @@ function fmtMin($min) {
           <tbody><!-- rows --></tbody>
         </table>
       </div>
-
       <div id="detEmpty" class="text-center text-muted p-4" style="display:none;">Sin inscritos.</div>
-
       <div class="d-flex justify-content-end gap-2 mt-3">
         <button class="btn btn-light" onclick="closeDetalle()">Cerrar</button>
       </div>
     </div>
   </div>
 </div>
-
-
-
-
-
 </div>
-
-
-<footer class="main-footer animated-border">
-  <div class="footer-top">
-    <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header3">
-    <div class="footer-info">
-      <p class="footer-title">Contáctanos</p>
-      <div class="footer-cajas">
-        <div class="footer-box"><img src="../img/icons/facebook.png" alt="Función 1"></div>
-        <div class="footer-box"><img src="../img/icons/social.png" alt="Función 2"></div>
-      </div>
-    </div>
-  </div>
-  <p class="footer-copy">© <?= date('Y') ?> Norte 360° (v1.0.6). Todos los derechos reservados.</p>
-  <style>.footer-h2bd {position: absolute;bottom: 10px;right: 10px;opacity: 0;transition: opacity 0.4s ease;width: 80px;}.main-footer:hover .footer-h2bd {opacity: 0.6;}.footer-h2bd {filter: grayscale(40%);}</style>
-  <div id="h2bd" style="display:none; position:fixed; bottom:10px; left:10px; z-index:9999; text-align:center;"><img src="<?= $h2bd_img ?>" alt="icong" style="width:80px; opacity:0.8; filter: grayscale(40%); display:block; margin:0 auto;"><p style="color:white; font-size:12px; margin:4px 0 0 0;"><?= $h2bd_name ?></p></div>
-  <script>document.addEventListener('keydown', function(e) {if (e.ctrlKey && e.altKey && e.key === 'm') {const egg = document.getElementById('h2bd');egg.style.display = egg.style.display === 'none' ? 'block' : 'none';}});</script>
-
-</footer>
+<?php n360_render_content_separator('bottom'); ?>
+<?php n360_render_footer(); ?>
 <script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
 }
-
 // Cierra si haces clic fuera
 document.addEventListener("click", function (e) {
   const barra = document.querySelector(".usuario-barra");
   const dropdown = document.getElementById("usuarioDropdown");
-
   if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
     dropdown.style.display = "none";
   }
 });
 </script>
-
 <script>
   // Filtro por texto (nombre/estado)
   document.getElementById('filtroCap')?.addEventListener('input', function() {
@@ -2047,7 +1755,6 @@ document.addEventListener("click", function (e) {
       tr.style.display = text.includes(q) ? '' : 'none';
     });
   });
-
   // Eliminar (confirmación + fetch)
   function eliminarCap(id) {
     if (!confirm('¿Cancelar esta capacitación? Esta acción no se puede deshacer.')) return;
@@ -2064,19 +1771,16 @@ document.addEventListener("click", function (e) {
     .catch(() => alert('Error de red.'));
   }
 </script>
-
 <script>
 (function() {
   const inicioEl   = document.getElementById('cap_fechainicio');
   const durMinEl   = document.getElementById('cap_duracion_min');
   const finPreview = document.getElementById('cap_fin_preview');
-
   function pad(n){ return n < 10 ? '0'+n : n; }
   function toDisplay(dt) {
     return pad(dt.getDate()) + '/' + pad(dt.getMonth()+1) + '/' + dt.getFullYear()
       + ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
   }
-
   function calcFinPreview() {
     const inicioVal = inicioEl?.value?.trim();
     const durMins   = parseInt(durMinEl?.value?.trim(), 10);
@@ -2086,32 +1790,24 @@ document.addEventListener("click", function (e) {
     }
     const inicio = new Date(inicioVal);
     if (isNaN(inicio.getTime())) { finPreview.value=''; return; }
-
     // SUMA MINUTOS DIRECTAMENTE
     const fin = new Date(inicio.getTime() + (durMins * 60000));
     finPreview.value = toDisplay(fin);
   }
-
   inicioEl?.addEventListener('input', calcFinPreview);
   durMinEl?.addEventListener('input', calcFinPreview);
 })();
 </script>
-
-
-
 <script>
 (function () {
   const form     = document.getElementById('formNuevaCap');
   const tema     = form?.querySelector('input[name="capacitacion"]');
   const estado   = form?.querySelector('select[name="estado"]');
   const ini      = document.getElementById('cap_fechainicio');
-
   // minutos visible y horas oculto (para el POST)
   const durMinEl = document.getElementById('cap_duracion_min');
   const durHrsEl = document.getElementById('cap_duracion');
-
   const finPrev  = document.getElementById('cap_fin_preview');
-
   const prevTema = document.getElementById('prevTema');
   const prevEst  = document.getElementById('prevEst');
   const prevIni  = document.getElementById('prevIni');
@@ -2120,13 +1816,11 @@ document.addEventListener("click", function (e) {
   const docInput = document.getElementById('cap_documento');
   const prevDoc  = document.getElementById('prevDoc');
   const MAX_FILE = 10 * 1024 * 1024; // 10MB
-
   function humanSize(n){
     if (!Number.isFinite(n)) return '';
     const u = ['B','KB','MB','GB']; let i=0; while(n>=1024 && i<u.length-1){ n/=1024; i++; }
     return (Math.round(n*10)/10)+' '+u[i];
   }
-
   docInput?.addEventListener('change', () => {
     const f = docInput.files?.[0];
     if (!f) { prevDoc.textContent = '—'; return; }
@@ -2138,7 +1832,6 @@ document.addEventListener("click", function (e) {
     }
     prevDoc.textContent = `${f.name} (${humanSize(f.size)})`;
   });
-
   // ... dentro del form submit, antes de enviar, valida el archivo:
   form?.addEventListener('submit', (e) => {
     const f = docInput?.files?.[0];
@@ -2157,9 +1850,7 @@ document.addEventListener("click", function (e) {
     const horas = Math.round((mins / 60) * 100) / 100;
     durHrsEl.value = horas;
   });
-
   const MAP_EST = {0:'PROGRAMADA',1:'EN CURSO',2:'FINALIZADA',3:'CANCELADA'};
-
   const pad = n => (n < 10 ? '0' + n : n);
   function fmt(dt){
     return pad(dt.getDate())+'/'+pad(dt.getMonth()+1)+'/'+dt.getFullYear()+' '+pad(dt.getHours())+':'+pad(dt.getMinutes());
@@ -2168,28 +1859,22 @@ document.addEventListener("click", function (e) {
     const m = parseInt(mins||0,10);
     return m > 0 ? `${m} min` : '—';
   }
-
   function paint(){
     prevTema.textContent = (tema?.value || '').trim() || '—';
     prevEst.textContent  = MAP_EST[estado?.value] ?? '—';
-
     if (ini?.value) {
       const d = new Date(ini.value);
       prevIni.textContent = isNaN(d) ? '—' : fmt(d);
     } else prevIni.textContent = '—';
-
     prevFin.textContent = finPrev?.value || '—';
     prevDur.textContent = humanizeMinutes(durMinEl?.value);
   }
-
   [tema, estado, ini, durMinEl, finPrev].forEach(el => el && el.addEventListener('input', paint));
-
   document.getElementById('capBtnLimpiar')?.addEventListener('click', () => {
     form.reset();
     if (finPrev) finPrev.value = '';
     paint();
   });
-
   // Al enviar: traduce MINUTOS -> HORAS (con 2 decimales) en el campo oculto name="duracion"
   form?.addEventListener('submit', (e) => {
     const mins = parseInt(durMinEl?.value, 10);
@@ -2201,17 +1886,11 @@ document.addEventListener("click", function (e) {
     const horas = Math.round((mins / 60) * 100) / 100; // 2 decimales
     durHrsEl.value = horas; // este es el que viaja como name="duracion"
   });
-
   paint(); // inicial
 })();
 </script>
-
-
-
-
 <script>
 let SEL_TRAB = new Map(); // id -> {id, nombre, dni, cargo}
-
 function openInscribir(capId, capNombre) {
   SEL_TRAB.clear();
   document.getElementById('capIdX').value = capId;
@@ -2222,11 +1901,9 @@ function openInscribir(capId, capNombre) {
   // mostrar modal
   document.getElementById('modalInscribir').style.display = 'block';
 }
-
 function closeInscribir() {
   document.getElementById('modalInscribir').style.display = 'none';
 }
-
 function renderChips() {
   const cont = document.getElementById('selChips');
   cont.innerHTML = '';
@@ -2246,12 +1923,10 @@ function renderChips() {
     cont.appendChild(chip);
   });
 }
-
 function quitarSel(id) {
   SEL_TRAB.delete(id);
   renderChips();
 }
-
 function addSel(t) {
   if (t.inscrito) {
     alert('Este trabajador ya está inscrito en esta capacitación.');
@@ -2262,7 +1937,6 @@ function addSel(t) {
     renderChips();
   }
 }
-
 function buscarTrabAJAX() {
   const q = document.getElementById('buscarTrabX').value.trim();
   const capid = document.getElementById('capIdX').value;
@@ -2281,7 +1955,6 @@ function buscarTrabAJAX() {
       document.getElementById('resTrabX').innerHTML = '<div class="p-3 text-danger">Error al buscar.</div>';
     });
 }
-
 function renderResultados(items) {
   const wrap = document.getElementById('resTrabX');
   if (!items.length) {
@@ -2316,17 +1989,14 @@ function renderResultados(items) {
   html += '</tbody></table>';
   wrap.innerHTML = html;
 }
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
-
 function enviarInscripciones() {
   const capid = document.getElementById('capIdX').value;
   const ids = Array.from(SEL_TRAB.keys());
   if (!capid) return alert('Capacitación no válida.');
   if (ids.length === 0) return alert('Selecciona al menos un trabajador.');
-
   fetch('api/capacitaciones_inscribir.php', {
     method: 'POST',
     headers: {'Content-Type':'application/json', 'Accept':'application/json'},
@@ -2344,21 +2014,16 @@ function enviarInscripciones() {
   .catch(() => alert('Error de red.'));
 }
 </script>
-
-
 <script>
 let DET_CAP_ID = null; // id actual cargado en el modal
-
 function finalizarCapacitacion() {
   if (!DET_CAP_ID) return;
   if (!confirm('¿Finalizar esta capacitación ahora? Se registrará la hora actual.')) return;
-
   const btn = document.getElementById('btnFinalizarCap');
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Finalizando...';
   }
-
   fetch('api/capacitaciones_finalizar.php', {
     method: 'POST',
     headers: {
@@ -2386,7 +2051,6 @@ function finalizarCapacitacion() {
     }
   });
 }
-
 function actualizarFilaListadoComoFinalizada(capId) {
   const rows = document.querySelectorAll('#tablaCap tbody tr');
   for (const tr of rows) {
@@ -2397,13 +2061,11 @@ function actualizarFilaListadoComoFinalizada(capId) {
       const finTd = tds[4];
       const estadoTd = tds[5];
       const accionesTd = tds[7];
-
       const now = new Date();
       const pad = n => (n<10?'0'+n:n);
       const str = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
       finTd.innerHTML = str;
       estadoTd.innerHTML = '<span class="badge bg-success">FINALIZADA</span>';
-
       const insBtn = accionesTd.querySelector('.btn-outline-success');
       if (insBtn) {
         const disabled = document.createElement('button');
@@ -2417,25 +2079,17 @@ function actualizarFilaListadoComoFinalizada(capId) {
     }
   }
 }
-
 </script>
-
-
-
-
 <script>
 function openDetalle(capId) {
   DET_CAP_ID = capId; // <--- guarda el ID actual
-
   document.getElementById('modalDetalle').style.display = 'block';
   document.querySelector('#detHeader .text-muted').textContent = 'Cargando...';
-
   // limpia vistas
   document.getElementById('detResumen').style.display   = 'none';
   document.getElementById('detTablaWrap').style.display = 'none';
   document.getElementById('detFiltros').style.display   = 'none';
   document.getElementById('detEmpty').style.display     = 'none';
-
   fetch('api/capacitaciones_detalle.php?id=' + encodeURIComponent(capId), {headers:{'Accept':'application/json'}})
     .then(r => r.json())
     .then(json => {
@@ -2447,12 +2101,9 @@ function openDetalle(capId) {
       console.error(err);
     });
 }
-
-
 function closeDetalle() {
   document.getElementById('modalDetalle').style.display = 'none';
 }
-
 function humanizeMin(min){
   min = parseInt(min||0,10);
   if (!min) return '—';
@@ -2461,18 +2112,15 @@ function humanizeMin(min){
   if (h) return `${h}h`;
   return `${m}m`;
 }
-
 function renderDetalle(data) {
   const cap = data.capacitacion;
   const lista = Array.isArray(data.inscritos) ? data.inscritos : [];
   const resumen = data.resumen || {total:0, por_estado:[]};
-
 // ===== Documento adjunto =====
 const docBox   = document.getElementById('detDocContainer');
 const docFrame = document.getElementById('detDocFrame');
 const verBtn   = document.getElementById('detDocVerBtn');
 const descBtn  = document.getElementById('detDocDescBtn');
-
 if (cap.has_doc) {
   const base = 'api/capacitaciones_ver_documento.php?id=' + encodeURIComponent(cap.id);
   docBox.classList.remove('d-none');              // ← muestra el bloque
@@ -2483,7 +2131,6 @@ if (cap.has_doc) {
   docBox.classList.add('d-none');
   if (docFrame) docFrame.src = 'about:blank';
 }
-
   // Header
   document.querySelector('#detHeader h4').textContent = 'Capacitación #' + cap.id;
   document.querySelector('#detHeader .text-muted').textContent = '';
@@ -2493,7 +2140,6 @@ if (cap.has_doc) {
   // Necesitamos un código de estado numérico para decidir si se muestra el botón.
   // Asegúrate de que el endpoint devuelva cap.estado como entero (0..3).
   const estCode = typeof cap.estado === 'number' ? cap.estado : null;
-
   if (estCode !== 2 && estCode !== 3) {
     actions.style.display = 'flex';
     actions.innerHTML = `
@@ -2509,14 +2155,11 @@ if (cap.has_doc) {
   const estBadge = document.getElementById('detCapEstado');
   estBadge.className = 'badge bg-' + (cap.estado_badge || 'secondary');
   estBadge.textContent = cap.estado_texto || '—';
-
   document.getElementById('detInicio').textContent = fmtFecha(cap.fechainicio);
   document.getElementById('detFin').textContent    = cap.fechafin ? fmtFecha(cap.fechafin) : '—';
   document.getElementById('detDuracion').textContent = cap.duracion_min ? humanizeMin(cap.duracion_min) : '—';
   document.getElementById('detObs').textContent    = cap.observacion || '—';
   document.getElementById('detRegs').textContent   = fmtFecha(cap.fechareg);
-
-
   // Card resumen derecha (badges por estado)
   const wrapBadges = document.getElementById('detResumenBadges');
   wrapBadges.innerHTML = '';
@@ -2524,16 +2167,13 @@ if (cap.has_doc) {
   badgeTotal.className = 'badge text-bg-dark';
   badgeTotal.textContent = 'TOTAL ' + (resumen.total ?? 0);
   wrapBadges.appendChild(badgeTotal);
-
   (resumen.por_estado || []).forEach(x => {
     const b = document.createElement('span');
     b.className = 'badge bg-' + (x.badge || 'secondary');
     b.textContent = x.texto + ' ' + x.cantidad;
     wrapBadges.appendChild(b);
   });
-
   document.getElementById('detResumen').style.display = 'flex';
-
   // Tabla
   const tbody = document.querySelector('#detTabla tbody');
   tbody.innerHTML = '';
@@ -2542,12 +2182,10 @@ if (cap.has_doc) {
     return;
   }
   document.getElementById('detEmpty').style.display = 'none';
-
   lista.forEach(t => {
     const tr = document.createElement('tr');
     tr.dataset.estado = String(t.estado ?? '');
     tr.dataset.search = (t.nombres + ' ' + (t.dni||'')).toLowerCase();
-
     tr.innerHTML = `
       <td class="fw-semibold">#${t.trab_id}</td>
       <td>${esc(t.nombres)}</td>
@@ -2560,10 +2198,8 @@ if (cap.has_doc) {
     `;
     tbody.appendChild(tr);
   });
-
   document.getElementById('detTablaWrap').style.display = 'block';
   document.getElementById('detFiltros').style.display   = 'flex';
-
   // Filtros
 // === Editor inline de estado ===
 const ESTADOS_TR = {
@@ -2574,7 +2210,6 @@ const ESTADOS_TR = {
   4: { txt: 'ASISTIÓ',    badge: 'primary' },
   5: { txt: 'NO ASISTIÓ', badge: 'warning' }
 };
-
 function recalcResumen(){
   const counts = {0:0,1:0,2:0,3:0,4:0,5:0};
   let total = 0;
@@ -2598,7 +2233,6 @@ function recalcResumen(){
     wrap.appendChild(b);
   });
 }
-
 // Permite editar (bloquea si la capacitación está CANCELADA = 3)
 window.DET_CAP_ESTADO = estCode; // ya calculado arriba
 const tbodyEl = document.querySelector('#detTabla tbody');
@@ -2610,10 +2244,8 @@ tbodyEl.addEventListener('click', function(e){
     return;
   }
   if (td.querySelector('select')) return; // ya editando
-
   const trabId = parseInt(td.dataset.trabid,10);
   const valorActual = String(td.dataset.estado ?? '');
-
   const select = document.createElement('select');
   select.className = 'form-select form-select-sm';
   Object.entries(ESTADOS_TR).forEach(([val,info])=>{
@@ -2623,19 +2255,16 @@ tbodyEl.addEventListener('click', function(e){
     if (String(val) === valorActual) opt.selected = true;
     select.appendChild(opt);
   });
-
   const oldHTML = td.innerHTML;
   td.innerHTML = '';
   td.appendChild(select);
   select.focus();
-
   function cancelar(){
     td.innerHTML = oldHTML;
   }
   function commit(){
     const nuevo = parseInt(select.value,10);
     if (String(nuevo) === valorActual) { cancelar(); return; }
-
     td.classList.add('opacity-50');
     fetch('api/capacitaciones_cambiar_estado.php', {
       method: 'POST',
@@ -2676,9 +2305,7 @@ tbodyEl.addEventListener('click', function(e){
       cancelar();
     })
     .finally(() => td.classList.remove('opacity-50'));
-
   }
-
   select.addEventListener('change', commit);
   select.addEventListener('blur', cancelar);
   select.addEventListener('keydown', (ev)=>{
@@ -2686,7 +2313,6 @@ tbodyEl.addEventListener('click', function(e){
     if (ev.key === 'Escape') { ev.preventDefault(); cancelar(); }
   });
 });
-
   const busc = document.getElementById('detBuscador');
   const sel  = document.getElementById('detFiltroEstado');
   function applyFilters() {
@@ -2701,7 +2327,6 @@ tbodyEl.addEventListener('click', function(e){
   busc.oninput = applyFilters;
   sel.onchange = applyFilters;
 }
-
 function esc(s){return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));}
 function pad(n){return n<10?'0'+n:n;}
 function fmtFecha(val){
@@ -2729,10 +2354,7 @@ function verDocCap(id) {
   window.open(url, '_blank');
 }
 </script>
-
-
+<script src="../assets/js/header_n360.js"></script>
 <script src="../assets/js/sidebar_n360.js"></script>
 </body>
-
-
 </html>

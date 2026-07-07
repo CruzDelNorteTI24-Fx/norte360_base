@@ -4,31 +4,26 @@ if (!isset($_SESSION['usuario'])) {
     header("Location: ../login/login.php");
     exit();
 }
-
 $permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
 $vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
 if ($_SESSION['web_rol'] !== 'Admin') {
     $modulo_actual = 6; // id_modulo de esta vista
-
     if (!in_array($modulo_actual, $_SESSION['permisos'])) {
         header("Location: ../login/none_permisos.php");
         exit();
     }
 }
-
 define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
-
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
-
-
-
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
 require_once __DIR__ . '/../layout/sidebar_n360.php';
+require_once __DIR__ . '/../layout/header_n360.php';
+require_once __DIR__ . '/../layout/footer_n360.php';
+require_once __DIR__ . '/../layout/content_n360.php';
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -42,7 +37,6 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
         }
-
         .card {
             background: #fff;
             max-width: 700px;
@@ -51,16 +45,13 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             border-radius: 12px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
         }
-
         h2 {
             text-align: center;
             color: #2c3e50;
         }
-
         form {
             margin-bottom: 25px;
         }
-
         input[type=text] {
             width: 100%;
             padding: 14px;
@@ -70,7 +61,6 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             box-sizing: border-box;
             margin-bottom: 15px;
         }
-
         button {
             background: #2980b9;
             color: white;
@@ -81,43 +71,35 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             cursor: pointer;
             width: 100%;
         }
-
         button:hover {
             background: #1c5980;
         }
-
         .resultado {
             font-size: 16px;
             color: #34495e;
             line-height: 1.7;
         }
-
         section {
             margin-bottom: 30px;
             border-bottom: 1px solid #eee;
             padding-bottom: 15px;
         }
-
         section h3 {
             color: #2c3e50;
             margin-bottom: 10px;
             font-size: 18px;
         }
-
         ul {
             list-style: none;
             padding-left: 0;
         }
-
         ul li {
             margin-bottom: 8px;
         }
-
         .img-block {
             text-align: center;
             margin-top: 15px;
         }
-
         .img-block img {
             max-width: 100%;
             height: auto;
@@ -125,18 +107,15 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             border-radius: 6px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
-
         .img-block p {
             margin-bottom: 6px;
             font-weight: bold;
             color: #555;
         }
-
         .no-image {
             color: #aaa;
             font-style: italic;
         }
-
         .codigo {
             background: #ecf0f1;
             padding: 10px;
@@ -145,10 +124,8 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
             font-size: 18px;
             text-align: center;
         }
-
         .valid { color: #27ae60; font-weight: bold; text-align: center; margin-bottom: 15px; }
         .invalid { color: #c0392b; font-weight: bold; text-align: center; margin-bottom: 15px; }
-
         .logo-inicio {
     display: block;
     margin: 0 auto 20px auto;
@@ -165,20 +142,17 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
     box-shadow: 0 8px 20px rgba(0,0,0,0.08);
     text-align: center;
 }
-
 .metodos-extra h3 {
     font-size: 20px;
     margin-bottom: 25px;
     color: #2c3e50;
 }
-
 .opciones-validacion {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
     gap: 20px;
 }
-
 .card-opcion {
     background: #3498db;
     color: white;
@@ -193,12 +167,10 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     transition: background 0.3s, transform 0.3s;
 }
-
 .card-opcion:hover {
     background: #21618c;
     transform: scale(1.05);
 }
-
 hr {
     border: none;
     height: 2px;
@@ -222,7 +194,6 @@ hr {
     transition: background 0.3s, transform 0.3s;
     z-index: 1000;
 }
-
 .btn-flotante:hover {
     background: #218838;
     transform: scale(1.1);
@@ -235,7 +206,6 @@ hr {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     box-sizing: border-box;
 }
-
 .header-content {
     display: flex;
     align-items: center;
@@ -247,12 +217,10 @@ hr {
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .logo-bloque {
     display: flex;
     align-items: center;
 }
-
 .logo-header {
     max-width: 60px;
     height: auto;
@@ -265,7 +233,6 @@ hr {
 }
 .logo-header3 {
     align-items: center;
-
     max-width: 150px;
     height: auto;
     width: auto;
@@ -276,9 +243,6 @@ hr {
     background: #ecf0f1;
     margin: 0 10px;
 }
-
-
-
 .main-footer {
     background: #2c3e50;
     color: white;
@@ -287,7 +251,6 @@ hr {
     width: 100%;
     box-sizing: border-box;
 }
-
 .footer-top {
     display: flex;
     align-items: flex-start;
@@ -295,26 +258,21 @@ hr {
     gap: 20px;
     flex-wrap: wrap;
 }
-
-
 .footer-info {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
 }
-
 .footer-title {
     font-weight: bold;
     font-size: 16px;
     margin: 0 0 10px 0;
 }
-
 .footer-cajas {
     display: flex;
     gap: 15px;
 }
-
 .footer-box {
     padding: 10px;
     border-radius: 8px;
@@ -324,23 +282,17 @@ hr {
     align-items: center;
     justify-content: center;
 }
-
 .footer-box img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
 }
-
 .footer-copy {
     text-align: center;
     margin-top: 30px;
     font-size: 13px;
     color: #ccc;
 }
-
-
-
-
 @media (max-width: 600px) {
     .header-content {
         flex-direction: column;
@@ -352,27 +304,20 @@ hr {
     .separador-vertical {
         display: none;
     }
-    
     .logo-header {
         display: none;
-
 }
-    
             .card, .metodos-extra {
                 padding: 20px;
 margin: 20px
             }
-
             h2 {
                 font-size: 22px;
             }
-
             section h3 {
                 font-size: 16px;
             }
         }
-
-
         @keyframes pulse {
     0% {
         transform: scale(1);
@@ -387,7 +332,6 @@ margin: 20px
         box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
     }
 }
-
 .btn-flotante {
     animation: pulse 6s infinite;
 }
@@ -399,7 +343,6 @@ margin: 20px
         background-position: 200% 0;
     }
 }
-
 .btn-validar {
     background: linear-gradient(120deg, #2980b9 30%, #3498db 50%, #2980b9 70%);
     background-size: 200% auto;
@@ -413,7 +356,6 @@ margin: 20px
     animation: shimmer 4s infinite linear;
     transition: transform 0.3s ease;
 }
-
 .btn-validar:hover {
     transform: scale(1.05);
 }
@@ -425,7 +367,6 @@ margin: 20px
     background-position: 200% 0;
   }
 }
-
 .animated-border {
   background: linear-gradient(
     110deg,
@@ -442,7 +383,6 @@ margin: 20px
     gap: 20px;
     padding-top: 20px;
 }
-
 .product-card {
     background: white;
     border-radius: 12px;
@@ -453,11 +393,9 @@ margin: 20px
     align-items: center;
     transition: transform 0.2s;
 }
-
 .product-card:hover {
     transform: scale(1.02);
 }
-
 .product-card img {
     max-width: 100%;
     max-height: 150px;
@@ -465,26 +403,22 @@ margin: 20px
     object-fit: cover;
     margin-bottom: 12px;
 }
-
 .product-card h4 {
     color: #2c3e50;
     font-size: 16px;
     margin-bottom: 8px;
     text-align: center;
 }
-
 .product-card p {
     font-size: 14px;
     color: #555;
     margin: 2px 0;
     text-align: center;
 }
-
 .pagination {
     text-align: center;
     margin-top: 30px;
 }
-
 .pagination a {
     margin: 0 5px;
     text-decoration: none;
@@ -495,18 +429,13 @@ margin: 20px
     font-weight: bold;
     transition: background 0.3s;
 }
-
 .pagination a:hover {
     background: #21618c;
 }
-
 .pagination strong {
     margin: 0 5px;
     color: #2980b9;
 }
-
-
-
 .modal {
   display: none;
   position: fixed;
@@ -518,7 +447,6 @@ margin: 20px
   background-color: rgba(0,0,0,0.5);
   overflow: auto;
 }
-
 .modal-content {
   background-color: #fff;
   margin: 5% auto;
@@ -529,12 +457,10 @@ margin: 20px
   animation: fadeIn 0.3s ease;
   box-shadow: 0 8px 20px rgba(0,0,0,0.2);
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .cerrar {
   float: right;
   font-size: 24px;
@@ -542,34 +468,27 @@ margin: 20px
   font-weight: bold;
   cursor: pointer;
 }
-
 .cerrar:hover {
   color: #e74c3c;
 }
-
 /* Estilo tabla dentro del modal */
 .modal-content table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
 }
-
 .modal-content th, .modal-content td {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid #ddd;
 }
-
 .modal-content th {
   background-color: #2c3e50;
   color: white;
 }
-
 .modal-content tr:hover {
   background-color: #f1f1f1;
 }
-
-
 #popup-exito {
     position: fixed;
     top: 0;
@@ -583,7 +502,6 @@ margin: 20px
     z-index: 9999;
     animation: fadeIn 0.4s ease forwards;
 }
-
 #popup-exito .mensaje {
     background: linear-gradient(to left, #2ecc71, #27ae60);
     padding: 20px 40px;
@@ -597,28 +515,23 @@ margin: 20px
     transform: scale(0.8);
     opacity: 0;
 }
-
 @keyframes fadeIn {
     to {
         opacity: 1;
     }
 }
-
 @keyframes scaleIn {
     to {
         transform: scale(1);
         opacity: 1;
     }
 }
-
 @keyframes fadeOut {
     to {
         opacity: 0;
         transform: scale(0.9);
     }
 }
-
-
 .check-icon {
   width: 80px;
   height: 80px;
@@ -633,19 +546,16 @@ margin: 20px
   margin: 0 auto 10px auto;
   display: block;
 }
-
 .check-circle {
   stroke-dasharray: 157;
   stroke-dashoffset: 157;
   animation: drawCircle 0.6s ease-out forwards;
 }
-
 .check-mark {
   stroke-dasharray: 36;
   stroke-dashoffset: 36;
   animation: drawCheck 0.4s ease-out 0.5s forwards;
 }
-
 .texto-popup {
   margin-top: 10px;
   font-size: 18px;
@@ -654,19 +564,16 @@ margin: 20px
   animation: fadeInText 0.4s ease-in 0.8s forwards;
   opacity: 0;
 }
-
 @keyframes drawCircle {
   to {
     stroke-dashoffset: 0;
   }
 }
-
 @keyframes drawCheck {
   to {
     stroke-dashoffset: 0;
   }
 }
-
 @keyframes fadeInText {
   to {
     opacity: 1;
@@ -677,18 +584,15 @@ margin: 20px
     flex-direction: column;
     gap: 15px;
 }
-
 .campo-form {
     display: flex;
     flex-direction: column;
 }
-
 .campo-form label {
     font-weight: bold;
     color: #2c3e50;
     margin-bottom: 6px;
 }
-
 .campo-form input,
 .campo-form textarea {
     padding: 12px;
@@ -697,24 +601,20 @@ margin: 20px
     font-size: 15px;
     transition: border 0.3s;
 }
-
 .campo-form input:focus,
 .campo-form textarea:focus {
     border-color: #3498db;
     outline: none;
     box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
 }
-
 .grupo-flex {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .grupo-flex .campo-form {
     flex: 1;
 }
-
     .filtros {
       display: flex;
       flex-wrap: wrap;
@@ -722,7 +622,6 @@ margin: 20px
       gap: 20px;
       margin: 20px;
     }
-
     .filtros input, .filtros select {
       padding: 10px;
       border-radius: 8px;
@@ -736,7 +635,6 @@ margin: 20px
             justify-content: center;
         padding: 10px;
         }
-
         table {
             width: 70%;
             border-collapse: collapse;
@@ -745,24 +643,19 @@ margin: 20px
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
             overflow: hidden;
             min-width: 600px;
-            
         }
-
         th, td {
             padding: 14px;
             border-bottom: 1px solid #ddd;
             text-align: left;
         }
-
         th {
             background-color: #2c3e50;
             color: white;
         }
-
         tr:hover {
             background-color: #f1f1f1;
         }
-
         .volver-btn {
             display: inline-block;
             margin: 20px auto;
@@ -778,12 +671,9 @@ margin: 20px
             animation: shimmer 3s infinite linear;
             text-align: center;
         }
-
         .volver-btn:hover {
             background: #1c5980;
         }
-
-
         @keyframes shimmer {
             0% {
                 background-position: -200% 0;
@@ -792,7 +682,6 @@ margin: 20px
                 background-position: 200% 0;
             }
         }
-
         @media (max-width: 600px) {
         .tabla-contenedor {
             overflow-x: auto;
@@ -811,13 +700,11 @@ margin: 20px
   transition: border 0.3s, box-shadow 0.3s;
   font-family: 'Segoe UI', sans-serif;
 }
-
 .input-evaluacion:focus {
   border-color: #3498db;
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.4);
   outline: none;
 }
-
 #estadoSelect {
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg fill='%233498db' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
@@ -838,13 +725,11 @@ margin: 20px
     transition: all 0.3s ease;
     position: relative;
 }
-
 .btn-cv-profesional:hover {
     background: linear-gradient(90deg, #16a085, #1abc9c);
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(22, 160, 133, 0.5);
 }
-
 .icono-pdf {
     font-size: 20px;
     margin-right: 10px;
@@ -855,7 +740,6 @@ margin: 20px
     overflow-x: auto;
     white-space: nowrap;
 }
-
 .nav-list-pro {
     list-style: none;
     margin: 0;
@@ -865,7 +749,6 @@ margin: 20px
     justify-content: flex-start;
     gap: 30px;
 }
-
 .nav-list-pro li a {
     color: white;
     font-weight: bold;
@@ -878,12 +761,10 @@ margin: 20px
     transition: background 0.3s, transform 0.3s;
     position: relative;
 }
-
 .nav-list-pro li a:hover {
     background: #2c3e50;
     transform: scale(1.05);
 }
-
 .nav-list-pro li a::after {
     content: '';
     position: absolute;
@@ -895,17 +776,14 @@ margin: 20px
     transition: all 0.3s ease-in-out;
     transform: translateX(-50%);
 }
-
 .nav-list-pro li a:hover::after {
     width: 60%;
 }
-
 @media (max-width: 768px) {
   .nav-list-pro {
     gap: 16px;
     padding: 10px;
   }
-
   .nav-list-pro li a {
     font-size: 14px;
     padding: 8px 12px;
@@ -919,7 +797,6 @@ margin: 20px
   border-bottom: 3px solid #3498db;
   animation: fadeIn 0.3s ease;
 }
-
 .subnav a {
   color: #2c3e50;
   font-weight: 600;
@@ -929,17 +806,14 @@ margin: 20px
   border-radius: 20px;
   transition: all 0.3s ease;
 }
-
 .subnav a:hover {
   background: #3498db;
   color: white;
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .usuario-barra {
   margin-left: auto;
   display: flex;
@@ -977,11 +851,9 @@ margin: 20px
   animation: fadeIn 0.3s ease-in-out;
     transition: all 0.3s ease-in-out;
 }
-
 .usuario-dropdown p {
   margin: 8px 0;
 }
-
 .usuario-barra {
   cursor: pointer;
   position: relative;
@@ -997,12 +869,10 @@ margin: 20px
   font-weight: bold;
   transition: background 0.3s, transform 0.2s;
 }
-
 .btn-logout-dropdown:hover {
   background: #c0392b;
   transform: scale(1.03);
 }
-
 .menu-lateral {
   position: fixed;
   left: 0;
@@ -1017,7 +887,6 @@ margin: 20px
   transition: transform 0.4s ease;
   border-right: 1px solid #e0e0e0;
 }
-
 .menu-lateral h3 {
   font-size: 17px;
   margin-bottom: 20px;
@@ -1026,17 +895,14 @@ margin: 20px
   padding-bottom: 10px;
   font-weight: 600;
 }
-
 .menu-lateral ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .menu-lateral ul li {
   margin-bottom: 14px;
 }
-
 .menu-lateral ul li a {
   color: #2d3436;
   text-decoration: none;
@@ -1049,13 +915,11 @@ margin: 20px
   padding: 8px 12px;
   border-radius: 6px;
 }
-
 .menu-lateral ul li a:hover {
   background: #dcdde1;
   color: #0984e3;
   transform: translateX(4px);
 }
-
 .menu-toggle {
   display: none;
   position: fixed;
@@ -1071,7 +935,6 @@ margin: 20px
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   cursor: pointer;
 }
-
 /* Responsive en móviles */
 /* Responsive en móviles */
 @media (max-width: 768px) {
@@ -1087,16 +950,13 @@ margin: 20px
     transition: transform 0.3s ease;
     z-index: 9;
   }
-
   .menu-lateral.active {
     transform: translateX(0);
   }
-
   .main-content {
     margin-left: 0 !important;
     transition: margin-left 0.3s ease;
   }
-
   .menu-toggle {
     position: fixed; /* Para que siempre sea visible */
     top: 15px;
@@ -1112,7 +972,6 @@ margin: 20px
     padding: 0;
     z-index: 10;
   }
-
   .menu-toggle span {
     width: 100%;
     height: 3px;
@@ -1121,31 +980,28 @@ margin: 20px
     transition: all 0.3s ease-in-out;
     transform-origin: 1px;
   }
-
   /* ANIMACIÓN AL ACTIVAR (hamburger a X) */
   .menu-toggle.active span:nth-child(1) {
     transform: rotate(45deg) translate(5px, 5px);
   }
-
   .menu-toggle.active span:nth-child(2) {
     opacity: 0;
   }
-
   .menu-toggle.active span:nth-child(3) {
     transform: rotate(-45deg) translate(5px, -5px);
   }
 }
-
-
 .main-content {
     margin-left: 240px;
     padding: 30px;
 }
-
     </style>
-    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+    <link rel="stylesheet" href="../assets/css/header_n360.css">
+<link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+<link rel="stylesheet" href="../assets/css/main_n360.css">
+<link rel="stylesheet" href="../assets/css/footer_n360.css">
+<link rel="stylesheet" href="../assets/css/content_n360.css">
 </head>
-
 <body>
 <?php
 function calcularEdad($fechaNacimiento) {
@@ -1154,11 +1010,9 @@ function calcularEdad($fechaNacimiento) {
     $edad = $hoy->diff($nac);
     return $edad->y;
 }
-
 $edad = calcularEdad("2000-04-12"); // ejemplo
 ?>
 <?php if ($exito): ?>
-    
 <div id="popup-exito">
   <div class="mensaje">
     <svg class="check-icon" viewBox="0 0 52 52">
@@ -1168,95 +1022,34 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     <p class="texto-popup">¡Trabajador registrado correctamente!</p>
   </div>
 </div>
-
 <?php endif; ?>
-
-<header class="main-header animated-border">
-  <div class="header-content">
-    <a href="../index.php"">
-        <div class="logo-bloque">
-            <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header">
-        </div>
-    </a>
-
-    <div class="separador-vertical"></div>
-        <a href="javascript:location.reload()">
-            <div class="logo-bloque">
-            <img src="../img/completo.png" alt="Logo Sistema" class="logo-header2">
-            </div>
-        </a>
-
-
-    <div class="usuario-contenedor" style="margin-left:auto; position: relative;">
-      <div class="usuario-barra" onclick="toggleDropdown()">
-        <span>Hola, <?= htmlspecialchars($_SESSION['usuario']) ?></span>
-        <img src="../img/icons/user.png" alt="Usuario">
-      </div>
-      <div class="usuario-dropdown" id="usuarioDropdown">
-        <p><strong>Nombre:</strong> <?= htmlspecialchars($_SESSION['usuario']) ?></p>
-        <p><strong>DNI:</strong> <?= htmlspecialchars($_SESSION['DNI']) ?></p>
-        <p><strong>Edad:</strong> <?= $edad ?> años</p>
-        <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%); margin: 12px 0; border: none; border-top: 1px solid #eee;">
-        <p><strong>Rol:</strong> <?= htmlspecialchars($_SESSION['web_rol']) ?></p>
-        <a href="../login/logout.php" class="btn-logout-dropdown">Cerrar sesión</a>
-      </div>
-    </div>
-
-    </div>
-</header>
+<?php n360_render_header(); ?>
 <?php n360_render_sidebar(); ?>
-<div class="main-content">
-    <hr>
+<div class="main-content n360-main n360-main--module">
+<?php n360_render_content_separator('top'); ?>
     <h2>Documentación</h2>
     <!-- <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20el%20servicio.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank">💬 Soporte</a> -->
     <a href="https://wa.me/51944532822?text=Hola%2C%20quisiera%20hacer%20una%20consulta%20sobre%20una%20etiqueta.%20Agradezco%20su%20atención." class="btn-flotante" target="_blank" title="Soporte por WhatsApp">
         <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="Soporte" style="width:30px; height:30px;">
     </a>
-    <hr>
 </div>
-
-
-
-
-<footer class="main-footer animated-border">
-  <div class="footer-top">
-    <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header3">
-    <div class="footer-info">
-      <p class="footer-title">Contáctanos</p>
-      <div class="footer-cajas">
-        <div class="footer-box"><img src="../img/icons/facebook.png" alt="Función 1"></div>
-        <div class="footer-box"><img src="../img/icons/social.png" alt="Función 2"></div>
-      </div>
-    </div>
-  </div>
-  <p class="footer-copy">© <?= date('Y') ?> Norte 360° (v1.0.6). Todos los derechos reservados.</p>
-  <style>.footer-h2bd {position: absolute;bottom: 10px;right: 10px;opacity: 0;transition: opacity 0.4s ease;width: 80px;}.main-footer:hover .footer-h2bd {opacity: 0.6;}.footer-h2bd {filter: grayscale(40%);}</style>
-  <div id="h2bd" style="display:none; position:fixed; bottom:10px; left:10px; z-index:9999; text-align:center;"><img src="<?= $h2bd_img ?>" alt="icong" style="width:80px; opacity:0.8; filter: grayscale(40%); display:block; margin:0 auto;"><p style="color:white; font-size:12px; margin:4px 0 0 0;"><?= $h2bd_name ?></p></div>
-  <script>document.addEventListener('keydown', function(e) {if (e.ctrlKey && e.altKey && e.key === 'm') {const egg = document.getElementById('h2bd');egg.style.display = egg.style.display === 'none' ? 'block' : 'none';}});</script>
-
-</footer>
-
+<?php n360_render_content_separator('bottom'); ?>
+<?php n360_render_footer(); ?>
 <script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
 }
-
 // Cierra si haces clic fuera
 document.addEventListener("click", function (e) {
   const barra = document.querySelector(".usuario-barra");
   const dropdown = document.getElementById("usuarioDropdown");
-
   if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
     dropdown.style.display = "none";
   }
 });
 </script>
-
+<script src="../assets/js/header_n360.js"></script>
 <script src="../assets/js/sidebar_n360.js"></script>
 </body>
-
-
-
 </html>
-

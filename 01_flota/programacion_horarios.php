@@ -38,6 +38,9 @@ require_once("../.c0nn3ct/db_securebd2.php");
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
 require_once __DIR__ . '/../layout/sidebar_n360.php';
+require_once __DIR__ . '/../layout/header_n360.php';
+require_once __DIR__ . '/../layout/footer_n360.php';
+require_once __DIR__ . '/../layout/content_n360.php';
 require_once("../trash/copidb_secure.php");
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
@@ -3875,7 +3878,11 @@ body.modo-qr-programacion .panel-qr-programacion button:hover {
   font-weight: 900;
 }
     </style>
+    <link rel="stylesheet" href="../assets/css/header_n360.css">
     <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
+    <link rel="stylesheet" href="../assets/css/main_n360.css">
+    <link rel="stylesheet" href="../assets/css/footer_n360.css">
+    <link rel="stylesheet" href="../assets/css/content_n360.css">
 </head>
 
 <body class="<?= $modo_qr_programacion ? 'modo-qr-programacion' : '' ?>">
@@ -3903,45 +3910,12 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
 <?php endif; ?>
 
-<header class="main-header animated-border">
-  <div class="header-content">
-    <a href="../index.php"">
-        <div class="logo-bloque">
-            <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header">
-        </div>
-    </a>
-
-    <div class="separador-vertical"></div>
-        <a href="javascript:location.reload()">
-            <div class="logo-bloque">
-            <img src="../img/completo.png" alt="Logo Sistema" class="logo-header2">
-            </div>
-        </a>
-
-
-    <div class="usuario-contenedor" style="margin-left:auto; position: relative;">
-      <div class="usuario-barra" onclick="toggleDropdown()">
-        <span>Hola, <?= htmlspecialchars($_SESSION['usuario']) ?></span>
-        <img src="../img/icons/user.png" alt="Usuario">
-      </div>
-      <div class="usuario-dropdown" id="usuarioDropdown">
-        <p><strong>Nombre:</strong> <?= htmlspecialchars($_SESSION['usuario']) ?></p>
-        <p><strong>DNI:</strong> <?= htmlspecialchars($_SESSION['DNI']) ?></p>
-        <p><strong>Edad:</strong> <?= $edad ?> años</p>
-        <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%); margin: 12px 0; border: none; border-top: 1px solid #eee;">
-        <p><strong>Rol:</strong> <?= htmlspecialchars($_SESSION['web_rol']) ?></p>
-        <a href="../login/logout.php" class="btn-logout-dropdown">Cerrar sesión</a>
-      </div>
-    </div>
-
-    </div>
-</header>
+<?php if (!$modo_qr_programacion) { n360_render_header(['title' => 'Programacion de horarios', 'subtitle' => 'Flota y operaciones']); } ?>
 
 <?php if (!$modo_qr_programacion) { n360_render_sidebar(); } ?>
 
-<div class="main-content">
- <hr>
-
+<div class="main-content <?= $modo_qr_programacion ? '' : 'n360-main n360-main--module' ?>">
+<?php if (!$modo_qr_programacion) { n360_render_content_separator('top'); } ?>
  <div class="container mt-4 mb-5 horarios-page">
     <div id="horariosAlertZone">
         <?php if ($initialError !== ''): ?>
@@ -4017,8 +3991,6 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
         </div>
     </div>
  </div>
-
- <hr>
 
 </div>
 
@@ -4231,24 +4203,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     </p>
   </div>
 </div>
-
-<footer class="main-footer animated-border">
-  <div class="footer-top">
-    <img src="../img/norte360.png" alt="Logo Empresa" class="logo-header3">
-    <div class="footer-info">
-      <p class="footer-title">Contáctanos</p>
-      <div class="footer-cajas">
-        <div class="footer-box"><img src="../img/icons/facebook.png" alt="Función 1"></div>
-        <div class="footer-box"><img src="../img/icons/social.png" alt="Función 2"></div>
-      </div>
-    </div>
-  </div>
-  <p class="footer-copy">© <?= date('Y') ?> Norte 360° (v1.0.6). Todos los derechos reservados.</p>
-  <style>.footer-h2bd {position: absolute;bottom: 10px;right: 10px;opacity: 0;transition: opacity 0.4s ease;width: 80px;}.main-footer:hover .footer-h2bd {opacity: 0.6;}.footer-h2bd {filter: grayscale(40%);}</style>
-  <div id="h2bd" style="display:none; position:fixed; bottom:10px; left:10px; z-index:9999; text-align:center;"><img src="<?= $h2bd_img ?>" alt="icong" style="width:80px; opacity:0.8; filter: grayscale(40%); display:block; margin:0 auto;"><p style="color:white; font-size:12px; margin:4px 0 0 0;"><?= $h2bd_name ?></p></div>
-  <script>document.addEventListener('keydown', function(e) {if (e.ctrlKey && e.altKey && e.key === 'm') {const egg = document.getElementById('h2bd');egg.style.display = egg.style.display === 'none' ? 'block' : 'none';}});</script>
-
-</footer>
+<?php if (!$modo_qr_programacion) { n360_render_content_separator('bottom'); n360_render_footer(); } ?>
 
 <script>
 window.horariosInitialData = <?= json_encode($initialSnapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
@@ -7183,6 +7138,7 @@ document.addEventListener("click", function (e) {
 });
 </script>
 
+<script src="../assets/js/header_n360.js"></script>
 <script src="../assets/js/sidebar_n360.js"></script>
 </body>
 

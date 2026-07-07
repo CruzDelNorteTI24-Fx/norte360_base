@@ -19,15 +19,20 @@ $runId = date('Ymd_His') . '_' . bin2hex(random_bytes(3));
 cron_log("PING_CRON | run={$runId} | sapi=" . php_sapi_name() . " | ip=" . ($_SERVER['REMOTE_ADDR'] ?? 'CLI'));
 
 $tokenPermitido = 'NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
+$esCli = (php_sapi_name() === 'cli');
+
 $tokenRecibido = $_GET['token'] ?? '';
 
-if ($tokenRecibido !== $tokenPermitido) {
+if (!$esCli && $tokenRecibido !== $tokenPermitido) {
     cron_log("ACCESO DENEGADO | run={$runId}");
     http_response_code(403);
     echo "Acceso denegado.";
     exit;
 }
 
+if ($esCli) {
+    cron_log("ACCESO CLI AUTORIZADO | run={$runId}");
+}
 define('ACCESS_GRANTED', true);
 
 try {
