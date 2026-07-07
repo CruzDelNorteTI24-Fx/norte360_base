@@ -142,7 +142,6 @@ $saldo_estimado = $cant_inventariado + $cant_entradas - $cant_salidas;
     bottom:0;
     height:3px;
     border-radius:999px;
-    background:linear-gradient(90deg,#0ea5e9,#facc15,#0ea5e9);
     opacity:.9;
   }
 

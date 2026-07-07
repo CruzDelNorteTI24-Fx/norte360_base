@@ -5771,7 +5771,7 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
 
   const margen = 34;
   const panelDerechoW = 320;
-  const cuerpoW = 1500;
+  const cuerpoW = 1760;
   const anchoTotal = cuerpoW + panelDerechoW + (margen * 2);
 
   let alto = 60;
@@ -5827,8 +5827,8 @@ const fMetaValue = fontPizarra(700, 20);
 const fOrigen = fontPizarra(800, 27);
 const fCount = fontPizarra(400, 12);
 
-const fHora = fontPizarra(900, 42);
-const fBus = fontPizarra(900, 35);
+const fHora = fontPizarra(900, 34);
+const fBus = fontPizarra(900, 40);
 const fDest = fontPizarra(900, 22);
 
 const fSmall = fontPizarra(400, 13);
@@ -6103,7 +6103,7 @@ busesSinHorario.forEach(b => {
           shadow: false
         });
 
-        drawText(ctx, hora || '—', subX, filaY + 1, { font: fHora, color: textMain });
+        drawText(ctx, hora || '—', subX, filaY + 7, { font: fHora, color: textMain });
 
         if (esSigDia) {
           drawText(ctx, fechaSigCorta, subX + 3, filaY + 38, { font: fSmall, color: slate });
@@ -6114,13 +6114,13 @@ busesSinHorario.forEach(b => {
         const xDestino = subX + 315;
 
         if (bus) {
-          drawText(
-            ctx,
-            fitText(ctx, bus, 165, fBus),
-            xBus,
-            filaY + 5,
-            { font: fBus, color: blue }
-          );
+            drawText(
+              ctx,
+              fitText(ctx, bus, 170, fBus),
+              xBus,
+              filaY + 3,
+              { font: fBus, color: blue }
+            );
         } else {
           drawLine(ctx, xBus, filaY + 27, xBus + 130, filaY + 27, lineEmpty, 3);
         }
@@ -6130,9 +6130,9 @@ busesSinHorario.forEach(b => {
 
           drawText(
             ctx,
-            fitText(ctx, destinoServicio, subcolW - 330, fDest),
+            fitText(ctx, destinoServicio, subcolW - 335, fDest),
             xDestino,
-            filaY + 11,
+            filaY + 12,
             { font: fDest, color: colorDest }
           );
         }

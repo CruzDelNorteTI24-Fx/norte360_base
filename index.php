@@ -12,6 +12,7 @@ define('N360_LAYOUT', true);
 define('N360_BASE_URL', './');
 
 require_once __DIR__ . '/layout/sidebar_n360.php';
+require_once __DIR__ . '/layout/header_n360.php';
 
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
@@ -26,6 +27,7 @@ unset($_SESSION['exito']);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="./assets/css/sidebar_n360.css">
+    <link rel="stylesheet" href="./assets/css/header_n360.css">
     <link rel="icon" href="img/norte360.png">    
     <style>
         body {
@@ -219,42 +221,6 @@ hr {
     background: #218838;
     transform: scale(1.1);
 }
-.main-header {
-    background: #2c3e50;
-    width: 100%;
-    padding: 20px 30px;
-    color: white;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    box-sizing: border-box;
-}
-
-.header-content {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    width: 100%;
-    max-width: none;
-    padding: 0 30px;
-    box-sizing: border-box;
-    gap: 20px;
-    flex-wrap: wrap;
-}
-
-.logo-bloque {
-    display: flex;
-    align-items: center;
-}
-
-.logo-header {
-    max-width: 60px;
-    height: auto;
-    width: auto;
-}
-.logo-header2 {
-    max-width: 60px;
-    height: auto;
-    max-width: 300px;
-}
 .logo-header3 {
     align-items: center;
 
@@ -262,15 +228,6 @@ hr {
     height: auto;
     width: auto;
 }
-.separador-vertical {
-    width: 4px;
-    height: 50px;
-    background: #ecf0f1;
-    margin: 0 10px;
-}
-
-
-
 .main-footer {
     background: #2c3e50;
     color: white;
@@ -334,22 +291,6 @@ hr {
 
 
 @media (max-width: 600px) {
-    .header-content {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 10px;
-        padding: 10px 20px;
-    }
-    .separador-vertical {
-        display: none;
-    }
-    
-    .logo-header {
-        display: none;
-
-}
-    
             .card, .metodos-extra {
                 padding: 20px;
 margin: 20px
@@ -841,69 +782,6 @@ margin: 20px
     font-size: 20px;
     margin-right: 10px;
 }
-.usuario-barra {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: white;
-  font-weight: bold;
-}
-.usuario-barra img {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: white;
-  padding: 2px;
-}
-.usuario-barra span {
-  font-weight: bold;
-  font-size: 15px;
-  white-space: nowrap;
-}
-.usuario-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 30px;
-  margin-top: 5px;
-  background: white;
-  color: #2c3e50;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  padding: 15px 20px;
-  min-width: 220px;
-  display: none;
-  z-index: 999;
-  font-size: 15px;
-  animation: fadeIn 0.3s ease-in-out;
-    transition: all 0.3s ease-in-out;
-}
-
-.usuario-dropdown p {
-  margin: 8px 0;
-}
-
-.usuario-barra {
-  cursor: pointer;
-  position: relative;
-}
-.btn-logout-dropdown {
-  display: block;
-  background: #e74c3c;
-  color: white;
-  text-align: center;
-  padding: 10px 0;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: bold;
-  transition: background 0.3s, transform 0.2s;
-}
-
-.btn-logout-dropdown:hover {
-  background: #c0392b;
-  transform: scale(1.03);
-}
-
 .main-content {
     padding: 30px;
 }
@@ -942,16 +820,6 @@ margin: 20px
 </head>
 
 <body>
-<?php
-function calcularEdad($fechaNacimiento) {
-    $hoy = new DateTime();
-    $nac = new DateTime($fechaNacimiento);
-    $edad = $hoy->diff($nac);
-    return $edad->y;
-}
-
-$edad = calcularEdad("2000-04-12"); // ejemplo
-?>
 <?php if ($exito): ?>
     
 <div id="popup-exito">
@@ -966,39 +834,10 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
 <?php endif; ?>
 
-<header class="main-header animated-border">
-  <div class="header-content">
-    <a href="javascript:location.reload()">
-        <div class="logo-bloque">
-            <img src="img/norte360.png" alt="Logo Empresa" class="logo-header">
-        </div>
-    </a>
-
-    <div class="separador-vertical"></div>
-        <a href="javascript:location.reload()">
-            <div class="logo-bloque">
-            <img src="img/completo.png" alt="Logo Sistema" class="logo-header2">
-            </div>
-        </a>
-
-
-    <div class="usuario-contenedor" style="margin-left:auto; position: relative;">
-      <div class="usuario-barra" onclick="toggleDropdown()">
-        <span>Hola, <?= htmlspecialchars($_SESSION['usuario']) ?></span>
-        <img src="img/icons/user.png" alt="Usuario">
-      </div>
-      <div class="usuario-dropdown" id="usuarioDropdown">
-        <p><strong>Nombre:</strong> <?= htmlspecialchars($_SESSION['usuario']) ?></p>
-        <p><strong>DNI:</strong> <?= htmlspecialchars($_SESSION['DNI']) ?></p>
-        <p><strong>Edad:</strong> <?= $edad ?> años</p>
-        <hr style="background: linear-gradient(120deg, #2980b9 30%, black 50%, #2980b9 70%); margin: 12px 0; border: none; border-top: 1px solid #eee;">
-        <p><strong>Rol:</strong> <?= htmlspecialchars($_SESSION['web_rol']) ?></p>
-        <a href="login/logout.php" class="btn-logout-dropdown">Cerrar sesión</a>
-      </div>
-    </div>
-
-    </div>
-</header>
+<?php n360_render_header([
+    'title' => 'Panel principal',
+    'subtitle' => 'Resumen general del sistema',
+]); ?>
 
 <?php n360_render_sidebar(); ?>
 
@@ -1147,22 +986,7 @@ if (n360_puede_alguna_vista(['f-placas', 'f-flotas'])) {
 
 </footer>
 
-<script>
-function toggleDropdown() {
-  const dropdown = document.getElementById("usuarioDropdown");
-  dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
-}
-
-// Cierra si haces clic fuera
-document.addEventListener("click", function (e) {
-  const barra = document.querySelector(".usuario-barra");
-  const dropdown = document.getElementById("usuarioDropdown");
-
-  if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
-    dropdown.style.display = "none";
-  }
-});
-</script>
+<script src="./assets/js/header_n360.js"></script>
 <script src="./assets/js/sidebar_n360.js"></script>
 </body>
 
