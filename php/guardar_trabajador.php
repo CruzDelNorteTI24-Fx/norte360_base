@@ -1,14 +1,35 @@
 <?php
+ini_set('session.gc_maxlifetime', (string) (8 * 60 * 60));
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
 session_start();
 
-// CSRF PROTECTION
-if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-    http_response_code(403);
-    die("CSRF detectado. Solicitud rechazada.");
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    header("Location: ../01_contratos/nregrcdn_h.php");
+    exit();
 }
-unset($_SESSION['csrf_token']);
+
+if (!isset($_SESSION['usuario'])) {
+    http_response_code(401);
+    die("Tu sesion expiro. Vuelve a iniciar sesion e intenta registrar nuevamente.");
+}
+
+function n360_registro_trabajador_csrf_valido(?string $token): bool {
+    $stored = $_SESSION['csrf_tokens']['registro_trabajador']['value'] ?? '';
+
+    return is_string($token)
+        && $token !== ''
+        && is_string($stored)
+        && $stored !== ''
+        && hash_equals($stored, $token);
+}
+
+if (!n360_registro_trabajador_csrf_valido($_POST['csrf_token'] ?? null)) {
+    http_response_code(403);
+    die("CSRF detectado. Solicitud rechazada. Actualiza la pagina e intenta nuevamente.");
+}
+
+$_SESSION['csrf_tokens']['registro_trabajador']['touched_at'] = time();
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     // === GENERAL ===
@@ -151,7 +172,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
     $conn->close();
-
+    unset($_SESSION['csrf_tokens']['registro_trabajador']);
     $_SESSION['exito'] = true;
     header("Location: ../01_contratos/nregrcdn_h.php");
     exit();

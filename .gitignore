@@ -2,5 +2,6 @@
 /00_desarrollo oficina/
 /00_producción/
 /trash/NO VALE/
+/assets/fonts/
 *.env
 cron_cierre_operativo.log

@@ -1,4 +1,5 @@
 <?php
+ini_set('session.gc_maxlifetime', (string) (8 * 60 * 60));
 session_start();
 
 if (!isset($_SESSION['usuario'])) {
@@ -16,11 +17,34 @@ if ($_SESSION['web_rol'] !== 'Admin') {
     }
 }
 
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-$csrf = $_SESSION['csrf_token'];
+function n360_registro_trabajador_csrf(): string {
+    if (!isset($_SESSION['csrf_tokens']) || !is_array($_SESSION['csrf_tokens'])) {
+        $_SESSION['csrf_tokens'] = [];
+    }
 
+    $key = 'registro_trabajador';
+
+    if (empty($_SESSION['csrf_tokens'][$key]['value'])) {
+        $_SESSION['csrf_tokens'][$key] = [
+            'value' => bin2hex(random_bytes(32)),
+            'created_at' => time(),
+        ];
+    }
+
+    $_SESSION['csrf_tokens'][$key]['touched_at'] = time();
+    return $_SESSION['csrf_tokens'][$key]['value'];
+}
+
+if (isset($_GET['csrf_refresh']) && $_GET['csrf_refresh'] === 'registro_trabajador') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'ok' => true,
+        'token' => n360_registro_trabajador_csrf(),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit();
+}
+
+$csrf = n360_registro_trabajador_csrf();
 define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
 
@@ -2379,6 +2403,65 @@ document.addEventListener("click", function (e) {
 });
 </script>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.querySelector('form[action="../php/guardar_trabajador.php"]');
+  const csrfInput = document.querySelector('input[name="csrf_token"]');
+  let csrfRefreshPromise = null;
+  let submittingRegistroTrabajador = false;
+
+  async function refreshRegistroTrabajadorCsrf() {
+    if (!csrfInput) return false;
+
+    if (csrfRefreshPromise) {
+      return csrfRefreshPromise;
+    }
+
+    csrfRefreshPromise = fetch(`${window.location.pathname}?csrf_refresh=registro_trabajador`, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(async response => {
+        if (!response.ok) return false;
+
+        const data = await response.json();
+        if (!data || !data.ok || !data.token) return false;
+
+        csrfInput.value = data.token;
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => {
+        csrfRefreshPromise = null;
+      });
+
+    return csrfRefreshPromise;
+  }
+
+  setInterval(refreshRegistroTrabajadorCsrf, 4 * 60 * 1000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) refreshRegistroTrabajadorCsrf();
+  });
+
+  if (form) {
+    form.addEventListener('submit', async function (event) {
+      if (submittingRegistroTrabajador) return;
+
+      event.preventDefault();
+      const refreshed = await refreshRegistroTrabajadorCsrf();
+
+      if (!refreshed) {
+        alert('No se pudo renovar la sesion del formulario. Actualiza la pagina e intenta nuevamente.');
+        return;
+      }
+
+      submittingRegistroTrabajador = true;
+      HTMLFormElement.prototype.submit.call(form);
+    });
+  }
+});
+</script>
 <script src="../assets/js/sidebar_n360.js"></script>
 </body>
 
