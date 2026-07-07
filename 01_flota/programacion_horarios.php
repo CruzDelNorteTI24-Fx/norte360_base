@@ -3851,7 +3851,29 @@ body.modo-qr-programacion .panel-qr-programacion button {
 body.modo-qr-programacion .panel-qr-programacion button:hover {
     background: #ffc766;
 }
+@font-face {
+  font-family: "N360Pizarra";
+  src: url("../assets/fonts/static/Inter_24pt-Regular.ttf") format("truetype");
+  font-weight: 400;
+}
 
+@font-face {
+  font-family: "N360Pizarra";
+  src: url("../assets/fonts/static/Inter_24pt-Bold.ttf") format("truetype");
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: "N360Pizarra";
+  src: url("../assets/fonts/static/Inter_24pt-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+}
+
+@font-face {
+  font-family: "N360Pizarra";
+  src: url("../assets/fonts/static/Inter_24pt-Black.ttf") format("truetype");
+  font-weight: 900;
+}
     </style>
     <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
 </head>
@@ -5025,7 +5047,26 @@ els.boardContainer.innerHTML = Object.keys(groups)
     ctx.restore();
   }
 
-  function measureTextWidth(ctx, text, font = '14px Segoe UI') {
+const FONT_PIZARRA_NAME = 'N360Pizarra';
+
+function fontPizarra(weight, sizePx) {
+  return `${weight} ${sizePx}px "${FONT_PIZARRA_NAME}", Arial, sans-serif`;
+}
+
+async function asegurarFuentePizarra() {
+  if (!document.fonts) return;
+
+  await Promise.all([
+    document.fonts.load(fontPizarra(400, 14)),
+    document.fonts.load(fontPizarra(700, 18)),
+    document.fonts.load(fontPizarra(800, 27)),
+    document.fonts.load(fontPizarra(900, 42))
+  ]);
+
+  await document.fonts.ready;
+}
+
+  function measureTextWidth(ctx, text, font = fontPizarra(400, 14)) {
     ctx.save();
     ctx.font = font;
     const w = ctx.measureText(String(text ?? '')).width;
@@ -5033,7 +5074,7 @@ els.boardContainer.innerHTML = Object.keys(groups)
     return w;
   }
 
-  function fitText(ctx, text, maxWidth, font = '14px Segoe UI') {
+  function fitText(ctx, text, maxWidth, font = fontPizarra(400, 14)) {
     const raw = String(text ?? '');
     if (!raw) return '';
     ctx.save();
@@ -5436,6 +5477,8 @@ async function generarImagenPizarra() {
 
 
 async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario, busesTaller, options = {}) {
+  await asegurarFuentePizarra();
+
   const filas = (filasGrupo || []).slice().sort((a, b) => {
     return cmpArr(sortKey(a), sortKey(b));
   });
@@ -5709,6 +5752,8 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
 
 
 async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorario, busesTaller, options = {}) {
+  await asegurarFuentePizarra();
+
   const grupos = {};
 
   filasGrupo.forEach(r => {
@@ -5766,27 +5811,27 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
   const wineSoft = '#fdf2f4';
   const white = '#ffffff';
 
-const fBrand = '700 18px "Segoe UI"';
-const fTitle = '700 30px "Segoe UI"';
-const fGrupo = '900 40px "Segoe UI"';
-const fOperativaChip = '900 28px "Segoe UI"';
+const fBrand = fontPizarra(700, 18);
+const fTitle = fontPizarra(700, 30);
+const fGrupo = fontPizarra(900, 40);
+const fOperativaChip = fontPizarra(900, 28);
 
-const fSub = '14px "Segoe UI"';
-const fMetaLabel = '700 13px "Segoe UI"';
-const fMetaValue = '700 20px "Segoe UI"';
+const fSub = fontPizarra(400, 14);
+const fMetaLabel = fontPizarra(700, 13);
+const fMetaValue = fontPizarra(700, 20);
 
-const fOrigen = '800 27px "Segoe UI"';
-const fCount = '12px "Segoe UI"';
+const fOrigen = fontPizarra(800, 27);
+const fCount = fontPizarra(400, 12);
 
-const fHora = '900 42px "Segoe UI"';
-const fBus = '900 35px "Segoe UI"';
-const fDest = '900 22px "Segoe UI"';
+const fHora = fontPizarra(900, 42);
+const fBus = fontPizarra(900, 35);
+const fDest = fontPizarra(900, 22);
 
-const fSmall = '13px "Segoe UI"';
+const fSmall = fontPizarra(400, 13);
 
-const fPanelHead = '800 25px "Segoe UI"';
-const fPanelBus = '800 21px "Segoe UI"';
-const fPanelSmall = '12px "Segoe UI"';
+const fPanelHead = fontPizarra(800, 25);
+const fPanelBus = fontPizarra(800, 21);
+const fPanelSmall = fontPizarra(400, 12);
 
   const fechas = state.snapshot.fechas || {};
   const fechaBaseTxt = fechas.fecha_base || '—';
