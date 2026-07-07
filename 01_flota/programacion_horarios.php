@@ -3853,25 +3853,25 @@ body.modo-qr-programacion .panel-qr-programacion button:hover {
 }
 @font-face {
   font-family: "N360Pizarra";
-  src: url("../assets/fonts/static/Inter_24pt-Regular.ttf") format("truetype");
+  src: url("../assets/fonts/static/Inter_24pt-Regular.ttf?v=1") format("truetype");
   font-weight: 400;
 }
 
 @font-face {
   font-family: "N360Pizarra";
-  src: url("../assets/fonts/static/Inter_24pt-Bold.ttf") format("truetype");
+  src: url("../assets/fonts/static/Inter_24pt-Bold.ttf?v=1") format("truetype");
   font-weight: 700;
 }
 
 @font-face {
   font-family: "N360Pizarra";
-  src: url("../assets/fonts/static/Inter_24pt-ExtraBold.ttf") format("truetype");
+  src: url("../assets/fonts/static/Inter_24pt-ExtraBold.ttf?v=1") format("truetype");
   font-weight: 800;
 }
 
 @font-face {
   font-family: "N360Pizarra";
-  src: url("../assets/fonts/static/Inter_24pt-Black.ttf") format("truetype");
+  src: url("../assets/fonts/static/Inter_24pt-Black.ttf?v=1") format("truetype");
   font-weight: 900;
 }
     </style>
@@ -5056,14 +5056,18 @@ function fontPizarra(weight, sizePx) {
 async function asegurarFuentePizarra() {
   if (!document.fonts) return;
 
-  await Promise.all([
-    document.fonts.load(fontPizarra(400, 14)),
-    document.fonts.load(fontPizarra(700, 18)),
-    document.fonts.load(fontPizarra(800, 27)),
-    document.fonts.load(fontPizarra(900, 42))
-  ]);
+  try {
+    await Promise.all([
+      document.fonts.load(fontPizarra(400, 14)),
+      document.fonts.load(fontPizarra(700, 18)),
+      document.fonts.load(fontPizarra(800, 27)),
+      document.fonts.load(fontPizarra(900, 42))
+    ]);
 
-  await document.fonts.ready;
+    await document.fonts.ready;
+  } catch (e) {
+    console.warn('No se pudo cargar N360Pizarra, se usará fuente alternativa:', e);
+  }
 }
 
   function measureTextWidth(ctx, text, font = fontPizarra(400, 14)) {
