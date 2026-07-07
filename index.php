@@ -4,7 +4,7 @@ if (!isset($_SESSION['usuario'])) {
     header("Location: ../login/login.php");
     exit();
 }
-
+//hola
 define('ACCESS_GRANTED', true);
 require_once("trash/copidb_secure copy.php");
 
