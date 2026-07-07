@@ -7,12 +7,25 @@ if (!isset($_SESSION['usuario'])) {
 
 $permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
 $vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
+$id_tipo = isset($_GET['id_tipo']) ? intval($_GET['id_tipo']) : 1;
+
+$permisosPorTipoChecklist = [
+    1 => ['c-limp', 'c-lalu'], // Limpieza
+    2 => ['c-sab'],           // Embarque
+    3 => ['c-lalu'],          // Alcoholimetro
+    4 => ['c-lalu'],          // Fumigacion
+];
+
+if (!array_key_exists($id_tipo, $permisosPorTipoChecklist)) {
+    header("Location: ../../login/none_permisos.php");
+    exit();
+}
 
 if ($_SESSION['web_rol'] !== 'Admin') {
     $modulo_actual = 5; // id_modulo de esta vista
-    $vista_actuales = ["c-limp", "c-sab", "c-lalu"];
+    $vistasPermitidasTipo = $permisosPorTipoChecklist[$id_tipo];
 
-    if (!in_array($modulo_actual, $_SESSION['permisos']) || empty(array_intersect($vista_actuales, $_SESSION['vistas']))) {
+    if (!in_array($modulo_actual, $permisos) || empty(array_intersect($vistasPermitidasTipo, $vistas))) {
         header("Location: ../../login/none_permisos.php");
         exit();
     }
@@ -21,6 +34,10 @@ if ($_SESSION['web_rol'] !== 'Admin') {
 define('ACCESS_GRANTED', true);
 require_once("../../trash/copidb_secure.php");
 require_once("../../.c0nn3ct/db_securebd2.php");
+
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../../');
+require_once __DIR__ . '/../../layout/sidebar_n360.php';
 
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
@@ -1190,6 +1207,8 @@ input[type=date] {
   100% { transform: rotate(359deg); }
 }
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../assets/css/sidebar_n360.css">
 </head>
 
 <body>
@@ -1261,82 +1280,18 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
     </div>
 </header>
-
-<nav id="nav-modulos" class="nav-bar-pro">
-  <ul class="nav-list-pro">
-  <?php
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-personal\')">👥 Recursos Humanos</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-mantenimiento\')">🔧 Mantenimiento</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-inventario\')">📦 Inventario</a></li>';
-    }
-  ?>
-  </ul>
-</nav>
-
-<div id="modulo-personal" class="subnav" style="display: none;">
-  <a href="../../01_contratos/nregrcdn_h.php">➕ Nuevo Trabajador</a>
-  <a href="../../01_entrevistas/reentrev.php">➕ Nueva Entrevista</a>
-  <a href="../../01_contratos/documentacion/agregadocu.php">➕ Nueva Documentación</a>
-  <a href="../../01_contratos/nlaskdrcdn_h.php">👤 Personal</a>
-  <a href="../../01_entrevistas/bvisentrevisaf.php">📝 Entrevistas</a>
-  <a href="../../01_contratos/dorrhcdn.php">📁 Documentación</a>
-</div>
-
-<div id="modulo-inventario" class="subnav" style="display: none;">
-  <a href="../../01_almacen/scanner.php"> 🏷️ Código de Barra</a>
-  <a href="../../01_almacen/gen_np9823.php">📋 Catálogo Productos</a>
-</div>
-
-<div id="modulo-mantenimiento" class="subnav" style="display: none;">
-  <a href="../lista_cheklist.php">📝 CheckList</a>
-</div>
-
-<button class="menu-toggle" onclick="toggleMenu()">☰</button>
-
-<div class="menu-lateral" id="menuLateral">
-    <?php
-        if ($_SESSION['web_rol'] == 'Admin' || in_array("c-lalu", $vistas)) {
-
-          echo "<h3>Generar CheckList</h3>";
-          echo "<ul>";
-            echo "<li><a href='../limpieza/mantcdn.php?id_tipo=1'>➕ Nueva Limpieza</a></li>";
-            echo "<li><a href='../limpieza/mantcdn.php?id_tipo=3'>➕ Nuevo Alcoholímetro</a></li>";
-            echo "<li><a href='../limpieza/mantcdn.php?id_tipo=4'>➕ Nueva Fumigación</a></li>";
-          echo "</ul>";
-        }
-        if ($_SESSION['web_rol'] == 'Admin' || in_array("c-sab", $vistas)) {
-          echo "<h3>Generar CheckList</h3>";
-          echo "<ul>";
-            echo "<li><a href='../limpieza/mantcdn.php?id_tipo=2'>➕ Nuevo Embarque</a></li>";
-          echo "</ul>";
-        }
-    ?>
-  <h3>Lista CheckList</h3>  
-  <ul>
-    <li><a href="../lista_cheklist.php">Ver CheckList</a></li>
-    <li><a href="../interbus_vld.php">Generar Ruta</a></li>
-    <?php
-        if ($_SESSION['web_rol'] == 'Admin') {
-          echo "<li><a href='../viajes.php'>Ver Viajes</a></li>";
-          echo "<li><a href='../calendario_cheklist.php'>Calendario ChekList</a></li>";
-          echo "<li><a href='../categorias_items.php'>Gestionar Ítems ChekList</a></li>";
-        }
-    ?>
-  </ul>
-</div>
+<?php n360_render_sidebar(); ?>
 <?php
-// Obtener el nombre del tipo de checklist según ID (en este caso, id=1)
-$id_tipo = isset($_GET['id_tipo']) ? intval($_GET['id_tipo']) : 1;
+// Obtener el nombre del tipo de checklist validado por permisos.
 $stmt_tipo = $conn->prepare("SELECT clm_checktip_nombre FROM tb_checklist_tipos WHERE clm_checktip_id = ?");
 $stmt_tipo->bind_param("i", $id_tipo);
 $stmt_tipo->execute();
 $stmt_tipo->bind_result($nombre_tipo);
-$stmt_tipo->fetch();
+if (!$stmt_tipo->fetch()) {
+    $stmt_tipo->close();
+    header("Location: ../../login/none_permisos.php");
+    exit();
+}
 $stmt_tipo->close();
 ?>
 <?php
@@ -1545,18 +1500,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 </script>
-<script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-</script>
 
 <script>
 function toggleDropdown() {
@@ -1575,12 +1518,6 @@ document.addEventListener("click", function (e) {
 });
 </script>
 <script>
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
-</script>
-<script>
 document.addEventListener("DOMContentLoaded", function() {
   const form = document.getElementById("form-checklist");
   const modal = document.getElementById("modal-cargando");
@@ -1591,6 +1528,7 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 
+<script src="../../assets/js/sidebar_n360.js"></script>
 </body>
 
 

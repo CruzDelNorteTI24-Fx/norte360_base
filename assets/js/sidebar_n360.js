@@ -34,6 +34,9 @@ function n360ToggleSidebarMobile() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.getElementById('sidebarN360');
+    if (!sidebar) return;
+
     document.body.classList.add('with-sidebar');
 
     const collapsed = localStorage.getItem('n360_sidebar_collapsed');

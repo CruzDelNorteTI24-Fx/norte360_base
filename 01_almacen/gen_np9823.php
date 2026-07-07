@@ -4,6 +4,10 @@ session_start();
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
 
+
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../');
+require_once __DIR__ . '/../layout/sidebar_n360.php';
 $permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
 $vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
 
@@ -1539,6 +1543,7 @@ body.drawer-open{
   }
 }
     </style>
+    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
 </head>
 
 <body>
@@ -1582,63 +1587,7 @@ body.drawer-open{
     </div>
   </header>
 
-  <nav id="nav-modulos" class="nav-bar-pro">
-    <ul class="nav-list-pro">
-    <?php
-      if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-          echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-personal\')">👥 Recursos Humanos</a></li>';
-      }
-      if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
-          echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-mantenimiento\')">🔧 Mantenimiento</a></li>';
-      }
-      if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
-          echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-inventario\')">📦 Inventario</a></li>';
-      }
-    ?>
-    </ul>
-  </nav>
-
-  <div id="modulo-personal" class="subnav" style="display: none;">
-    <a href="../01_contratos/nregrcdn_h.php">➕ Nuevo Trabajador</a>
-    <a href="../01_entrevistas/reentrev.php">➕ Nueva Entrevista</a>
-    <a href="../01_contratos/documentacion/agregadocu.php">➕ Nueva Documentación</a>
-    <a href="../01_contratos/nlaskdrcdn_h.php">👤 Personal</a>
-    <a href="../01_entrevistas/bvisentrevisaf.php">📝 Entrevistas</a>
-    <a href="../01_contratos/dorrhcdn.php">📁 Documentación</a>
-  </div>
-
-  <div id="modulo-inventario" class="subnav" style="display: none;">
-    <a href="../01_almacen/scanner.php"> 🏷️ Código de Barra</a>
-    <a href="../01_almacen/gen_np9823.php">📋 Productos</a>
-  </div>
-  <div id="modulo-mantenimiento" class="subnav" style="display: none;">
-    <a href="../01_amantenimiento\lista_cheklist.php">📝 CheckList</a>
-  </div>
-
-  <button class="menu-toggle" id="btnMenuToggle" onclick="toggleMenu()" aria-label="Menú"><span></span><span></span><span></span></button>
-
-  <!-- SIDEBAR FIJO EN DESKTOP -->
-  <nav class="menu-lateral" id="menuLateral">
-    <button class="sidebar-toggle-btn" id="btnHideSidebar" aria-label="Ocultar menú">
-      <i class="bi bi-chevron-left"></i>
-    </button>
-
-    <div class="menu-logo">
-      <img src="../img/norte360_black.png" alt="Logo" style="height:40px; vertical-align: middle;">
-      <span class="fw-bold ms-2" style="color:#2c3e50;">Norte 360°</span>
-    </div>
-    <ul class="menu-list">
-      <h3>Inventario</h3>
-      <li><a href="gen_np9823.php"><i class="bi bi-boxes me-2"></i> Catálogo Productos</a></li>
-      <li><a href="scanner.php"><i class="bi bi-upc-scan me-2"></i> Código de Barras</a></li>
-      <li><a href="movimientos_ofi.php"><i class="bi bi-arrow-left-right me-2"></i> Movimientos</a></li>
-    </ul>
-  </nav>
-  <button class="sidebar-show-btn" id="sidebarShowBtn" aria-label="Mostrar menú">
-    <i class="bi bi-chevron-right"></i>
-  </button>
-
-  <hr>
+<?php n360_render_sidebar(); ?>
 
 <div class="main-content">
 <main>
@@ -1888,6 +1837,7 @@ function buscarPorCodigo(){
   }
 </script>
 
+<script src="../assets/js/sidebar_n360.js"></script>
 </body>
 
 <script>
@@ -1974,70 +1924,6 @@ function cerrarNotaModal() {
 }
 </script>
 
-
-<script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-
-function toggleDropdown() {
-  const dropdown = document.getElementById("usuarioDropdown");
-  dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
-}
-
-// Cierra si haces clic fuera
-document.addEventListener("click", function (e) {
-  const barra = document.querySelector(".usuario-barra");
-  const dropdown = document.getElementById("usuarioDropdown");
-
-  if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
-    dropdown.style.display = "none";
-  }
-});
-
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
-  (function () {
-    const body = document.body;
-    const hideBtn = document.getElementById('btnHideSidebar');
-    const showBtn = document.getElementById('sidebarShowBtn');
-    const STORAGE_KEY = 'sidebarCollapsed';
-
-    function setSidebar(collapsed) {
-      body.classList.toggle('sidebar-collapsed', collapsed);
-      try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch(e) {}
-    }
-
-    // Estado inicial desde localStorage (solo aplica en escritorio)
-    const prefersCollapsed = (localStorage.getItem(STORAGE_KEY) === '1');
-    if (window.matchMedia('(min-width: 992px)').matches && prefersCollapsed) {
-      setSidebar(true);
-    }
-
-    // Eventos
-    if (hideBtn) hideBtn.addEventListener('click', () => setSidebar(true));
-    if (showBtn) showBtn.addEventListener('click', () => setSidebar(false));
-
-    // Si cambias de tamaño de ventana, respeta el estado en escritorio y limpia en móvil
-    window.addEventListener('resize', () => {
-      if (window.matchMedia('(min-width: 992px)').matches) {
-        const collapsed = (localStorage.getItem(STORAGE_KEY) === '1');
-        body.classList.toggle('sidebar-collapsed', collapsed);
-      } else {
-        body.classList.remove('sidebar-collapsed'); // en móvil usamos tu menú responsive existente
-      }
-    });
-  })();
-</script>
 
 </html>
 <?php $conn->close(); ?>

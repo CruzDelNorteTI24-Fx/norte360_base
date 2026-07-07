@@ -25,6 +25,8 @@ function n360_vistas(): array {
 }
 
 function n360_puede_modulo(int $idModulo): bool {
+    if ($idModulo <= 0) return true;
+
     return n360_is_admin() || in_array($idModulo, n360_permisos());
 }
 
@@ -47,6 +49,14 @@ function n360_puede_alguna_vista(array $vistas): bool {
 function n360_puede_item(array $item): bool {
     if (n360_is_admin()) return true;
 
+    if (!empty($item['publico'])) {
+        return true;
+    }
+
+    if (!empty($item['admin'])) {
+        return false;
+    }
+
     if (!empty($item['vistas'])) {
         return n360_puede_alguna_vista((array)$item['vistas']);
     }
@@ -65,6 +75,25 @@ function n360_puede_item(array $item): bool {
 function n360_menu_config(): array {
     return [
             [
+                'id' => 'panel',
+                'titulo' => 'Panel principal',
+                'icono' => 'bi bi-speedometer2',
+                'modulo' => 0,
+                'grupos' => [
+                    [
+                        'titulo' => 'Inicio',
+                        'items' => [
+                            [
+                                'titulo' => 'Panel principal',
+                                'icono' => 'bi bi-house-door-fill',
+                                'url' => 'index.php',
+                                'publico' => true
+                            ],
+                        ]
+                    ],
+                ]
+            ],
+            [
                 'id' => 'rrhh',
                 'titulo' => 'Recursos Humanos',
                 'icono' => 'bi bi-people-fill',
@@ -81,9 +110,67 @@ function n360_menu_config(): array {
                                 'modulo' => 6
                             ],
                             [
-                                'titulo' => 'Trabajadores',
-                                'icono' => 'bi bi-person-badge-fill',
+                                'titulo' => 'Buscar trabajador',
+                                'icono' => 'bi bi-search',
                                 'url' => '01_contratos/nlaskdrcdn_h.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Trabajadores',
+                                'icono' => 'bi bi-people-fill',
+                                'url' => '01_contratos/trabajadores/ver_personal.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Tabla de trabajadores',
+                                'icono' => 'bi bi-table',
+                                'url' => '01_contratos/trabajadores/ver_listatrab.php',
+                                'modulo' => 6
+                            ],
+                        ]
+                    ],
+                    [
+                        'titulo' => 'Consultas',
+                        'items' => [
+                            [
+                                'titulo' => 'Licencias',
+                                'icono' => 'bi bi-award-fill',
+                                'url' => '01_contratos/trabajadores/ver_licencias.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Cumpleaños',
+                                'icono' => 'bi bi-calendar2-event-fill',
+                                'url' => '01_contratos/trabajadores/ver_cumpleanos.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Cargos',
+                                'icono' => 'bi bi-briefcase-fill',
+                                'url' => '01_contratos/trabajadores/ver_cargos.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Emergencia',
+                                'icono' => 'bi bi-telephone-inbound-fill',
+                                'url' => '01_contratos/trabajadores/ver_emergencia.php',
+                                'modulo' => 6
+                            ],
+                        ]
+                    ],
+                    [
+                        'titulo' => 'Procesos',
+                        'items' => [
+                            [
+                                'titulo' => 'Capacitaciones',
+                                'icono' => 'bi bi-mortarboard-fill',
+                                'url' => '01_contratos/ncapacitaciones.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Solicitud para trabajador',
+                                'icono' => 'bi bi-file-earmark-person-fill',
+                                'url' => '01_contratos/tbvistacontratadosent.php',
                                 'modulo' => 6
                             ],
                         ]
@@ -104,21 +191,45 @@ function n360_menu_config(): array {
                                 'url' => '01_entrevistas/bvisentrevisaf.php',
                                 'modulo' => 6
                             ],
+                            [
+                                'titulo' => 'Etapas de entrevistas',
+                                'icono' => 'bi bi-kanban-fill',
+                                'url' => '01_entrevistas/propukanban.php',
+                                'modulo' => 6
+                            ],
                         ]
                     ],
                     [
                         'titulo' => 'Documentación',
                         'items' => [
                             [
-                                'titulo' => 'Nueva documentación',
+                                'titulo' => 'Agregar documento',
                                 'icono' => 'bi bi-file-earmark-plus-fill',
                                 'url' => '01_contratos/documentacion/agregadocu.php',
                                 'modulo' => 6
                             ],
                             [
-                                'titulo' => 'Ver documentación',
+                                'titulo' => 'Generar documento',
+                                'icono' => 'bi bi-journal-plus',
+                                'url' => '01_contratos/documentacion/generdocuplant.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Ver documentos',
+                                'icono' => 'bi bi-folder2-open',
+                                'url' => '01_contratos/documentacion/ver.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Documentación general',
                                 'icono' => 'bi bi-folder-fill',
                                 'url' => '01_contratos/dorrhcdn.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Tipos documentos',
+                                'icono' => 'bi bi-archive-fill',
+                                'url' => '01_contratos/documentacion/tipo_docu.php',
                                 'modulo' => 6
                             ],
                         ]
@@ -132,20 +243,74 @@ function n360_menu_config(): array {
                 'modulo' => 5,
                 'grupos' => [
                     [
-                        'titulo' => 'Gestión',
+                        'titulo' => 'Generar checklist',
                         'items' => [
                             [
-                                'titulo' => 'Checklist',
+                                'titulo' => 'Nueva limpieza',
+                                'icono' => 'bi bi-droplet-fill',
+                                'url' => '01_amantenimiento/limpieza/mantcdn.php?id_tipo=1',
+                                'vistas' => ['c-limp', 'c-lalu'],
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Nuevo alcoholimetro',
+                                'icono' => 'bi bi-clipboard2-pulse-fill',
+                                'url' => '01_amantenimiento/limpieza/mantcdn.php?id_tipo=3',
+                                'vistas' => ['c-lalu'],
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Nueva fumigacion',
+                                'icono' => 'bi bi-shield-check',
+                                'url' => '01_amantenimiento/limpieza/mantcdn.php?id_tipo=4',
+                                'vistas' => ['c-lalu'],
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Nuevo embarque',
+                                'icono' => 'bi bi-box-arrow-in-right',
+                                'url' => '01_amantenimiento/limpieza/mantcdn.php?id_tipo=2',
+                                'vistas' => ['c-sab'],
+                                'modulo' => 5
+                            ],
+                        ]
+                    ],
+                    [
+                        'titulo' => 'Gestion',
+                        'items' => [
+                            [
+                                'titulo' => 'Ver checklist',
                                 'icono' => 'bi bi-ui-checks-grid',
                                 'url' => '01_amantenimiento/lista_cheklist.php',
                                 'vistas' => ['c-limp', 'c-sab', 'c-lalu'],
                                 'modulo' => 5
                             ],
                             [
-                                'titulo' => 'Validacion de buses',
-                                'icono' => 'bi bi-bus-front',
+                                'titulo' => 'Generar ruta',
+                                'icono' => 'bi bi-signpost-split-fill',
                                 'url' => '01_amantenimiento/interbus_vld.php',
                                 'vistas' => ['c-limp', 'c-sab'],
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Viajes',
+                                'icono' => 'bi bi-map-fill',
+                                'url' => '01_amantenimiento/viajes.php',
+                                'admin' => true,
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Calendario checklist',
+                                'icono' => 'bi bi-calendar-check-fill',
+                                'url' => '01_amantenimiento/calendario_cheklist.php',
+                                'admin' => true,
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Categorias e items',
+                                'icono' => 'bi bi-tags-fill',
+                                'url' => '01_amantenimiento/categorias_items.php',
+                                'admin' => true,
                                 'modulo' => 5
                             ],
                         ]
@@ -180,6 +345,12 @@ function n360_menu_config(): array {
                                 'vistas' => ['a-formulreg'],
                                 'modulo' => 3
                             ],
+                            [
+                                'titulo' => 'Movimientos de almacen',
+                                'icono' => 'bi bi-arrow-left-right',
+                                'url' => '01_almacen/movimientos_ofi.php',
+                                'modulo' => 3
+                            ],
                         ]
                     ],
                 ]
@@ -190,18 +361,6 @@ function n360_menu_config(): array {
                 'icono' => 'bi bi-bus-front-fill',
                 'modulo' => 10,
                 'grupos' => [
-                    [
-                        'titulo' => 'General',
-                        'items' => [
-                            [
-                                'titulo' => 'Panel principal',
-                                'icono' => 'bi bi-speedometer2',
-                                'url' => 'index.php',
-                                'vistas' => ['f-flotayoperaciones'],
-                                'modulo' => 10
-                            ],
-                        ]
-                    ],
                     [
                         'titulo' => 'Programación',
                         'items' => [
@@ -256,7 +415,7 @@ function n360_render_sidebar(): void {
         </button>
 
         <div class="sidebar-brand">
-            <img src="'.htmlspecialchars(n360_base_url('img/norte360.png')).'" alt="Norte 360">
+            <img src="'.htmlspecialchars(n360_base_url('img/norte360_black.png')).'" alt="Norte 360">
             <div>
                 <strong>Norte 360°</strong>
                 <span>Panel operativo</span>

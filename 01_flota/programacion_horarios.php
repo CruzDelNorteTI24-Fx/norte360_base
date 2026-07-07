@@ -34,6 +34,10 @@ if (!$modo_qr_programacion && $web_rol !== 'Admin') {
 
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
+
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../');
+require_once __DIR__ . '/../layout/sidebar_n360.php';
 require_once("../trash/copidb_secure.php");
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
@@ -3849,6 +3853,7 @@ body.modo-qr-programacion .panel-qr-programacion button:hover {
 }
 
     </style>
+    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
 </head>
 
 <body class="<?= $modo_qr_programacion ? 'modo-qr-programacion' : '' ?>">
@@ -3910,126 +3915,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     </div>
 </header>
 
-<nav id="nav-modulos" class="nav-bar-pro">
-  <ul class="nav-list-pro">
-  <?php
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-personal\')">👥 Recursos Humanos</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-mantenimiento\')">🔧 Mantenimiento</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-inventario\')">📦 Inventario</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(10, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-flotayoperaciones\')">🚌 Flota y Operaciones</a></li>';
-    }
-  ?>
-  </ul>
-</nav>
-
-<div id="modulo-personal" class="subnav" style="display: none;">
-  <a href="../01_contratos/nregrcdn_h.php">➕ Nuevo Trabajador</a>
-  <a href="../01_entrevistas/reentrev.php">➕ Nueva Entrevista</a>
-  <a href="../01_contratos/documentacion/agregadocu.php">➕ Nueva Documentación</a>
-  <a href="../01_contratos/nlaskdrcdn_h.php">👤 Personal</a>
-  <a href="../01_entrevistas/bvisentrevisaf.php">📝 Entrevistas</a>
-  <a href="../01_contratos/dorrhcdn.php">📁 Documentación</a>
-</div>
-
-<div id="modulo-inventario" class="subnav" style="display: none;">
-  <a href="../01_almacen/scanner.php"> 🏷️ Código de Barra</a>
-  <a href="../01_almacen/gen_np9823.php">📋 Catálogo Productos</a>
-</div>
-
-<div id="modulo-mantenimiento" class="subnav" style="display: none;">
-  <a href="../01_amantenimiento/lista_cheklist.php">📝 CheckList</a>
-</div>
-
-<div id="modulo-flotayoperaciones" class="subnav" style="display: none;">
-
-  <?php
-    // Programación de Conductores
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
-        echo '<a href="../01_flota/programacion_condt.php">👤 Conductores</a>';
-    }
-    // Programación de Horarios
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
-        echo '<a href="../01_flota/programacion_horarios.php">📋 Programación Horarios</a>';
-    }
-    // Historial Gerencial
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
-        echo '<a href="../01_flota/gest_plac.php">📝 Gestión de Placas</a>';
-    }
-  ?>
-</div>
-
-<button class="menu-toggle" id="btnMenuToggle" onclick="toggleMenu()" aria-label="Menú"><span></span><span></span><span></span></button>
-
-<!-- SIDEBAR FIJO EN DESKTOP -->
-<nav class="menu-lateral" id="menuLateral">
-  <button class="sidebar-toggle-btn" id="btnHideSidebar" aria-label="Ocultar menú">
-    <i class="bi bi-chevron-left"></i>
-  </button>
-
-  <div class="menu-logo">
-    <img src="../img/norte360_black.png" alt="Logo" style="height:40px;">
-    <span class="fw-bold ms-2" style="color:#2c3e50;">Norte 360°</span>
-  </div>
-  <ul class="menu-list">
-    <h3>Programación</h3>
-
-  <?php
-    // Programación de Conductores
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
-        echo '<li><a href="programacion_condt.php"><i class="bi bi-person-plus-fill"></i> Programación de Conductores</a></li>';
-    }
-    // Programación de Horarios
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
-        echo '<li><a href="programacion_horarios.php" class="active"><i class="bi bi-clock-history"></i> Programación de Horarios</a></li>';
-    }
-    // Historial Gerencial
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghist", $vistas)) {
-        echo '<li><a href="gest_prog_horarios.php" class="active"><i class="bi bi-bar-chart-line-fill"></i> Historial Gerencial</a></li>';
-    }
-  ?>
-  </ul>
-
-  <?php
-    // Flota
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
-        echo '
-        <ul class="menu-list">
-          <h3>Vehículos</h3>
-          <li><a href="gest_plac.php"><i class="bi bi-bus-front"></i> Gestionar Placas</a></li>
-        </ul>
-        ';
-    }
-  ?>
-
-
-</nav>
-
-<button class="sidebar-show-btn" id="sidebarShowBtn" aria-label="Mostrar menú">
-  <i class="bi bi-chevron-right"></i>
-</button>
-
-
-<div id="panelQRProgramacion" class="panel-qr-programacion">
-  <div>
-    <strong>Programación Operativa Norte 360°</strong>
-    <p>
-      Se generará un PDF oficial usando la configuración actual:
-      cada grupo saldrá como PIZARRA o TABLA según corresponda.
-    </p>
-  </div>
-
-  <button type="button" onclick="generarPDFQRDosHojas()">
-    Descargar PDF de programación
-  </button>
-</div>
-
+<?php if (!$modo_qr_programacion) { n360_render_sidebar(); } ?>
 
 <div class="main-content">
  <hr>
@@ -5844,19 +5730,19 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
     const items = grupos[origen];
     const filasVisuales = items.length > 6 ? Math.max(1, Math.ceil(items.length / 2)) : items.length;
     alto += 90;
-    alto += filasVisuales * 80;
+    alto += filasVisuales * 94;
     alto += 24;
   });
 
   const yPanelBase = 184;
   let altoPanelDerecho = 96;
   altoPanelDerecho += 22;
-  altoPanelDerecho += busesSinHorario.length * 40;
+  altoPanelDerecho += busesSinHorario.length * 48;
 
   if (busesTaller.length) {
     altoPanelDerecho += 10;
     altoPanelDerecho += 22;
-    altoPanelDerecho += busesTaller.length * 40;
+    altoPanelDerecho += busesTaller.length * 48;
   }
 
   alto = Math.max(alto, yPanelBase + altoPanelDerecho + 40);
@@ -5880,22 +5766,27 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
   const wineSoft = '#fdf2f4';
   const white = '#ffffff';
 
-  const fBrand = '700 16px "Segoe UI"';
-  const fTitle = '700 26px "Segoe UI"';
-  const fGrupo = '900 34px "Segoe UI"';
-  const fOperativaChip = '900 24px "Segoe UI"';
-  const fSub = '12px "Segoe UI"';
-  const fMetaLabel = '700 12px "Segoe UI"';
-  const fMetaValue = '700 18px "Segoe UI"';
-  const fOrigen = '700 23px "Segoe UI"';
-  const fCount = '11px "Segoe UI"';
-const fHora = '800 34px "Segoe UI"';
-const fBus = '800 28px "Segoe UI"';
-const fDest = '800 18px "Segoe UI"';
-const fSmall = '12px "Segoe UI"';
-  const fPanelHead = '700 22px "Segoe UI"';
-  const fPanelBus = '700 17px "Segoe UI"';
-  const fPanelSmall = '11px "Segoe UI"';
+const fBrand = '700 18px "Segoe UI"';
+const fTitle = '700 30px "Segoe UI"';
+const fGrupo = '900 40px "Segoe UI"';
+const fOperativaChip = '900 28px "Segoe UI"';
+
+const fSub = '14px "Segoe UI"';
+const fMetaLabel = '700 13px "Segoe UI"';
+const fMetaValue = '700 20px "Segoe UI"';
+
+const fOrigen = '800 27px "Segoe UI"';
+const fCount = '12px "Segoe UI"';
+
+const fHora = '900 42px "Segoe UI"';
+const fBus = '900 35px "Segoe UI"';
+const fDest = '900 22px "Segoe UI"';
+
+const fSmall = '13px "Segoe UI"';
+
+const fPanelHead = '800 25px "Segoe UI"';
+const fPanelBus = '800 21px "Segoe UI"';
+const fPanelSmall = '12px "Segoe UI"';
 
   const fechas = state.snapshot.fechas || {};
   const fechaBaseTxt = fechas.fecha_base || '—';
@@ -6015,7 +5906,7 @@ if (busesTaller.length) {
 
   busesTaller.forEach(b => {
     const bus = safeUpper(b.bus || '—');
-    drawCard(ctx, xPanel + 16, ySide, panelW - 32, 34, {
+    drawCard(ctx, xPanel + 16, ySide, panelW - 32, 40, {
       radius: 10,
       fill: wineSoft,
       stroke: '#f1d9de',
@@ -6029,7 +5920,7 @@ if (busesTaller.length) {
       ySide + 8,
       { font: fPanelBus, color: wine }
     );
-    ySide += 40;
+    ySide += 48;
   });
 
   ySide += 10;
@@ -6068,7 +5959,7 @@ busesSinHorario.forEach(b => {
   const bloquePadX = 18;
   const bloquePadY = 16;
   const tituloH = 46;
-  const filaH = 76;
+  const filaH = 90;
   const bloqueW = cuerpoUtilW;
   const maxFilasPorSubcol = 6;
   const subGap = 28;
@@ -6157,7 +6048,7 @@ busesSinHorario.forEach(b => {
           ? `${destino}${servicio ? ' | ' + servicio : ''}`
           : (servicio || '');
 
-        drawCard(ctx, subX - 6, filaY - 2, subcolW - 2, 56, {
+        drawCard(ctx, subX - 6, filaY - 2, subcolW - 2, 68, {
           radius: 12,
           fill: '#fbfdff',
           shadow: false
@@ -6170,13 +6061,13 @@ busesSinHorario.forEach(b => {
         }
 
         const xHora = subX;
-        const xBus = subX + 118;
-        const xDestino = subX + 285;
+        const xBus = subX + 132;
+        const xDestino = subX + 315;
 
         if (bus) {
           drawText(
             ctx,
-            fitText(ctx, bus, 145, fBus),
+            fitText(ctx, bus, 165, fBus),
             xBus,
             filaY + 5,
             { font: fBus, color: blue }
@@ -6190,7 +6081,7 @@ busesSinHorario.forEach(b => {
 
           drawText(
             ctx,
-            fitText(ctx, destinoServicio, subcolW - 300, fDest),
+            fitText(ctx, destinoServicio, subcolW - 330, fDest),
             xDestino,
             filaY + 11,
             { font: fDest, color: colorDest }
@@ -7227,18 +7118,6 @@ if (esModoQRProgramacion) {
 </script>
 
 <script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-</script>
-<script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
@@ -7255,49 +7134,7 @@ document.addEventListener("click", function (e) {
 });
 </script>
 
-<script>
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
-</script>
-
-<script>
-  (function () {
-    const body = document.body;
-    const hideBtn = document.getElementById('btnHideSidebar');
-    const showBtn = document.getElementById('sidebarShowBtn');
-    const STORAGE_KEY = 'sidebarCollapsed';
-
-    function setSidebar(collapsed) {
-      body.classList.toggle('sidebar-collapsed', collapsed);
-      try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch(e) {}
-    }
-
-    // Estado inicial desde localStorage (solo aplica en escritorio)
-    const prefersCollapsed = (localStorage.getItem(STORAGE_KEY) === '1');
-    if (window.matchMedia('(min-width: 992px)').matches && prefersCollapsed) {
-      setSidebar(true);
-    }
-
-    // Eventos
-    if (hideBtn) hideBtn.addEventListener('click', () => setSidebar(true));
-    if (showBtn) showBtn.addEventListener('click', () => setSidebar(false));
-
-    // Si cambias de tamaño de ventana, respeta el estado en escritorio y limpia en móvil
-    window.addEventListener('resize', () => {
-      if (window.matchMedia('(min-width: 992px)').matches) {
-        const collapsed = (localStorage.getItem(STORAGE_KEY) === '1');
-        body.classList.toggle('sidebar-collapsed', collapsed);
-      } else {
-        body.classList.remove('sidebar-collapsed'); // en móvil usamos tu menú responsive existente
-      }
-    });
-  })();
-</script>
-
-
-
+<script src="../assets/js/sidebar_n360.js"></script>
 </body>
 
 

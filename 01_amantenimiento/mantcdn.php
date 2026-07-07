@@ -9,6 +9,9 @@ define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
 require_once("../.c0nn3ct/db_securebd2.php");
 
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../');
+require_once __DIR__ . '/../layout/sidebar_n360.php';
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
 
@@ -1123,6 +1126,8 @@ input[type=date] {
 }
 
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
 </head>
 
 <body>
@@ -1194,49 +1199,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
     </div>
 </header>
-
-<nav id="nav-modulos" class="nav-bar-pro">
-  <ul class="nav-list-pro">
-    <li><a href="#" onclick="mostrarSubmenu('modulo-entrevistas')">📝 Entrevistas</a></li>
-    <li><a href="#" onclick="mostrarSubmenu('modulo-personal')">👥 Recursos Humanos</a></li>
-    <li><a href="#" onclick="mostrarSubmenu('modulo-mantenimiento')">🔧 Mantenimiento</a></li>
-    <li><a href="#" onclick="mostrarSubmenu('modulo-inventario')">📦 Inventario</a></li>
-  </ul>
-</nav>
-
-<div id="modulo-entrevistas" class="subnav" style="display: none;">
-  <a href="../01_entrevistas/reentrev.php">📝 Registrar Entrevista</a>
-  <a href="../01_entrevistas/bvisentrevisaf.php">📁 Ver Entrevistas</a>
-  <a href="../01_entrevistas/propukanban.php">📋 Etapas</a>
-</div>
-
-<div id="modulo-personal" class="subnav" style="display: none;">
-  <a href="../01_contratos/nregrcdn_h.php">➕ Nuevo Personal</a>
-  <a href="../01_contratos/nlaskdrcdn_h.php">👤 Personal</a>
-  <a href="../01_contratos/dorrhcdn.php">📁 Documentación</a>
-</div>
-
-<div id="modulo-inventario" class="subnav" style="display: none;">
-  <a href="../01_almacen/scanner.php"> 🏷️ Código de Barra</a>
-  <a href="../01_almacen/gen_np9823.php">📋 Productos</a>
-</div>
-
-<div id="modulo-mantenimiento" class="subnav" style="display: none;">
-  <a href="../01_amantenimiento/mantcdn.php">📝 CheckList</a>
-</div>
-
-<button class="menu-toggle" onclick="toggleMenu()">☰</button>
-
-<div class="menu-lateral" id="menuLateral">
-  <h3>CheckList Limpieza</h3>
-  <ul>
-    <li><a href="mantcdn.php">➕ Nuevo</a></li>
-    <li><a href="lista_cheklist.php">Ver CheckList</a></li>
-    <li><a href="calendario_cheklist.php">Calendario ChekList</a></li>
-    <li><a href="categorias_items.php">Gestionar Ítems ChekList</a></li>
-  </ul>
-</div>
-
+<?php n360_render_sidebar(); ?>
 <div class="main-content">
   <hr>
   <h2>Checklist de Limpieza</h2>
@@ -1414,19 +1377,6 @@ function cerrarError() {
 </footer>
 
 <script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-</script>
-
-<script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
@@ -1442,13 +1392,8 @@ document.addEventListener("click", function (e) {
   }
 });
 </script>
-<script>
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
-</script>
 
+<script src="../assets/js/sidebar_n360.js"></script>
 </body>
 
 

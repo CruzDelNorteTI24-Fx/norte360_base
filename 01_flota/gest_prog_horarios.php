@@ -20,6 +20,10 @@ if ($_SESSION['web_rol'] !== 'Admin') {
 
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
+
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../');
+require_once __DIR__ . '/../layout/sidebar_n360.php';
 require_once("../trash/copidb_secure.php");
 
 mysqli_report(MYSQLI_REPORT_OFF);
@@ -2164,6 +2168,7 @@ aside img {
         }
 
     </style>
+    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
 </head>
 <body>
 
@@ -2213,91 +2218,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     </div>
 </header>
 
-<nav id="nav-modulos" class="nav-bar-pro">
-  <ul class="nav-list-pro">
-  <?php
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-personal\')">👥 Recursos Humanos</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-mantenimiento\')">🔧 Mantenimiento</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-inventario\')">📦 Inventario</a></li>';
-    }
-  ?>
-  </ul>
-</nav>
-
-<div id="modulo-personal" class="subnav" style="display: none;">
-  <a href="../01_contratos/nregrcdn_h.php">➕ Nuevo Trabajador</a>
-  <a href="../01_entrevistas/reentrev.php">➕ Nueva Entrevista</a>
-  <a href="../01_contratos/documentacion/agregadocu.php">➕ Nueva Documentación</a>
-  <a href="../01_contratos/nlaskdrcdn_h.php">👤 Personal</a>
-  <a href="../01_entrevistas/bvisentrevisaf.php">📝 Entrevistas</a>
-  <a href="../01_contratos/dorrhcdn.php">📁 Documentación</a>
-</div>
-
-<div id="modulo-inventario" class="subnav" style="display: none;">
-  <a href="../01_almacen/scanner.php"> 🏷️ Código de Barra</a>
-  <a href="../01_almacen/gen_np9823.php">📋 Catálogo Productos</a>
-</div>
-
-<div id="modulo-mantenimiento" class="subnav" style="display: none;">
-  <a href="../01_amantenimiento\lista_cheklist.php">📝 CheckList</a>
-</div>
-
-<button class="menu-toggle" id="btnMenuToggle" onclick="toggleMenu()" aria-label="Menú"><span></span><span></span><span></span></button>
-
-<!-- SIDEBAR FIJO EN DESKTOP -->
-<nav class="menu-lateral" id="menuLateral">
-  <button class="sidebar-toggle-btn" id="btnHideSidebar" aria-label="Ocultar menú">
-    <i class="bi bi-chevron-left"></i>
-  </button>
-
-  <div class="menu-logo">
-    <img src="../img/norte360_black.png" alt="Logo" style="height:40px;">
-    <span class="fw-bold ms-2" style="color:#2c3e50;">Norte 360°</span>
-  </div>
-  <ul class="menu-list">
-    <h3>Programación</h3>
-
-  <?php
-    // Programación de Conductores
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-progcond", $vistas)) {
-        echo '<li><a href="programacion_condt.php"><i class="bi bi-person-plus-fill"></i> Programación de Conductores</a></li>';
-    }
-    // Programación de Horarios
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghor", $vistas)) {
-        echo '<li><a href="programacion_horarios.php" class="active"><i class="bi bi-clock-history"></i> Programación de Horarios</a></li>';
-    }
-    // Historial Gerencial
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-proghist", $vistas)) {
-        echo '<li><a href="gest_prog_horarios.php" class="active"><i class="bi bi-bar-chart-line-fill"></i> Historial Gerencial</a></li>';
-    }
-  ?>
-  </ul>
-
-  <?php
-    // Flota
-    if ($_SESSION['web_rol'] === 'Admin' || in_array("f-flotas", $vistas)) {
-        echo '
-        <ul class="menu-list">
-          <h3>Vehículos</h3>
-          <li><a href="gest_plac.php"><i class="bi bi-bus-front"></i> Gestionar Placas</a></li>
-        </ul>
-        ';
-    }
-  ?>
-
-
-</nav>
-
-<button class="sidebar-show-btn" id="sidebarShowBtn" aria-label="Mostrar menú">
-  <i class="bi bi-chevron-right"></i>
-</button>
-
-
+<?php n360_render_sidebar(); ?>
 
 <div class="main-content">
     <hr>
@@ -3176,18 +3097,6 @@ function renderAll(){
 
 
 <script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-</script>
-<script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
@@ -3204,48 +3113,6 @@ document.addEventListener("click", function (e) {
 });
 </script>
 
-<script>
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
-</script>
-
-<script>
-  (function () {
-    const body = document.body;
-    const hideBtn = document.getElementById('btnHideSidebar');
-    const showBtn = document.getElementById('sidebarShowBtn');
-    const STORAGE_KEY = 'sidebarCollapsed';
-
-    function setSidebar(collapsed) {
-      body.classList.toggle('sidebar-collapsed', collapsed);
-      try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch(e) {}
-    }
-
-    // Estado inicial desde localStorage (solo aplica en escritorio)
-    const prefersCollapsed = (localStorage.getItem(STORAGE_KEY) === '1');
-    if (window.matchMedia('(min-width: 992px)').matches && prefersCollapsed) {
-      setSidebar(true);
-    }
-
-    // Eventos
-    if (hideBtn) hideBtn.addEventListener('click', () => setSidebar(true));
-    if (showBtn) showBtn.addEventListener('click', () => setSidebar(false));
-
-    // Si cambias de tamaño de ventana, respeta el estado en escritorio y limpia en móvil
-    window.addEventListener('resize', () => {
-      if (window.matchMedia('(min-width: 992px)').matches) {
-        const collapsed = (localStorage.getItem(STORAGE_KEY) === '1');
-        body.classList.toggle('sidebar-collapsed', collapsed);
-      } else {
-        body.classList.remove('sidebar-collapsed'); // en móvil usamos tu menú responsive existente
-      }
-    });
-  })();
-</script>
-
-
-
+<script src="../assets/js/sidebar_n360.js"></script>
 </body>
 </html>

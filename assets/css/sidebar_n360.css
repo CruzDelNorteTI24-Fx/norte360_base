@@ -232,6 +232,14 @@ body.with-sidebar {
     padding-left: var(--n360-sidebar-w);
 }
 
+body.with-sidebar .main-content {
+    margin-left: 0 !important;
+}
+
+body.with-sidebar .scanner-shell {
+    margin-left: 0 !important;
+}
+
 body.sidebar-collapsed {
     padding-left: 0;
 }

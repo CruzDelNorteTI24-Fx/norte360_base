@@ -31,6 +31,11 @@ $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']); // eliminar la variable después de mostrar
 
 
+
+
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../');
+require_once __DIR__ . '/../layout/sidebar_n360.php';
 ?>
 
 
@@ -1483,6 +1488,7 @@ input[type="file"] {
     margin-left: .5rem !important;
 }
     </style>
+    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
 </head>
 
 <body>
@@ -1574,78 +1580,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 <!-- Agrega más según módulos -->
 
 </header>
-
-<nav id="nav-modulos" class="nav-bar-pro">
-  <ul class="nav-list-pro">
-  <?php
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-personal\')">👥 Recursos Humanos</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-mantenimiento\')">🔧 Mantenimiento</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-inventario\')">📦 Inventario</a></li>';
-    }
-  ?>
-  </ul>
-</nav>
-
-<div id="modulo-personal" class="subnav" style="display: none;">
-  <a href="../01_contratos/nregrcdn_h.php">➕ Nuevo Trabajador</a>
-  <a href="../01_entrevistas/reentrev.php">➕ Nueva Entrevista</a>
-  <a href="../01_contratos/documentacion/agregadocu.php">➕ Nueva Documentación</a>
-  <a href="../01_contratos/nlaskdrcdn_h.php">👤 Personal</a>
-  <a href="../01_entrevistas/bvisentrevisaf.php">📝 Entrevistas</a>
-  <a href="../01_contratos/dorrhcdn.php">📁 Documentación</a>
-</div>
-
-<div id="modulo-inventario" class="subnav" style="display: none;">
-  <a href="../01_almacen/scanner.php"> 🏷️ Código de Barra</a>
-  <a href="../01_almacen/gen_np9823.php">📋 Catálogo Productos</a>
-</div>
-<div id="modulo-mantenimiento" class="subnav" style="display: none;">
-  <a href="../01_amantenimiento\lista_cheklist.php">📝 CheckList</a>
-</div>
-
-<button class="menu-toggle" onclick="toggleMenu()">☰</button>
-
-<!-- SIDEBAR FIJO EN DESKTOP -->
-<nav class="menu-lateral" id="menuLateral">
-  <button class="sidebar-toggle-btn" id="btnHideSidebar" aria-label="Ocultar menú">
-    <i class="bi bi-chevron-left"></i>
-  </button>
-
-  <div class="menu-logo">
-    <img src="../img/norte360_black.png" alt="Logo" style="height:40px; vertical-align: middle;">
-    <span class="fw-bold ms-2" style="color:#2c3e50;">Norte 360°</span>
-  </div>
-  <ul class="menu-list">
-    <h3>Personal</h3>
-    <li><a href="nregrcdn_h.php"><i class="bi bi-person-plus-fill"></i> Nuevo Trabajador</a></li>
-    <li><a href="nlaskdrcdn_h.php"><i class="bi bi-search"></i> Buscar Trabajador</a></li>
-    <li><a href="trabajadores/ver_personal.php"><i class="bi bi-people-fill"></i> Trabajadores</a></li>
-    <li><a href="trabajadores/ver_licencias.php"><i class="bi bi-award-fill"></i> Licencias</a></li>
-    <li><a href="trabajadores/ver_cumpleanos.php"><i class="bi bi-calendar2-event-fill"></i> Cumpleaños</a></li>
-    <li><a href="trabajadores/ver_cargos.php"><i class="bi bi-briefcase-fill"></i> Cargos</a></li>
-    <li><a href="trabajadores/ver_emergencia.php"><i class="bi bi-telephone-inbound-fill"></i> Emergencia</a></li>
-    <li><a href="trabajadores/ver_listatrab.php"><i class="bi bi-table"></i> Tabla de Trabajadores</a></li>
-    <li><a href="ncapacitaciones.php"><i class="bi bi-table"></i> Capacitaciones</a></li>
-    <h3>Entrevistas</h3>
-    <li><a href="tbvistacontratadosent.php"><i class="bi bi-file-earmark-person-fill"></i> Solicitud para Trabajador</a></li>
-    <h3>Documentación</h3>
-    <li><a href="documentacion/generdocuplant.php"><i class="bi bi-journal-plus"></i> Añadir Doc.</a></li>
-    <li><a href="documentacion/ver.php"><i class="bi bi-folder2-open"></i> Ver Documentos</a></li>
-    <li><a href="documentacion/tipo_docu.php"><i class="bi bi-archive-fill"></i> Tipos Documentos</a></li>
-    <!-- Más módulos aquí -->
-  </ul>
-</nav>
-<button class="sidebar-show-btn" id="sidebarShowBtn" aria-label="Mostrar menú">
-  <i class="bi bi-chevron-right"></i>
-</button>
-
-
-
+<?php n360_render_sidebar(); ?>
 <div class="main-content">
 <main>
 
@@ -2128,18 +2063,6 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 <script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-</script>
-<script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
@@ -2357,10 +2280,6 @@ function activarPasoLicencia() {
   </div>
 </div>
 <script>
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
 // Minimizar barra de progreso en móvil
 document.addEventListener('DOMContentLoaded', function() {
   const aside = document.getElementById('progreso-registro');
@@ -2444,18 +2363,6 @@ function validarfo() {
 
 
 <script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-</script>
-<script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
@@ -2471,47 +2378,8 @@ document.addEventListener("click", function (e) {
   }
 });
 </script>
-<script>
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
-</script>
-<script>
-  (function () {
-    const body = document.body;
-    const hideBtn = document.getElementById('btnHideSidebar');
-    const showBtn = document.getElementById('sidebarShowBtn');
-    const STORAGE_KEY = 'sidebarCollapsed';
 
-    function setSidebar(collapsed) {
-      body.classList.toggle('sidebar-collapsed', collapsed);
-      try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch(e) {}
-    }
-
-    // Estado inicial desde localStorage (solo aplica en escritorio)
-    const prefersCollapsed = (localStorage.getItem(STORAGE_KEY) === '1');
-    if (window.matchMedia('(min-width: 992px)').matches && prefersCollapsed) {
-      setSidebar(true);
-    }
-
-    // Eventos
-    if (hideBtn) hideBtn.addEventListener('click', () => setSidebar(true));
-    if (showBtn) showBtn.addEventListener('click', () => setSidebar(false));
-
-    // Si cambias de tamaño de ventana, respeta el estado en escritorio y limpia en móvil
-    window.addEventListener('resize', () => {
-      if (window.matchMedia('(min-width: 992px)').matches) {
-        const collapsed = (localStorage.getItem(STORAGE_KEY) === '1');
-        body.classList.toggle('sidebar-collapsed', collapsed);
-      } else {
-        body.classList.remove('sidebar-collapsed'); // en móvil usamos tu menú responsive existente
-      }
-    });
-  })();
-</script>
-
-
+<script src="../assets/js/sidebar_n360.js"></script>
 </body>
 
 

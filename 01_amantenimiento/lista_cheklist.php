@@ -22,6 +22,9 @@ define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
 require_once("../.c0nn3ct/db_securebd2.php");
 
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../');
+require_once __DIR__ . '/../layout/sidebar_n360.php';
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
 
@@ -48,14 +51,21 @@ unset($_SESSION['exito']);
 } else {
     // Usuarios normales: filtro por tipo según su vista_redirect
 $vistaRedirectArray = $_SESSION['vistas'] ?? [];
+$tiposPorVistaChecklist = [
+    'c-limp' => [1],       // Limpieza
+    'c-sab' => [2],        // Embarque
+    'c-lalu' => [1, 3, 4], // Limpieza, alcoholimetro y fumigacion
+];
 
-if (in_array("c-limp", $vistaRedirectArray)) {
-    $tipoChecklist = [1];
-} elseif (in_array("c-sab", $vistaRedirectArray)) {
-    $tipoChecklist = [2];
-} elseif (in_array("c-lalu", $vistaRedirectArray)) {
-    $tipoChecklist = [1,2,3];
-} else {
+$tipoChecklist = [];
+foreach ($tiposPorVistaChecklist as $vistaChecklist => $tiposPermitidos) {
+    if (in_array($vistaChecklist, $vistaRedirectArray)) {
+        $tipoChecklist = array_merge($tipoChecklist, $tiposPermitidos);
+    }
+}
+$tipoChecklist = array_values(array_unique($tipoChecklist));
+
+if (empty($tipoChecklist)) {
     header("Location: ../login/none_permisos.php");
     exit();
 }
@@ -1501,6 +1511,8 @@ form input[type="date"], form button {
 }
 
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../assets/css/sidebar_n360.css">
 </head>
 
 <body>
@@ -1572,82 +1584,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
     </div>
 </header>
-
-<nav id="nav-modulos" class="nav-bar-pro">
-  <ul class="nav-list-pro">
-  <?php
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(6, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-personal\')">👥 Recursos Humanos</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(5, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-mantenimiento\')">🔧 Mantenimiento</a></li>';
-    }
-    if ($_SESSION['web_rol'] === 'Admin' || in_array(3, $permisos)) {
-        echo '<li><a href="#" onclick="mostrarSubmenu(\'modulo-inventario\')">📦 Inventario</a></li>';
-    }
-  ?>
-  </ul>
-</nav>
-
-<div id="modulo-personal" class="subnav" style="display: none;">
-  <a href="../01_contratos/nregrcdn_h.php">➕ Nuevo Trabajador</a>
-  <a href="../01_entrevistas/reentrev.php">➕ Nueva Entrevista</a>
-  <a href="../01_contratos/documentacion/agregadocu.php">➕ Nueva Documentación</a>
-  <a href="../01_contratos/nlaskdrcdn_h.php">👤 Personal</a>
-  <a href="../01_entrevistas/bvisentrevisaf.php">📝 Entrevistas</a>
-  <a href="../01_contratos/dorrhcdn.php">📁 Documentación</a>
-</div>
-
-<div id="modulo-inventario" class="subnav" style="display: none;">
-  <a href="../01_almacen/scanner.php"> 🏷️ Código de Barra</a>
-  <a href="../01_almacen/gen_np9823.php">📋 Catálogo Productos</a>
-</div>
-
-<div id="modulo-mantenimiento" class="subnav" style="display: none;">
-  <a href="lista_cheklist.php">📝 CheckList</a>
-</div>
-
-<button class="menu-toggle" onclick="toggleMenu()">☰</button>
-
-<div class="menu-lateral" id="menuLateral">
-    <?php
-        if ($_SESSION['web_rol'] == 'Admin' || in_array("c-lalu", $vistas)) {
-
-          echo "<h3>Generar CheckList</h3>";
-          echo "<ul>";
-            echo "<li><a href='limpieza/mantcdn.php?id_tipo=1'>➕ Nueva Limpieza</a></li>";
-            echo "<li><a href='limpieza/mantcdn.php?id_tipo=3'>➕ Nuevo Alcoholímetro</a></li>";
-            echo "<li><a href='limpieza/mantcdn.php?id_tipo=4'>➕ Nueva Fumigación</a></li>";
-          echo "</ul>";
-        }
-        if ($_SESSION['web_rol'] == 'Admin' || in_array("c-sab", $vistas)) {
-          echo "<h3>Generar CheckList</h3>";
-          echo "<ul>";
-            echo "<li><a href='limpieza/mantcdn.php?id_tipo=2'>➕ Nuevo Embarque</a></li>";
-          echo "</ul>";
-        }
-    ?>
-  <h3>Lista CheckList</h3>  
-  <ul>
-    <?php
-        if ($_SESSION['web_rol'] == 'Admin') {
-          echo "<li><a href='interbus_vld.php'>Generar Ruta</a></li>";
-          echo "<li><a href='viajes.php'>Ver Viajes</a></li>";
-          echo "<li><a href='calendario_cheklist.php'>Calendario ChekList</a></li>";
-          echo "<li><a href='categorias_items.php'>Gestionar Ítems ChekList</a></li>";
-        }
-        if (in_array("c-lalu", $vistas)) {
-          echo "<li><a href='lista_cheklist.php'>Ver CheckList</a></li>";
-        }   
-        echo "<li><a href='lista_cheklist.php'>Ver CheckList</a></li>";
-        echo "<li><a href='interbus_vld.php'>Generar Ruta</a></li>";
-
-    ?>
-  </ul>
-</div>
-
-
-
+<?php n360_render_sidebar(); ?>
 <div class="main-content">
   <hr>
 <form method="POST" style="text-align:center; margin-bottom:30px; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px;">
@@ -1995,18 +1932,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 </script>
-<script>
-function mostrarSubmenu(id) {
-  const seleccionado = document.getElementById(id);
-  const estaVisible = seleccionado && seleccionado.style.display === 'flex';
-
-  document.querySelectorAll('.subnav').forEach(el => el.style.display = 'none');
-
-  if (!estaVisible && seleccionado) {
-    seleccionado.style.display = 'flex';
-  }
-}
-</script>
 
 <script>
 document.addEventListener('keydown', function(event) {
@@ -2035,13 +1960,8 @@ document.addEventListener("click", function (e) {
   }
 });
 </script>
-<script>
-function toggleMenu() {
-  const menu = document.querySelector('.menu-lateral');
-  menu.classList.toggle('active');
-}
-</script>
 
+<script src="../assets/js/sidebar_n360.js"></script>
 </body>
 
 
