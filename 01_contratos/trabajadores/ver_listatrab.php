@@ -1287,11 +1287,11 @@ table {
   background:#c0392b; color:#fff; border:0; border-radius:8px; padding:10px 14px; cursor:pointer; font-weight:700;
 }
     </style>
-    <link rel="stylesheet" href="../../assets/css/header_n360.css">
-<link rel="stylesheet" href="../../assets/css/sidebar_n360.css">
-<link rel="stylesheet" href="../../assets/css/main_n360.css">
-<link rel="stylesheet" href="../../assets/css/footer_n360.css">
-<link rel="stylesheet" href="../../assets/css/content_n360.css">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/header_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/sidebar_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
 </head>
 <body>
 <?php if ($exito): ?>
@@ -1647,7 +1647,7 @@ window.addEventListener('click', function(e) {
   if (e.target === m) cerrarModalPlanillas();
 });
 </script>
-<script src="../../assets/js/header_n360.js"></script>
-<script src="../../assets/js/sidebar_n360.js"></script>
+<script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
 </html>

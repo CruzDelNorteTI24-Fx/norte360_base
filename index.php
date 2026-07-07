@@ -28,11 +28,11 @@ unset($_SESSION['exito']);
     <title>Norte360 | Panel Principal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="./assets/css/sidebar_n360.css">
-    <link rel="stylesheet" href="./assets/css/header_n360.css">
-    <link rel="stylesheet" href="./assets/css/main_n360.css">
-    <link rel="stylesheet" href="./assets/css/footer_n360.css">
-    <link rel="stylesheet" href="./assets/css/content_n360.css">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/sidebar_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/header_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="icon" href="img/norte360.png">    
     <style>
         body {
@@ -900,8 +900,8 @@ if (n360_puede_alguna_vista(['f-placas', 'f-flotas'])) {
 
 <?php n360_render_footer(); ?>
 
-<script src="./assets/js/header_n360.js"></script>
-<script src="./assets/js/sidebar_n360.js"></script>
+<script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
 
 

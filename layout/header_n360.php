@@ -3,6 +3,8 @@ if (!defined('N360_LAYOUT')) {
     exit('Acceso no permitido.');
 }
 
+require_once __DIR__ . '/assets_n360.php';
+
 if (!function_exists('n360_base_url')) {
     function n360_base_url(string $path = ''): string {
         $base = defined('N360_BASE_URL') ? N360_BASE_URL : './';
@@ -180,6 +182,44 @@ function n360_render_header(array $options = []): void {
     $logoEmpresa = $options['logo_empresa'] ?? n360_base_url('img/norte360.png');
     $logoSistema = $options['logo_sistema'] ?? n360_base_url('img/completo.png');
     ?>
+    <?php if (empty($GLOBALS['n360_header_critical_printed'])): $GLOBALS['n360_header_critical_printed'] = true; ?>
+        <style id="n360HeaderCritical">
+            .n360-header {
+                color: #f8fbff !important;
+                background: radial-gradient(circle at 18% -60%, rgba(37, 166, 223, 0.22), transparent 35%), linear-gradient(90deg, #142232 0%, #1c3043 54%, #22394e 100%) !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+                box-shadow: 0 10px 26px rgba(7, 18, 29, 0.18) !important;
+            }
+            .n360-header__brand,
+            .n360-header__brand:hover,
+            .n360-user-trigger,
+            .n360-user-trigger:hover,
+            .n360-user-trigger:focus,
+            .n360-user-summary strong {
+                color: #fff !important;
+            }
+            .n360-header__brand-sub,
+            .n360-user-summary span,
+            .n360-user-chevron {
+                color: rgba(232, 240, 248, 0.72) !important;
+            }
+            .n360-user-trigger {
+                background: rgba(255, 255, 255, 0.07) !important;
+                border-color: rgba(255, 255, 255, 0.16) !important;
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+            }
+            .n360-user-trigger:hover,
+            .n360-user-trigger:focus,
+            .n360-user-menu:hover .n360-user-trigger,
+            .n360-user-menu.is-open .n360-user-trigger {
+                background: rgba(255, 255, 255, 0.13) !important;
+                border-color: rgba(255, 255, 255, 0.34) !important;
+            }
+            .n360-header__logo-wrap {
+                background: rgba(255, 255, 255, 0.04) !important;
+            }
+        </style>
+    <?php endif; ?>
     <header class="n360-header" id="n360Header">
         <div class="n360-header__inner">
             <a class="n360-header__brand" href="<?= n360_header_h($homeUrl) ?>" aria-label="Ir al panel principal">

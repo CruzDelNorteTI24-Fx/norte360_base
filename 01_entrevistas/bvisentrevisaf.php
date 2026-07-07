@@ -1784,11 +1784,11 @@ margin: 20px
 }
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="../assets/css/header_n360.css">
-<link rel="stylesheet" href="../assets/css/sidebar_n360.css">
-<link rel="stylesheet" href="../assets/css/main_n360.css">
-<link rel="stylesheet" href="../assets/css/footer_n360.css">
-<link rel="stylesheet" href="../assets/css/content_n360.css">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/header_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/sidebar_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
 </head>
 <body>
 <?php
@@ -2985,7 +2985,7 @@ window.addEventListener("click", function(event) {
     }
 });
 </script>
-<script src="../assets/js/header_n360.js"></script>
-<script src="../assets/js/sidebar_n360.js"></script>
+<script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
 </html>

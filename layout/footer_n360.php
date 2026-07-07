@@ -3,6 +3,8 @@ if (!defined('N360_LAYOUT')) {
     exit('Acceso no permitido.');
 }
 
+require_once __DIR__ . '/assets_n360.php';
+
 if (!function_exists('n360_base_url')) {
     function n360_base_url(string $path = ''): string {
         $base = defined('N360_BASE_URL') ? N360_BASE_URL : './';
@@ -15,11 +17,7 @@ function n360_footer_h($value): string {
 }
 
 function n360_footer_version(): string {
-    $versionFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'version_n360.txt';
-    $version = is_file($versionFile) ? trim((string)file_get_contents($versionFile)) : '1.1.6';
-    $version = preg_replace('/[^0-9A-Za-z._-]/', '', $version) ?: '1.1.6';
-
-    return $version;
+    return n360_version();
 }
 
 function n360_render_footer(array $options = []): void {
