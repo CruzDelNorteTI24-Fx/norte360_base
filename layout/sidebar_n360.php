@@ -94,6 +94,25 @@ function n360_menu_config(): array {
                 ]
             ],
             [
+                'id' => 'admin',
+                'titulo' => 'Administracion',
+                'icono' => 'bi bi-shield-lock-fill',
+                'modulo' => 0,
+                'grupos' => [
+                    [
+                        'titulo' => 'Sistema',
+                        'items' => [
+                            [
+                                'titulo' => 'Permisos y accesos',
+                                'icono' => 'bi bi-person-lock',
+                                'url' => 'admin/permisos_mapa.php',
+                                'admin' => true
+                            ],
+                        ]
+                    ],
+                ]
+            ],
+            [
                 'id' => 'rrhh',
                 'titulo' => 'Recursos Humanos',
                 'icono' => 'bi bi-people-fill',

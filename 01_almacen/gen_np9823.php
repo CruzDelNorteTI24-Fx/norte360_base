@@ -18,7 +18,7 @@ if ($_SESSION['web_rol'] !== 'Admin') {
     $modulo_actual = 3; // id_modulo de esta vista
 
     if (!in_array($modulo_actual, $_SESSION['permisos'])) {
-        header("Location: ../../login/none_permisos.php");
+        header("Location: ../login/none_permisos.php");
         exit();
     }
 }

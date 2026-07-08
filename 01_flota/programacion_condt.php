@@ -27,7 +27,7 @@ if (!$modo_qr_conductores && $web_rol !== 'Admin') {
     $vista_actuales = ["f-progcond"];
 
     if (!in_array($modulo_actual, $permisos) || empty(array_intersect($vista_actuales, $vistas))) {
-        header("Location: ../../login/none_permisos.php");
+        header("Location: ../login/none_permisos.php");
         exit();
     }
 }

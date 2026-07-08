@@ -1,4 +1,5 @@
 .admin-perms-shell {
+    font-family: var(--n360-font-family, 'Inter', 'Segoe UI', Arial, sans-serif);
     display: grid;
     gap: 22px;
 }

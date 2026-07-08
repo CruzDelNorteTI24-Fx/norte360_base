@@ -27,7 +27,7 @@ if (!$modo_qr_programacion && $web_rol !== 'Admin') {
     $vista_actuales = ["f-proghor"];
 
     if (!in_array($modulo_actual, $permisos) || empty(array_intersect($vista_actuales, $vistas))) {
-        header("Location: ../../login/none_permisos.php");
+        header("Location: ../login/none_permisos.php");
         exit();
     }
 }

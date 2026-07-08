@@ -24,7 +24,7 @@ if ($_SESSION['web_rol'] !== 'Admin') {
     $vista_actuales = ["f-placas"];
 
     if (!in_array($modulo_actual, $_SESSION['permisos']) || empty(array_intersect($vista_actuales, $_SESSION['vistas']))) {
-        header("Location: ../../login/none_permisos.php");
+        header("Location: ../login/none_permisos.php");
         exit();
     }
 }
