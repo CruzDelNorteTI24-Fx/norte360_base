@@ -199,7 +199,7 @@ $totalInterfaces = count($interfaces);
 <?php n360_render_header(); ?>
 <?php n360_render_sidebar(); ?>
 
-<main class="main-content n360-main n360-main--module" role="main">
+<main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
     <div class="n360-main__inner admin-perms-shell">
         <?php n360_render_content_separator('top'); ?>
 

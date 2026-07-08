@@ -112,6 +112,23 @@
     background: #eaf3fb;
 }
 
+.sidebar-module-link {
+    text-decoration: none;
+}
+
+.sidebar-module-link.active {
+    background: linear-gradient(90deg, #1683d8, #2f9ceb);
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(22, 131, 216, 0.25);
+}
+
+.sidebar-module-link.active .module-icon {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.sidebar-module-link.active .module-icon i {
+    color: #fff;
+}
 .module-left {
     display: flex;
     align-items: center;

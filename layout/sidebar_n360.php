@@ -79,6 +79,7 @@ function n360_menu_config(): array {
                 'titulo' => 'Panel principal',
                 'icono' => 'bi bi-speedometer2',
                 'modulo' => 0,
+                'direct_url' => 'index.php',
                 'grupos' => [
                     [
                         'titulo' => 'Inicio',
@@ -468,6 +469,27 @@ function n360_render_sidebar(): void {
         $moduloId = htmlspecialchars($modulo['id']);
         $titulo = htmlspecialchars($modulo['titulo']);
         $icono = htmlspecialchars($modulo['icono']);
+        $directUrl = trim((string)($modulo['direct_url'] ?? ''));
+
+        if ($directUrl !== '') {
+            $url = n360_base_url($directUrl);
+            $directUrlNormal = str_replace('\\', '/', $directUrl);
+            $active = strpos($currentUri, $directUrlNormal) !== false ? ' active' : '';
+
+            echo '
+                <div class="sidebar-module sidebar-module--direct" data-module="'.$moduloId.'">
+                    <a class="sidebar-module-btn sidebar-module-link'.$active.'"
+                       href="'.htmlspecialchars($url).'">
+                        <span class="module-left">
+                            <span class="module-icon"><i class="'.$icono.'"></i></span>
+                            <span class="module-title">'.$titulo.'</span>
+                        </span>
+                    </a>
+                </div>
+            ';
+            continue;
+        }
+
 
         echo '
             <div class="sidebar-module" data-module="'.$moduloId.'">

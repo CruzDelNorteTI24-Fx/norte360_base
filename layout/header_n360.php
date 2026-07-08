@@ -152,6 +152,108 @@ function n360_header_age_label(): string {
     }
 }
 
+function n360_header_photo_data_uri($blob): string {
+    if (!is_string($blob) || $blob === '') {
+        return '';
+    }
+
+    $mime = 'image/jpeg';
+    if (function_exists('getimagesizefromstring')) {
+        $info = @getimagesizefromstring($blob);
+        if (is_array($info) && !empty($info['mime'])) {
+            $mime = (string)$info['mime'];
+        }
+    }
+
+    return 'data:' . $mime . ';base64,' . base64_encode($blob);
+}
+
+function n360_header_sede_name(string $sedeId): string {
+    $sessionName = trim((string)($_SESSION['clm_usuarios_sede_nombre'] ?? ''));
+    if ($sessionName !== '') {
+        return $sessionName;
+    }
+
+    if ($sedeId === '') {
+        return '';
+    }
+
+    global $conn;
+    if (!isset($conn) || !($conn instanceof mysqli)) {
+        return $sedeId;
+    }
+
+    $stmt = $conn->prepare('SELECT clm_sedes_name FROM tb_sedes WHERE clm_sedes_id = ? LIMIT 1');
+    if (!$stmt) {
+        return $sedeId;
+    }
+
+    $stmt->bind_param('i', $sedeId);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return $sedeId;
+    }
+
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    $name = trim((string)($row['clm_sedes_name'] ?? ''));
+    if ($name !== '') {
+        $_SESSION['clm_usuarios_sede_nombre'] = $name;
+        return $name;
+    }
+
+    return $sedeId;
+}
+
+function n360_header_user_photo(string $dni): string {
+    $sessionPhoto = trim((string)($_SESSION['n360_user_photo'] ?? ''));
+    if ($sessionPhoto !== '' && preg_match('/^data:image\/[a-zA-Z0-9.+-]+;base64,/', $sessionPhoto)) {
+        return $sessionPhoto;
+    }
+
+    if ($dni === '' || !empty($_SESSION['n360_user_photo_checked'])) {
+        return '';
+    }
+
+    $_SESSION['n360_user_photo_checked'] = true;
+
+    global $conn;
+    if (!isset($conn) || !($conn instanceof mysqli)) {
+        return '';
+    }
+
+    $sql = "
+        SELECT clm_tra_imagen
+        FROM tb_trabajador
+        WHERE clm_tra_dni = ?
+          AND clm_tra_imagen IS NOT NULL
+          AND clm_tra_imagen <> ''
+        ORDER BY clm_tra_id DESC
+        LIMIT 1
+    ";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return '';
+    }
+
+    $stmt->bind_param('s', $dni);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return '';
+    }
+
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    $photo = n360_header_photo_data_uri($row['clm_tra_imagen'] ?? null);
+    if ($photo !== '') {
+        $_SESSION['n360_user_photo'] = $photo;
+    }
+
+    return $photo;
+}
 function n360_header_user_data(): array {
     $displayName = trim((string)($_SESSION['nombre'] ?? ''));
     $username = trim((string)($_SESSION['usuario'] ?? 'Usuario'));
@@ -162,7 +264,13 @@ function n360_header_user_data(): array {
 
     $role = trim((string)($_SESSION['web_rol'] ?? 'Usuario'));
     $dni = trim((string)($_SESSION['DNI'] ?? ''));
-    $sede = trim((string)($_SESSION['clm_usuarios_sede'] ?? ''));
+    $sedeId = trim((string)($_SESSION['clm_usuarios_sede'] ?? ''));
+    $sedeNombre = n360_header_sede_name($sedeId);
+    $photo = n360_header_user_photo($dni);
+
+    if ($photo !== '' && !preg_match('/^data:image\/[a-zA-Z0-9.+-]+;base64,/', $photo)) {
+        $photo = '';
+    }
 
     return [
         'display_name' => $displayName,
@@ -170,8 +278,10 @@ function n360_header_user_data(): array {
         'role' => $role !== '' ? $role : 'Usuario',
         'dni' => $dni !== '' ? $dni : 'No registrado',
         'age' => n360_header_age_label(),
-        'sede' => $sede !== '' ? $sede : 'No asignada',
+        'sede' => $sedeNombre !== '' ? $sedeNombre : ($sedeId !== '' ? $sedeId : 'No asignada'),
         'initials' => n360_header_initials($displayName),
+        'photo' => $photo,
+        'photo_hint' => 'Solicite a administrador su foto de perfil',
     ];
 }
 
@@ -236,7 +346,11 @@ function n360_render_header(array $options = []): void {
                 <div class="n360-user-menu" data-n360-user-menu>
                     <button type="button" class="n360-user-trigger" data-n360-user-toggle aria-expanded="false" aria-controls="n360UserDropdown">
                         <span class="n360-user-avatar" aria-hidden="true">
-                            <i class="bi bi-person-badge-fill"></i>
+                            <?php if ($user['photo'] !== ''): ?>
+                                <img src="<?= n360_header_h($user['photo']) ?>" alt="">
+                            <?php else: ?>
+                                <i class="bi bi-person-badge-fill"></i>
+                            <?php endif; ?>
                         </span>
                         <span class="n360-user-summary">
                             <strong><?= n360_header_h($user['username']) ?></strong>
@@ -247,10 +361,19 @@ function n360_render_header(array $options = []): void {
 
                     <div class="n360-user-dropdown" id="n360UserDropdown" role="menu">
                         <div class="n360-user-dropdown__head">
-                            <span class="n360-user-avatar n360-user-avatar--lg"><?= n360_header_h($user['initials']) ?></span>
+                            <span class="n360-user-avatar n360-user-avatar--lg">
+                                <?php if ($user['photo'] !== ''): ?>
+                                    <img src="<?= n360_header_h($user['photo']) ?>" alt="Foto de perfil">
+                                <?php else: ?>
+                                    <?= n360_header_h($user['initials']) ?>
+                                <?php endif; ?>
+                            </span>
                             <div>
                                 <strong><?= n360_header_h($user['display_name']) ?></strong>
                                 <span>@<?= n360_header_h($user['username']) ?></span>
+                                <?php if ($user['photo'] === ''): ?>
+                                    <span class="n360-user-photo-hint"><?= n360_header_h($user['photo_hint']) ?></span>
+                                <?php endif; ?>
                             </div>
                         </div>
 

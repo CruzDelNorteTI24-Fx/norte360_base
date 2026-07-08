@@ -7,6 +7,21 @@ session_unset();
 session_destroy();
 session_start();
 
+function n360_login_photo_data_uri($blob): string {
+    if (!is_string($blob) || $blob === '') {
+        return '';
+    }
+
+    $mime = 'image/jpeg';
+    if (function_exists('getimagesizefromstring')) {
+        $info = @getimagesizefromstring($blob);
+        if (is_array($info) && !empty($info['mime'])) {
+            $mime = (string)$info['mime'];
+        }
+    }
+
+    return 'data:' . $mime . ';base64,' . base64_encode($blob);
+}
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $usuario = trim($_POST['usuario']);
     $clave = trim($_POST['clave']);
@@ -14,7 +29,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     // Aplicar hash SHA-256 a la contraseña ingresada
     $clave_hash = hash('sha256', $clave);
 
-    $stmt = $conn->prepare("SELECT id_usuario, usuario, contrasena, nombre, DNI, clm_usuarios_sede, web_rol FROM tb_usuarios WHERE usuario = ? LIMIT 1");
+    $stmt = $conn->prepare("
+        SELECT
+            u.id_usuario,
+            u.usuario,
+            u.contrasena,
+            u.nombre,
+            u.DNI,
+            u.clm_usuarios_sede,
+            u.web_rol,
+            s.clm_sedes_name AS sede_nombre,
+            u.clm_tra_imagen AS foto_usuario
+        FROM tb_usuarios u
+        LEFT JOIN tb_sedes s ON s.clm_sedes_id = u.clm_usuarios_sede
+        LEFT JOIN tb_trabajador t ON t.clm_tra_id = (
+            SELECT t2.clm_tra_id
+            FROM tb_trabajador t2
+            WHERE t2.clm_tra_dni = u.DNI
+              AND t2.clm_tra_imagen IS NOT NULL
+              AND t2.clm_tra_imagen <> ''
+            ORDER BY t2.clm_tra_id DESC
+            LIMIT 1
+        )
+        WHERE u.usuario = ?
+        LIMIT 1
+    ");
     $stmt->bind_param("s", $usuario);
     $stmt->execute();
     $resultado = $stmt->get_result();
@@ -31,6 +70,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION['nombre'] = $fila['nombre'];
             $_SESSION['DNI'] = $fila['DNI'];
             $_SESSION['clm_usuarios_sede'] = $fila['clm_usuarios_sede'];
+            $_SESSION['clm_usuarios_sede_nombre'] = trim((string)($fila['sede_nombre'] ?? '')) !== ''
+                ? $fila['sede_nombre']
+                : $fila['clm_usuarios_sede'];
+
+            $_SESSION['n360_user_photo_checked'] = true;
+            $fotoPerfil = n360_login_photo_data_uri($fila['foto_usuario'] ?? null);
+            if ($fotoPerfil !== '') {
+                $_SESSION['n360_user_photo'] = $fotoPerfil;
+            } else {
+                unset($_SESSION['n360_user_photo']);
+            }
 
             // Si es Admin, redirecciona a index.php
             if ($fila['web_rol'] === 'Admin') {

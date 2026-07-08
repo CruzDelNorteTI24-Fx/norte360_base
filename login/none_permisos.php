@@ -63,7 +63,7 @@ if (!empty($_SERVER['HTTP_REFERER'])) {
     </header>
 <?php endif; ?>
 
-<main class="<?= $isLogged ? 'main-content n360-main n360-main--module' : 'n360-denied-main n360-main' ?>" role="main">
+<main class="<?= $isLogged ? 'main-content n360-main n360-main--module n360-main--compact-access' : 'n360-denied-main n360-main n360-main--compact-access' ?>" role="main">
     <div class="n360-main__inner n360-denied-shell">
         <?php n360_render_content_separator('top'); ?>
 

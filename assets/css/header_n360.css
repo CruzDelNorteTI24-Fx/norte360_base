@@ -187,6 +187,15 @@
     font-weight: 900;
     letter-spacing: .03em;
     flex: 0 0 auto;
+    overflow: hidden;
+}
+
+.n360-user-avatar img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: inherit;
 }
 
 .n360-user-avatar--lg {
@@ -312,7 +321,16 @@
     line-height: 1.18;
 }
 
-.n360-user-dropdown__head span:not(.n360-user-avatar):not(.n360-user-kicker) {
+.n360-user-photo-hint {
+    max-width: 190px;
+    margin-top: 5px !important;
+    color: rgba(255, 255, 255, 0.78) !important;
+    font-size: 11px !important;
+    font-weight: 750 !important;
+    line-height: 1.25;
+}
+
+.n360-user-dropdown__head span:not(.n360-user-avatar):not(.n360-user-kicker):not(.n360-user-photo-hint) {
     display: block;
     margin-top: 2px;
     color: rgba(255, 255, 255, 0.72);

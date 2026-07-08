@@ -56,3 +56,17 @@ body.sidebar-collapsed .n360-main {
         padding-bottom: 24px;
     }
 }
+.n360-main--compact-access {
+    padding-top: clamp(8px, 1.1vw, 16px);
+}
+
+.n360-main--compact-access .n360-content-separator--top {
+    margin-top: 6px;
+    margin-bottom: 22px;
+}
+
+@media (max-width: 560px) {
+    .n360-main--compact-access {
+        padding-top: 10px;
+    }
+}
