@@ -371,6 +371,13 @@ function n360_menu_config(): array {
                                 'url' => '01_almacen/movimientos_ofi.php',
                                 'modulo' => 3
                             ],
+                            [
+                                'titulo' => 'Auditoria de almacen',
+                                'icono' => 'bi bi-clipboard2-check-fill',
+                                'url' => '01_almacen/auditoria.php',
+                                'vista' => 'a-auditoria',
+                                'modulo' => 3
+                            ],
                         ]
                     ],
                 ]

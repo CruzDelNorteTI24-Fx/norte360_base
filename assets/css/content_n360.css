@@ -3,6 +3,17 @@
     --n360-separator-yellow: #f5d547;
     --n360-separator-soft: rgba(52, 152, 219, 0.16);
 }
+html,
+body {
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: linear-gradient(to bottom right, #ecf0f1, #d9e2ec);
+    font-family: 'Segoe UI', sans-serif;
+}
 
 .n360-content-separator,
 .n360-content-separator-wrap {
