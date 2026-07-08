@@ -343,6 +343,23 @@ margin: 20px
     text-align: center;
 }
 
+.admin-access-card {
+    position: relative;
+    border: 1px solid rgba(35, 137, 201, 0.22);
+}
+
+.admin-access-card__icon {
+    width: 116px;
+    height: 116px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #17283a 0%, #2389c9 100%);
+    color: #fff;
+    font-size: 48px;
+    box-shadow: 0 14px 26px rgba(23, 40, 58, 0.18);
+}
 .pagination {
     text-align: center;
     margin-top: 30px;
@@ -810,6 +827,16 @@ $mensaje_extra = $frases[array_rand($frases)];
 
 <div class="catalogo-container">
 <?php
+if (n360_is_admin()) {
+  echo '
+  <div class="product-card admin-access-card">
+    <div class="admin-access-card__icon" aria-hidden="true"><i class="bi bi-shield-lock-fill"></i></div>
+    <h4>Permisos y accesos</h4>
+    <p>Mapa de modulos, interfaces y usuarios</p>
+    <a href="admin/permisos_mapa.php" class="btn-validar">Ingresar</a>
+  </div>';
+}
+
 if (n360_puede_modulo(6)) {
   echo '
   <div class="product-card">

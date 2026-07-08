@@ -1,0 +1,301 @@
+.admin-perms-shell {
+    display: grid;
+    gap: 22px;
+}
+
+.admin-perms-hero {
+    border-radius: 8px;
+    padding: clamp(22px, 3vw, 34px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    color: #fff;
+    background:
+        radial-gradient(circle at 16% -20%, rgba(37, 166, 223, 0.30), transparent 34%),
+        linear-gradient(135deg, #142232 0%, #1c3449 56%, #254f6d 100%);
+    box-shadow: 0 16px 34px rgba(13, 32, 48, 0.18);
+}
+
+.admin-perms-kicker {
+    width: fit-content;
+    margin-bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.admin-perms-hero h1 {
+    margin: 0 0 8px;
+    font-size: clamp(30px, 3vw, 42px);
+    line-height: 1.05;
+    letter-spacing: 0;
+}
+
+.admin-perms-hero p {
+    max-width: 720px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+.admin-perms-btn {
+    min-height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.admin-perms-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    text-decoration: none;
+}
+
+.admin-perms-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.admin-perms-summary div,
+.admin-perms-panel,
+.admin-perms-toolbar {
+    border: 1px solid #d9e4ef;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 10px 24px rgba(15, 35, 52, 0.07);
+}
+
+.admin-perms-summary div {
+    padding: 16px;
+}
+
+.admin-perms-summary span {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.admin-perms-summary strong {
+    margin-top: 6px;
+    display: block;
+    color: #17283a;
+    font-size: 28px;
+    line-height: 1;
+}
+
+.admin-perms-toolbar {
+    padding: 12px;
+}
+
+.admin-perms-toolbar label {
+    min-height: 44px;
+    border: 1px solid #cfdce8;
+    border-radius: 8px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    color: #64748b;
+}
+
+.admin-perms-toolbar input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    color: #17283a;
+    font: inherit;
+}
+
+.admin-perms-panel {
+    min-width: 0;
+    padding: 18px;
+}
+
+.admin-perms-panel-head {
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-perms-panel-head h2 {
+    margin: 0;
+    color: #17283a;
+    font-size: 18px;
+    font-weight: 900;
+    text-align: left;
+}
+
+.admin-perms-panel-head span {
+    border-radius: 999px;
+    padding: 5px 9px;
+    background: #e8f3fb;
+    color: #176fa4;
+    font-size: 12px;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.admin-perms-table-wrap {
+    max-height: 620px;
+    overflow: auto;
+    border: 1px solid #e5edf4;
+    border-radius: 8px;
+}
+
+.admin-perms-table-wrap--small {
+    max-height: 430px;
+}
+
+.admin-perms-table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+}
+
+.admin-perms-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #17283a;
+    color: #fff;
+    padding: 12px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.admin-perms-table td {
+    border-top: 1px solid #e5edf4;
+    padding: 12px;
+    color: #17283a;
+    vertical-align: top;
+    font-size: 13px;
+}
+
+.admin-perms-table td strong,
+.admin-perms-table td small {
+    display: block;
+}
+
+.admin-perms-table td small,
+.admin-perms-muted {
+    color: #64748b;
+}
+
+.admin-perms-rule,
+.admin-perms-code-list code,
+.admin-perms-list-item code,
+.admin-perms-table code {
+    width: fit-content;
+    border-radius: 8px;
+    padding: 4px 7px;
+    display: inline-flex;
+    background: #eef6fc;
+    color: #176fa4;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.admin-perms-code-list,
+.admin-perms-user-list {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.admin-perms-user-list span {
+    border-radius: 999px;
+    padding: 5px 8px;
+    background: #f4f8fc;
+    color: #17283a;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.admin-perms-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.admin-perms-list {
+    max-height: 480px;
+    overflow: auto;
+    padding-right: 4px;
+    display: grid;
+    gap: 10px;
+}
+
+.admin-perms-list-item {
+    border: 1px solid #e5edf4;
+    border-radius: 8px;
+    padding: 11px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: #fff;
+}
+
+.admin-perms-list-item span {
+    min-width: 0;
+}
+
+.admin-perms-list-item strong,
+.admin-perms-list-item small {
+    display: block;
+}
+
+.admin-perms-list-item strong {
+    color: #17283a;
+    font-size: 13px;
+}
+
+.admin-perms-list-item small {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+@media (max-width: 1000px) {
+    .admin-perms-hero,
+    .admin-perms-panel-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .admin-perms-summary,
+    .admin-perms-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 620px) {
+    .admin-perms-summary,
+    .admin-perms-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -182,7 +182,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Nueva entrevista',
                                 'icono' => 'bi bi-clipboard-plus-fill',
                                 'url' => '01_entrevistas/reentrev.php',
-                                'vistas' => ['e-gen'],
+                                'vistas' => ['r-gen', 'e-gen'],
                                 'modulo' => 6
                             ],
                             [
