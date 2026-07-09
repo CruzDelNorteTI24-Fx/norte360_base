@@ -126,6 +126,47 @@ function n360_menu_config(): array {
                 'modulo' => 6,
                 'grupos' => [
                     [
+                        'titulo' => 'Entrevistas',
+                        'items' => [
+                            [
+                                'titulo' => 'Nueva entrevista',
+                                'icono' => 'bi bi-clipboard-plus-fill',
+                                'url' => '01_entrevistas/reentrev.php',
+                                'vistas' => ['r-gen', 'e-gen'],
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Ver entrevistas',
+                                'icono' => 'bi bi-clipboard-data-fill',
+                                'url' => '01_entrevistas/bvisentrevisaf.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Etapas de entrevistas',
+                                'icono' => 'bi bi-kanban-fill',
+                                'url' => '01_entrevistas/propukanban.php',
+                                'modulo' => 6
+                            ],
+                        ]
+                    ],
+                    [
+                        'titulo' => 'Procesos',
+                        'items' => [
+                            [
+                                'titulo' => 'Capacitaciones',
+                                'icono' => 'bi bi-mortarboard-fill',
+                                'url' => '01_contratos/ncapacitaciones.php',
+                                'modulo' => 6
+                            ],
+                            [
+                                'titulo' => 'Solicitud para trabajador',
+                                'icono' => 'bi bi-file-earmark-person-fill',
+                                'url' => '01_contratos/tbvistacontratadosent.php',
+                                'modulo' => 6
+                            ],
+                        ]
+                    ],
+                    [
                         'titulo' => 'Personal',
                         'items' => [
                             [
@@ -180,47 +221,6 @@ function n360_menu_config(): array {
                                 'titulo' => 'Emergencia',
                                 'icono' => 'bi bi-telephone-inbound-fill',
                                 'url' => '01_contratos/trabajadores/ver_emergencia.php',
-                                'modulo' => 6
-                            ],
-                        ]
-                    ],
-                    [
-                        'titulo' => 'Procesos',
-                        'items' => [
-                            [
-                                'titulo' => 'Capacitaciones',
-                                'icono' => 'bi bi-mortarboard-fill',
-                                'url' => '01_contratos/ncapacitaciones.php',
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Solicitud para trabajador',
-                                'icono' => 'bi bi-file-earmark-person-fill',
-                                'url' => '01_contratos/tbvistacontratadosent.php',
-                                'modulo' => 6
-                            ],
-                        ]
-                    ],
-                    [
-                        'titulo' => 'Entrevistas',
-                        'items' => [
-                            [
-                                'titulo' => 'Nueva entrevista',
-                                'icono' => 'bi bi-clipboard-plus-fill',
-                                'url' => '01_entrevistas/reentrev.php',
-                                'vistas' => ['r-gen', 'e-gen'],
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Ver entrevistas',
-                                'icono' => 'bi bi-clipboard-data-fill',
-                                'url' => '01_entrevistas/bvisentrevisaf.php',
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Etapas de entrevistas',
-                                'icono' => 'bi bi-kanban-fill',
-                                'url' => '01_entrevistas/propukanban.php',
                                 'modulo' => 6
                             ],
                         ]

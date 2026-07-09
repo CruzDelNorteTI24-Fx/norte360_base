@@ -19,6 +19,9 @@ $web_rol              = $_SESSION['web_rol'] ?? '';
 $usuario_session      = $_SESSION['usuario'] ?? 'QR Operativo';
 $dni_session          = $_SESSION['DNI'] ?? '—';
 
+$HORARIO_CIERRE_URL   = 'https://dimgrey-cat-911574.hostingersite.com/ht/01_flota/cron_cierre_operativo_horarios.php?token=NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
+$HORARIO_CIERRE_PASS  = 'n360pizza';
+
 $permisos = ($session_permisos_raw === 'all') ? [] : (array)$session_permisos_raw;
 $vistas   = ($session_permisos_raw === 'all') ? [] : (array)$session_vistas_raw;
 
@@ -581,6 +584,17 @@ if (isset($_GET['ajax'])) {
             horario_json(true, ['oficinas' => horario_fetch_oficinas($conn, $tipo === 'ORIGEN' ? 'ORIGEN' : 'TODAS')]);
         }
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') horario_json(false, [], 'Método no permitido.');
+
+        if ($ajax === 'limpiar_pizarra') {
+            if ($web_rol !== 'Admin') {
+                horario_json(false, [], 'Solo administradores pueden limpiar la pizarra.');
+            }
+            $password = (string)($_POST['password'] ?? '');
+            if (!hash_equals($HORARIO_CIERRE_PASS, $password)) {
+                horario_json(false, [], 'Contrasena incorrecta.');
+            }
+            horario_json(true, ['url' => $HORARIO_CIERRE_URL], 'Validacion correcta.');
+        }
 
         $conn->begin_transaction();
 
@@ -4033,6 +4047,9 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                     </button>
                     <button class="btn btn-outline-danger" id="btnInhabilitados"><i class="bi bi-ban me-2"></i>Inhabilitados</button>
                     <button class="btn btn-outline-dark" id="btnHistorial"><i class="bi bi-clock-history me-2"></i>Historial</button>
+                    <?php if ($web_rol === 'Admin'): ?>
+                    <button type="button" class="btn btn-outline-danger" id="btnLimpiarPizarra"><i class="bi bi-trash3 me-2"></i>Limpiar pizarra</button>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -4269,6 +4286,35 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 </a>
 
 
+<?php if ($web_rol === 'Admin'): ?>
+<div class="modal fade" id="modalLimpiarPizarra" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <div>
+          <h5 class="modal-title mb-1"><i class="bi bi-exclamation-octagon me-2"></i>Limpiar pizarra operativa</h5>
+          <div class="small text-white-50">Esta accion ejecuta el cierre operativo configurado.</div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning border-0 mb-3">
+          <strong>Advertencia:</strong> se limpiara la pizarra de programacion. Verifica que no haya cambios pendientes antes de continuar.
+        </div>
+        <label class="form-label fw-bold" for="limpiarPizarraPassword">Contrasena de confirmacion</label>
+        <input type="password" class="form-control" id="limpiarPizarraPassword" autocomplete="off" placeholder="Ingresa la contrasena">
+        <div class="form-text">Esta validacion evita ejecuciones accidentales.</div>
+        <div class="alert alert-danger d-none mt-3 mb-0" id="limpiarPizarraError"></div>
+      </div>
+      <div class="modal-footer bg-white">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmLimpiarPizarra"><i class="bi bi-trash3 me-2"></i>Confirmar limpieza</button>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <!-- MODAL DE CARGA -->
 <div id="modal-cargando" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
   <div style="background:white; padding:30px 50px; border-radius:12px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.3); min-width:280px;">
@@ -4332,6 +4378,10 @@ txtModoImagen: $('txtModoImagen'),
 
     btnHistorial: $('btnHistorial'),
     btnInhabilitados: $('btnInhabilitados'),
+    btnLimpiarPizarra: $('btnLimpiarPizarra'),
+    btnConfirmLimpiarPizarra: $('btnConfirmLimpiarPizarra'),
+    limpiarPizarraPassword: $('limpiarPizarraPassword'),
+    limpiarPizarraError: $('limpiarPizarraError'),
     crearOrigen: $('crearOrigen'),
     crearDestino: $('crearDestino'),
     crearHora: $('crearHora'),
@@ -4392,6 +4442,8 @@ txtModoImagen: $('txtModoImagen'),
         els.btnExportImagen,
         els.btnHistorial,
         els.btnInhabilitados,
+        els.btnLimpiarPizarra,
+        els.btnConfirmLimpiarPizarra,
         els.btnGuardarNuevoHorario,
         els.btnGuardarEditarHora,
         els.btnAceptarMotivo,
@@ -4439,6 +4491,7 @@ $('modalBus').addEventListener('shown.bs.modal', () => {
 });
   const modalHistorial = new bootstrap.Modal($('modalHistorial')); const modalInhabilitados = new bootstrap.Modal($('modalInhabilitados'));
   const modalExportImagen = new bootstrap.Modal($('modalExportImagen'));
+  const modalLimpiarPizarra = $('modalLimpiarPizarra') ? new bootstrap.Modal($('modalLimpiarPizarra')) : null;
 
   const quickTimes = ['06:00','08:00','10:00','12:00','16:00','18:00','20:00','22:00'];
   const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
@@ -6253,6 +6306,44 @@ async function fetchJson(action, options = {}) {
     }
   }
 }
+  async function confirmarLimpiarPizarra() {
+    if (!els.limpiarPizarraPassword || !els.btnConfirmLimpiarPizarra) return;
+
+    const password = els.limpiarPizarraPassword.value.trim();
+    if (els.limpiarPizarraError) {
+      els.limpiarPizarraError.classList.add('d-none');
+      els.limpiarPizarraError.textContent = '';
+    }
+
+    if (!password) {
+      if (els.limpiarPizarraError) {
+        els.limpiarPizarraError.textContent = 'Ingresa la contrasena para continuar.';
+        els.limpiarPizarraError.classList.remove('d-none');
+      }
+      els.limpiarPizarraPassword.focus();
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('password', password);
+    const data = await fetchJson('limpiar_pizarra', {
+      method: 'POST',
+      body: fd
+    });
+
+    if (!data.url) {
+      throw new Error('No se recibio la URL de cierre operativo.');
+    }
+
+    modalLimpiarPizarra?.hide();
+    els.limpiarPizarraPassword.value = '';
+    showAlert('warning', 'Limpieza de pizarra lanzada. Revisa el resultado del cierre operativo.');
+    const opened = window.open(data.url, '_blank', 'noopener');
+    if (!opened) {
+      window.location.href = data.url;
+    }
+  }
+
   async function refreshSnapshot(showOk=false){ const data=await fetchJson('snapshot'); state.snapshot=data; updateAll(); if(showOk) showAlert('success','Programación actualizada correctamente.'); }
   function populateOfficeSelects(){ const origenes=state.snapshot.oficinas_origen||[]; const destinos=state.snapshot.oficinas_destino||[]; els.crearOrigen.innerHTML=`<option value="">Selecciona origen</option>`+origenes.map(o=>`<option value="${o.clm_sedes_id}">${esc(o.oficina||`Sede ${o.clm_sedes_id}`)}</option>`).join(''); els.crearDestino.innerHTML=`<option value="">Selecciona destino</option>`+destinos.map(o=>`<option value="${o.clm_sedes_id}">${esc(o.oficina||`Sede ${o.clm_sedes_id}`)}</option>`).join(''); }
   function updateCreatePreview(){
@@ -7130,7 +7221,39 @@ els.btnSwapOficinas.addEventListener('click', () => {
   updateCreatePreview();
 });
 
-els.btnHistorial.addEventListener('click',()=>openHistorial().catch(err=>showAlert('danger',err.message||'No se pudo cargar el historial.'))); els.btnInhabilitados.addEventListener('click',()=>openInhabilitados().catch(err=>showAlert('danger',err.message||'No se pudieron cargar los horarios inhabilitados.'))); els.editarHoraInput.addEventListener('input',updateEditPreview); 
+els.btnHistorial.addEventListener('click',()=>openHistorial().catch(err=>showAlert('danger',err.message||'No se pudo cargar el historial.'))); els.btnInhabilitados.addEventListener('click',()=>openInhabilitados().catch(err=>showAlert('danger',err.message||'No se pudieron cargar los horarios inhabilitados.'))); 
+if (els.btnLimpiarPizarra && modalLimpiarPizarra) {
+  els.btnLimpiarPizarra.addEventListener('click', () => {
+    if (els.limpiarPizarraPassword) els.limpiarPizarraPassword.value = '';
+    if (els.limpiarPizarraError) {
+      els.limpiarPizarraError.textContent = '';
+      els.limpiarPizarraError.classList.add('d-none');
+    }
+    modalLimpiarPizarra.show();
+    setTimeout(() => els.limpiarPizarraPassword?.focus(), 250);
+  });
+}
+if (els.btnConfirmLimpiarPizarra) {
+  els.btnConfirmLimpiarPizarra.addEventListener('click', () => {
+    confirmarLimpiarPizarra().catch(err => {
+      if (els.limpiarPizarraError) {
+        els.limpiarPizarraError.textContent = err.message || 'No se pudo validar la limpieza.';
+        els.limpiarPizarraError.classList.remove('d-none');
+      } else {
+        showAlert('danger', err.message || 'No se pudo validar la limpieza.');
+      }
+    });
+  });
+}
+if (els.limpiarPizarraPassword) {
+  els.limpiarPizarraPassword.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      els.btnConfirmLimpiarPizarra?.click();
+    }
+  });
+}
+els.editarHoraInput.addEventListener('input',updateEditPreview); 
 
 els.editarDestino.addEventListener('change', updateEditPreview);
 if (els.btnLimpiarRutaCrear) {
