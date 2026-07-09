@@ -80,6 +80,34 @@ function horario_mysqli_error(mysqli $conn, string $fallback = 'Error de base de
     return $msg !== '' ? $msg : $fallback;
 }
 
+function horario_column_exists(mysqli $conn, string $table, string $column): bool {
+    $stmt = $conn->prepare("
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+        LIMIT 1
+    ");
+    if (!$stmt) return false;
+    $stmt->bind_param('ss', $table, $column);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return false;
+    }
+    $exists = $stmt->get_result()->num_rows > 0;
+    $stmt->close();
+    return $exists;
+}
+
+function horario_has_comentario_column(mysqli $conn): bool {
+    static $hasColumn = null;
+    if ($hasColumn === null) {
+        $hasColumn = horario_column_exists($conn, 'tb_progbuses', 'clm_progbuses_comentario');
+    }
+    return $hasColumn;
+}
+
 function horario_set_hist_motivo(mysqli $conn, ?string $motivo): void {
     if ($motivo === null || trim($motivo) === '') {
         $conn->query("SET @motivo_hist_progbuses = NULL");
@@ -328,6 +356,9 @@ $sql = "
 }
 
 function horario_fetch_panel_horarios(mysqli $conn, int $estado = 1): array {
+    $comentarioSelect = horario_has_comentario_column($conn)
+        ? "IFNULL(pb.clm_progbuses_comentario, '') AS clm_progbuses_comentario,"
+        : "'' AS clm_progbuses_comentario,";
 $sql = "
     SELECT
         pb.clm_progbuses_progid,
@@ -341,6 +372,7 @@ $sql = "
         pb.clm_progbuses_idusuario,
         pb.clm_progbuses_datetimeupdated,
         pb.clm_progbuses_motivo,
+        {$comentarioSelect}
         IFNULL(p.clm_placas_BUS, '') AS bus,
         IFNULL(p.clm_placas_PLACA, '') AS placa,
         IFNULL(p.clm_placas_TIPO_VEHÍCULO, '') AS tipo_vehiculo,
@@ -557,6 +589,13 @@ if (isset($_GET['ajax'])) {
             $idDestino = (int)($_POST['idof_destino'] ?? 0);
             $ruta = horario_normalizar_ruta($_POST['ruta'] ?? '');
             $hora = horario_time_to_sql($_POST['horasalida'] ?? '');
+            $comentario = trim((string)($_POST['comentario'] ?? ''));
+            if (function_exists('mb_strlen') && mb_strlen($comentario, 'UTF-8') > 500) {
+                $comentario = mb_substr($comentario, 0, 500, 'UTF-8');
+            } elseif (!function_exists('mb_strlen') && strlen($comentario) > 500) {
+                $comentario = substr($comentario, 0, 500);
+            }
+            $comentarioDb = $comentario !== '' ? $comentario : null;
             if ($idOrigen <= 0 || $idDestino <= 0) throw new RuntimeException('Selecciona origen y destino válidos.');
             if ($idOrigen === $idDestino) throw new RuntimeException('Origen y destino no pueden ser iguales.');
             if ($ruta !== null) {
@@ -572,6 +611,30 @@ if (isset($_GET['ajax'])) {
             }
             if (!$hora) throw new RuntimeException('La hora de salida es obligatoria.');
 
+            if (horario_has_comentario_column($conn)) {
+                $sql = "
+                    INSERT INTO tb_progbuses (
+                        clm_progbuses_fechacreated,
+                        clm_progbuses_idplaca,
+                        clm_progbuses_idoficina_origen,
+                        clm_progbuses_idoficina_destino,
+                        clm_progbuses_ruta,
+                        clm_progbuses_horasalida,
+                        clm_progbuses_estado,
+                        clm_progbuses_idusuario,
+                        clm_progbuses_motivo,
+                        clm_progbuses_comentario
+                    ) VALUES (
+                        " . horario_now_peru_sql() . ",
+                        NULL,
+                        ?, ?, ?, ?, 1, ?, 'Creacion inicial del horario', ?
+                    )
+                ";
+
+                $stmt = $conn->prepare($sql);
+                if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
+                $stmt->bind_param('iissis', $idOrigen, $idDestino, $ruta, $hora, $horario_uid, $comentarioDb);
+            } else {
               $sql = "
                   INSERT INTO tb_progbuses (
                       clm_progbuses_fechacreated,
@@ -586,13 +649,14 @@ if (isset($_GET['ajax'])) {
                   ) VALUES (
                       " . horario_now_peru_sql() . ",
                       NULL,
-                      ?, ?, ?, ?, 1, ?, 'Creación inicial del horario'
+                      ?, ?, ?, ?, 1, ?, 'Creacion inicial del horario'
                   )
               ";
 
               $stmt = $conn->prepare($sql);
               if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
               $stmt->bind_param('iissi', $idOrigen, $idDestino, $ruta, $hora, $horario_uid);
+            }
 
             if (!$stmt->execute()) { $err = $stmt->error ?: horario_mysqli_error($conn); $stmt->close(); throw new RuntimeException($err); }
             $stmt->close();
@@ -3703,6 +3767,17 @@ aside img {
   line-height: 1.35;
 }
 
+.schedule-card__comentario {
+  background: #fff9ec;
+  border: 1px solid #f6dfb4;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: .78rem;
+  color: #69470f;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .export-pdf-divider {
   background: #fff;
   border: 1px dashed #d7e2ec;
@@ -4017,7 +4092,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   </div>
 </div>
 
-</div><div class="modal-footer bg-white"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnGuardarNuevoHorario">Guardar horario</button></div></div></div></div>
+<div class="mt-3"><label class="form-label fw-bold">Comentario</label><textarea id="crearComentario" class="form-control" rows="3" maxlength="500" placeholder="Comentario opcional para este horario"></textarea><div class="form-text">Se guarda junto al horario y queda visible en la tarjeta.</div></div></div><div class="modal-footer bg-white"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnGuardarNuevoHorario">Guardar horario</button></div></div></div></div>
 
 <div class="modal fade" id="modalEditarHora" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Cambiar hora del horario</h5><div class="small text-white-50" id="editarHoraSubtitulo">Horario</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="alert alert-light border rounded-4 mb-4"><div class="small text-secondary fw-bold mb-1">Vista previa de reprogramación</div><div class="fs-5 fw-bold text-dark" id="previewEditarHora">00:00 → 00:00</div></div>
     <div class="mb-3">
@@ -4260,6 +4335,7 @@ txtModoImagen: $('txtModoImagen'),
     crearOrigen: $('crearOrigen'),
     crearDestino: $('crearDestino'),
     crearHora: $('crearHora'),
+    crearComentario: $('crearComentario'),
     crearRutaList: $('crearRutaList'),
     crearRutaPreview: $('crearRutaPreview'),
     btnLimpiarRutaCrear: $('btnLimpiarRutaCrear'),
@@ -4772,6 +4848,13 @@ function attachMarcarSinHorarioActions(container) {
         Ruta: ${esc(rutaTexto)}
       </div>`
     : '';
+  const comentario = String(row.clm_progbuses_comentario || '').trim();
+  const comentarioHtml = comentario
+    ? `<div class="schedule-card__comentario">
+        <i class="bi bi-chat-left-text me-1"></i>
+        ${esc(comentario)}
+      </div>`
+    : '';
       const tallerNota = estaEnTaller
         ? `<div class="schedule-card__taller-note">
             <i class="bi bi-tools me-1"></i> Esta unidad está actualmente en taller.
@@ -4800,6 +4883,7 @@ function attachMarcarSinHorarioActions(container) {
       <div class="schedule-card__unit">${esc(unidadTexto)}</div>
       <div class="schedule-card__meta">${esc(metaTexto)}</div>
       ${rutaHtml}
+      ${comentarioHtml}
       ${tallerNota}
 
       <div class="schedule-card__footer">
@@ -6188,6 +6272,7 @@ async function fetchJson(action, options = {}) {
     els.crearHora.value = '16:00';
     els.crearOrigen.value = '';
     els.crearDestino.value = '';
+    if (els.crearComentario) els.crearComentario.value = '';
 
     renderRutaSelector({
       container: els.crearRutaList,
@@ -6223,6 +6308,7 @@ async function saveNewHorario(){
   fd.append('idof_destino',els.crearDestino.value);
   fd.append('horasalida',els.crearHora.value);
   fd.append('ruta', rutaIds.join(','));
+  fd.append('comentario', (els.crearComentario?.value || '').trim());
 
   const data=await fetchJson('create_horario',{method:'POST',body:fd});
   state.snapshot=data;
