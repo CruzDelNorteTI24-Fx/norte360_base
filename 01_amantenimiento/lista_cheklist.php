@@ -1442,6 +1442,7 @@ if ($res_gen->num_rows > 0) {
               </div>
               <a href='ver_checklist.php?id=".urlencode($row['clm_checklist_id'])."' class='checklist-btn'>$texto_btn</a>
               <button onclick=\"mostrarKPI( ".$row['clm_checklist_id'].", ' ".$row['clm_checklist_corr']. "', ' ".$row['clm_checklist_fecha']. "', ' ".$row['clm_checklist_hora']. "' )\" class=\"checklist-btn\">Resultados</button>
+              <a href='checklist_reportes.php?checklist_id=".urlencode($row['clm_checklist_id'])."&download=1' target='_blank' class='checklist-btn'>Descargar PDF</a>
             </div>";
         }
     }

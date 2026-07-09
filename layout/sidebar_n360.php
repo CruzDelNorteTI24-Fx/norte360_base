@@ -264,8 +264,8 @@ function n360_menu_config(): array {
             ],
             [
                 'id' => 'mantenimiento',
-                'titulo' => 'Mantenimiento',
-                'icono' => 'bi bi-tools',
+                'titulo' => 'Calidad',
+                'icono' => 'bi bi-shield-check',
                 'modulo' => 5,
                 'grupos' => [
                     [
@@ -308,6 +308,20 @@ function n360_menu_config(): array {
                                 'titulo' => 'Ver checklist',
                                 'icono' => 'bi bi-ui-checks-grid',
                                 'url' => '01_amantenimiento/lista_cheklist.php',
+                                'vistas' => ['c-limp', 'c-sab', 'c-lalu'],
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Reportes por unidad',
+                                'icono' => 'bi bi-file-earmark-pdf-fill',
+                                'url' => '01_amantenimiento/checklist_reportes.php',
+                                'admin' => true,
+                                'modulo' => 5
+                            ],
+                            [
+                                'titulo' => 'Consolidado checklist',
+                                'icono' => 'bi bi-clipboard2-data-fill',
+                                'url' => '01_amantenimiento/checklist_consolidado.php',
                                 'vistas' => ['c-limp', 'c-sab', 'c-lalu'],
                                 'modulo' => 5
                             ],
