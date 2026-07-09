@@ -3775,9 +3775,9 @@ aside img {
   border: 1px solid #dbe8f3;
   border-radius: 12px;
   padding: 8px 10px;
-  font-size: .78rem;
+  font-size: .84rem;
   color: #425466;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.35;
 }
 
@@ -5871,7 +5871,7 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
     const items = grupos[origen];
     const filasVisuales = items.length > 6 ? Math.max(1, Math.ceil(items.length / 2)) : items.length;
     alto += 90;
-    alto += filasVisuales * 94;
+    alto += filasVisuales * 108;
     alto += 24;
   });
 
@@ -5921,9 +5921,10 @@ const fCount = fontPizarra(400, 12);
 
 const fHora = fontPizarra(900, 34);
 const fBus = fontPizarra(900, 40);
-const fDest = fontPizarra(900, 22);
+const fDest = fontPizarra(900, 25);
 
 const fSmall = fontPizarra(400, 13);
+const fComentario = fontPizarra(600, 15);
 
 const fPanelHead = fontPizarra(800, 25);
 const fPanelBus = fontPizarra(800, 21);
@@ -6100,7 +6101,7 @@ busesSinHorario.forEach(b => {
   const bloquePadX = 18;
   const bloquePadY = 16;
   const tituloH = 46;
-  const filaH = 90;
+  const filaH = 104;
   const bloqueW = cuerpoUtilW;
   const maxFilasPorSubcol = 6;
   const subGap = 28;
@@ -6188,8 +6189,9 @@ busesSinHorario.forEach(b => {
         const destinoServicio = destino
           ? `${destino}${servicio ? ' | ' + servicio : ''}`
           : (servicio || '');
+        const comentario = String(r.clm_progbuses_comentario || '').trim();
 
-        drawCard(ctx, subX - 6, filaY - 2, subcolW - 2, 68, {
+        drawCard(ctx, subX - 6, filaY - 2, subcolW - 2, 84, {
           radius: 12,
           fill: '#fbfdff',
           shadow: false
@@ -6224,8 +6226,18 @@ busesSinHorario.forEach(b => {
             ctx,
             fitText(ctx, destinoServicio, subcolW - 335, fDest),
             xDestino,
-            filaY + 12,
+            filaY + 9,
             { font: fDest, color: colorDest }
+          );
+        }
+
+        if (comentario) {
+          drawText(
+            ctx,
+            fitText(ctx, `Comentario: ${comentario}`, subcolW - 335, fComentario),
+            xDestino,
+            filaY + 42,
+            { font: fComentario, color: '#8a5a00' }
           );
         }
 
