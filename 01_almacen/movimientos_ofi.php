@@ -1,6 +1,13 @@
 <?php
 session_start();
 
+if (!isset($_SESSION['usuario'])) {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+$isAdmin = (($_SESSION['web_rol'] ?? '') === 'Admin');
+
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
 
@@ -11,10 +18,10 @@ require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
 // 01_almacen\movimientos_ofi.php:
-$permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
-$vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
+$permisos = (($_SESSION['permisos'] ?? '') == 'all') ? [] : ($_SESSION['permisos'] ?? []);
+$vistas = (($_SESSION['permisos'] ?? '') == 'all') ? [] : ($_SESSION['vistas'] ?? []);
 
-if ($_SESSION['web_rol'] !== 'Admin') {
+if (!$isAdmin) {
     $modulo_actual = 3; // id_modulo de esta vista
 
     if (!in_array($modulo_actual, $_SESSION['permisos'])) {
@@ -156,6 +163,11 @@ $neto_monto = (float)($sumas['monto_inventariado'] ?? 0)
 
 
 if (isset($_GET['export']) && $_GET['export'] == '1') {
+    if (!$isAdmin) {
+        header("Location: movimientos_ofi.php");
+        exit();
+    }
+
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=movimientos_export.csv');
     $out = fopen('php://output', 'w');
@@ -1697,6 +1709,7 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
       <p>Panel de entradas, salidas e inventariados con lectura rápida para supervisión y gerencia.</p>
     </div>
 
+    <?php if ($isAdmin): ?>
     <div class="mov-hero-right">
       <div class="hero-metric">
         <span>Registros filtrados</span>
@@ -1711,6 +1724,7 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
         <strong>S/ <?= number_format($neto_monto, 2) ?></strong>
       </div>
     </div>
+    <?php endif; ?>
   </section>
 
 
@@ -1817,17 +1831,21 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
 <!-- ACTION BAR -->
 <div class="actionbar">
   <div class="left">
+    <?php if ($isAdmin): ?>
     <a class="btn-solid" href="?<?php $q=$_GET; $q['export']=1; echo h(http_build_query($q)); ?>">
       <i class="bi bi-download"></i> Exportar CSV
     </a>
+    <?php endif; ?>
 
     <button type="button" class="btn-soft" onclick="window.print()">
       <i class="bi bi-printer"></i> Imprimir
     </button>
     
+    <?php if ($isAdmin): ?>
     <button type="button" class="btn-soft" onclick="exportarPDFMovimientos()">
       <i class="bi bi-filetype-pdf"></i> Exportar PDF
     </button>
+    <?php endif; ?>
 
     <a class="btn-ghost" href="movimientos_ofi.php">
       <i class="bi bi-arrow-counterclockwise"></i> Limpiar
@@ -1835,7 +1853,9 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
   </div>
 
   <div class="right">
+    <?php if ($isAdmin): ?>
     <span class="stat-pill"><i class="bi bi-collection"></i> Registros: <?= number_format($total) ?></span>
+    <?php endif; ?>
     <?php if(!empty($tipo)): ?>
       <span class="stat-pill"><i class="bi bi-diagram-3"></i> Tipo: <?= h($tipo) ?></span>
     <?php endif; ?>
@@ -1849,6 +1869,7 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
 
 
 <!-- KPIs PRO -->
+<?php if ($isAdmin): ?>
 <div class="kpis-pro">
   <!-- Total registros -->
   <div class="kpi-card kpi-total">
@@ -1911,6 +1932,7 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
 
 
 </div>
+<?php endif; ?>
 
 
     </div>
@@ -1974,7 +1996,12 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
                             <td class="cell-category">
                               <?=h((!empty($r['codigo_categoria']) ? '(' . $r['codigo_categoria'] . ') ' : '') . ($r['categoria'] ?? '-'))?>
                             </td>
-                            <td class="text-end cell-qty"><strong><?=number_format((float)$r['clm_alm_mov_cantidad'],2)?></strong><small>S/ <?=number_format((float)($r['clm_alm_mov_monto'] ?? 0),2)?></small></td>
+                            <td class="text-end cell-qty">
+                              <strong><?=number_format((float)$r['clm_alm_mov_cantidad'],2)?></strong>
+                              <?php if ($isAdmin): ?>
+                                <small>S/ <?=number_format((float)($r['clm_alm_mov_monto'] ?? 0),2)?></small>
+                              <?php endif; ?>
+                            </td>
                             <td class="cell-bus"><i class="bi bi-bus-front"></i> <?=h($r['placa_label'] ?: '-')?></td>
                             <td><?=h($r['nota_label'] ?: '-')?></td>
                             <td><span class="badge b-estado"><?= h($r['estadoetiq_label'] ?? 'CONFORME') ?></span></td>
@@ -2064,8 +2091,10 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
+<?php if ($isAdmin): ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<?php endif; ?>
 
 <script>
 function limpiarFiltrosMov(){
@@ -2221,6 +2250,7 @@ document.addEventListener('click', function(e){
 })();
 </script>
 
+<?php if ($isAdmin): ?>
 <script>
 
 async function exportarPDFMovimientos() {
@@ -2584,6 +2614,7 @@ async function exportarPDFMovimientos() {
 
 
 </script>
+<?php endif; ?>
 
 
 </html>

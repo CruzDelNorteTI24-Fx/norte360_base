@@ -1,6 +1,16 @@
 <?php
 session_start();
 //01_almacen\gen_np9823.php:
+if (!isset($_SESSION['usuario'])) {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+if (($_SESSION['web_rol'] ?? '') !== 'Admin') {
+    header("Location: ../login/none_permisos.php");
+    exit();
+}
+
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
 
@@ -11,17 +21,8 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
 require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
-$permisos = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['permisos'] ?? []);
-$vistas = ($_SESSION['permisos'] == 'all') ? [] : ($_SESSION['vistas'] ?? []);
-
-if ($_SESSION['web_rol'] !== 'Admin') {
-    $modulo_actual = 3; // id_modulo de esta vista
-
-    if (!in_array($modulo_actual, $_SESSION['permisos'])) {
-        header("Location: ../login/none_permisos.php");
-        exit();
-    }
-}
+$permisos = (($_SESSION['permisos'] ?? '') == 'all') ? [] : ($_SESSION['permisos'] ?? []);
+$vistas = (($_SESSION['permisos'] ?? '') == 'all') ? [] : ($_SESSION['vistas'] ?? []);
 
 // ---------- Helpers ----------
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }

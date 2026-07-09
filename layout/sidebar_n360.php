@@ -362,6 +362,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Catálogo productos',
                                 'icono' => 'bi bi-card-list',
                                 'url' => '01_almacen/gen_np9823.php',
+                                'admin' => true,
                                 'modulo' => 3
                             ],
                             [
