@@ -830,7 +830,7 @@
 }
 
 .audalm-table--compact {
-    min-width: 1180px;
+    min-width: 980px;
 }
 
 .audalm-table--compact th {
@@ -852,6 +852,26 @@
     padding: 6px 8px;
     font: inherit;
     font-size: 12px;
+}
+
+.audalm-product-cell {
+    min-width: 260px;
+    line-height: 1.35;
+}
+
+.audalm-product-cell strong {
+    color: #12324a;
+    font-weight: 950;
+}
+
+.audalm-product-cell span {
+    font-weight: 760;
+}
+
+.audalm-product-cell small {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
 }
 
 .audalm-conforme-check {

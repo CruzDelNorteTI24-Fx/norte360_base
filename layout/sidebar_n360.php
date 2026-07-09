@@ -109,6 +109,12 @@ function n360_menu_config(): array {
                                 'url' => 'admin/permisos_mapa.php',
                                 'admin' => true
                             ],
+                            [
+                                'titulo' => 'Documentacion',
+                                'icono' => 'bi bi-file-earmark-pdf-fill',
+                                'url' => 'admin/documentacion.php',
+                                'admin' => true
+                            ],
                         ]
                     ],
                 ]

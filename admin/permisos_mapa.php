@@ -27,12 +27,27 @@ function n360_ap_h($value): string {
 
 function n360_ap_module_catalog(): array {
     $catalog = [
-        0 => ['title' => 'Panel principal', 'desc' => 'Inicio del sistema.'],
-        1 => ['title' => 'Checklist legado', 'desc' => 'Permisos antiguos de checklist.'],
+        0 => ['title' => 'sistema', 'desc' => 'Panel principal, administracion y vistas internas del sistema.'],
+        1 => ['title' => 'ventas', 'desc' => 'Gestion de ventas del sistema.'],
+        2 => ['title' => 'compras', 'desc' => 'Gestion de compras del sistema.'],
+        3 => ['title' => 'almacen', 'desc' => 'Control de inventarios y almacenamiento.'],
+        4 => ['title' => 'peajes', 'desc' => 'Gestion de peajes para transporte.'],
+        5 => ['title' => 'calidad', 'desc' => 'Control de mantenimiento de los vehiculos.'],
+        6 => ['title' => 'recursos', 'desc' => 'Modulo de gestion de recursos humanos.'],
+        7 => ['title' => 'liquidaciones', 'desc' => 'Modulo de gestion de liquidaciones.'],
+        8 => ['title' => 'mantenimiento', 'desc' => 'Control de mantenimiento de los vehiculos.'],
+        9 => ['title' => 'combustible', 'desc' => 'Modulo de gestion de combustible.'],
+        10 => ['title' => 'flota', 'desc' => 'Gestion de unidades y generacion de reportes de flota.'],
+        11 => ['title' => 'rutas', 'desc' => 'Hojas de rutas en el sistema.'],
+        12 => ['title' => 'contabilidad', 'desc' => 'Modulo de contabilidad.'],
     ];
 
     foreach (n360_menu_config() as $module) {
         $id = (int)($module['modulo'] ?? 0);
+        if (isset($catalog[$id])) {
+            continue;
+        }
+
         $catalog[$id] = [
             'title' => (string)($module['titulo'] ?? ('Modulo ' . $id)),
             'desc' => 'Modulo declarado en sidebar_n360.php.',
@@ -45,8 +60,8 @@ function n360_ap_module_catalog(): array {
 
 function n360_ap_view_catalog(): array {
     $catalog = [
-        'checklist-limpieza' => ['title' => 'Checklist limpieza legado', 'module' => 1, 'desc' => 'Redireccion antigua a checklistlimpieza.php.'],
-        'checklist-carro' => ['title' => 'Checklist carro legado', 'module' => 1, 'desc' => 'Redireccion antigua a checklistcarro.php.'],
+        'checklist-limpieza' => ['title' => 'Checklist limpieza legado', 'module' => 5, 'desc' => 'Redireccion antigua a checklistlimpieza.php.'],
+        'checklist-carro' => ['title' => 'Checklist carro legado', 'module' => 5, 'desc' => 'Redireccion antigua a checklistcarro.php.'],
         'f-flotayoperaciones' => ['title' => 'Flota y operaciones general', 'module' => 10, 'desc' => 'Permiso general usado en login para volver al panel.'],
     ];
 
@@ -84,6 +99,111 @@ function n360_ap_fetch_all(mysqli $conn, string $sql): array {
     }
 
     return $rows;
+}
+
+function n360_ap_flash(string $type, string $message): void {
+    $_SESSION['n360_perm_flash'] = [
+        'type' => $type,
+        'message' => $message,
+    ];
+}
+
+function n360_ap_redirect(): void {
+    header('Location: permisos_mapa.php');
+    exit();
+}
+
+function n360_ap_csrf_token(): string {
+    if (empty($_SESSION['n360_perm_token'])) {
+        $_SESSION['n360_perm_token'] = bin2hex(random_bytes(16));
+    }
+
+    return (string)$_SESSION['n360_perm_token'];
+}
+
+function n360_ap_validate_csrf(): bool {
+    $token = (string)($_POST['n360_perm_token'] ?? '');
+    $sessionToken = (string)($_SESSION['n360_perm_token'] ?? '');
+
+    return $token !== '' && $sessionToken !== '' && hash_equals($sessionToken, $token);
+}
+
+function n360_ap_normalized_view($value): ?string {
+    $value = trim((string)$value);
+    if ($value === '' || strtolower($value) === 'null' || strtolower($value) === 'sin-vista') {
+        return null;
+    }
+
+    return $value;
+}
+
+function n360_ap_allowed_types(): array {
+    return ['lectura', 'lectura/escritura'];
+}
+
+function n360_ap_find_permission(mysqli $conn, int $userId, int $moduleId, ?string $view): int {
+    if ($view === null) {
+        $stmt = $conn->prepare("
+            SELECT id_permiso
+            FROM tb_permisos
+            WHERE id_usuario = ?
+              AND id_modulo = ?
+              AND (vista_redirect IS NULL OR vista_redirect = '')
+            LIMIT 1
+        ");
+        if (!$stmt) return 0;
+        $stmt->bind_param('ii', $userId, $moduleId);
+    } else {
+        $stmt = $conn->prepare("
+            SELECT id_permiso
+            FROM tb_permisos
+            WHERE id_usuario = ?
+              AND id_modulo = ?
+              AND vista_redirect = ?
+            LIMIT 1
+        ");
+        if (!$stmt) return 0;
+        $stmt->bind_param('iis', $userId, $moduleId, $view);
+    }
+
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return 0;
+    }
+
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    return (int)($row['id_permiso'] ?? 0);
+}
+
+function n360_ap_upsert_permission(mysqli $conn, int $userId, int $moduleId, ?string $view, string $type): string {
+    $existingId = n360_ap_find_permission($conn, $userId, $moduleId, $view);
+
+    if ($existingId > 0) {
+        $stmt = $conn->prepare("
+            UPDATE tb_permisos
+            SET tipo_permiso = ?, fecha_asignacion = NOW()
+            WHERE id_permiso = ?
+        ");
+        if (!$stmt) return 'error';
+        $stmt->bind_param('si', $type, $existingId);
+        $ok = $stmt->execute();
+        $stmt->close();
+
+        return $ok ? 'updated' : 'error';
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO tb_permisos (id_usuario, id_modulo, vista_redirect, tipo_permiso, fecha_asignacion)
+        VALUES (?, ?, ?, ?, NOW())
+    ");
+    if (!$stmt) return 'error';
+    $stmt->bind_param('iiss', $userId, $moduleId, $view, $type);
+    $ok = $stmt->execute();
+    $stmt->close();
+
+    return $ok ? 'created' : 'error';
 }
 
 function n360_ap_user_label(array $user): string {
@@ -125,11 +245,132 @@ foreach ($userRows as $row) {
     if (($row['web_rol'] ?? '') === 'Admin') $adminIds[] = $id;
 }
 
+$csrfToken = n360_ap_csrf_token();
+$flash = $_SESSION['n360_perm_flash'] ?? null;
+unset($_SESSION['n360_perm_flash']);
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    if (!n360_ap_validate_csrf()) {
+        n360_ap_flash('error', 'No se pudo validar la accion. Actualiza la pagina e intenta nuevamente.');
+        n360_ap_redirect();
+    }
+
+    $action = (string)($_POST['action'] ?? '');
+    $allowedTypes = n360_ap_allowed_types();
+
+    if ($action === 'create') {
+        $postedUsers = (array)($_POST['id_usuario'] ?? []);
+        $userIds = [];
+        foreach ($postedUsers as $postedUser) {
+            $userId = (int)$postedUser;
+            if ($userId > 0 && isset($users[$userId])) {
+                $userIds[$userId] = true;
+            }
+        }
+
+        $moduleId = (int)($_POST['id_modulo'] ?? -1);
+        $view = n360_ap_normalized_view($_POST['vista_redirect'] ?? '');
+        $type = (string)($_POST['tipo_permiso'] ?? 'lectura');
+        if (!in_array($type, $allowedTypes, true)) {
+            $type = 'lectura';
+        }
+
+        if (empty($userIds)) {
+            n360_ap_flash('error', 'Selecciona al menos un usuario para asignar el permiso.');
+            n360_ap_redirect();
+        }
+
+        if (!isset($moduleCatalog[$moduleId])) {
+            n360_ap_flash('error', 'Selecciona un modulo valido para el permiso.');
+            n360_ap_redirect();
+        }
+
+        $created = 0;
+        $updated = 0;
+        $errors = 0;
+
+        foreach (array_keys($userIds) as $userId) {
+            $result = n360_ap_upsert_permission($conn, $userId, $moduleId, $view, $type);
+            if ($result === 'created') $created++;
+            if ($result === 'updated') $updated++;
+            if ($result === 'error') $errors++;
+        }
+
+        $parts = [];
+        if ($created > 0) $parts[] = $created . ' creados';
+        if ($updated > 0) $parts[] = $updated . ' actualizados';
+        if ($errors > 0) $parts[] = $errors . ' con error';
+
+        n360_ap_flash($errors > 0 ? 'warning' : 'success', 'Gestion de permisos aplicada: ' . implode(', ', $parts) . '.');
+        n360_ap_redirect();
+    }
+
+    if ($action === 'update') {
+        $permissionId = (int)($_POST['id_permiso'] ?? 0);
+        $userId = (int)($_POST['id_usuario'] ?? 0);
+        $moduleId = (int)($_POST['id_modulo'] ?? -1);
+        $view = n360_ap_normalized_view($_POST['vista_redirect'] ?? '');
+        $type = (string)($_POST['tipo_permiso'] ?? 'lectura');
+
+        if ($permissionId <= 0 || $userId <= 0 || !isset($users[$userId]) || !isset($moduleCatalog[$moduleId])) {
+            n360_ap_flash('error', 'No se pudo actualizar el permiso porque los datos no son validos.');
+            n360_ap_redirect();
+        }
+
+        if (!in_array($type, $allowedTypes, true)) {
+            $type = 'lectura';
+        }
+
+        $stmt = $conn->prepare("
+            UPDATE tb_permisos
+            SET id_usuario = ?, id_modulo = ?, vista_redirect = ?, tipo_permiso = ?, fecha_asignacion = NOW()
+            WHERE id_permiso = ?
+        ");
+
+        if (!$stmt) {
+            n360_ap_flash('error', 'No se pudo preparar la actualizacion del permiso.');
+            n360_ap_redirect();
+        }
+
+        $stmt->bind_param('iissi', $userId, $moduleId, $view, $type, $permissionId);
+        $ok = $stmt->execute();
+        $stmt->close();
+
+        n360_ap_flash($ok ? 'success' : 'error', $ok ? 'Permiso actualizado correctamente.' : 'No se pudo actualizar el permiso.');
+        n360_ap_redirect();
+    }
+
+    if ($action === 'delete') {
+        $permissionId = (int)($_POST['id_permiso'] ?? 0);
+        if ($permissionId <= 0) {
+            n360_ap_flash('error', 'No se pudo identificar el permiso a eliminar.');
+            n360_ap_redirect();
+        }
+
+        $stmt = $conn->prepare("DELETE FROM tb_permisos WHERE id_permiso = ? LIMIT 1");
+        if (!$stmt) {
+            n360_ap_flash('error', 'No se pudo preparar la eliminacion del permiso.');
+            n360_ap_redirect();
+        }
+
+        $stmt->bind_param('i', $permissionId);
+        $ok = $stmt->execute();
+        $affected = $stmt->affected_rows;
+        $stmt->close();
+
+        n360_ap_flash(($ok && $affected > 0) ? 'success' : 'warning', ($ok && $affected > 0) ? 'Permiso eliminado correctamente.' : 'El permiso ya no existe o no pudo eliminarse.');
+        n360_ap_redirect();
+    }
+
+    n360_ap_flash('error', 'Accion de permisos no reconocida.');
+    n360_ap_redirect();
+}
+
 $permissionRows = n360_ap_fetch_all($conn, "
-    SELECT p.id_usuario, p.id_modulo, p.vista_redirect, u.usuario, u.nombre, u.web_rol, u.clm_usuarios_sede
+    SELECT p.id_permiso, p.id_usuario, p.id_modulo, p.vista_redirect, p.tipo_permiso, p.fecha_asignacion, u.usuario, u.nombre, u.web_rol, u.clm_usuarios_sede
     FROM tb_permisos p
     LEFT JOIN tb_usuarios u ON u.id_usuario = p.id_usuario
-    ORDER BY p.id_modulo, p.vista_redirect, u.nombre, u.usuario
+    ORDER BY p.id_usuario, p.id_modulo, p.vista_redirect, p.id_permiso
 ");
 
 foreach ($permissionRows as $row) {
@@ -147,6 +388,9 @@ foreach (n360_menu_config() as $module) {
         foreach (($group['items'] ?? []) as $item) {
             $itemModule = (int)($item['modulo'] ?? $moduleId);
             $rule = n360_ap_required_rule($item, $itemModule);
+            if ($rule['type'] === 'modulo' && isset($moduleCatalog[$itemModule])) {
+                $rule['label'] = 'Modulo ' . $itemModule . ' - ' . $moduleCatalog[$itemModule]['title'];
+            }
             $accessIds = [];
 
             foreach ($adminIds as $adminId) $accessIds[$adminId] = true;
@@ -165,7 +409,7 @@ foreach (n360_menu_config() as $module) {
 
             $interfaces[] = [
                 'module_id' => $itemModule,
-                'module' => (string)($module['titulo'] ?? 'Modulo'),
+                'module' => (string)($moduleCatalog[$itemModule]['title'] ?? ($module['titulo'] ?? 'Modulo')),
                 'group' => (string)($group['titulo'] ?? 'General'),
                 'title' => (string)($item['titulo'] ?? 'Vista'),
                 'url' => (string)($item['url'] ?? ''),
@@ -219,6 +463,67 @@ $totalInterfaces = count($interfaces);
             <div><span>Interfaces mapeadas</span><strong><?= n360_ap_h($totalInterfaces) ?></strong></div>
         </section>
 
+        <?php if (is_array($flash)): ?>
+            <div class="admin-perms-alert admin-perms-alert--<?= n360_ap_h($flash['type'] ?? 'success') ?>">
+                <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+                <span><?= n360_ap_h($flash['message'] ?? '') ?></span>
+            </div>
+        <?php endif; ?>
+
+        <section class="admin-perms-panel admin-perms-manage" aria-labelledby="managePermsTitle">
+            <div class="admin-perms-panel-head">
+                <h2 id="managePermsTitle">Gestionar permisos</h2>
+                <span>Crear o asignar acceso</span>
+            </div>
+            <form method="post" class="admin-perms-form" id="adminPermsCreateForm">
+                <input type="hidden" name="n360_perm_token" value="<?= n360_ap_h($csrfToken) ?>">
+                <input type="hidden" name="action" value="create">
+
+                <label>
+                    <span>Usuarios</span>
+                    <select name="id_usuario[]" multiple required size="7">
+                        <?php foreach ($users as $userId => $user): ?>
+                            <option value="<?= n360_ap_h($userId) ?>"><?= n360_ap_h(n360_ap_user_label($user)) ?> - <?= n360_ap_h($user['web_rol'] ?? 'Usuario') ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small>Usa Ctrl o Shift para elegir varios usuarios.</small>
+                </label>
+
+                <label>
+                    <span>Modulo</span>
+                    <select name="id_modulo" id="adminPermsModuleSelect" required>
+                        <?php foreach ($moduleCatalog as $moduleId => $module): ?>
+                            <option value="<?= n360_ap_h($moduleId) ?>"><?= n360_ap_h($moduleId) ?> - <?= n360_ap_h($module['title']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Vista / codigo</span>
+                    <input type="text" name="vista_redirect" id="adminPermsViewInput" list="adminPermsViewCodes" placeholder="Dejar vacio para permiso de modulo completo">
+                </label>
+
+                <label>
+                    <span>Tipo</span>
+                    <select name="tipo_permiso">
+                        <?php foreach (n360_ap_allowed_types() as $type): ?>
+                            <option value="<?= n360_ap_h($type) ?>"><?= n360_ap_h($type) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+
+                <button type="submit" class="admin-perms-primary-btn">
+                    <i class="bi bi-person-check-fill" aria-hidden="true"></i>
+                    <span>Asignar permiso</span>
+                </button>
+            </form>
+            <datalist id="adminPermsViewCodes">
+                <?php foreach ($viewCatalog as $code => $view): ?>
+                    <option value="<?= n360_ap_h($code) ?>"><?= n360_ap_h($view['title']) ?></option>
+                <?php endforeach; ?>
+            </datalist>
+        </section>
+
         <section class="admin-perms-toolbar" aria-label="Filtros">
             <label><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="adminPermsSearch" placeholder="Buscar modulo, vista, usuario o codigo..."></label>
         </section>
@@ -245,14 +550,21 @@ $totalInterfaces = count($interfaces);
                                         <?php foreach ($interface['rule']['codes'] as $code): ?><code><?= n360_ap_h($code) ?></code><?php endforeach; ?>
                                     </div>
                                 <?php endif; ?>
+                                <button type="button"
+                                        class="admin-perms-mini-btn"
+                                        data-perm-fill
+                                        data-module="<?= n360_ap_h($interface['module_id']) ?>"
+                                        data-view="<?= n360_ap_h($interface['rule']['codes'][0] ?? '') ?>">
+                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                    <span>Asignar</span>
+                                </button>
                             </td>
                             <td>
                                 <?php if (empty($interface['users'])): ?>
                                     <span class="admin-perms-muted">Sin usuarios asignados</span>
                                 <?php else: ?>
                                     <div class="admin-perms-user-list">
-                                        <?php foreach (array_slice($interface['users'], 0, 8) as $name): ?><span><?= n360_ap_h($name) ?></span><?php endforeach; ?>
-                                        <?php if (count($interface['users']) > 8): ?><span>+<?= n360_ap_h(count($interface['users']) - 8) ?> mas</span><?php endif; ?>
+                                        <?php foreach ($interface['users'] as $name): ?><span><?= n360_ap_h($name) ?></span><?php endforeach; ?>
                                     </div>
                                 <?php endif; ?>
                             </td>
@@ -286,20 +598,72 @@ $totalInterfaces = count($interfaces);
         <section class="admin-perms-panel" aria-labelledby="rawPermsTitle">
             <div class="admin-perms-panel-head"><h2 id="rawPermsTitle">Asignaciones actuales en tb_permisos</h2><span><?= n360_ap_h($totalPermissionRows) ?> filas</span></div>
             <div class="admin-perms-table-wrap admin-perms-table-wrap--small">
-                <table class="admin-perms-table">
-                    <thead><tr><th>Usuario</th><th>Rol</th><th>Sede</th><th>Modulo</th><th>Vista</th></tr></thead>
+                <table class="admin-perms-table admin-perms-table--manage">
+                    <thead><tr><th>Acciones</th><th>Usuario</th><th>Rol</th><th>Sede</th><th>Modulo</th><th>Vista</th><th>Tipo</th><th>Fecha</th></tr></thead>
                     <tbody>
                     <?php if (empty($permissionRows)): ?>
-                        <tr><td colspan="5" class="admin-perms-muted">No hay permisos registrados.</td></tr>
+                        <tr><td colspan="8" class="admin-perms-muted">No hay permisos registrados.</td></tr>
                     <?php else: ?>
                         <?php foreach ($permissionRows as $row): ?>
-                            <?php $moduleId = (int)$row['id_modulo']; $viewCode = trim((string)$row['vista_redirect']); ?>
+                            <?php
+                                $permissionId = (int)$row['id_permiso'];
+                                $moduleId = (int)$row['id_modulo'];
+                                $viewCode = trim((string)$row['vista_redirect']);
+                                $editFormId = 'permEdit' . $permissionId;
+                                $deleteFormId = 'permDelete' . $permissionId;
+                            ?>
                             <tr>
-                                <td><strong><?= n360_ap_h(n360_ap_user_label($row)) ?></strong></td>
+                                <td class="admin-perms-actions">
+                                    <form method="post" id="<?= n360_ap_h($editFormId) ?>">
+                                        <input type="hidden" name="n360_perm_token" value="<?= n360_ap_h($csrfToken) ?>">
+                                        <input type="hidden" name="action" value="update">
+                                        <input type="hidden" name="id_permiso" value="<?= n360_ap_h($permissionId) ?>">
+                                    </form>
+                                    <form method="post" id="<?= n360_ap_h($deleteFormId) ?>" onsubmit="return confirm('Seguro que deseas eliminar este permiso?');">
+                                        <input type="hidden" name="n360_perm_token" value="<?= n360_ap_h($csrfToken) ?>">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id_permiso" value="<?= n360_ap_h($permissionId) ?>">
+                                    </form>
+                                    <button type="submit" form="<?= n360_ap_h($editFormId) ?>" class="admin-perms-icon-btn" title="Guardar cambios">
+                                        <i class="bi bi-save-fill" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="submit" form="<?= n360_ap_h($deleteFormId) ?>" class="admin-perms-icon-btn admin-perms-icon-btn--danger" title="Eliminar permiso">
+                                        <i class="bi bi-trash3-fill" aria-hidden="true"></i>
+                                    </button>
+                                </td>
+                                <td>
+                                    <select name="id_usuario" form="<?= n360_ap_h($editFormId) ?>" class="admin-perms-cell-control">
+                                        <?php foreach ($users as $userId => $user): ?>
+                                            <option value="<?= n360_ap_h($userId) ?>" <?= (int)$row['id_usuario'] === (int)$userId ? 'selected' : '' ?>><?= n360_ap_h(n360_ap_user_label($user)) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
                                 <td><?= n360_ap_h($row['web_rol'] ?? 'Usuario') ?></td>
                                 <td><?= n360_ap_h($row['clm_usuarios_sede'] ?? 'No asignada') ?></td>
-                                <td><code><?= n360_ap_h($moduleId) ?></code> <?= n360_ap_h($moduleCatalog[$moduleId]['title'] ?? 'Modulo no catalogado') ?></td>
-                                <td><code><?= n360_ap_h($viewCode !== '' ? $viewCode : 'sin-vista') ?></code> <?= n360_ap_h($viewCatalog[$viewCode]['title'] ?? 'Vista no catalogada') ?></td>
+                                <td>
+                                    <select name="id_modulo" form="<?= n360_ap_h($editFormId) ?>" class="admin-perms-cell-control">
+                                        <?php foreach ($moduleCatalog as $catalogModuleId => $module): ?>
+                                            <option value="<?= n360_ap_h($catalogModuleId) ?>" <?= $moduleId === (int)$catalogModuleId ? 'selected' : '' ?>><?= n360_ap_h($catalogModuleId) ?> - <?= n360_ap_h($module['title']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                           name="vista_redirect"
+                                           form="<?= n360_ap_h($editFormId) ?>"
+                                           list="adminPermsViewCodes"
+                                           class="admin-perms-cell-control"
+                                           value="<?= n360_ap_h($viewCode) ?>"
+                                           placeholder="Sin vista">
+                                </td>
+                                <td>
+                                    <select name="tipo_permiso" form="<?= n360_ap_h($editFormId) ?>" class="admin-perms-cell-control">
+                                        <?php foreach (n360_ap_allowed_types() as $type): ?>
+                                            <option value="<?= n360_ap_h($type) ?>" <?= (string)($row['tipo_permiso'] ?? '') === $type ? 'selected' : '' ?>><?= n360_ap_h($type) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                                <td><?= n360_ap_h($row['fecha_asignacion'] ?? '') ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -319,12 +683,29 @@ $totalInterfaces = count($interfaces);
 document.addEventListener('DOMContentLoaded', function () {
     const search = document.getElementById('adminPermsSearch');
     const table = document.getElementById('adminPermsTable');
-    if (!search || !table) return;
-    const rows = Array.from(table.querySelectorAll('tbody tr'));
-    search.addEventListener('input', function () {
-        const value = search.value.trim().toLowerCase();
-        rows.forEach(function (row) {
-            row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
+    if (search && table) {
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        search.addEventListener('input', function () {
+            const value = search.value.trim().toLowerCase();
+            rows.forEach(function (row) {
+                row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
+            });
+        });
+    }
+
+    const moduleSelect = document.getElementById('adminPermsModuleSelect');
+    const viewInput = document.getElementById('adminPermsViewInput');
+    const createForm = document.getElementById('adminPermsCreateForm');
+
+    document.querySelectorAll('[data-perm-fill]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            if (moduleSelect) moduleSelect.value = button.dataset.module || '0';
+            if (viewInput) viewInput.value = button.dataset.view || '';
+            if (createForm) {
+                createForm.scrollIntoView({behavior: 'smooth', block: 'center'});
+                const users = createForm.querySelector('select[name="id_usuario[]"]');
+                if (users) users.focus();
+            }
         });
     });
 });

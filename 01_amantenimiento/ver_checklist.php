@@ -23,6 +23,14 @@ require_once("../trash/copidb_secure.php");
 require_once("../.c0nn3ct/db_securebd2.php");
 // conexión y función SOLO aquí
 require_once("funciones_trabajador.php");
+
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../');
+require_once __DIR__ . '/../layout/sidebar_n360.php';
+require_once __DIR__ . '/../layout/header_n360.php';
+require_once __DIR__ . '/../layout/footer_n360.php';
+require_once __DIR__ . '/../layout/content_n360.php';
+
 $conductores = obtenerConductores($conn);
 
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
@@ -40,7 +48,13 @@ if (!$id_checklist) {
     <meta charset="UTF-8">
     <title>Mantenimiento | Norte 360°</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="../img/norte360.png">      
+    <link rel="icon" href="<?= n360_asset('img/norte360.png') ?>">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/sidebar_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/header_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <style>
         body {
             background: #f0f2f5;
@@ -1273,9 +1287,17 @@ input[type=radio] {
   100% { transform: rotate(359deg); }
 }
     </style>
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/sidebar_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/header_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/checklist_n360.css') ?>">
 </head>
 
 <body>
+<?php n360_render_header(['title' => 'Checklist', 'subtitle' => 'Mantenimiento']); ?>
+<?php n360_render_sidebar(); ?>
 <?php
 function calcularEdad($fechaNacimiento) {
     $hoy = new DateTime();
@@ -1422,8 +1444,9 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
 
 
-<div class="main-content">
-  <hr>
+<main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
+  <div class="n360-main__inner n360-checklist-shell">
+  <?php n360_render_content_separator('top'); ?>
 
     <?php  // Obtener datos del checklist y vehículo
 
@@ -1495,10 +1518,12 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
     while ($cat = $res_cat->fetch_assoc()) {
         // Obtener items de la categoría
-      $stmt_items = $conn->prepare("SELECT i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo, r.clm_resultados_obs, r.clm_resultados_id_user, r.clm_resultado_estado, r.clm_resultado_dfecd, r.clm_rescheck_conductor1, r.clm_rescheck_porcentaje1, r.clm_rescheck_imagen, r.clm_resultado_fecharegistro 
+      $stmt_items = $conn->prepare("SELECT i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo, r.clm_resultados_obs, r.clm_resultados_id_user, r.clm_resultado_estado, r.clm_resultado_dfecd, r.clm_rescheck_conductor1, r.clm_rescheck_porcentaje1, r.clm_rescheck_imagen, r.clm_resultado_fecharegistro,
+              COALESCE(NULLIF(ureg.nombre, ''), ureg.usuario, r.clm_resultados_id_user) AS usuario_registro_nombre
           FROM tb_items_checklist i
           LEFT JOIN tb_resultados_checklist r
           ON i.clm_item_id = r.clm_resultado_id_item AND r.clm_resultado_id_checklist = ?
+          LEFT JOIN tb_usuarios ureg ON ureg.id_usuario = r.clm_resultados_id_user
           WHERE i.clm_item_id_categoria = ? 
           AND i.clm_item_estado = 'activo'
           AND i.clm_item_idtipocheck = ?");
@@ -1546,6 +1571,13 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
             }
             $obs = $item['clm_resultados_obs'] ?? '';
             $id_usuario = $item['clm_resultados_id_user'] ?? '';
+            $usuario_registro = trim((string)($item['usuario_registro_nombre'] ?? ''));
+            if ($usuario_registro === '' && $id_usuario !== '') {
+                $usuario_registro = (string)$id_usuario;
+            }
+            if ($usuario_registro === '') {
+                $usuario_registro = 'No registrado';
+            }
             $fecha_hora_registro = $item['clm_resultado_fecharegistro'] ?? 'No registrado';
 
             echo "<div style='margin-bottom:20px; padding:15px 20px; border:1px solid #ddd; border-radius:10px;'>
@@ -1701,7 +1733,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
             echo "<input type='hidden' name='user_".$item['clm_item_id']."' value='".$_SESSION['id_usuario']."'>";
             if ($_SESSION['web_rol'] == 'Admin') {
               
-                echo "<p style='font-size:14px; color:#888; margin-top:6px;'><strong>ID Usuario:</strong> ".htmlspecialchars($id_usuario)."</p>";
+                echo "<p style='font-size:14px; color:#888; margin-top:6px;'><strong>Usuario:</strong> ".htmlspecialchars($usuario_registro)."</p>";
                 echo "<p style='font-size:14px; color:#888; margin-top:6px;'><strong>Fecha y Hora del registro:</strong> ".htmlspecialchars($fecha_hora_registro)."</p>";
             }
             echo "</div></div>";
@@ -1763,8 +1795,9 @@ document.getElementById('item_<?= $item['clm_item_id'] ?>').addEventListener('ch
   </div>
 </div>
 
-  <hr>
-</div>
+  <?php n360_render_content_separator('bottom'); ?>
+  </div>
+</main>
 
 
 <script>
@@ -1775,6 +1808,11 @@ function toggleObs(id) {
   } else {
     campo.style.display = "none";
   }
+}
+
+function cerrarError() {
+  const popup = document.getElementById("popup-error");
+  if (popup) popup.remove();
 }
 </script>
 
@@ -1797,6 +1835,9 @@ function toggleObs(id) {
   <script>document.addEventListener('keydown', function(e) {if (e.ctrlKey && e.altKey && e.key === 'm') {const egg = document.getElementById('h2bd');egg.style.display = egg.style.display === 'none' ? 'block' : 'none';}});</script>
 
 </footer>
+<?php n360_render_footer(); ?>
+<script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const popup = document.getElementById("popup-exito");

@@ -1,0 +1,137 @@
+.n360-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: none;
+    place-items: center;
+    padding: 18px;
+    background: rgba(12, 27, 42, .52);
+    backdrop-filter: blur(3px);
+}
+
+.n360-loader.is-active {
+    display: grid;
+}
+
+.n360-loader__card {
+    width: min(360px, 100%);
+    border-radius: 12px;
+    padding: 26px 28px;
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    background: rgba(255, 255, 255, .98);
+    box-shadow: 0 24px 70px rgba(8, 19, 31, .34);
+    text-align: center;
+}
+
+.n360-loader__mark {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+}
+
+.n360-loader__spinner {
+    width: 34px;
+    height: 34px;
+    border: 4px solid #d8ecf8;
+    border-top-color: #2389c9;
+    border-right-color: #2389c9;
+    border-radius: 50%;
+    animation: n360LoaderSpin .78s linear infinite;
+}
+
+.n360-loader__title {
+    margin: 0;
+    color: #17283a;
+    font-size: 18px;
+    font-weight: 950;
+    line-height: 1.25;
+}
+
+.n360-loader__detail {
+    margin: -6px 0 0;
+    color: #5e7185;
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.45;
+}
+
+.n360-loader__bar {
+    width: 100%;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e7eff6;
+}
+
+.n360-loader__bar::before {
+    content: "";
+    width: 42%;
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2389c9, #42b8e8);
+    animation: n360LoaderBar 1.1s ease-in-out infinite;
+}
+
+body.n360-loader-open {
+    cursor: progress;
+}
+
+.n360-is-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: .78;
+}
+
+.n360-is-loading > i,
+.n360-is-loading > span {
+    visibility: hidden;
+}
+
+.n360-is-loading::after {
+    content: "";
+    width: 17px;
+    height: 17px;
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: n360LoaderSpin .78s linear infinite;
+}
+
+.audalm-btn--soft.n360-is-loading::after,
+.n360-loader-light-button.n360-is-loading::after {
+    border-color: rgba(35, 137, 201, .26);
+    border-top-color: #2389c9;
+}
+
+@keyframes n360LoaderSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes n360LoaderBar {
+    0% {
+        transform: translateX(-120%);
+    }
+    55% {
+        transform: translateX(82%);
+    }
+    100% {
+        transform: translateX(240%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .n360-loader__spinner,
+    .n360-loader__bar::before,
+    .n360-is-loading::after {
+        animation-duration: 1.8s;
+    }
+}

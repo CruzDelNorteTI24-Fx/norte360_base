@@ -1,0 +1,77 @@
+body > .main-header,
+body > .nav-bar-pro,
+body > .subnav,
+body > .menu-toggle,
+body > .menu-lateral,
+body > footer.main-footer {
+    display: none !important;
+}
+
+main.main-content.n360-main {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: var(--n360-main-pad-y) var(--n360-main-pad-x) 34px !important;
+}
+
+.n360-checklist-shell {
+    display: grid;
+    gap: 18px;
+}
+
+.n360-checklist-shell > .card,
+.n360-checklist-shell > form {
+    width: min(100%, 980px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.n360-checklist-shell > .card {
+    border: 1px solid #d9e4ef;
+    border-left: 5px solid #2389c9;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 35, 52, .08);
+}
+
+.n360-checklist-shell > form {
+    border: 1px solid #d9e4ef;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 24px rgba(15, 35, 52, .08) !important;
+}
+
+.n360-checklist-shell .btn-cancelar,
+.n360-checklist-shell .btn-validar {
+    width: auto;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 800;
+}
+
+.n360-checklist-shell .btn-validar {
+    width: 100%;
+}
+
+.n360-checklist-shell input[type="text"],
+.n360-checklist-shell input[type="number"],
+.n360-checklist-shell input[type="datetime-local"],
+.n360-checklist-shell select {
+    max-width: 100%;
+}
+
+.n360-checklist-shell .checklist-options {
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    main.main-content.n360-main {
+        padding: 18px clamp(12px, 4vw, 18px) 28px !important;
+    }
+
+    .n360-checklist-shell > .card,
+    .n360-checklist-shell > form {
+        padding: 20px !important;
+    }
+}

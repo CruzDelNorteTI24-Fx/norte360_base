@@ -327,9 +327,10 @@ function aud_render_print(mysqli $conn, string $type, int $id): void {
             FROM vw_control_inventario
             ORDER BY Categoria, Producto, Stock_Actual
         ");
-        echo "<section class='box'><h2>Checklist fisico</h2><table><thead><tr><th>Codigo</th><th>Producto</th><th>Unidad</th><th>Categoria</th><th>Stock sistema</th><th>Stock fisico</th><th>Obs.</th></tr></thead><tbody>";
+        echo "<section class='box'><h2>Checklist fisico</h2><table><thead><tr><th>Categoria</th><th>Producto</th><th>Stock sistema</th><th>Stock fisico</th><th>Obs.</th></tr></thead><tbody>";
         foreach ($items as $item) {
-            echo "<tr><td>" . aud_h($item['CODIPRODUCTO'] ?? '') . "</td><td>" . aud_h($item['Producto'] ?? '') . "</td><td>" . aud_h($item['Unidad'] ?? '') . "</td><td>" . aud_h($item['Categoria'] ?? '') . "</td><td>" . aud_h(aud_num_txt($item['Stock_Actual'] ?? 0)) . "</td><td></td><td></td></tr>";
+            $productoTxt = '(' . (string)($item['CODIPRODUCTO'] ?? '') . ') ' . (string)($item['Producto'] ?? '') . ' - ' . (string)($item['Unidad'] ?? '');
+            echo "<tr><td>" . aud_h($item['Categoria'] ?? '') . "</td><td>" . aud_h($productoTxt) . "</td><td>" . aud_h(aud_num_txt($item['Stock_Actual'] ?? 0)) . "</td><td></td><td></td></tr>";
         }
         echo "</tbody></table></section>";
     } elseif ($type === 'audit') {
@@ -340,11 +341,12 @@ function aud_render_print(mysqli $conn, string $type, int $id): void {
         foreach (['total' => 'Total', 'contados' => 'Contados', 'conformes' => 'Conformes', 'pendientes' => 'Pendientes', 'diferencias' => 'Diferencias'] as $key => $label) {
             echo "<div class='field'><span class='label'>" . aud_h($label) . "</span>" . aud_h($summary[$key] ?? 0) . "</div>";
         }
-        echo "</div></section><section class='box'><h2>Detalle auditado</h2><table><thead><tr><th>Codigo</th><th>Producto</th><th>Categoria</th><th>Sistema</th><th>Fisico</th><th>Diferencia</th><th>Conforme</th><th>Obs.</th></tr></thead><tbody>";
+        echo "</div></section><section class='box'><h2>Detalle auditado</h2><table><thead><tr><th>Categoria</th><th>Producto</th><th>Sistema</th><th>Fisico</th><th>Diferencia</th><th>Conforme</th><th>Obs.</th></tr></thead><tbody>";
         foreach ($items as $item) {
             $counted = isset($item['stock_fisico']) && $item['stock_fisico'] !== '';
             $conforme = $counted && (!empty($item['conforme']) || (isset($item['diferencia']) && (float)$item['diferencia'] == 0.0));
-            echo "<tr><td>" . aud_h($item['cod'] ?? '') . "</td><td>" . aud_h($item['producto'] ?? '') . "</td><td>" . aud_h($item['categoria'] ?? '') . "</td><td>" . aud_h(aud_num_txt($item['stock_sistema'] ?? 0)) . "</td><td>" . aud_h(aud_num_txt($item['stock_fisico'] ?? '')) . "</td><td>" . aud_h(aud_num_txt($item['diferencia'] ?? '')) . "</td><td>" . ($conforme ? 'Conforme' : '') . "</td><td>" . aud_h($item['obs'] ?? '') . "</td></tr>";
+            $productoTxt = '(' . (string)($item['cod'] ?? '') . ') ' . (string)($item['producto'] ?? '') . ' - ' . (string)($item['unidad'] ?? '');
+            echo "<tr><td>" . aud_h($item['categoria'] ?? '') . "</td><td>" . aud_h($productoTxt) . "</td><td>" . aud_h(aud_num_txt($item['stock_sistema'] ?? 0)) . "</td><td>" . aud_h(aud_num_txt($item['stock_fisico'] ?? '')) . "</td><td>" . aud_h(aud_num_txt($item['diferencia'] ?? '')) . "</td><td>" . ($conforme ? 'Conforme' : '') . "</td><td>" . aud_h($item['obs'] ?? '') . "</td></tr>";
         }
         echo "</tbody></table></section>";
     } else {
@@ -632,6 +634,7 @@ try {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/auditoria_alm_n360.css') ?>">
 </head>
 <body>
@@ -791,10 +794,8 @@ try {
             <table class="audalm-table audalm-table--compact">
                 <thead>
                     <tr>
-                        <th>Codigo</th>
-                        <th>Producto</th>
                         <th>Categoria</th>
-                        <th>Unidad</th>
+                        <th>Producto</th>
                         <th>Sistema</th>
                         <th>Fisico</th>
                         <th>Diferencia</th>
@@ -803,7 +804,7 @@ try {
                     </tr>
                 </thead>
                 <tbody id="inventoryRows">
-                    <tr><td colspan="9" class="audalm-empty">Abre una auditoria pendiente para cargar productos.</td></tr>
+                    <tr><td colspan="7" class="audalm-empty">Abre una auditoria pendiente para cargar productos.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -858,6 +859,7 @@ try {
 
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script>
 const state = {
     rows: [],
@@ -907,6 +909,21 @@ async function api(action, options = {}) {
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.message || 'No se pudo completar la operacion.');
     return data;
+}
+
+async function withLoading(options, task) {
+    const config = typeof options === 'string' ? {title: options} : (options || {});
+    const run = typeof task === 'function' ? task : async () => task;
+
+    if (window.N360Loader && typeof window.N360Loader.during === 'function') {
+        return window.N360Loader.during(run, {
+            title: config.title || 'Procesando...',
+            detail: config.detail || 'Por favor espere',
+            button: config.button || null
+        });
+    }
+
+    return run();
 }
 
 function openModal(id) {
@@ -984,8 +1001,8 @@ function renderRows(rows) {
     }
 }
 
-async function loadAudits() {
-    try {
+async function loadAudits(options = {}) {
+    const run = async () => {
         const data = await api('list', {
             params: {
                 estado: qs('#filterEstado').value,
@@ -997,6 +1014,19 @@ async function loadAudits() {
         state.rows = data.rows || [];
         renderKpi(data.kpi || {});
         renderRows(state.rows);
+    };
+
+    try {
+        if (options.loading) {
+            await withLoading({
+                title: options.title || 'Cargando auditorias...',
+                detail: options.detail || 'Actualizando la informacion',
+                button: options.button || null
+            }, run);
+            return;
+        }
+
+        await run();
     } catch (err) {
         toast(err.message, 'error');
     }
@@ -1175,22 +1205,46 @@ function auditRecordClass(item) {
     return 'is-difference';
 }
 
+function productDisplay(item) {
+    const code = item.cod ? `(${esc(item.cod)}) ` : '';
+    const unit = item.unidad ? ` - ${esc(item.unidad)}` : '';
+    return `<strong>${code}</strong><span>${esc(item.producto)}</span><small>${unit}</small>`;
+}
+
+function focusNextStockInput(currentId, fallbackIndex) {
+    window.setTimeout(() => {
+        const rows = qsa('#inventoryRows tr');
+        if (!rows.length) return;
+
+        const visibleIndex = rows.findIndex(row => String(row.dataset.id) === String(currentId));
+        let targetIndex = visibleIndex >= 0 ? visibleIndex + 1 : fallbackIndex;
+
+        if (targetIndex >= rows.length) targetIndex = rows.length - 1;
+        if (targetIndex < 0) return;
+
+        const input = qs('.js-stock', rows[targetIndex]);
+        if (!input) return;
+
+        input.focus();
+        input.select();
+        input.scrollIntoView({block: 'center', inline: 'nearest'});
+    }, 0);
+}
+
 function renderInventoryRows() {
     const tbody = qs('#inventoryRows');
     const rows = filteredRecords();
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="audalm-empty">No hay productos para los filtros del conteo.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="audalm-empty">No hay productos para los filtros del conteo.</td></tr>';
         renderInventoryStats();
         return;
     }
     tbody.innerHTML = rows.map(item => `
         <tr data-id="${item.idprod}" class="${auditRecordClass(item)}">
-            <td><strong>${esc(item.cod)}</strong></td>
-            <td>${esc(item.producto)}</td>
             <td>${esc(item.categoria)}</td>
-            <td>${esc(item.unidad)}</td>
+            <td class="audalm-product-cell">${productDisplay(item)}</td>
             <td class="audalm-num">${fmtNum(item.stock_sistema)}</td>
-            <td><input class="audalm-cell-input js-stock" type="number" step="0.0001" value="${item.stock_fisico === null ? '' : esc(item.stock_fisico)}"></td>
+            <td><input class="audalm-cell-input js-stock" type="number" step="0.0001" inputmode="decimal" enterkeyhint="next" value="${item.stock_fisico === null ? '' : esc(item.stock_fisico)}"></td>
             <td class="audalm-num ${Number(item.diferencia || 0) === 0 ? '' : 'is-diff'}">${item.diferencia === null ? '' : fmtNum(item.diferencia)}</td>
             <td>
                 <label class="audalm-conforme-check">
@@ -1204,7 +1258,17 @@ function renderInventoryRows() {
 
     qsa('#inventoryRows tr').forEach(tr => {
         const id = tr.dataset.id;
-        qs('.js-stock', tr)?.addEventListener('change', ev => {
+        const stockInput = qs('.js-stock', tr);
+        stockInput?.addEventListener('keydown', ev => {
+            if (ev.key !== 'Enter') return;
+
+            ev.preventDefault();
+            const currentIndex = qsa('#inventoryRows tr').indexOf(tr);
+            syncRecordFromInput(id, 'stock_fisico', ev.target.value);
+            renderInventoryRows();
+            focusNextStockInput(id, currentIndex);
+        });
+        stockInput?.addEventListener('change', ev => {
             syncRecordFromInput(id, 'stock_fisico', ev.target.value);
             renderInventoryRows();
         });
@@ -1223,25 +1287,31 @@ function populateCategories() {
     qs('#invCategory').innerHTML = '<option value="">Todas las categorias</option>' + cats.map(cat => `<option value="${esc(cat)}">${esc(cat)}</option>`).join('');
 }
 
-async function openRealize() {
+async function openRealize(button = null) {
     if (!state.selected || Number(state.selected.estado) !== 1) return;
     try {
-        await loadInventory();
-        const detail = await api('detail', {params: {id: state.selected.id}});
-        const savedItems = Array.isArray(detail.contenido?.items) ? detail.contenido.items : [];
-        state.activeAudit = state.selected;
-        if (savedItems.length) makeRecordsFromSaved(savedItems);
-        else makeRecords();
-        populateCategories();
-        qs('#realizeAuditId').value = state.selected.id;
-        qs('#realizeTitle').textContent = `Realizar auditoria ${state.selected.codigo}`;
-        qs('#realizeDoc').value = '';
-        qs('#realizeComment').value = '';
-        qs('#invSearch').value = '';
-        qs('#invCategory').value = '';
-        qs('#invView').value = 'todos';
-        renderInventoryRows();
-        openModal('realizeModal');
+        await withLoading({
+            title: 'Preparando auditoria...',
+            detail: 'Cargando productos y progreso guardado',
+            button
+        }, async () => {
+            await loadInventory();
+            const detail = await api('detail', {params: {id: state.selected.id}});
+            const savedItems = Array.isArray(detail.contenido?.items) ? detail.contenido.items : [];
+            state.activeAudit = state.selected;
+            if (savedItems.length) makeRecordsFromSaved(savedItems);
+            else makeRecords();
+            populateCategories();
+            qs('#realizeAuditId').value = state.selected.id;
+            qs('#realizeTitle').textContent = `Realizar auditoria ${state.selected.codigo}`;
+            qs('#realizeDoc').value = '';
+            qs('#realizeComment').value = '';
+            qs('#invSearch').value = '';
+            qs('#invCategory').value = '';
+            qs('#invView').value = 'todos';
+            renderInventoryRows();
+            openModal('realizeModal');
+        });
     } catch (err) {
         toast(err.message, 'error');
     }
@@ -1272,12 +1342,11 @@ function renderDetail(data) {
         ${detailSummaryCards(summary)}
         <div class="audalm-inventory-wrap audalm-inventory-wrap--detail">
             <table class="audalm-table audalm-table--compact">
-                <thead><tr><th>Codigo</th><th>Producto</th><th>Categoria</th><th>Sistema</th><th>Fisico</th><th>Diferencia</th><th>Conforme</th><th>Obs.</th></tr></thead>
+                <thead><tr><th>Categoria</th><th>Producto</th><th>Sistema</th><th>Fisico</th><th>Diferencia</th><th>Conforme</th><th>Obs.</th></tr></thead>
                 <tbody>${items.map(item => `
                     <tr class="${auditRecordClass(item)}">
-                        <td><strong>${esc(item.cod)}</strong></td>
-                        <td>${esc(item.producto)}</td>
                         <td>${esc(item.categoria)}</td>
+                        <td class="audalm-product-cell">${productDisplay(item)}</td>
                         <td class="audalm-num">${fmtNum(item.stock_sistema)}</td>
                         <td class="audalm-num">${fmtNum(item.stock_fisico)}</td>
                         <td class="audalm-num ${Number(item.diferencia || 0) === 0 ? '' : 'is-diff'}">${fmtNum(item.diferencia)}</td>
@@ -1315,12 +1384,18 @@ function renderDetail(data) {
     `;
 }
 
-async function openDetail() {
+async function openDetail(button = null) {
     if (!state.selected) return;
     try {
-        const data = await api('detail', {params: {id: state.selected.id}});
-        renderDetail(data);
-        openModal('detailModal');
+        await withLoading({
+            title: 'Cargando detalle...',
+            detail: 'Leyendo la auditoria seleccionada',
+            button
+        }, async () => {
+            const data = await api('detail', {params: {id: state.selected.id}});
+            renderDetail(data);
+            openModal('detailModal');
+        });
     } catch (err) {
         toast(err.message, 'error');
     }
@@ -1337,12 +1412,18 @@ qsa('.audalm-modal').forEach(modal => modal.addEventListener('click', ev => {
     if (ev.target === modal) closeModal(modal.id);
 }));
 
-qs('#btnOpenSchedule').addEventListener('click', async () => {
+qs('#btnOpenSchedule').addEventListener('click', async ev => {
     try {
-        await loadSpaces();
-        qs('#scheduleForm').reset();
-        qs('#scheduleForm [name="fecha_prog"]').valueAsDate = new Date();
-        openModal('scheduleModal');
+        await withLoading({
+            title: 'Preparando formulario...',
+            detail: 'Cargando espacios de almacen',
+            button: ev.currentTarget
+        }, async () => {
+            await loadSpaces();
+            qs('#scheduleForm').reset();
+            qs('#scheduleForm [name="fecha_prog"]').valueAsDate = new Date();
+            openModal('scheduleModal');
+        });
     } catch (err) {
         toast(err.message, 'error');
     }
@@ -1350,13 +1431,21 @@ qs('#btnOpenSchedule').addEventListener('click', async () => {
 
 qs('#scheduleForm').addEventListener('submit', async ev => {
     ev.preventDefault();
+    const formEl = ev.currentTarget;
+    const submitter = ev.submitter || qs('#scheduleForm button[type="submit"]');
     try {
-        const form = new FormData(ev.currentTarget);
-        form.append('action', 'schedule');
-        const data = await api('schedule', {method: 'POST', body: form});
-        closeModal('scheduleModal');
-        toast(data.message || 'Auditoria programada.');
-        await loadAudits();
+        await withLoading({
+            title: 'Programando auditoria...',
+            detail: 'Guardando la programacion',
+            button: submitter
+        }, async () => {
+            const form = new FormData(formEl);
+            form.append('action', 'schedule');
+            const data = await api('schedule', {method: 'POST', body: form});
+            closeModal('scheduleModal');
+            toast(data.message || 'Auditoria programada.');
+            await loadAudits();
+        });
     } catch (err) {
         toast(err.message, 'error');
     }
@@ -1388,9 +1477,13 @@ async function saveProgress() {
     await loadAudits();
 }
 
-qs('#btnSaveProgress').addEventListener('click', async () => {
+qs('#btnSaveProgress').addEventListener('click', async ev => {
     try {
-        await saveProgress();
+        await withLoading({
+            title: 'Guardando progreso...',
+            detail: 'Actualizando la memoria de auditoria',
+            button: ev.currentTarget
+        }, saveProgress);
     } catch (err) {
         toast(err.message, 'error');
     }
@@ -1398,6 +1491,8 @@ qs('#btnSaveProgress').addEventListener('click', async () => {
 
 qs('#realizeForm').addEventListener('submit', async ev => {
     ev.preventDefault();
+    const formEl = ev.currentTarget;
+    const submitter = ev.submitter || qs('#realizeForm button[type="submit"]');
     const summary = inventorySummary();
     if (summary.total <= 0 || summary.contados <= 0) {
         toast('Registra al menos un producto contado.', 'error');
@@ -1420,13 +1515,19 @@ qs('#realizeForm').addEventListener('submit', async ev => {
     }
 
     try {
-        const form = new FormData(ev.currentTarget);
-        form.append('action', 'realize');
-        form.append('contenido', JSON.stringify(buildAuditPayload('finalizado')));
-        const data = await api('realize', {method: 'POST', body: form});
-        closeModal('realizeModal');
-        toast(data.message || 'Auditoria realizada.');
-        await loadAudits();
+        await withLoading({
+            title: 'Finalizando auditoria...',
+            detail: 'Guardando conteo y documento de evidencia',
+            button: submitter
+        }, async () => {
+            const form = new FormData(formEl);
+            form.append('action', 'realize');
+            form.append('contenido', JSON.stringify(buildAuditPayload('finalizado')));
+            const data = await api('realize', {method: 'POST', body: form});
+            closeModal('realizeModal');
+            toast(data.message || 'Auditoria realizada.');
+            await loadAudits();
+        });
     } catch (err) {
         toast(err.message, 'error');
     }
@@ -1434,33 +1535,60 @@ qs('#realizeForm').addEventListener('submit', async ev => {
 
 qs('#annulForm').addEventListener('submit', async ev => {
     ev.preventDefault();
+    const formEl = ev.currentTarget;
+    const submitter = ev.submitter || qs('#annulForm button[type="submit"]');
     try {
-        const form = new FormData(ev.currentTarget);
-        form.append('action', 'annul');
-        const data = await api('annul', {method: 'POST', body: form});
-        closeModal('annulModal');
-        toast(data.message || 'Auditoria anulada.');
-        await loadAudits();
+        await withLoading({
+            title: 'Anulando auditoria...',
+            detail: 'Registrando el motivo',
+            button: submitter
+        }, async () => {
+            const form = new FormData(formEl);
+            form.append('action', 'annul');
+            const data = await api('annul', {method: 'POST', body: form});
+            closeModal('annulModal');
+            toast(data.message || 'Auditoria anulada.');
+            await loadAudits();
+        });
     } catch (err) {
         toast(err.message, 'error');
     }
 });
 
-qs('#btnRefresh').addEventListener('click', loadAudits);
-qs('#btnApplyFilters').addEventListener('click', loadAudits);
-qs('#btnClearFilters').addEventListener('click', () => {
+qs('#btnRefresh').addEventListener('click', ev => loadAudits({
+    loading: true,
+    title: 'Actualizando auditorias...',
+    detail: 'Consultando informacion reciente',
+    button: ev.currentTarget
+}));
+qs('#btnApplyFilters').addEventListener('click', ev => loadAudits({
+    loading: true,
+    title: 'Filtrando auditorias...',
+    detail: 'Aplicando criterios de busqueda',
+    button: ev.currentTarget
+}));
+qs('#btnClearFilters').addEventListener('click', ev => {
     qs('#filterEstado').value = '0';
     qs('#filterDesde').value = '';
     qs('#filterHasta').value = '';
     qs('#filterBuscar').value = '';
-    loadAudits();
+    loadAudits({
+        loading: true,
+        title: 'Limpiando filtros...',
+        detail: 'Recargando auditorias',
+        button: ev.currentTarget
+    });
 });
 qs('#filterBuscar').addEventListener('keydown', ev => {
-    if (ev.key === 'Enter') loadAudits();
+    if (ev.key === 'Enter') loadAudits({
+        loading: true,
+        title: 'Buscando auditorias...',
+        detail: 'Revisando coincidencias'
+    });
 });
 
-qs('#btnDetail').addEventListener('click', openDetail);
-qs('#btnRealize').addEventListener('click', openRealize);
+qs('#btnDetail').addEventListener('click', ev => openDetail(ev.currentTarget));
+qs('#btnRealize').addEventListener('click', ev => openRealize(ev.currentTarget));
 qs('#btnOrder').addEventListener('click', () => openPrint('order'));
 qs('#btnManual').addEventListener('click', () => openPrint('manual'));
 qs('#btnPrintAudit').addEventListener('click', () => openPrint('audit'));
