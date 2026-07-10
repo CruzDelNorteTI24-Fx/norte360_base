@@ -14,24 +14,73 @@ function cron_log(string $mensaje): void {
     );
 }
 
+function cron_obtener_token(): array {
+    if (isset($_GET['token']) && $_GET['token'] !== '') {
+        return [(string)$_GET['token'], 'get'];
+    }
+
+    if (!empty($_SERVER['QUERY_STRING'])) {
+        parse_str((string)$_SERVER['QUERY_STRING'], $query);
+        if (!empty($query['token'])) {
+            return [(string)$query['token'], 'query_string'];
+        }
+    }
+
+    if (php_sapi_name() === 'cli') {
+        global $argv;
+        foreach (array_slice((array)$argv, 1) as $arg) {
+            $arg = trim((string)$arg);
+            if ($arg === '') {
+                continue;
+            }
+
+            if (strpos($arg, 'token=') === 0) {
+                parse_str($arg, $query);
+                if (!empty($query['token'])) {
+                    return [(string)$query['token'], 'cli_arg'];
+                }
+            }
+
+            $queryString = parse_url($arg, PHP_URL_QUERY);
+            if ($queryString) {
+                parse_str($queryString, $query);
+                if (!empty($query['token'])) {
+                    return [(string)$query['token'], 'cli_url'];
+                }
+            }
+        }
+
+        $envToken = getenv('NORTE360_CIERRE_TOKEN');
+        if ($envToken) {
+            return [(string)$envToken, 'env'];
+        }
+    }
+
+    return ['', 'sin_token'];
+}
+
 $runId = date('Ymd_His') . '_' . bin2hex(random_bytes(3));
-
-cron_log("PING_CRON | run={$runId} | sapi=" . php_sapi_name() . " | ip=" . ($_SERVER['REMOTE_ADDR'] ?? 'CLI'));
-
 $tokenPermitido = 'NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
 $esCli = (php_sapi_name() === 'cli');
+[$tokenRecibido, $tokenFuente] = cron_obtener_token();
 
-$tokenRecibido = $_GET['token'] ?? '';
+cron_log("PING_CRON | run={$runId} | sapi=" . php_sapi_name() . " | ip=" . ($_SERVER['REMOTE_ADDR'] ?? 'CLI') . " | token_source={$tokenFuente}");
 
 if (!$esCli && $tokenRecibido !== $tokenPermitido) {
-    cron_log("ACCESO DENEGADO | run={$runId}");
+    cron_log("ACCESO DENEGADO | run={$runId} | token_source={$tokenFuente}");
     http_response_code(403);
     echo "Acceso denegado.";
     exit;
 }
 
+if ($esCli && $tokenRecibido !== '' && $tokenRecibido !== $tokenPermitido) {
+    cron_log("ACCESO CLI DENEGADO | run={$runId} | token_source={$tokenFuente}");
+    echo "Acceso denegado.";
+    exit;
+}
+
 if ($esCli) {
-    cron_log("ACCESO CLI AUTORIZADO | run={$runId}");
+    cron_log("ACCESO CLI AUTORIZADO | run={$runId} | token_source={$tokenFuente}");
 }
 define('ACCESS_GRANTED', true);
 

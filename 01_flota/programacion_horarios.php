@@ -20,7 +20,6 @@ $usuario_session      = $_SESSION['usuario'] ?? 'QR Operativo';
 $dni_session          = $_SESSION['DNI'] ?? '—';
 
 $HORARIO_CIERRE_URL   = 'https://dimgrey-cat-911574.hostingersite.com/ht/01_flota/cron_cierre_operativo_horarios.php?token=NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
-$HORARIO_CIERRE_PASS  = 'n360pizza';
 
 $permisos = ($session_permisos_raw === 'all') ? [] : (array)$session_permisos_raw;
 $vistas   = ($session_permisos_raw === 'all') ? [] : (array)$session_vistas_raw;
@@ -589,11 +588,7 @@ if (isset($_GET['ajax'])) {
             if ($web_rol !== 'Admin') {
                 horario_json(false, [], 'Solo administradores pueden limpiar la pizarra.');
             }
-            $password = (string)($_POST['password'] ?? '');
-            if (!hash_equals($HORARIO_CIERRE_PASS, $password)) {
-                horario_json(false, [], 'Contrasena incorrecta.');
-            }
-            horario_json(true, ['url' => $HORARIO_CIERRE_URL], 'Validacion correcta.');
+            horario_json(true, ['url' => $HORARIO_CIERRE_URL], 'Confirmacion recibida.');
         }
 
         $conn->begin_transaction();
@@ -4032,7 +4027,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
         <div class="row g-3 align-items-center">
             <div class="col-lg-5">
                 <label for="filtroHorarios" class="form-label fw-bold text-secondary mb-2">Filtrar pizarra</label>
-                <input type="text" id="filtroHorarios" class="form-control" placeholder="Busca por origen, destino, bus, placa, tipo o hora...">
+                <input type="search" id="filtroHorarios" name="n360_busqueda_pizarra" class="form-control" placeholder="Busca por origen, destino, bus, placa, tipo o hora..." autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" readonly>
             </div>
             <div class="col-lg-7">
                 <div class="d-flex flex-wrap gap-2 justify-content-lg-end mt-lg-4">
@@ -4299,16 +4294,13 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
       </div>
       <div class="modal-body">
         <div class="alert alert-warning border-0 mb-3">
-          <strong>Advertencia:</strong> se limpiara la pizarra de programacion. Verifica que no haya cambios pendientes antes de continuar.
+          <strong>Advertencia:</strong> se limpiara la pizarra de programacion. Esta accion retirara las unidades activas segun el cierre operativo configurado.
         </div>
-        <label class="form-label fw-bold" for="limpiarPizarraPassword">Contrasena de confirmacion</label>
-        <input type="password" class="form-control" id="limpiarPizarraPassword" autocomplete="off" placeholder="Ingresa la contrasena">
-        <div class="form-text">Esta validacion evita ejecuciones accidentales.</div>
-        <div class="alert alert-danger d-none mt-3 mb-0" id="limpiarPizarraError"></div>
+        <p class="mb-0 text-secondary">Confirma solo si ya revisaste que no hay cambios pendientes en la pizarra.</p>
       </div>
       <div class="modal-footer bg-white">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-danger" id="btnConfirmLimpiarPizarra"><i class="bi bi-trash3 me-2"></i>Confirmar limpieza</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmLimpiarPizarra"><i class="bi bi-trash3 me-2"></i>Limpiar Pizarra</button>
       </div>
     </div>
   </div>
@@ -4380,8 +4372,6 @@ txtModoImagen: $('txtModoImagen'),
     btnInhabilitados: $('btnInhabilitados'),
     btnLimpiarPizarra: $('btnLimpiarPizarra'),
     btnConfirmLimpiarPizarra: $('btnConfirmLimpiarPizarra'),
-    limpiarPizarraPassword: $('limpiarPizarraPassword'),
-    limpiarPizarraError: $('limpiarPizarraError'),
     crearOrigen: $('crearOrigen'),
     crearDestino: $('crearDestino'),
     crearHora: $('crearHora'),
@@ -4492,6 +4482,10 @@ $('modalBus').addEventListener('shown.bs.modal', () => {
   const modalHistorial = new bootstrap.Modal($('modalHistorial')); const modalInhabilitados = new bootstrap.Modal($('modalInhabilitados'));
   const modalExportImagen = new bootstrap.Modal($('modalExportImagen'));
   const modalLimpiarPizarra = $('modalLimpiarPizarra') ? new bootstrap.Modal($('modalLimpiarPizarra')) : null;
+  if (els.filtro) {
+    setTimeout(() => els.filtro.removeAttribute('readonly'), 180);
+    els.filtro.addEventListener('focus', () => els.filtro.removeAttribute('readonly'), { once: true });
+  }
 
   const quickTimes = ['06:00','08:00','10:00','12:00','16:00','18:00','20:00','22:00'];
   const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
@@ -6319,25 +6313,9 @@ async function fetchJson(action, options = {}) {
   }
 }
   async function confirmarLimpiarPizarra() {
-    if (!els.limpiarPizarraPassword || !els.btnConfirmLimpiarPizarra) return;
-
-    const password = els.limpiarPizarraPassword.value.trim();
-    if (els.limpiarPizarraError) {
-      els.limpiarPizarraError.classList.add('d-none');
-      els.limpiarPizarraError.textContent = '';
-    }
-
-    if (!password) {
-      if (els.limpiarPizarraError) {
-        els.limpiarPizarraError.textContent = 'Ingresa la contrasena para continuar.';
-        els.limpiarPizarraError.classList.remove('d-none');
-      }
-      els.limpiarPizarraPassword.focus();
-      return;
-    }
+    if (!els.btnConfirmLimpiarPizarra) return;
 
     const fd = new FormData();
-    fd.append('password', password);
     const data = await fetchJson('limpiar_pizarra', {
       method: 'POST',
       body: fd
@@ -6348,7 +6326,6 @@ async function fetchJson(action, options = {}) {
     }
 
     modalLimpiarPizarra?.hide();
-    els.limpiarPizarraPassword.value = '';
     showAlert('warning', 'Limpieza de pizarra lanzada. Revisa el resultado del cierre operativo.');
     const opened = window.open(data.url, '_blank', 'noopener');
     if (!opened) {
@@ -7236,36 +7213,17 @@ els.btnSwapOficinas.addEventListener('click', () => {
 els.btnHistorial.addEventListener('click',()=>openHistorial().catch(err=>showAlert('danger',err.message||'No se pudo cargar el historial.'))); els.btnInhabilitados.addEventListener('click',()=>openInhabilitados().catch(err=>showAlert('danger',err.message||'No se pudieron cargar los horarios inhabilitados.'))); 
 if (els.btnLimpiarPizarra && modalLimpiarPizarra) {
   els.btnLimpiarPizarra.addEventListener('click', () => {
-    if (els.limpiarPizarraPassword) els.limpiarPizarraPassword.value = '';
-    if (els.limpiarPizarraError) {
-      els.limpiarPizarraError.textContent = '';
-      els.limpiarPizarraError.classList.add('d-none');
-    }
     modalLimpiarPizarra.show();
-    setTimeout(() => els.limpiarPizarraPassword?.focus(), 250);
   });
 }
 if (els.btnConfirmLimpiarPizarra) {
   els.btnConfirmLimpiarPizarra.addEventListener('click', () => {
     confirmarLimpiarPizarra().catch(err => {
-      if (els.limpiarPizarraError) {
-        els.limpiarPizarraError.textContent = err.message || 'No se pudo validar la limpieza.';
-        els.limpiarPizarraError.classList.remove('d-none');
-      } else {
-        showAlert('danger', err.message || 'No se pudo validar la limpieza.');
-      }
+      showAlert('danger', err.message || 'No se pudo lanzar la limpieza.');
     });
   });
 }
-if (els.limpiarPizarraPassword) {
-  els.limpiarPizarraPassword.addEventListener('keydown', event => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      els.btnConfirmLimpiarPizarra?.click();
-    }
-  });
-}
-els.editarHoraInput.addEventListener('input',updateEditPreview); 
+els.editarHoraInput.addEventListener('input',updateEditPreview);
 
 els.editarDestino.addEventListener('change', updateEditPreview);
 if (els.btnLimpiarRutaCrear) {

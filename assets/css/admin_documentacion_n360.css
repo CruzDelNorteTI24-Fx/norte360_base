@@ -124,10 +124,33 @@
     gap: 16px;
 }
 
+.admin-doc-block-title {
+    display: grid;
+    gap: 3px;
+}
+
+.admin-doc-block-title span {
+    color: #2389c9;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+}
+
+.admin-doc-block-title strong {
+    color: #17283a;
+    font-size: 15px;
+    font-weight: 950;
+}
+
 .admin-doc-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+}
+
+.admin-doc-actions--tickets {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .admin-doc-btn {
@@ -162,6 +185,16 @@
     color: #fff;
     font-size: 20px;
     flex: 0 0 auto;
+}
+
+.admin-doc-btn--ticket {
+    min-height: 94px;
+    align-items: flex-start;
+    background: #fff;
+}
+
+.admin-doc-btn--ticket i {
+    background: #14324a;
 }
 
 .admin-doc-btn strong,
@@ -285,6 +318,10 @@
         grid-template-columns: 1fr;
     }
 
+    .admin-doc-actions--tickets {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .admin-doc-hero {
         flex-direction: column;
         align-items: stretch;
@@ -292,7 +329,8 @@
 }
 
 @media (max-width: 640px) {
-    .admin-doc-actions {
+    .admin-doc-actions,
+    .admin-doc-actions--tickets {
         grid-template-columns: 1fr;
     }
 }

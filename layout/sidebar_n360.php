@@ -110,7 +110,7 @@ function n360_menu_config(): array {
                                 'admin' => true
                             ],
                             [
-                                'titulo' => 'Documentacion',
+                                'titulo' => 'Formatos',
                                 'icono' => 'bi bi-file-earmark-pdf-fill',
                                 'url' => 'admin/documentacion.php',
                                 'admin' => true
