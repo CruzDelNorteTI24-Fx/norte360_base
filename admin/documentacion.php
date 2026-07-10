@@ -125,7 +125,7 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
                         <div><span>A4</span><strong>Basado en _page_caratula, _caratula_generica y agregar_pie_pagina</strong></div>
                         <div><span>Etiquetera</span><strong>80 mm de ancho con alto dinamico segun detalle</strong></div>
                         <div><span>Notas</span><strong>NS salida, CM tanqueada, NE entrada y AB abastecimiento</strong></div>
-                        <div><span>Uso futuro</span><strong>N360PDF.createDocument(...) / N360NotaSalida.generate(...) / N360NotaEntrada.generate(...)</strong></div>
+                        <div><span>Uso futuro</span><strong>Plantillas, reportes y notas bajo assets/js/formatos</strong></div>
                     </div>
                 </div>
             </aside>
@@ -139,9 +139,13 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/pdf_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/pdf_n360_notas_salida.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/pdf_n360_notas_entrada.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_notas_common.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_notas_demo_data.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script>
 const pdfConfig = {
     userName: <?= json_encode($userName, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
@@ -164,18 +168,19 @@ async function generarDemoPDF(orientation, button) {
 }
 
 async function generarNotaDemo(format, button) {
-    if (['NS', 'CM'].includes(format)) {
-        if (!window.N360NotaSalida || typeof window.N360NotaSalida.generateDemo !== 'function') {
-            throw new Error('El formato de notas de salida no esta cargado.');
-        }
-        await window.N360NotaSalida.generateDemo(format, pdfConfig);
-        return;
+    const generators = {
+        NS: window.N360NotaSalidaAlmacen,
+        CM: window.N360NotaTanqueada,
+        NE: window.N360NotaEntradaAlmacen,
+        AB: window.N360NotaAbastecimiento
+    };
+    const generator = generators[format];
+
+    if (!generator || typeof generator.generateDemo !== 'function') {
+        throw new Error('El formato ' + format + ' no esta cargado.');
     }
 
-    if (!window.N360NotaEntrada || typeof window.N360NotaEntrada.generateDemo !== 'function') {
-        throw new Error('El formato de notas de entrada no esta cargado.');
-    }
-    await window.N360NotaEntrada.generateDemo(format, pdfConfig);
+    await generator.generateDemo(pdfConfig);
 }
 
 document.getElementById('btnPdfVertical').addEventListener('click', async function () {

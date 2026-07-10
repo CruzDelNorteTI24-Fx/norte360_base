@@ -183,7 +183,7 @@ $autoDownload = isset($_GET['download']) || isset($_GET['descargar']);
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/pdf_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
 <script>
 window.N360_CHECK_REPORT = {
     mode: <?= json_encode($singleMode ? 'single' : 'unit') ?>,
@@ -198,6 +198,6 @@ window.N360_CHECK_REPORT = {
     checklistViewUrl: <?= json_encode(n360_base_url('01_amantenimiento/ver_checklist.php'), JSON_UNESCAPED_SLASHES) ?>
 };
 </script>
-<script src="<?= n360_asset('assets/js/checklist_reportes_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/checklist_reportes_n360.js') ?>"></script>
 </body>
 </html>
