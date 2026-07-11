@@ -1,0 +1,32 @@
+Options -Indexes
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\.git(/|$) - [F,L]
+    RewriteRule (^|/)\.c0nn3ct(/|$) - [F,L]
+    RewriteRule (^|/)\.config.*\.env$ - [F,L]
+    RewriteRule (^|/)\.env$ - [F,L]
+    RewriteRule (^|/).*\.sql$ - [F,L]
+    RewriteRule (^|/).*\.bak$ - [F,L]
+    RewriteRule (^|/).*\.log$ - [F,L]
+</IfModule>
+
+<FilesMatch "\.php$">
+    <IfModule mod_headers.c>
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "(^\.|\.env$|\.ini$|\.log$|\.bak$|\.sql$|composer\.(json|lock)$|package(-lock)?\.json$|AGENTS\.md$|README\.md$)">
+    Require all denied
+</FilesMatch>

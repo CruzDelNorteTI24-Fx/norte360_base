@@ -1,5 +1,7 @@
 <?php
-session_start();
+require_once __DIR__ . '/../layout/security_n360.php';
+n360_send_security_headers();
+n360_start_secure_session();
 
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
