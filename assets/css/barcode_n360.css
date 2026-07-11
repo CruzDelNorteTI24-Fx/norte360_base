@@ -1,0 +1,289 @@
+@font-face {
+    font-family: "N360Consola";
+    src: url("../fonts/consola.ttf") format("truetype");
+    font-display: swap;
+}
+
+.n360-barcode-card,
+.n360-barcode-card * {
+    box-sizing: border-box;
+}
+
+.n360-barcode-card {
+    width: min(440px, 100%);
+    padding: 14px;
+    border: 1px solid #d5e4ef;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 14px 30px rgba(15, 35, 52, 0.08);
+    font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.n360-barcode-card--flat {
+    box-shadow: none;
+}
+
+.n360-barcode-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.n360-barcode-card__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: #143149;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+
+.n360-barcode-card__title i {
+    color: #228bd0;
+    font-size: 17px;
+}
+
+.n360-barcode-card__meta {
+    flex: 0 0 auto;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #eff7fc;
+    color: #0f6ea8;
+    font-family: "N360Consola", Consolas, "Courier New", monospace;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.n360-barcode-paper {
+    width: 100%;
+    max-width: 390px;
+    margin: 0 auto;
+    padding: 10px;
+    border: 1px solid #dce8f1;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.n360-barcode-svg {
+    display: block;
+    width: 350px;
+    max-width: 100%;
+    height: 100px;
+    margin: 0 auto;
+    background: #fff;
+}
+
+.n360-barcode-text {
+    width: 350px;
+    max-width: 100%;
+    margin: 6px auto 7px;
+    color: #000;
+    font-family: "N360Consola", Consolas, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.n360-barcode-text span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.n360-barcode-logo {
+    display: block;
+    width: 350px;
+    max-width: 100%;
+    height: 50px;
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+.n360-barcode-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.n360-barcode-code {
+    min-width: 0;
+    color: #34495e;
+    font-family: "N360Consola", Consolas, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.n360-barcode-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 0 13px;
+    border: 0;
+    border-radius: 8px;
+    background: #219653;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.n360-barcode-download:hover {
+    background: #1d874b;
+}
+
+.n360-barcode-error {
+    padding: 14px;
+    border-radius: 8px;
+    background: #fff1f1;
+    color: #9a2929;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.n360-barcode-card--compact {
+    width: min(278px, 100%);
+    padding: 10px;
+}
+
+.n360-barcode-card--compact .n360-barcode-card__head {
+    margin-bottom: 7px;
+}
+
+.n360-barcode-card--compact .n360-barcode-card__title {
+    font-size: 10px;
+    gap: 5px;
+}
+
+.n360-barcode-card--compact .n360-barcode-card__title i {
+    font-size: 13px;
+}
+
+.n360-barcode-card--compact .n360-barcode-card__meta {
+    padding: 3px 6px;
+    font-size: 9px;
+}
+
+.n360-barcode-card--compact .n360-barcode-paper {
+    max-width: 248px;
+    padding: 6px;
+}
+
+.n360-barcode-card--compact .n360-barcode-svg {
+    width: 226px;
+    height: 58px;
+}
+
+.n360-barcode-card--compact .n360-barcode-text {
+    width: 226px;
+    margin: 4px auto 5px;
+    font-size: 9px;
+    line-height: 1.14;
+}
+
+.n360-barcode-card--compact .n360-barcode-logo {
+    width: 226px;
+    height: 32px;
+}
+
+.n360-barcode-card--compact .n360-barcode-actions {
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.n360-barcode-card--compact .n360-barcode-code {
+    font-size: 10px;
+}
+
+.n360-barcode-card--compact .n360-barcode-download {
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 11px;
+}
+
+.n360-barcode-card--mini {
+    width: 138px;
+    padding: 7px;
+    border-radius: 9px;
+    box-shadow: none;
+}
+
+.n360-barcode-card--mini .n360-barcode-card__head {
+    display: none;
+}
+
+.n360-barcode-card--mini .n360-barcode-paper {
+    max-width: 124px;
+    padding: 4px;
+    border-radius: 7px;
+}
+
+.n360-barcode-card--mini .n360-barcode-svg {
+    width: 114px;
+    height: 34px;
+}
+
+.n360-barcode-card--mini .n360-barcode-text {
+    width: 114px;
+    margin: 3px auto;
+    font-size: 7px;
+    line-height: 1.08;
+}
+
+.n360-barcode-card--mini .n360-barcode-text span:last-child {
+    display: none;
+}
+
+.n360-barcode-card--mini .n360-barcode-logo {
+    width: 114px;
+    height: 17px;
+}
+
+.n360-barcode-card--mini .n360-barcode-actions {
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.n360-barcode-card--mini .n360-barcode-code {
+    font-size: 9px;
+}
+
+.n360-barcode-card--mini .n360-barcode-download {
+    width: 30px;
+    min-width: 30px;
+    min-height: 28px;
+    padding: 0;
+    border-radius: 7px;
+}
+
+.n360-barcode-card--mini .n360-barcode-download span {
+    display: none;
+}
+
+@media (max-width: 520px) {
+    .n360-barcode-card {
+        padding: 12px;
+    }
+
+    .n360-barcode-card__head,
+    .n360-barcode-actions {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .n360-barcode-download {
+        width: 100%;
+    }
+}

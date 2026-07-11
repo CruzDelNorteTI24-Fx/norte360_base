@@ -102,6 +102,13 @@ foreach ($movimientos as $m) {
 }
 
 $saldo_estimado = $cant_inventariado + $cant_entradas - $cant_salidas;
+$barcode_codigo = trim((string)($info['cod_producto'] ?? ''));
+if ($barcode_codigo === '') {
+    $barcode_codigo = trim((string)(($info['codigo'] ?? '') . ($info['producto_id'] ?? '')));
+}
+$barcode_nombre = trim((string)($info['producto'] ?? 'Producto sin nombre'));
+$barcode_categoria = trim((string)((($info['codigo'] ?? '') !== '' ? '(' . $info['codigo'] . ') ' : '') . (($info['descategoria'] ?? '') ?: ($info['categoria'] ?? 'Sin categoria'))));
+$barcode_logo = '../img/completo.png';
 ?>
 
 <style>
@@ -195,6 +202,31 @@ $saldo_estimado = $cant_inventariado + $cant_entradas - $cant_salidas;
     color:#cbd5e1;
     max-width:820px;
     line-height:1.45;
+  }
+
+  .mp-hero-main{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:20px;
+    align-items:end;
+    margin-top:14px;
+  }
+
+  .mp-hero-copy{
+    min-width:0;
+  }
+
+  .mp-hero-copy h2{
+    margin-top:0;
+  }
+
+  .mp-hero-barcode{
+    width:278px;
+  }
+
+  .mp-hero-barcode .n360-barcode-card{
+    border-color:rgba(219,228,239,.82);
+    box-shadow:0 18px 40px rgba(5,13,24,.18);
   }
 
   .mp-body{
@@ -490,6 +522,8 @@ $saldo_estimado = $cant_inventariado + $cant_entradas - $cant_salidas;
   @media(max-width:900px){
     .mp-kpis{grid-template-columns:repeat(2,1fr);}
     .mp-info-grid{grid-template-columns:1fr;}
+    .mp-hero-main{grid-template-columns:1fr;}
+    .mp-hero-barcode{width:min(278px,100%);}
   }
 
   @media(max-width:560px){
@@ -506,8 +540,37 @@ $saldo_estimado = $cant_inventariado + $cant_entradas - $cant_salidas;
       <div class="mp-eyebrow"><i class="bi bi-clock-history"></i> Historial de producto</div>
       <div class="mp-correlativo"><i class="bi bi-box-seam"></i> ID Producto #<?= h($info['producto_id']) ?></div>
     </div>
-    <h2><?= h($info['producto']) ?></h2>
-    <p>Consulta consolidada de entradas, salidas e inventariados relacionados a este producto.</p>
+    <div class="mp-hero-main">
+      <div class="mp-hero-copy">
+        <h2><?= h($info['producto']) ?></h2>
+        <p>Consulta consolidada de entradas, salidas e inventariados relacionados a este producto.</p>
+      </div>
+      <div class="mp-hero-barcode">
+        <div class="n360-barcode-card n360-barcode-card--flat n360-barcode-card--compact"
+            data-n360-barcode
+            data-barcode-code="<?= h($barcode_codigo) ?>"
+            data-barcode-name="<?= h($barcode_nombre) ?>"
+            data-barcode-category="<?= h($barcode_categoria) ?>"
+            data-barcode-kind="producto"
+            data-barcode-logo="<?= h($barcode_logo) ?>">
+          <div class="n360-barcode-card__head">
+            <div class="n360-barcode-card__title">
+              <i class="bi bi-upc"></i>
+              <span>Previsualizacion Code128</span>
+            </div>
+            <span class="n360-barcode-card__meta">PNG</span>
+          </div>
+          <div data-barcode-stage></div>
+          <div class="n360-barcode-actions">
+            <span class="n360-barcode-code"><?= h($barcode_codigo) ?></span>
+            <button class="n360-barcode-download" type="button" data-barcode-download>
+              <i class="bi bi-download"></i>
+              <span>Descargar PNG</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <div class="mp-body">
@@ -548,6 +611,8 @@ $saldo_estimado = $cant_inventariado + $cant_entradas - $cant_salidas;
         <div class="value"><?= h($info['descategoria'] ?: $info['categoria']) ?></div>
       </div>
     </div>
+
+
 
     <div class="mp-table-card">
       <div class="mp-table-head">

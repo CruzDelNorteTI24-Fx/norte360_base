@@ -448,6 +448,8 @@ function n360_menu_config(): array {
     ];
 }
 
+require_once __DIR__ . '/quick_scan_n360.php';
+
 function n360_render_sidebar(): void {
     $menu = n360_menu_config();
     $currentUri = str_replace('\\', '/', $_SERVER['REQUEST_URI'] ?? '');
@@ -467,6 +469,17 @@ function n360_render_sidebar(): void {
             <div>
                 <strong>Norte 360°</strong>
                 <span>Panel operativo</span>
+            </div>
+        </div>
+
+        <div class="sidebar-road-signature" aria-hidden="true">
+            <div class="sidebar-road-line"></div>
+            <div class="sidebar-bus">
+                <span class="sidebar-bus-window sidebar-bus-window--front"></span>
+                <span class="sidebar-bus-window sidebar-bus-window--back"></span>
+                <span class="sidebar-bus-light"></span>
+                <span class="sidebar-bus-wheel sidebar-bus-wheel--front"></span>
+                <span class="sidebar-bus-wheel sidebar-bus-wheel--back"></span>
             </div>
         </div>
 
@@ -571,4 +584,8 @@ function n360_render_sidebar(): void {
 
     echo '</aside>';
     echo '<div class="sidebar-overlay" id="sidebarOverlay" onclick="n360ToggleSidebarMobile()" aria-hidden="true"></div>';
+
+    if (function_exists('n360_render_quick_scan')) {
+        n360_render_quick_scan();
+    }
 }
