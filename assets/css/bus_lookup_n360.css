@@ -1,0 +1,725 @@
+/* =========================================================
+   BOTÓN FLOTANTE — CONSULTA DE UNIDAD
+   ========================================================= */
+
+.n360-bus-lookup-fab {
+    --fab-size: 76px;
+
+    position: fixed;
+    right: clamp(16px, 2vw, 28px);
+    bottom: clamp(18px, 2.4vw, 30px);
+    z-index: 1180;
+
+    width: var(--fab-size);
+    height: var(--fab-size);
+    padding: 0;
+
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 50%;
+
+    color: #ffffff;
+    background:
+        radial-gradient(
+            circle at 32% 22%,
+            rgba(255, 255, 255, .22) 0%,
+            rgba(255, 255, 255, .05) 28%,
+            transparent 48%
+        ),
+        linear-gradient(
+            145deg,
+            #173a53 0%,
+            #126c9e 55%,
+            #1593cc 100%
+        );
+
+    box-shadow:
+        0 15px 30px rgba(8, 35, 52, .28),
+        0 0 0 6px rgba(34, 145, 198, .12),
+        inset 0 1px 0 rgba(255, 255, 255, .24),
+        inset 0 -12px 20px rgba(4, 33, 51, .16);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    overflow: hidden;
+    isolation: isolate;
+
+    transition:
+        transform .22s cubic-bezier(.2, .8, .2, 1),
+        box-shadow .22s ease,
+        border-color .22s ease;
+}
+
+/* Anillo interior sutil */
+.n360-bus-lookup-fab::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    z-index: 0;
+
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: inherit;
+
+    pointer-events: none;
+}
+
+/* Reflejo superior */
+.n360-bus-lookup-fab::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 13px;
+    z-index: 0;
+
+    width: 35px;
+    height: 16px;
+    border-radius: 50%;
+
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, .22),
+        rgba(255, 255, 255, 0)
+    );
+
+    transform: rotate(-18deg);
+    pointer-events: none;
+}
+
+/* Estado hover */
+.n360-bus-lookup-fab:hover {
+    transform: translateY(-4px) scale(1.025);
+
+    border-color: rgba(255, 255, 255, .32);
+
+    box-shadow:
+        0 20px 38px rgba(8, 35, 52, .34),
+        0 0 0 7px rgba(34, 145, 198, .16),
+        inset 0 1px 0 rgba(255, 255, 255, .28),
+        inset 0 -12px 20px rgba(4, 33, 51, .14);
+}
+
+/* Accesibilidad por teclado */
+.n360-bus-lookup-fab:focus-visible {
+    outline: none;
+
+    transform: translateY(-4px) scale(1.025);
+
+    box-shadow:
+        0 20px 38px rgba(8, 35, 52, .34),
+        0 0 0 4px #ffffff,
+        0 0 0 8px rgba(34, 145, 198, .34),
+        inset 0 1px 0 rgba(255, 255, 255, .28);
+}
+
+/* Sensación física al hacer clic */
+.n360-bus-lookup-fab:active {
+    transform: translateY(-1px) scale(.97);
+
+    box-shadow:
+        0 10px 20px rgba(8, 35, 52, .26),
+        0 0 0 5px rgba(34, 145, 198, .12),
+        inset 0 2px 7px rgba(4, 28, 43, .22);
+}
+
+
+/* =========================================================
+   ÍCONO DEL BUS
+   ========================================================= */
+
+.n360-bus-lookup-fab__icon {
+    position: relative;
+    z-index: 2;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 1.82rem;
+    line-height: 1;
+
+    text-shadow:
+        0 2px 2px rgba(0, 0, 0, .14),
+        0 5px 10px rgba(5, 30, 45, .22);
+
+    transition:
+        transform .22s cubic-bezier(.2, .8, .2, 1),
+        text-shadow .22s ease;
+}
+
+/* Pequeña sombra debajo del bus */
+.n360-bus-lookup-fab__icon::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -7px;
+
+    width: 25px;
+    height: 5px;
+    border-radius: 50%;
+
+    background: rgba(2, 24, 38, .28);
+    filter: blur(3px);
+
+    transform: translateX(-50%);
+    opacity: .65;
+}
+
+/* El bus se mueve suavemente solo al interactuar */
+.n360-bus-lookup-fab:hover .n360-bus-lookup-fab__icon,
+.n360-bus-lookup-fab:focus-visible .n360-bus-lookup-fab__icon {
+    animation: n360-bus-suspension .42s ease-in-out infinite alternate;
+
+    text-shadow:
+        0 2px 2px rgba(0, 0, 0, .12),
+        0 7px 13px rgba(5, 30, 45, .28);
+}
+
+
+/* =========================================================
+   MINI CARRETERA
+   ========================================================= */
+
+.n360-bus-lookup-fab__road {
+    position: absolute;
+    left: 50%;
+    bottom: 11px;
+    z-index: 1;
+
+    width: 45px;
+    height: 8px;
+
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 999px;
+
+    background: linear-gradient(
+        180deg,
+        #102d40 0%,
+        #092334 100%
+    );
+
+    box-shadow:
+        inset 0 1px 3px rgba(0, 0, 0, .38),
+        0 1px 0 rgba(255, 255, 255, .08);
+
+    transform: translateX(-50%);
+    overflow: hidden;
+}
+
+/* Línea amarilla animada */
+.n360-bus-lookup-fab__road::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: -25px;
+
+    width: 90px;
+    height: 2px;
+
+    border-radius: 999px;
+
+    background: repeating-linear-gradient(
+        90deg,
+        #f7ca35 0 7px,
+        transparent 7px 13px
+    );
+
+    transform: translate3d(0, -50%, 0);
+
+    animation: n360-road-flow .72s linear infinite;
+    animation-play-state: paused;
+}
+
+/* Movimiento activo solo al pasar el mouse */
+.n360-bus-lookup-fab:hover .n360-bus-lookup-fab__road::before,
+.n360-bus-lookup-fab:focus-visible .n360-bus-lookup-fab__road::before {
+    animation-play-state: running;
+}
+
+
+/* =========================================================
+   ANIMACIONES
+   ========================================================= */
+
+@keyframes n360-road-flow {
+    from {
+        transform: translate3d(-13px, -50%, 0);
+    }
+
+    to {
+        transform: translate3d(0, -50%, 0);
+    }
+}
+
+@keyframes n360-bus-suspension {
+    from {
+        transform: translateY(-8px) rotate(-.5deg);
+    }
+
+    to {
+        transform: translateY(-6px) rotate(.5deg);
+    }
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 576px) {
+    .n360-bus-lookup-fab {
+        --fab-size: 66px;
+
+        right: 14px;
+        bottom: 16px;
+    }
+
+    .n360-bus-lookup-fab__icon {
+        font-size: 1.55rem;
+        transform: translateY(-6px);
+    }
+
+    .n360-bus-lookup-fab__road {
+        bottom: 9px;
+        width: 39px;
+        height: 7px;
+    }
+}
+
+
+/* Respeta usuarios que desactivan animaciones */
+@media (prefers-reduced-motion: reduce) {
+    .n360-bus-lookup-fab,
+    .n360-bus-lookup-fab__icon,
+    .n360-bus-lookup-fab__road::before {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+
+@keyframes n360-bus-road {
+    from { transform: translateX(-18px); }
+    to { transform: translateX(0); }
+}
+
+.n360-bus-lookup {
+    position: fixed;
+    inset: 0;
+    z-index: 2580;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+}
+
+.n360-bus-lookup.is-open {
+    display: flex;
+}
+
+.n360-bus-lookup__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(9, 23, 37, .64);
+    backdrop-filter: blur(7px);
+}
+
+.n360-bus-lookup__panel {
+    position: relative;
+    width: min(1060px, 100%);
+    max-height: min(88vh, 860px);
+    overflow: auto;
+    border: 1px solid rgba(150, 181, 206, .46);
+    border-radius: 16px;
+    background: #f7fbff;
+    box-shadow: 0 26px 70px rgba(5, 21, 36, .32);
+}
+
+.n360-bus-lookup__header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 22px;
+    color: #fff;
+    background: linear-gradient(135deg, #142d43 0%, #1f5675 100%);
+}
+
+.n360-bus-lookup__mark {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    color: #14344e;
+    background: #f8cf2d;
+    box-shadow: inset 0 -6px 0 rgba(20, 52, 78, .14);
+    font-size: 1.55rem;
+}
+
+.n360-bus-lookup__eyebrow {
+    margin: 0 0 2px;
+    font-size: .74rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    color: #bfe9ff;
+}
+
+.n360-bus-lookup__header h2 {
+    margin: 0;
+    font-size: clamp(1.25rem, 2.8vw, 2.1rem);
+    font-weight: 900;
+    line-height: 1.05;
+}
+
+.n360-bus-lookup__close {
+    margin-left: auto;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(255, 255, 255, .24);
+    border-radius: 12px;
+    color: #fff;
+    background: rgba(255, 255, 255, .11);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.n360-bus-lookup__form {
+    padding: 18px 22px 10px;
+}
+
+.n360-bus-lookup__label {
+    display: block;
+    margin: 0 0 7px;
+    color: #516b80;
+    font-size: .78rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-bus-lookup__input-wrap {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #c9ddec;
+    border-radius: 12px;
+    padding: 8px 8px 8px 13px;
+    background: #fff;
+}
+
+.n360-bus-lookup__input-wrap > i {
+    color: #2496d2;
+}
+
+.n360-bus-lookup__input-wrap input {
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: #0b243b;
+    font: inherit;
+    font-weight: 700;
+    background: transparent;
+}
+
+.n360-bus-lookup__input-wrap button,
+.n360-bus-lookup__action {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #fff;
+    background: #238dd1;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.n360-bus-lookup__status {
+    margin: 0 22px 14px;
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: #49667b;
+    background: #edf5fb;
+    font-weight: 800;
+}
+
+.n360-bus-lookup__status.is-error {
+    color: #9a271f;
+    background: #fff0ee;
+}
+
+.n360-bus-lookup__status.is-ok {
+    color: #0a6b45;
+    background: #eaf8f0;
+}
+
+.n360-bus-lookup__result {
+    padding: 0 22px 22px;
+}
+
+.n360-bus-card {
+    display: grid;
+    gap: 16px;
+}
+
+.n360-bus-card__hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: stretch;
+    border-radius: 14px;
+    padding: 18px;
+    color: #fff;
+    background: linear-gradient(135deg, #12283d, #204c68);
+}
+
+.n360-bus-card__title {
+    margin: 0;
+    font-size: clamp(1.65rem, 3vw, 2.55rem);
+    font-weight: 950;
+    line-height: 1;
+}
+
+.n360-bus-card__subtitle {
+    margin: 8px 0 0;
+    color: #d9edf8;
+    font-weight: 800;
+}
+
+.n360-bus-card__plate {
+    min-width: 150px;
+    border-radius: 12px;
+    padding: 16px;
+    color: #10283d;
+    background: #f8cf2d;
+    text-align: center;
+    align-content: center;
+    box-shadow: inset 0 -7px 0 rgba(16, 40, 61, .12);
+}
+
+.n360-bus-card__plate small {
+    display: block;
+    color: rgba(16, 40, 61, .7);
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-bus-card__plate strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 1.35rem;
+    font-weight: 950;
+}
+
+.n360-bus-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.n360-bus-kpi,
+.n360-bus-info {
+    border: 1px solid #d7e6f1;
+    border-radius: 12px;
+    padding: 13px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(17, 52, 77, .06);
+}
+
+.n360-bus-kpi span,
+.n360-bus-info span {
+    display: block;
+    color: #5a7186;
+    font-size: .72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-bus-kpi strong,
+.n360-bus-info strong {
+    display: block;
+    margin-top: 4px;
+    color: #0b243b;
+    font-size: 1.32rem;
+    font-weight: 950;
+}
+
+.n360-bus-section {
+    border: 1px solid #d7e6f1;
+    border-radius: 14px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.n360-bus-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 15px;
+    border-bottom: 1px solid #e4edf5;
+}
+
+.n360-bus-section__head h3 {
+    margin: 0;
+    color: #10283d;
+    font-size: .95rem;
+    font-weight: 950;
+}
+
+.n360-bus-section__head span {
+    border-radius: 999px;
+    padding: 5px 9px;
+    color: #0c75b6;
+    background: #edf7ff;
+    font-size: .72rem;
+    font-weight: 900;
+}
+
+.n360-bus-list {
+    display: grid;
+    gap: 0;
+}
+
+.n360-bus-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 13px 15px;
+    border-bottom: 1px solid #edf3f8;
+}
+
+.n360-bus-row:last-child {
+    border-bottom: 0;
+}
+
+.n360-bus-row__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    color: #0c75b6;
+    background: #eef8ff;
+}
+
+.n360-bus-row__main strong {
+    display: block;
+    color: #0b243b;
+    font-weight: 950;
+}
+
+.n360-bus-row__main small,
+.n360-bus-row__meta {
+    color: #587186;
+    font-weight: 700;
+}
+
+.n360-bus-row__tag {
+    border-radius: 999px;
+    padding: 6px 10px;
+    color: #0a6b45;
+    background: #eaf8f0;
+    font-size: .74rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.n360-bus-empty {
+    padding: 18px 15px;
+    color: #60778b;
+    font-weight: 800;
+}
+
+.n360-bus-suggestions {
+    display: grid;
+    gap: 9px;
+}
+
+.n360-bus-suggestion {
+    width: 100%;
+    border: 1px solid #d7e6f1;
+    border-radius: 12px;
+    padding: 12px;
+    color: #10283d;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+}
+
+.n360-bus-suggestion strong {
+    display: block;
+    font-weight: 950;
+}
+
+.n360-bus-suggestion span {
+    display: block;
+    margin-top: 3px;
+    color: #5e7284;
+    font-weight: 700;
+}
+
+@media (max-width: 780px) {
+    .n360-bus-lookup {
+        padding: 10px;
+        align-items: flex-end;
+    }
+
+    .n360-bus-lookup__panel {
+        max-height: 92vh;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .n360-bus-lookup__header,
+    .n360-bus-lookup__form,
+    .n360-bus-lookup__result {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .n360-bus-lookup__input-wrap {
+        grid-template-columns: auto 1fr;
+    }
+
+    .n360-bus-lookup__input-wrap button {
+        grid-column: 1 / -1;
+        justify-content: center;
+    }
+
+    .n360-bus-card__hero,
+    .n360-bus-row {
+        grid-template-columns: 1fr;
+    }
+
+    .n360-bus-card__plate {
+        min-width: 0;
+    }
+
+    .n360-bus-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .n360-bus-row__tag {
+        width: fit-content;
+    }
+}
+
+@media (max-width: 520px) {
+    .n360-bus-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .n360-bus-lookup-fab {
+        width: 66px;
+        height: 66px;
+    }
+
+    .n360-bus-lookup-fab__icon {
+        font-size: 1.48rem;
+    }
+}

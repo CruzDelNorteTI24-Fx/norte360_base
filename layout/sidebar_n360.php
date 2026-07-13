@@ -470,6 +470,7 @@ function n360_menu_config(): array {
 }
 
 require_once __DIR__ . '/quick_scan_n360.php';
+require_once __DIR__ . '/bus_lookup_n360.php';
 
 function n360_render_sidebar(): void {
     $menu = n360_menu_config();
@@ -608,5 +609,9 @@ function n360_render_sidebar(): void {
 
     if (function_exists('n360_render_quick_scan')) {
         n360_render_quick_scan();
+    }
+
+    if (function_exists('n360_render_bus_lookup')) {
+        n360_render_bus_lookup();
     }
 }
