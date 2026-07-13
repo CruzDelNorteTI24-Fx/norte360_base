@@ -860,7 +860,7 @@ if (n360_puede_modulo(6)) {
 if (n360_puede_modulo(5)) {
   echo '
   <div class="product-card">
-    <img src="img/icons/mantenimiento.png" alt="Mantenimiento">
+    <img src="img/icons/mantenimiento2.png" alt="Mantenimiento">
     <h4>Mantenimiento</h4>
     <p>Programación y seguimiento de buses</p>
     <a href="01_amantenimiento/lista_cheklist.php" class="btn-validar">Ingresar</a>
