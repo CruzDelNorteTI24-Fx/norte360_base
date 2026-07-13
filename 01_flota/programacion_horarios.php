@@ -3967,6 +3967,8 @@ body.modo-qr-programacion .panel-qr-programacion button:hover {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
+    <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 </head>
 
 <body class="<?= $modo_qr_programacion ? 'modo-qr-programacion' : '' ?>">
@@ -7293,7 +7295,10 @@ if (esModoQRProgramacion) {
     try {
       await generarPDFQRDosHojas();
     } catch (err) {
-      alert(err.message || 'No se pudo generar el PDF desde el QR.');
+      N360Dialog.alert(err.message || 'No se pudo generar el PDF desde el QR.', {
+        variant: 'danger',
+        title: 'No se pudo generar el PDF'
+      });
     }
   }, 1200);
 }

@@ -2969,6 +2969,8 @@ body.modo-qr-conductores .panel-qr-conductores .qr-condt-btn-ghost:hover {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
+    <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 </head>
 
 <body class="<?= $modo_qr_conductores ? 'modo-qr-conductores' : '' ?>">
@@ -3346,6 +3348,8 @@ const modalPendientesReten  = new bootstrap.Modal(document.getElementById('modal
 const modalHistorial        = new bootstrap.Modal(document.getElementById('modalHistorial'));
 const modalMotivo           = new bootstrap.Modal(document.getElementById('modalMotivo'));
 const modalConductoresEstado = new bootstrap.Modal(document.getElementById('modalConductoresEstado'));
+const condtAlert = (message, variant = 'info', title = '') => N360Dialog.alert(message, { variant, title });
+const condtConfirm = (message, options = {}) => N360Dialog.confirm(message, options);
 
 let CONDT_STATE = {
     panel: null,
@@ -3727,7 +3731,7 @@ async function condtAbrirDetalleConductor(idConductor, contexto = null) {
         }, 180);
 
     } catch (err) {
-        alert(err.message);
+        condtAlert(err.message, 'danger');
     }
 }
 
@@ -3771,26 +3775,35 @@ async function condtCargarCatalogoRetenes(buscar = '') {
     }
 }
 
-function condtSeleccionarReten(rowEncoded) {
+async function condtSeleccionarReten(rowEncoded) {
     const row = typeof rowEncoded === 'string' ? condtDecodeData(rowEncoded) : rowEncoded;
     CONDT_STATE.retenSeleccionado = row;
 
     if (CONDT_STATE.retenCatalogMode === 'asignar') {
-        if (!confirm(`¿Deseas asignar a ${row.conductor} a la unidad ${CONDT_STATE.unidadSeleccionada.bus} (${CONDT_STATE.unidadSeleccionada.placa})?`)) {
+        const confirmado = await condtConfirm(
+            `Deseas asignar a ${row.conductor} a la unidad ${CONDT_STATE.unidadSeleccionada.bus} (${CONDT_STATE.unidadSeleccionada.placa})?`,
+            {
+                title: 'Confirmar asignacion',
+                confirmText: 'Asignar conductor',
+                cancelText: 'Cancelar'
+            }
+        );
+        if (!confirmado) {
             return;
         }
 
-        condtPost({
-            ajax_action: 'asignar_reten',
-            progid_reten: row.clm_progconductores_progid,
-            idplaca: CONDT_STATE.unidadSeleccionada.clm_placas_id
-        })
-        .then(r => {
+        try {
+            const r = await condtPost({
+                ajax_action: 'asignar_reten',
+                progid_reten: row.clm_progconductores_progid,
+                idplaca: CONDT_STATE.unidadSeleccionada.clm_placas_id
+            });
             modalRetenes.hide();
-            alert(r.msg);
+            await condtAlert(r.msg, 'success', 'Asignacion realizada');
             condtCargarPanel();
-        })
-        .catch(err => alert(err.message));
+        } catch (err) {
+            condtAlert(err.message, 'danger');
+        }
 
         return;
     }
@@ -3815,7 +3828,7 @@ function condtAbrirMotivoLiberar(rowEncoded) {
 document.getElementById('btnGuardarMotivo').addEventListener('click', async () => {
     const motivo = document.getElementById('txtMotivoAccion').value.trim();
     if (!motivo) {
-        alert('Debes escribir un motivo.');
+        await condtAlert('Debes escribir un motivo.', 'warning', 'Motivo requerido');
         return;
     }
 
@@ -3828,7 +3841,7 @@ document.getElementById('btnGuardarMotivo').addEventListener('click', async () =
                 motivo
             });
             modalMotivo.hide();
-            alert(r.msg);
+            await condtAlert(r.msg, 'success', 'Accion realizada');
             condtCargarPanel();
             return;
         }
@@ -3844,11 +3857,11 @@ document.getElementById('btnGuardarMotivo').addEventListener('click', async () =
                 motivo
             });
             modalMotivo.hide();
-            alert(r.msg);
+            await condtAlert(r.msg, 'success', 'Cambio realizado');
             condtCargarPanel();
         }
     } catch (err) {
-        alert(err.message);
+        condtAlert(err.message, 'danger');
     }
 });
 
@@ -3901,18 +3914,23 @@ async function condtCargarPendientesReten(buscar = '') {
 }
 
 async function condtConvertirPendienteAReten(idTrabajador, nombre) {
-    if (!confirm(`¿Deseas convertir a retén a:\n\n${nombre}?`)) return;
+    const confirmado = await condtConfirm(`Deseas convertir a reten a:\n\n${nombre}?`, {
+        title: 'Confirmar conversion',
+        confirmText: 'Convertir a reten',
+        cancelText: 'Cancelar'
+    });
+    if (!confirmado) return;
 
     try {
         const r = await condtPost({
             ajax_action: 'convertir_pendiente_a_reten',
             id_trabajador: idTrabajador
         });
-        alert(r.msg);
+        await condtAlert(r.msg, 'success', 'Reten actualizado');
         await condtCargarPendientesReten(document.getElementById('txtBuscarPendienteReten').value.trim());
         await condtCargarPanel();
     } catch (err) {
-        alert(err.message);
+        condtAlert(err.message, 'danger');
     }
 }
 
@@ -4080,7 +4098,7 @@ async function condtToggleEstadoConductor(checkbox, idTrabajador) {
     } catch (err) {
         checkbox.checked = !checkbox.checked;
         condtPintarEstadoConductor(idTrabajador, estadoAnterior);
-        alert(err.message);
+        condtAlert(err.message, 'danger');
     } finally {
         if (wrap) wrap.classList.remove('condt-estado-loading');
     }
@@ -4127,7 +4145,7 @@ async function condtQRDescargarProgramacion() {
         await condtQRPrepararPanel();
         condtGenerateProgramacionPdf();
     } catch (err) {
-        alert(err.message || 'No se pudo generar el PDF de conductores.');
+        condtAlert(err.message || 'No se pudo generar el PDF de conductores.', 'danger', 'No se pudo generar el PDF');
     }
 }
 
@@ -4136,7 +4154,7 @@ async function condtQRDescargarLicencias() {
         await condtQRPrepararPanel();
         condtGenerateProgramacionPdfLicencias();
     } catch (err) {
-        alert(err.message || 'No se pudo generar el PDF de licencias.');
+        condtAlert(err.message || 'No se pudo generar el PDF de licencias.', 'danger', 'No se pudo generar el PDF');
     }
 }
 document.addEventListener('DOMContentLoaded', async () => {
@@ -4150,7 +4168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 condtQRDescargarProgramacion();
             }, 900);
         } catch (err) {
-            alert(err.message || 'No se pudo cargar la programación de conductores.');
+            condtAlert(err.message || 'No se pudo cargar la programacion de conductores.', 'danger', 'No se pudo cargar');
         }
 
         return;
@@ -4310,7 +4328,7 @@ function condtDrawCell(doc, x, y, w, h, text, opts = {}) {
 function condtGenerateProgramacionPdf() {
     const panel = CONDT_STATE.panel;
     if (!panel || !panel.flotas) {
-        alert('Primero se debe cargar la programación.');
+        condtAlert('Primero se debe cargar la programacion.', 'warning', 'Programacion no cargada');
         return;
     }
 
@@ -4325,7 +4343,7 @@ function condtGenerateProgramacionPdf() {
     const unidades = panel.unidades || [];
 
     if (!flotas.length && !retenes.length) {
-        alert('No hay información para exportar.');
+        condtAlert('No hay informacion para exportar.', 'warning', 'Sin informacion');
         return;
     }
 
@@ -4592,7 +4610,7 @@ function condtGenerateProgramacionPdf() {
 function condtGenerateProgramacionPdfLicencias() {
     const panel = CONDT_STATE.panel;
     if (!panel || !panel.flotas) {
-        alert('Primero se debe cargar la programación.');
+        condtAlert('Primero se debe cargar la programacion.', 'warning', 'Programacion no cargada');
         return;
     }
 
@@ -4607,7 +4625,7 @@ function condtGenerateProgramacionPdfLicencias() {
     const unidades = panel.unidades || [];
 
     if (!flotas.length && !retenes.length) {
-        alert('No hay información para exportar.');
+        condtAlert('No hay informacion para exportar.', 'warning', 'Sin informacion');
         return;
     }
 

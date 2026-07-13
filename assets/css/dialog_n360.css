@@ -1,0 +1,166 @@
+.n360-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 3200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.n360-dialog.is-open {
+    display: flex;
+}
+
+.n360-dialog__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 22, 36, .62);
+    backdrop-filter: blur(7px);
+}
+
+.n360-dialog__panel {
+    position: relative;
+    width: min(460px, 100%);
+    border: 1px solid rgba(159, 188, 211, .46);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(5, 22, 38, .32);
+    overflow: hidden;
+    transform: translateY(10px) scale(.98);
+    opacity: 0;
+    transition: transform .18s ease, opacity .18s ease;
+}
+
+.n360-dialog.is-open .n360-dialog__panel {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+.n360-dialog__top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 13px;
+    align-items: center;
+    padding: 18px 18px 12px;
+}
+
+.n360-dialog__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    color: #0c75b6;
+    background: #edf7ff;
+    font-size: 1.45rem;
+}
+
+.n360-dialog[data-variant="success"] .n360-dialog__icon {
+    color: #087146;
+    background: #e9f8ef;
+}
+
+.n360-dialog[data-variant="warning"] .n360-dialog__icon {
+    color: #9b6500;
+    background: #fff7df;
+}
+
+.n360-dialog[data-variant="danger"] .n360-dialog__icon,
+.n360-dialog[data-variant="error"] .n360-dialog__icon {
+    color: #a32921;
+    background: #fff0ee;
+}
+
+.n360-dialog__eyebrow {
+    margin: 0 0 2px;
+    color: #60758a;
+    font-size: .72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-dialog__title {
+    margin: 0;
+    color: #0a253b;
+    font-size: 1.28rem;
+    font-weight: 950;
+    line-height: 1.08;
+}
+
+.n360-dialog__message {
+    margin: 0;
+    padding: 0 18px 18px 79px;
+    color: #425c72;
+    font-weight: 700;
+    line-height: 1.42;
+    white-space: pre-line;
+}
+
+.n360-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 18px 18px;
+    border-top: 1px solid #e8f0f6;
+    background: #f8fbfd;
+}
+
+.n360-dialog__btn {
+    border: 1px solid #cdddeb;
+    border-radius: 11px;
+    padding: 10px 15px;
+    color: #173349;
+    background: #fff;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.n360-dialog__btn--primary {
+    border-color: #238dd1;
+    color: #fff;
+    background: #238dd1;
+    box-shadow: 0 10px 20px rgba(35, 141, 209, .18);
+}
+
+.n360-dialog[data-variant="danger"] .n360-dialog__btn--primary,
+.n360-dialog[data-variant="error"] .n360-dialog__btn--primary {
+    border-color: #c23b32;
+    background: #c23b32;
+    box-shadow: 0 10px 20px rgba(194, 59, 50, .18);
+}
+
+.n360-dialog[data-variant="warning"] .n360-dialog__btn--primary {
+    border-color: #d98b00;
+    background: #d98b00;
+    box-shadow: 0 10px 20px rgba(217, 139, 0, .18);
+}
+
+.n360-dialog[data-variant="success"] .n360-dialog__btn--primary {
+    border-color: #15945a;
+    background: #15945a;
+    box-shadow: 0 10px 20px rgba(21, 148, 90, .18);
+}
+
+@media (max-width: 520px) {
+    .n360-dialog {
+        align-items: flex-end;
+        padding: 10px;
+    }
+
+    .n360-dialog__panel {
+        border-radius: 16px 16px 0 0;
+    }
+
+    .n360-dialog__message {
+        padding-left: 18px;
+    }
+
+    .n360-dialog__actions {
+        flex-direction: column-reverse;
+    }
+
+    .n360-dialog__btn {
+        width: 100%;
+    }
+}
