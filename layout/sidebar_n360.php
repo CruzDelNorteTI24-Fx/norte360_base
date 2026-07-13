@@ -117,6 +117,41 @@ function n360_menu_config(): array {
                             ],
                         ]
                     ],
+                    [
+                        'titulo' => 'Maestros',
+                        'items' => [
+                            [
+                                'titulo' => 'Oficinas',
+                                'icono' => 'bi bi-building',
+                                'url' => 'admin/oficinas.php',
+                                'admin' => true
+                            ],
+                            [
+                                'titulo' => 'Espacios',
+                                'icono' => 'bi bi-grid-1x2-fill',
+                                'url' => 'admin/espacios.php',
+                                'admin' => true
+                            ],
+                            [
+                                'titulo' => 'Anaqueles',
+                                'icono' => 'bi bi-boxes',
+                                'url' => 'admin/anaqueles.php',
+                                'admin' => true
+                            ],
+                            [
+                                'titulo' => 'Usuarios',
+                                'icono' => 'bi bi-people-fill',
+                                'url' => 'admin/usuarios.php',
+                                'admin' => true
+                            ],
+                            [
+                                'titulo' => 'Patrimonio',
+                                'icono' => 'bi bi-gem',
+                                'url' => 'admin/patrimonio.php',
+                                'admin' => true
+                            ],
+                        ]
+                    ],
                 ]
             ],
             [
@@ -323,20 +358,6 @@ function n360_menu_config(): array {
                                 'icono' => 'bi bi-clipboard2-data-fill',
                                 'url' => '01_amantenimiento/checklist_consolidado.php',
                                 'vistas' => ['c-limp', 'c-sab', 'c-lalu'],
-                                'modulo' => 5
-                            ],
-                            [
-                                'titulo' => 'Generar ruta',
-                                'icono' => 'bi bi-signpost-split-fill',
-                                'url' => '01_amantenimiento/interbus_vld.php',
-                                'vistas' => ['c-limp', 'c-sab'],
-                                'modulo' => 5
-                            ],
-                            [
-                                'titulo' => 'Viajes',
-                                'icono' => 'bi bi-map-fill',
-                                'url' => '01_amantenimiento/viajes.php',
-                                'admin' => true,
                                 'modulo' => 5
                             ],
                             [
