@@ -614,14 +614,26 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                 </button>
                             </td>
                             <td>
-                                <button
-                                    type="button"
-                                    class="notas-action"
-                                    data-nota-id="<?= (int)($nota['clm_nota_id'] ?? 0) ?>"
-                                >
-                                    <i class="bi bi-eye"></i>
-                                    Ver detalle
-                                </button>
+                                <div class="notas-row-actions">
+                                    <button
+                                        type="button"
+                                        class="notas-action"
+                                        data-nota-id="<?= (int)($nota['clm_nota_id'] ?? 0) ?>"
+                                    >
+                                        <i class="bi bi-eye"></i>
+                                        Ver detalle
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="notas-action notas-action--pdf"
+                                        data-n360-note-download
+                                        data-note-id="<?= (int)($nota['clm_nota_id'] ?? 0) ?>"
+                                        data-note-serie="<?= notas_h($nota['clm_nota_serie'] ?? '') ?>"
+                                    >
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                        PDF
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -686,6 +698,16 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 </div>
             </div>
             <div class="modal-footer">
+                <button
+                    type="button"
+                    class="notas-btn notas-btn--primary"
+                    id="notaDetallePdfBtn"
+                    data-n360-note-download
+                    hidden
+                >
+                    <i class="bi bi-file-earmark-pdf"></i>
+                    Descargar PDF
+                </button>
                 <button type="button" class="notas-btn notas-btn--soft" data-bs-dismiss="modal">
                     <i class="bi bi-x-lg"></i>
                     Cerrar
@@ -699,7 +721,22 @@ require_once __DIR__ . '/../layout/content_n360.php';
 window.N360_NOTAS_ALMACEN = {
     endpoint: 'notas_almacen.php'
 };
+window.N360_NOTA_PDF_CONFIG = {
+    endpoint: '<?= notas_h(n360_base_url('php/nota_pdf_data.php')) ?>',
+    userName: <?= json_encode((string)($_SESSION['usuario'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+    dni: <?= json_encode((string)($_SESSION['DNI'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+    logoTicket: '<?= notas_h(n360_base_url('img/completo.png')) ?>',
+    footerLabel: 'NORTE 360'
+};
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_notas_common.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/notas_almacen_n360.js') ?>"></script>

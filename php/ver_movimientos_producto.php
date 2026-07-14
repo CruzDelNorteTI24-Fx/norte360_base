@@ -70,6 +70,7 @@ SELECT
     m.clm_alm_mov_TIPO AS tipo_MOV, 
     m.clm_alm_mov_cantidad AS cantidad_MOV,
     m.clm_alm_mov_idNOTA AS id_nota,
+    UPPER(TRIM(COALESCE(ns.clm_nota_serie, ''))) AS nota_serie,
     COALESCE(CAST(ns.clm_nota_sco AS CHAR), CAST(m.clm_alm_mov_idNOTA AS CHAR)) AS nota_label,
     m.clm_alm_mov_observacion AS observacion_MOV
 FROM tb_alm_movimientos m
@@ -618,7 +619,7 @@ $barcode_logo = '../img/completo.png';
       <div class="mp-table-head">
         <div>
           <h3><i class="bi bi-list-check"></i> Detalle de movimientos</h3>
-          <p>Las salidas se pueden abrir para visualizar su nota asociada cuando corresponda.</p>
+          <p>Los movimientos con nota asociada se pueden abrir para visualizar y descargar su formato.</p>
         </div>
         <span class="mp-count-pill"><?= number_format($total_movs) ?> registros</span>
       </div>
@@ -641,7 +642,9 @@ $barcode_logo = '../img/completo.png';
                   [$fecha, $hora] = fmt_fecha($row['fecha_registro_MOV'] ?? '');
                   $obs = trim((string)($row['observacion_MOV'] ?? ''));
                   $id_mov = (int)($row['id_movimiento'] ?? 0);
+                  $id_nota = (int)($row['id_nota'] ?? 0);
                   $nota = trim((string)($row['nota_label'] ?? ''));
+                  $nota_serie = trim((string)($row['nota_serie'] ?? ''));
 
                   $typeClass = 'type-other';
                   if ($tipo === 'ENTRADA') $typeClass = 'type-in';
@@ -654,10 +657,10 @@ $barcode_logo = '../img/completo.png';
                     <small><i class="bi bi-clock"></i> <?= h($hora) ?></small>
                   </td>
                   <td>
-                    <?php if ($tipo === 'SALIDA' && $id_mov > 0): ?>
+                    <?php if ($id_nota > 0 && $id_mov > 0): ?>
                       <button type="button" class="mp-type <?= h($typeClass) ?> clickable" onclick="verNotaSalida(<?= $id_mov ?>)">
-                        <i class="bi bi-box-arrow-up"></i> <?= h($tipo) ?>
-                        <?php if ($nota !== ''): ?><span class="mp-note-mini">Nota <?= h($nota) ?></span><?php endif; ?>
+                        <i class="bi <?= $tipo === 'ENTRADA' ? 'bi-box-arrow-in-down' : 'bi-box-arrow-up' ?>"></i> <?= h($tipo) ?>
+                        <?php if ($nota !== ''): ?><span class="mp-note-mini"><?= h($nota_serie ?: 'Nota') ?> <?= h($nota) ?></span><?php endif; ?>
                       </button>
                     <?php else: ?>
                       <span class="mp-type <?= h($typeClass) ?>">

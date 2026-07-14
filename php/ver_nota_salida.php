@@ -82,7 +82,11 @@ if (!$nota) {
 }
 
 $nota_id = (int)$nota['nota_id'];
-$nota_serie = (int)$nota['nota_serie'];
+$nota_serie = strtoupper(trim((string)($nota['nota_serie'] ?? '')));
+$nota_codigo = trim((string)($nota['correlativo'] ?? ''));
+if ($nota_codigo === '') {
+    $nota_codigo = $nota_serie !== '' ? $nota_serie . '-' . str_pad((string)$nota_id, 4, '0', STR_PAD_LEFT) : 'Nota #' . $nota_id;
+}
 $fecha_ts = !empty($nota['fecha_completa']) ? strtotime($nota['fecha_completa']) : false;
 $fecha = $fecha_ts ? date('d/m/Y', $fecha_ts) : 'Sin fecha';
 $hora  = $fecha_ts ? date('H:i:s', $fecha_ts) : '--:--:--';
@@ -309,6 +313,31 @@ $conn->close();
     font-weight:850;
     white-space:nowrap;
   }
+  .nota-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin:16px 0 8px;
+  }
+  .nota-pdf-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    min-height:42px;
+    border:1px solid #1f9d55;
+    border-radius:12px;
+    background:#1f9d55;
+    color:#fff;
+    padding:9px 14px;
+    font-family:'Segoe UI',system-ui,sans-serif;
+    font-size:.9rem;
+    font-weight:850;
+    cursor:pointer;
+    box-shadow:0 12px 26px rgba(31,157,85,.18);
+  }
+  .nota-pdf-btn:hover{background:#167a42;border-color:#167a42;}
+  .nota-pdf-btn:disabled{opacity:.72;cursor:wait;}
 
   .nota-table-wrap{
     border:1px solid var(--line);
@@ -383,7 +412,7 @@ $conn->close();
   <div class="nota-hero">
     <div>
       <div class="nota-kicker"><i class="bi bi-receipt-cutoff"></i> Notas de Almacén</div>
-      <h2><?=h($nota['correlativo'] ?: $nota_serie)?></h2>
+      <h2><?=h($nota_codigo)?></h2>
       <p>Detalle asociado al movimiento #<?=h($id_mov)?> · trazabilidad de almacén</p>
     </div>
     <div class="nota-hero-right">
@@ -391,6 +420,19 @@ $conn->close();
       <strong><?=h($fecha)?></strong>
       <small><?=h($hora)?> hrs</small>
     </div>
+  </div>
+
+  <div class="nota-actions">
+    <button
+      type="button"
+      class="nota-pdf-btn"
+      data-n360-note-download
+      data-note-id="<?=h($nota_id)?>"
+      data-note-serie="<?=h($nota_serie)?>"
+    >
+      <i class="bi bi-file-earmark-pdf"></i>
+      Descargar PDF
+    </button>
   </div>
 
   <div class="nota-grid">

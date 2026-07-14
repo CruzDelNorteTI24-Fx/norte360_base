@@ -2084,13 +2084,27 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
 
 <?php n360_render_footer(); ?>
 
-
-
+<script>
+window.N360_NOTA_PDF_CONFIG = {
+  endpoint: '<?= h(n360_base_url('php/nota_pdf_data.php')) ?>',
+  userName: <?= json_encode((string)($_SESSION['usuario'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+  dni: <?= json_encode((string)($_SESSION['DNI'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+  logoTicket: '<?= h(n360_base_url('img/completo.png')) ?>',
+  footerLabel: 'NORTE 360'
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_notas_common.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
 <?php if ($isAdmin): ?>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <?php endif; ?>
 
@@ -2209,7 +2223,7 @@ function verNotaSalida(id_movimiento) {
       document.getElementById('modal-nota').style.display = 'block';
     })
     .catch(error => {
-      document.getElementById('contenido-nota').innerHTML = '❌ Error al cargar Nota de Salida.';
+      document.getElementById('contenido-nota').innerHTML = 'No se pudo cargar la nota.';
     });
 }
 

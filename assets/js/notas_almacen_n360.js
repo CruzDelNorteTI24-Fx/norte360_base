@@ -17,6 +17,7 @@
     function setLoading(isLoading, message) {
         const status = $('#notaDetalleStatus');
         const content = $('#notaDetalleContent');
+        const pdfButton = $('#notaDetallePdfBtn');
 
         if (!status || !content) return;
 
@@ -24,6 +25,11 @@
             status.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>' + escapeHtml(message || 'Cargando detalle de nota...');
             status.hidden = false;
             content.hidden = true;
+            if (pdfButton) {
+                pdfButton.hidden = true;
+                pdfButton.removeAttribute('data-note-id');
+                pdfButton.removeAttribute('data-note-serie');
+            }
             return;
         }
 
@@ -111,9 +117,15 @@
         const meta = $('#notaDetalleMeta');
         const grid = $('#notaDetalleGrid');
         const kpiWrap = $('#notaDetalleKpis');
+        const pdfButton = $('#notaDetallePdfBtn');
 
         if (title) title.textContent = nota.nota_codigo || `Nota #${nota.clm_nota_id || ''}`;
         if (meta) meta.textContent = `${nota.fecha_label || '-'} | ${nota.modulo || '-'} | ID ${nota.clm_nota_id || '-'}`;
+        if (pdfButton && nota.clm_nota_id) {
+            pdfButton.setAttribute('data-note-id', nota.clm_nota_id);
+            pdfButton.setAttribute('data-note-serie', nota.clm_nota_serie || '');
+            pdfButton.hidden = false;
+        }
 
         if (kpiWrap) {
             kpiWrap.innerHTML = [

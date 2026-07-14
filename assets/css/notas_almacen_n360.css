@@ -378,6 +378,21 @@ body {
     background: #224c68;
 }
 
+.notas-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.notas-action--pdf {
+    background: #1f9d55;
+    border-color: #1f9d55;
+}
+
+.notas-action--pdf:hover {
+    background: #167a42;
+}
+
 .notas-empty-row td {
     padding: 34px !important;
     text-align: center;

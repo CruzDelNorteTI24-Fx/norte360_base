@@ -394,6 +394,18 @@ function n360_menu_config(): array {
                                 'modulo' => 3
                             ],
                             [
+                                'titulo' => 'Inventario',
+                                'icono' => 'bi bi-clipboard-data-fill',
+                                'url' => '01_almacen/inventario.php',
+                                'modulo' => 3
+                            ],
+                            [
+                                'titulo' => 'Historial de stocks',
+                                'icono' => 'bi bi-clock-history',
+                                'url' => '01_almacen/historial_stock.php',
+                                'modulo' => 3
+                            ],
+                            [
                                 'titulo' => 'Catálogo productos',
                                 'icono' => 'bi bi-card-list',
                                 'url' => '01_almacen/gen_np9823.php',
