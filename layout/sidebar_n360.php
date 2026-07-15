@@ -450,6 +450,20 @@ function n360_menu_config(): array {
                 ]
             ],
             [
+                'id' => 'combustible',
+                'titulo' => 'Combustible',
+                'icono' => 'bi bi-fuel-pump-fill',
+                'modulo' => 9,
+                'grupos' => [
+                    [
+                        'titulo' => 'CONTROL DE COMBUSTIBLE',
+                        'items' => [
+                            ['titulo' => 'Historial de combustible', 'icono' => 'bi bi-clock-history', 'url' => '01_fcombustible/historial_combustible.php', 'modulo' => 9],
+                        ],
+                    ],
+                ],
+            ],
+            [
                 'id' => 'flota',
                 'titulo' => 'Flota y Operaciones',
                 'icono' => 'bi bi-bus-front-fill',
