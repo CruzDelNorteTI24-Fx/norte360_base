@@ -370,8 +370,9 @@ require_once __DIR__ . '/../layout/content_n360.php';
     </main>
 
     <?php n360_render_content_separator('bottom'); ?>
-    <?php n360_render_footer(); ?>
 </div>
+
+<?php n360_render_footer(); ?>
 
 <div id="modal-movimientos" class="stock-drawer">
     <div class="stock-drawer-panel">

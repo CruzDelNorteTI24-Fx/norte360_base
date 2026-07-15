@@ -13,7 +13,7 @@
     width: 100%;
     min-height: calc(100vh - 76px);
     margin: 0;
-    padding: var(--n360-main-pad-y) var(--n360-main-pad-x) 34px;
+    padding: var(--n360-main-pad-y) var(--n360-main-pad-x) 18px;
 }
 
 .n360-main__inner {

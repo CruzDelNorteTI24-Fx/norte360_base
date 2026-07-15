@@ -1,0 +1,130 @@
+.n360-kardex-page .kardex-hero {
+    align-items: center;
+}
+
+.kardex-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.kardex-kpis {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.kardex-filters {
+    grid-template-columns: minmax(150px, .7fr) minmax(150px, .7fr) minmax(220px, .9fr) minmax(280px, 1.6fr) auto auto;
+}
+
+.stock-field--grow {
+    min-width: 260px;
+}
+
+.kardex-range-check {
+    min-height: 43px;
+}
+
+.kardex-card {
+    overflow: hidden;
+}
+
+.kardex-table-wrap {
+    max-height: 62vh;
+    overflow: auto;
+}
+
+.kardex-table {
+    min-width: 1640px;
+}
+
+.kardex-table th,
+.kardex-table td {
+    white-space: nowrap;
+}
+
+.kardex-table td:nth-child(4),
+.kardex-table td:nth-child(5),
+.kardex-table td:nth-child(8),
+.kardex-table td:nth-child(9) {
+    white-space: normal;
+    min-width: 160px;
+}
+
+.kardex-table td:nth-child(5) {
+    min-width: 260px;
+}
+
+.kardex-hidden-col {
+    display: none;
+}
+
+.kardex-row--initial td {
+    background: #eef6ff;
+    color: #0f3153;
+    font-weight: 800;
+}
+
+.kardex-row--balance td {
+    background: #f8fafc;
+    border-top: 2px solid #15324a;
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.kardex-type {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 5px 9px;
+    background: #e8f4ff;
+    color: #0969a9;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .01em;
+}
+
+.kardex-type--initial {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.kardex-type--balance {
+    background: #e2e8f0;
+    color: #172033;
+}
+
+.kardex-row:not(.kardex-row--initial):not(.kardex-row--balance) .kardex-type {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.kardex-empty-row td {
+    padding: 30px;
+    text-align: center;
+    color: #64748b;
+    font-weight: 900;
+}
+
+@media (max-width: 1200px) {
+    .kardex-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .kardex-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .kardex-actions,
+    .kardex-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .kardex-actions .stock-btn,
+    .kardex-filters .stock-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

@@ -406,6 +406,13 @@ function n360_menu_config(): array {
                                 'modulo' => 3
                             ],
                             [
+                                'titulo' => 'Kardex',
+                                'icono' => 'bi bi-journal-text',
+                                'url' => '01_almacen/kardex.php',
+                                'admin' => true,
+                                'modulo' => 3
+                            ],
+                            [
                                 'titulo' => 'Catálogo productos',
                                 'icono' => 'bi bi-card-list',
                                 'url' => '01_almacen/gen_np9823.php',
