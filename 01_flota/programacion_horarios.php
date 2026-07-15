@@ -5575,9 +5575,9 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
   const anchoTotal = 1080;
   const anchoInterno = anchoTotal - (margen * 2);
 
-  const rowH = 58;              // más alto para que respire mejor
+  const rowH = 64;
   const tableHeaderH = 48;
-  const headerH = 176;          // más alto para separar mejor el chip del título
+  const headerH = 176;
   const resumenH = 92;
   const tablaExtraPadding = 2;
 
@@ -5597,10 +5597,6 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
   const slate = '#64748b';
   const textMain = '#1f2937';
   const white = '#ffffff';
-  const greenSoft = '#eef7ee';
-  const greenText = '#167b4d';
-  const redSoft = '#fdecec';
-  const redText = '#b42318';
 
   const fBrand = '700 15px "Segoe UI"';
   const fTitle = '700 24px "Segoe UI"';
@@ -5611,6 +5607,8 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
   const fTableHead = '800 16px "Segoe UI"';
   const fCell = '18px "Segoe UI"';
   const fCellStrong = '800 18px "Segoe UI"';
+  const fBusCell = '900 24px "Segoe UI"';
+  const fBadge = '700 11px "Segoe UI"';
 
   const fechas = state.snapshot.fechas || {};
   const fechaBaseTxt = fechas.fecha_base || '—';
@@ -5649,7 +5647,6 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
     textX = logoX + 64;
   } catch (_) {}
 
-  // Chip bien centrado y más arriba
   const operTxt = `DÍA OPERATIVO · ${fechaBaseTxt}`;
   const opW = measureTextWidth(ctx, operTxt, fOperativaChip) + 54;
   const opH = 34;
@@ -5670,7 +5667,6 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
     align: 'center'
   });
 
-  // Textos del bloque izquierdo más abajo para que no se peguen al chip
   drawText(ctx, 'TABLA OPERATIVA', textX, 46, { font: fBrand, color: blue });
   drawText(ctx, 'Programación de horarios y buses', textX, 68, {
     font: fTitle,
@@ -5703,14 +5699,13 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
   drawText(ctx, 'HORA', infoX + 118, infoY + 10, { font: fMetaLabel, color: slate });
   drawText(ctx, impresion.hora, infoX + 118, infoY + 25, { font: fMetaValue, color: textMain });
 
-  // Menos espacio para BUS y más balanceado
+  // SIN columna DIA OPERATIVO y SIN placa
   const columnas = [
-    { key: 'fecha_operativa', label: 'DÍA OPERATIVO', width: 150 },
-    { key: 'hora',            label: 'HORA',            width: 90  },
-    { key: 'busplaca',        label: 'BUS (PLACA)',     width: 150 },
-    { key: 'servicio',        label: 'SERVICIO',        width: 180 },
-    { key: 'origen',          label: 'ORIGEN',          width: 200 },
-    { key: 'destino',         label: 'DESTINO',         width: 200 }
+    { key: 'hora',     label: 'HORA',    width: 110 },
+    { key: 'bus',      label: 'UNIDAD',  width: 250 },
+    { key: 'servicio', label: 'SERVICIO', width: 190 },
+    { key: 'origen',   label: 'ORIGEN',   width: 210 },
+    { key: 'destino',  label: 'DESTINO',  width: 210 }
   ];
 
   const tablaW = columnas.reduce((acc, c) => acc + c.width, 0);
@@ -5763,53 +5758,85 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
     const hora = fmtHora(horaVal);
     const esSigDia = isNext(horaVal);
 
-    const busPlaca = (() => {
+    // SOLO nombre del bus / unidad, sin placa
+    const busUnidad = (() => {
       const bus = String(r.bus || '').trim();
-      const placa = String(r.placa || '').trim();
-      if (bus && placa) return `${bus} (${placa})`;
-      if (bus) return bus;
-      if (placa) return `(${placa})`;
-      return '—';
+      return bus || '—';
     })();
-
-    const fechaOperativaFila = esSigDia ? fechaSigTxt : fechaBaseTxt;
-
-    const valores = [
-      fechaOperativaFila,
-      hora || '—',
-      busPlaca,
-      r.servicio_unidad || '—',
-      r.oficina_origen || '—',
-      r.oficina_destino || '—'
-    ];
 
     let xCell = tablaX;
 
-    valores.forEach((valor, i) => {
-      const col = columnas[i];
+    // HORA
+    drawText(
+      ctx,
+      fitText(ctx, hora || '—', columnas[0].width - 18, fCellStrong),
+      xCell + 9,
+      yRow + (esSigDia ? 8 : 18),
+      { font: fCellStrong, color: textMain }
+    );
 
-      let colorCelda = textMain;
-      let fontCelda = fCell;
+    // indicador discreto si corresponde a otro día operativo
+    if (esSigDia) {
+      const badgeTxt = 'SIG. DÍA';
+      const badgeW = measureTextWidth(ctx, badgeTxt, fBadge) + 18;
 
-      if (i === 0 && valor) {
-        colorCelda = blue;
-        fontCelda = fCellStrong;
-      }
+      drawCard(ctx, xCell + 9, yRow + 34, badgeW, 18, {
+        radius: 9,
+        fill: '#eef2f7',
+        stroke: '#d7dee7',
+        lineWidth: 1,
+        shadow: false
+      });
 
-      if (i === 1) {
-        fontCelda = fCellStrong;
-      }
+      drawText(ctx, badgeTxt, xCell + 18, yRow + 37, {
+        font: fBadge,
+        color: slate
+      });
+    }
 
-      drawText(
-        ctx,
-        fitText(ctx, String(valor), col.width - 18, fontCelda),
-        xCell + 9,
-        yRow + 18,
-        { font: fontCelda, color: colorCelda }
-      );
+    xCell += columnas[0].width;
 
-      xCell += col.width;
-    });
+    // UNIDAD
+    drawText(
+      ctx,
+      fitText(ctx, String(busUnidad), columnas[1].width - 18, fBusCell),
+      xCell + 9,
+      yRow + 12,
+      { font: fBusCell, color: blue }
+    );
+
+    xCell += columnas[1].width;
+
+    // SERVICIO
+    drawText(
+      ctx,
+      fitText(ctx, String(r.servicio_unidad || '—'), columnas[2].width - 18, fCell),
+      xCell + 9,
+      yRow + 18,
+      { font: fCell, color: textMain }
+    );
+
+    xCell += columnas[2].width;
+
+    // ORIGEN
+    drawText(
+      ctx,
+      fitText(ctx, String(r.oficina_origen || '—'), columnas[3].width - 18, fCell),
+      xCell + 9,
+      yRow + 18,
+      { font: fCell, color: textMain }
+    );
+
+    xCell += columnas[3].width;
+
+    // DESTINO
+    drawText(
+      ctx,
+      fitText(ctx, String(r.oficina_destino || '—'), columnas[4].width - 18, fCell),
+      xCell + 9,
+      yRow + 18,
+      { font: fCell, color: textMain }
+    );
 
     drawLine(ctx, tablaX, yRow + rowH, tablaX + tablaW, yRow + rowH, borderSoft, 1);
     yRow += rowH;
@@ -5902,11 +5929,11 @@ async function generarImagenPizarraGrupo(nombreGrupo, filasGrupo, busesSinHorari
 const fBrand = fontPizarra(700, 18);
 const fTitle = fontPizarra(700, 30);
 const fGrupo = fontPizarra(900, 40);
-const fOperativaChip = fontPizarra(900, 28);
+const fOperativaChip = fontPizarra(900, 34);
 
 const fSub = fontPizarra(400, 14);
-const fMetaLabel = fontPizarra(700, 13);
-const fMetaValue = fontPizarra(700, 20);
+const fMetaLabel = fontPizarra(700, 14);
+const fMetaValue = fontPizarra(800, 24);
 
 const fOrigen = fontPizarra(800, 27);
 const fCount = fontPizarra(400, 12);
@@ -5919,8 +5946,8 @@ const fSmall = fontPizarra(400, 13);
 const fComentario = fontPizarra(600, 15);
 
 const fPanelHead = fontPizarra(800, 25);
-const fPanelBus = fontPizarra(800, 21);
-const fPanelSmall = fontPizarra(400, 12);
+const fPanelBus = fontPizarra(900, 26);
+const fPanelSmall = fontPizarra(500, 14);
 
   const fechas = state.snapshot.fechas || {};
   const fechaBaseTxt = fechas.fecha_base || '—';
@@ -5966,40 +5993,57 @@ const fPanelSmall = fontPizarra(400, 12);
   drawText(ctx, fitText(ctx, safeUpper(nombreGrupo), 780, fGrupo), textX, 92, { font: fGrupo, color: navy });
 
   const operTxt = `DÍA OPERATIVO · ${fechaBaseTxt}`;
-  const opW = measureTextWidth(ctx, operTxt, fOperativaChip) + 56;
-  const opH = 40;
+  const opW = measureTextWidth(ctx, operTxt, fOperativaChip) + 72;
+  const opH = 52;
   const opX = (anchoTotal / 2) - (opW / 2);
-  const opY = 34;
+  const opY = 28;
 
   drawCard(ctx, opX, opY, opW, opH, {
-    radius: 18,
+    radius: 22,
     fill: blueSoft,
     stroke: '#c8d9eb',
     lineWidth: 2,
     shadow: false
   });
 
-  drawText(ctx, operTxt, opX + 28, opY + 9, {
+  drawText(ctx, operTxt, opX + (opW / 2), opY + 12, {
     font: fOperativaChip,
-    color: navy
+    color: navy,
+    align: 'center'
   });
 
   drawText(ctx, `Madrugada 00:00–04:59 corresponde a ${fechaSigTxt}`, textX, 128, { font: fSub, color: slate });
 
-  const infoX = anchoTotal - margen - 220;
-  const infoY = 48;
-  drawCard(ctx, infoX, infoY, 202, 60, {
-    radius: 16,
+  const infoW = 270;
+  const infoH = 76;
+  const infoX = anchoTotal - margen - infoW - 12;
+  const infoY = 42;
+
+  drawCard(ctx, infoX, infoY, infoW, infoH, {
+    radius: 18,
     fill: cardSoft,
     stroke: border,
     lineWidth: 1,
     shadow: false
   });
 
-  drawText(ctx, 'FECHA IMPRESIÓN', infoX + 16, infoY + 10, { font: fMetaLabel, color: slate });
-  drawText(ctx, impresion.fecha, infoX + 16, infoY + 26, { font: fMetaValue, color: textMain });
-  drawText(ctx, 'HORA', infoX + 132, infoY + 10, { font: fMetaLabel, color: slate });
-  drawText(ctx, impresion.hora, infoX + 132, infoY + 26, { font: fMetaValue, color: textMain });
+  drawText(ctx, 'FECHA IMPRESIÓN', infoX + 18, infoY + 12, {
+    font: fMetaLabel,
+    color: slate
+  });
+  drawText(ctx, impresion.fecha, infoX + 18, infoY + 34, {
+    font: fMetaValue,
+    color: textMain
+  });
+
+  drawText(ctx, 'HORA', infoX + 170, infoY + 12, {
+    font: fMetaLabel,
+    color: slate
+  });
+  drawText(ctx, impresion.hora, infoX + 170, infoY + 34, {
+    font: fMetaValue,
+    color: textMain
+  });
 
   const xPanel = margen + cuerpoW + 18;
   const yPanel = 184;
@@ -6013,7 +6057,7 @@ const fPanelSmall = fontPizarra(400, 12);
     lineWidth: 2
   });
 
-  drawCard(ctx, xPanel, yPanel, panelW, 74, {
+  drawCard(ctx, xPanel, yPanel, panelW, 82, {
     radius: 24,
     fill: navy,
     shadow: false
@@ -6028,7 +6072,7 @@ drawText(ctx, 'En taller y sin horario', xPanel + 24, yPanel + 48, {
   color: '#dbe7f2'
 });
 
-let ySide = yPanel + 96;
+let ySide = yPanel + 104;
 
 // PRIMERO: EN TALLER
 if (busesTaller.length) {
@@ -6040,7 +6084,7 @@ if (busesTaller.length) {
 
   busesTaller.forEach(b => {
     const bus = safeUpper(b.bus || '—');
-    drawCard(ctx, xPanel + 16, ySide, panelW - 32, 40, {
+    drawCard(ctx, xPanel + 16, ySide, panelW - 32, 46, {
       radius: 10,
       fill: wineSoft,
       stroke: '#f1d9de',
@@ -6051,10 +6095,10 @@ if (busesTaller.length) {
       ctx,
       fitText(ctx, bus, panelW - 64, fPanelBus),
       xPanel + 28,
-      ySide + 8,
+      ySide + 9,
       { font: fPanelBus, color: wine }
     );
-    ySide += 48;
+    ySide += 54;
   });
 
   ySide += 10;
@@ -6069,7 +6113,7 @@ ySide += 22;
 
 busesSinHorario.forEach(b => {
   const bus = safeUpper(b.bus || '—');
-  drawCard(ctx, xPanel + 16, ySide, panelW - 32, 34, {
+  drawCard(ctx, xPanel + 16, ySide, panelW - 32, 42, {
     radius: 10,
     fill: blueSoft,
     stroke: borderSoft,
@@ -6083,7 +6127,7 @@ busesSinHorario.forEach(b => {
     ySide + 8,
     { font: fPanelBus, color: blue }
   );
-  ySide += 40;
+  ySide += 48;
 });
 
   const x0 = margen;
