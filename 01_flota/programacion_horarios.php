@@ -5702,8 +5702,8 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
   // SIN columna DIA OPERATIVO y SIN placa
   const columnas = [
     { key: 'hora',     label: 'HORA',    width: 110 },
-    { key: 'bus',      label: 'UNIDAD',  width: 250 },
-    { key: 'servicio', label: 'SERVICIO', width: 190 },
+    { key: 'bus',      label: 'UNIDAD',  width: 120 },
+    { key: 'servicio', label: 'SERVICIO', width: 250 },
     { key: 'origen',   label: 'ORIGEN',   width: 210 },
     { key: 'destino',  label: 'DESTINO',  width: 210 }
   ];
