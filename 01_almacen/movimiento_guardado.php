@@ -1,6 +1,45 @@
 <?php
 require_once __DIR__ . '/movimiento_backend.php';
 
+function alm_debug_sanitize($value) {
+    if (is_array($value)) {
+        $clean = [];
+        foreach ($value as $key => $item) {
+            $lower = strtolower((string)$key);
+            if (in_array($lower, ['password', 'clave', 'contrasena'], true)) {
+                $clean[$key] = '[oculto]';
+                continue;
+            }
+            $clean[$key] = alm_debug_sanitize($item);
+        }
+        return $clean;
+    }
+
+    return $value;
+}
+
+function alm_action_debug_payload(mysqli $conn): void {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        alm_json(['ok' => false, 'message' => 'Metodo no permitido.'], 405);
+    }
+
+    if (!alm_can_registrar()) {
+        alm_json(['ok' => false, 'message' => 'No tienes permiso para registrar movimientos.'], 403);
+    }
+
+    $payload = json_decode((string)file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        alm_json(['ok' => false, 'message' => 'Solicitud invalida.'], 400);
+    }
+    alm_validate_csrf($payload);
+
+    $source = alm_clean_text($payload['source'] ?? 'registro', 40);
+    $debugPayload = alm_debug_sanitize($payload['payload'] ?? []);
+    error_log('[N360][almacen][pruebas][' . $source . '] ' . json_encode($debugPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+    alm_json(['ok' => true, 'message' => 'Payload de prueba enviado al log del servidor.']);
+}
+
 function alm_action_save_entrada(mysqli $conn): void {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         alm_json(['ok' => false, 'message' => 'Metodo no permitido.'], 405);
@@ -49,6 +88,7 @@ function alm_action_save_entrada(mysqli $conn): void {
     }
     $monto = $cantidad * $precio;
     $autoPdf = !empty($payload['auto_pdf']);
+    $originId = alm_origin_id_from_payload($payload);
 
     $tipo = alm_producto_tiene_movimientos($conn, $productId) ? 'ENTRADA' : 'INVENTARIADO';
     $generarEtq = !empty($payload['gen_etq']) && $sedeId > 0 ? 1 : 0;
@@ -104,19 +144,19 @@ function alm_action_save_entrada(mysqli $conn): void {
 
     $movParams = [
         $productId, $tipo, $cantidad, $precio, $monto, $fecha, $observacion, $documentoBin, $userId,
-        $factura, $proveedor, $notaId, $generarEtq, $etqCant, $sedeDb, $anaquelDb, $bb, $nn, $ssss, $ubicacionDb
+        $factura, $proveedor, $notaId, $originId, $generarEtq, $etqCant, $sedeDb, $anaquelDb, $bb, $nn, $ssss, $ubicacionDb
     ];
 
     $stmtMov = $conn->prepare("
         INSERT INTO tb_alm_movimientos
         (clm_alm_mov_idPRODUCTO, clm_alm_mov_TIPO, clm_alm_mov_cantidad, clm_alm_mov_preciounitario, clm_alm_mov_monto,
          clm_alm_mov_fecha_registro, clm_alm_mov_OBSERVACION, clm_alm_mov_documento, clm_alm_mov_iduser,
-         clm_mov_factura, clm_mov_ruc, clm_alm_mov_idNOTA,
+         clm_mov_factura, clm_mov_ruc, clm_alm_mov_idNOTA, clm_alm_mov_orgn,
          clm_alm_mov_gen_etq, clm_alm_mov_etq_cant, clm_alm_mov_ofic_destino, clm_alm_mov_anaquel,
          clm_alm_mov_ubi_bloque, clm_alm_mov_ubi_nivel, clm_alm_mov_ubi_seccion, clm_alm_mov_ubicacion)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
-    $movTypes = 'isdddsssiss' . 'iiiii' . 'ssss';
+    $movTypes = 'isdddsssiss' . 'iiiiii' . 'ssss';
     alm_bind($stmtMov, $movTypes, $movParams);
     $stmtMov->execute();
     $movId = (int)$conn->insert_id;
@@ -153,7 +193,10 @@ function alm_action_save_salida(mysqli $conn): void {
         alm_json(['ok' => false, 'message' => 'Solicitud invalida.'], 400);
     }
     alm_validate_csrf($payload);
+    alm_validate_current_password($conn, (string)($payload['password'] ?? ''));
+    unset($payload['password']);
 
+    $salidaOriginId = alm_origin_id_from_payload($payload);
     $placaId = (int)($payload['placa_id'] ?? 0);
     $entregado = alm_clean_text($payload['entregado_a'] ?? '', 220);
     $motivo = alm_clean_text($payload['motivo'] ?? '', 900);
@@ -246,8 +289,8 @@ function alm_action_save_salida(mysqli $conn): void {
         INSERT INTO tb_alm_movimientos
         (clm_alm_mov_itmtable, clm_alm_mov_TIPO, clm_alm_mov_cantidad, clm_alm_mov_monto,
          clm_alm_mov_preciounitario, clm_alm_mov_fecha_registro, clm_alm_mov_OBSERVACION,
-         clm_alm_mov_placa, clm_alm_mov_idNOTA, clm_alm_mov_idPRODUCTO, clm_alm_mov_iduser)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         clm_alm_mov_placa, clm_alm_mov_idNOTA, clm_alm_mov_orgn, clm_alm_mov_idPRODUCTO, clm_alm_mov_iduser)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $movId = 0;
@@ -263,10 +306,11 @@ function alm_action_save_salida(mysqli $conn): void {
             $motivo,
             $placaId,
             $notaId,
+            $salidaOriginId,
             $item['producto_id'],
             $userId,
         ];
-        alm_bind($stmtMov, 'isdddssiiii', $movParams);
+        alm_bind($stmtMov, 'isdddssiiiii', $movParams);
         $stmtMov->execute();
         $movId = (int)$conn->insert_id;
     }

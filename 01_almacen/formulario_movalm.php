@@ -18,7 +18,12 @@ require_once __DIR__ . '/../layout/quick_scan_n360.php';
 require_once __DIR__ . '/../layout/bus_lookup_n360.php';
 require_once __DIR__ . '/../layout/almacen_movimiento_n360.php';
 
-if (!n360_is_admin() && (!n360_puede_modulo(3) || !n360_puede_vista('a-formulreg'))) {
+$registerContext = (defined('N360_ALM_REGISTER_CONTEXT') && N360_ALM_REGISTER_CONTEXT === 'rrhh') ? 'rrhh' : 'almacen';
+$originSpaceId = $registerContext === 'rrhh' ? 4 : 1;
+$canOpenContext = $registerContext === 'rrhh'
+    ? (n360_puede_modulo(6) && n360_puede_vista('rrhh-registeralm'))
+    : (n360_puede_modulo(3) && (n360_puede_vista('a-register') || n360_puede_vista('a-formulreg')));
+if (!n360_is_admin() && !$canOpenContext) {
     header('Location: ../login/none_permisos.php?vista=' . urlencode('Registrar movimiento'));
     exit;
 }
@@ -52,6 +57,7 @@ if (empty($_SESSION['alm_mov_csrf'])) {
 $pageError = '';
 $sedes = [];
 $anaqueles = [];
+$originSpace = [];
 $recentMovements = [];
 $stats = [
     'hoy' => 0,
@@ -63,6 +69,7 @@ $stats = [
 try {
     $sedes = alm_select_sedes($conn);
     $anaqueles = alm_select_anaqueles($conn);
+    $originSpace = alm_select_espacio($conn, $originSpaceId) ?: [];
     $stats = array_merge($stats, alm_select_stats($conn));
     $recentMovements = alm_select_recent_movements($conn);
 } catch (Throwable $e) {
@@ -72,6 +79,11 @@ try {
 $csrf = (string)$_SESSION['alm_mov_csrf'];
 $isAdmin = n360_is_admin();
 $canEditPrices = alm_can_edit_prices();
+$currentSedeId = trim((string)($_SESSION['clm_usuarios_sede'] ?? ''));
+$currentSedeName = trim((string)($_SESSION['clm_usuarios_sede_nombre'] ?? ''));
+$originSpaceCode = trim((string)($originSpace['nombre'] ?? ($registerContext === 'rrhh' ? 'RRHH' : 'ALM')));
+$originSpaceName = trim((string)($originSpace['descripcion'] ?? ($registerContext === 'rrhh' ? 'RECURSOS HUMANOS' : 'ALMACEN')));
+$originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -99,7 +111,16 @@ $canEditPrices = alm_can_edit_prices();
 <main class="main-content n360-main n360-main--module">
     <?php n360_render_content_separator('top'); ?>
 
-    <div class="n360-main__inner alm-mov-page" id="almMovPage" data-api="movimiento_api.php" data-csrf="<?= alm_page_h($csrf) ?>" data-can-edit-prices="<?= $canEditPrices ? '1' : '0' ?>">
+    <div class="n360-main__inner alm-mov-page"
+         id="almMovPage"
+         data-api="<?= alm_page_h(n360_base_url('01_almacen/movimiento_api.php')) ?>"
+         data-csrf="<?= alm_page_h($csrf) ?>"
+         data-can-edit-prices="<?= $canEditPrices ? '1' : '0' ?>"
+         data-is-admin="<?= $isAdmin ? '1' : '0' ?>"
+         data-current-sede-id="<?= alm_page_h($currentSedeId) ?>"
+         data-context="<?= alm_page_h($registerContext) ?>"
+         data-origin-id="<?= alm_page_h($originSpaceId) ?>"
+         data-origin-label="<?= alm_page_h($originSpaceLabel) ?>">
         <section class="alm-mov-hero">
             <div class="alm-mov-hero__copy">
                 <div>
@@ -142,7 +163,8 @@ $canEditPrices = alm_can_edit_prices();
 
         <section class="alm-modebar" aria-label="Tipo de movimiento">
             <div class="alm-modebar__title">
-                <strong>Formulario de Almacén</strong>
+                <strong>Formulario de Almacen</strong>
+                <span class="alm-origin-chip"><i class="bi bi-geo-alt-fill"></i> Origen: <?= alm_page_h($originSpaceLabel) ?></span>
             </div>
             <div class="alm-modebar__buttons">
                 <button type="button" class="is-active" id="almEntradaMode">
@@ -157,6 +179,7 @@ $canEditPrices = alm_can_edit_prices();
         </section>
                 <form class="alm-form" id="almEntradaForm" enctype="multipart/form-data" autocomplete="off">
                     <input type="hidden" name="producto_id" id="almEntradaProductoId">
+                    <input type="hidden" name="orgn_id" id="almEntradaOrgnId" value="<?= alm_page_h($originSpaceId) ?>">
                     <input type="hidden" name="ubicacion_raw" id="almEntradaUbicacionRaw">
                     <input type="hidden" name="ubicacion_label" id="almEntradaUbicacionLabel">
 
@@ -224,6 +247,10 @@ $canEditPrices = alm_can_edit_prices();
                         </label>
 
                         <div class="alm-form__actions">
+                            <button class="alm-btn alm-btn--soft alm-btn--debug" type="button" id="almEntradaDebug">
+                                <i class="bi bi-terminal"></i>
+                                <span>Pruebas</span>
+                            </button>
                             <button class="alm-btn alm-btn--ghost" type="button" id="almEntradaReset">
                                 <i class="bi bi-eraser"></i>
                                 <span>Limpiar</span>
@@ -251,14 +278,19 @@ $canEditPrices = alm_can_edit_prices();
                             </div>
 
                             <div class="alm-location__grid">
-                                <label class="alm-field alm-field--span-3">
+                                <label class="alm-field alm-field--span-3 <?= $isAdmin ? '' : 'alm-field--locked' ?>">
                                     <span>Sede</span>
-                                    <select name="sede_id" id="almEntradaSede" form="almEntradaForm">
-                                        <option value="">Sin sede</option>
+                                    <select name="sede_id" id="almEntradaSede" form="almEntradaForm" <?= $isAdmin ? '' : 'disabled aria-disabled="true"' ?>>
+                                        <option value="" <?= $currentSedeId === '' ? 'selected' : '' ?>>Sin sede</option>
                                         <?php foreach ($sedes as $sede): ?>
-                                            <option value="<?= alm_page_h($sede['id'] ?? '') ?>"><?= alm_page_h($sede['nombre'] ?? '') ?></option>
+                                            <?php $sedeOptionId = (string)($sede['id'] ?? ''); ?>
+                                            <option value="<?= alm_page_h($sedeOptionId) ?>" <?= $sedeOptionId === $currentSedeId ? 'selected' : '' ?>><?= alm_page_h($sede['nombre'] ?? '') ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                    <?php if (!$isAdmin): ?>
+                                        <input type="hidden" name="sede_id" id="almEntradaSedeLocked" form="almEntradaForm" value="<?= alm_page_h($currentSedeId) ?>">
+                                        <small class="alm-help alm-help--locked">Sede asignada<?= $currentSedeName !== '' ? ': ' . alm_page_h($currentSedeName) : '' ?>.</small>
+                                    <?php endif; ?>
                                 </label>
                                 <label class="alm-field alm-field--span-3">
                                     <span>Anaquel</span>

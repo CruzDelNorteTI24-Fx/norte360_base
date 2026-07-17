@@ -9,6 +9,23 @@ function alm_select_sedes(mysqli $conn): array {
     ");
 }
 
+function alm_select_espacio(mysqli $conn, int $id): ?array {
+    if ($id <= 0) {
+        return null;
+    }
+
+    return alm_fetch_one($conn, "
+        SELECT
+            clm_esp_id AS id,
+            COALESCE(NULLIF(TRIM(clm_esp_nombre), ''), CONCAT('ESP', clm_esp_id)) AS nombre,
+            COALESCE(NULLIF(TRIM(clm_esp_desc), ''), 'Sin descripcion') AS descripcion,
+            clm_esp_obs AS tipo
+        FROM tb_espacio
+        WHERE clm_esp_id = ?
+        LIMIT 1
+    ", 'i', [$id]);
+}
+
 function alm_select_anaqueles(mysqli $conn): array {
     return alm_fetch_all($conn, "
         SELECT

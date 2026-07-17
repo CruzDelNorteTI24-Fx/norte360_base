@@ -35,6 +35,10 @@ try {
             alm_action_buses($conn);
             break;
 
+        case 'debug_payload':
+            alm_action_debug_payload($conn);
+            break;
+
         case 'save_entrada':
             alm_action_save_entrada($conn);
             break;

@@ -1,7 +1,7 @@
 .n360-dialog {
     position: fixed;
     inset: 0;
-    z-index: 3200;
+    z-index: 99999 !important;
     display: none;
     align-items: center;
     justify-content: center;
@@ -97,6 +97,41 @@
     white-space: pre-line;
 }
 
+.n360-dialog__inputwrap {
+    display: grid;
+    gap: 7px;
+    padding: 0 18px 18px 79px;
+}
+
+.n360-dialog__input-label {
+    color: #60758a;
+    font-size: .74rem;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+.n360-dialog__input {
+    min-height: 42px;
+    width: 100%;
+    border: 1px solid #cdddeb;
+    border-radius: 10px;
+    background: #fff8d6;
+    color: #0a253b;
+    padding: 9px 12px;
+    font-weight: 800;
+    outline: none;
+}
+
+.n360-dialog__input:focus {
+    border-color: #238dd1;
+    box-shadow: 0 0 0 3px rgba(35, 141, 209, .14);
+}
+
+.n360-dialog__input.is-invalid {
+    border-color: #c23b32;
+    background: #fff0ee;
+}
+
 .n360-dialog__actions {
     display: flex;
     justify-content: flex-end;
@@ -152,8 +187,10 @@
         border-radius: 16px 16px 0 0;
     }
 
-    .n360-dialog__message {
+    .n360-dialog__message,
+    .n360-dialog__inputwrap {
         padding-left: 18px;
+        padding-right: 18px;
     }
 
     .n360-dialog__actions {

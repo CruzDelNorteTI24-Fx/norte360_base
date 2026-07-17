@@ -154,11 +154,15 @@ if (!function_exists('n360_render_almacen_salida_modal')) {
                             <span>Confirmo que los items y cantidades estan correctos.</span>
                         </label>
                         <div class="alm-salida__actions">
+                            <button class="alm-btn alm-btn--soft alm-btn--debug" type="button" id="almSalidaDebug">
+                                <i class="bi bi-terminal"></i>
+                                <span>Pruebas</span>
+                            </button>
                             <button class="alm-btn alm-btn--ghost" type="button" data-alm-modal-close>
                                 <i class="bi bi-x-circle"></i>
                                 <span>Cancelar</span>
                             </button>
-                            <button class="alm-btn alm-btn--danger" type="submit" id="almSalidaSubmit">
+                            <button class="alm-btn alm-btn--danger" type="submit" id="almSalidaSubmit" disabled>
                                 <i class="bi bi-receipt-cutoff"></i>
                                 <span>Registrar salida</span>
                             </button>

@@ -319,6 +319,18 @@
     resize: vertical;
 }
 
+
+.alm-field input:not([type="hidden"]):not([type="file"])::placeholder,
+.alm-field textarea::placeholder {
+    color: #8fa0b3;
+}
+
+.alm-field input[readonly],
+.alm-field textarea[readonly] {
+    background: #eef2f6;
+    color: #6f7d8c;
+}
+
 .alm-field input:focus,
 .alm-field select:focus,
 .alm-field textarea:focus {
@@ -995,4 +1007,38 @@
     .alm-refs-group {
         grid-template-columns: 1fr;
     }
+}
+.alm-btn--debug {
+    border-color: #9fcdec;
+    background: #eef7ff;
+    color: #075d91;
+}
+
+.alm-btn--debug:hover {
+    background: #dff0ff;
+}
+.alm-field--locked {
+    opacity: .9;
+}
+
+.alm-help--locked {
+    color: #8a6a18;
+    text-transform: none;
+}
+.alm-salida__actions .alm-btn--debug {
+    margin-right: 4px;
+}
+.alm-origin-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    margin-top: 8px;
+    padding: 7px 10px;
+    border: 1px solid #c8dced;
+    border-radius: 999px;
+    background: #eef7ff;
+    color: #0d5f90;
+    font-size: .82rem;
+    font-weight: 800;
 }

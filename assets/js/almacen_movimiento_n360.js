@@ -7,6 +7,8 @@
   const api = page.dataset.api || 'movimiento_api.php';
   const csrf = page.dataset.csrf || '';
   const canEditPrices = page.dataset.canEditPrices === '1';
+  const originId = page.dataset.originId || '1';
+  const originLabel = page.dataset.originLabel || 'ALMACEN (ALM)';
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
@@ -56,12 +58,54 @@
     return Promise.resolve(window.confirm(message));
   };
 
+  const promptBox = (message, options = {}) => {
+    if (window.N360Dialog?.prompt) {
+      return window.N360Dialog.prompt(message, options);
+    }
+    const value = window.prompt(message);
+    return Promise.resolve(value === null ? null : value);
+  };
+
   const withLoader = async (task, options = {}) => {
     if (window.N360Loader) {
       return window.N360Loader.during(task, options);
     }
     return task();
   };
+
+  const filePreview = (file) => {
+    if (!file || !file.name) return '';
+    return { name: file.name, size: file.size, type: file.type || 'sin tipo' };
+  };
+
+  const formDataSnapshot = (formData) => {
+    const snapshot = {};
+    for (const [key, value] of formData.entries()) {
+      snapshot[key] = value instanceof File ? filePreview(value) : value;
+    }
+    return snapshot;
+  };
+
+  const printDebugPayload = (title, payload) => {
+    console.groupCollapsed(`[N360][almacen][pruebas] ${title}`);
+    console.log(payload);
+    if (Array.isArray(payload.movimientos)) console.table(payload.movimientos);
+    if (Array.isArray(payload.items)) console.table(payload.items);
+    console.groupEnd();
+  };
+
+  async function sendDebugPayload(source, payload) {
+    printDebugPayload(source, payload);
+    try {
+      await fetchJson('debug_payload', {
+        method: 'POST',
+        json: { source, payload },
+      });
+      await alertBox('Payload impreso en consola y enviado al log del servidor.', 'info', 'Pruebas');
+    } catch (error) {
+      await alertBox(`Payload impreso en consola, pero no se pudo enviar al log: ${error.message}`, 'warning', 'Pruebas');
+    }
+  }
 
   async function fetchJson(action, options = {}) {
     let actionName = String(action);
@@ -101,18 +145,25 @@
     return data;
   }
 
+  function syncModalOpenClass() {
+    document.body.classList.toggle('alm-modal-open', $$('.alm-modal.is-open').length > 0);
+  }
+
   function openModal(modal) {
     if (!modal) return;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('alm-modal-open');
+    syncModalOpenClass();
   }
 
   function closeModal(modal) {
     if (!modal) return;
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('alm-modal-open');
+    if (modal.id === 'almSalidaModal') {
+      resetSalidaForm();
+    }
+    syncModalOpenClass();
   }
 
   function closeAllModals() {
@@ -146,7 +197,7 @@
 
     box.innerHTML = `
       <strong>(${esc(product.codigo || product.id)}) ${esc(product.producto)}</strong>
-      <div class="alm-selected-product__meta">${esc(product.categoria)} Â· ${esc(product.unidad || '-')}</div>
+      <div class="alm-selected-product__meta">${esc(product.categoria)} - ${esc(product.unidad || '-')}</div>
       <div class="alm-product-chips">
         <span class="alm-chip"><i class="bi bi-boxes"></i> Stock ${esc(fmtQty(product.stock))}</span>
         ${priceChip}
@@ -286,6 +337,92 @@
     $(selector)?.addEventListener('input', calculateEntradaMonto);
   });
 
+  function buildEntradaDebugPayload() {
+    calculateEntradaMonto();
+    const form = $('#almEntradaForm');
+    const formData = new FormData(form);
+    formData.set('csrf', csrf);
+    const cantidad = toNumber($('#almEntradaCantidad')?.value);
+    const precio = canEditPrices ? toNumber($('#almEntradaPrecio')?.value) : '(backend: precio del producto)';
+    const monto = canEditPrices ? cantidad * toNumber($('#almEntradaPrecio')?.value) : '(backend)';
+    const tipo = $('#almEntradaTipo')?.value || '(backend: se define por historial)';
+
+    return {
+      origen: 'entrada',
+      orgn_id: originId,
+      orgn_label: originLabel,
+      producto_seleccionado: state.selectedEntrada,
+      formulario: formDataSnapshot(formData),
+      nota: {
+        tabla: 'tb_notas_salida',
+        clm_nota_serie: 'NE',
+        clm_nota_modulo: 'Almacen',
+        clm_nota_motivo: $('#almEntradaObservacion')?.value || '',
+        clm_nota_espacio: $('#almEntradaUbicacionLabel')?.value || 'ALMACEN (ALM)',
+        clm_nota_proveedor: $('#almEntradaProveedor')?.value || '',
+      },
+      movimiento: {
+        tabla: 'tb_alm_movimientos',
+        clm_alm_mov_idPRODUCTO: $('#almEntradaProductoId')?.value || '',
+        clm_alm_mov_TIPO: tipo,
+        clm_alm_mov_cantidad: cantidad,
+        clm_alm_mov_preciounitario: precio,
+        clm_alm_mov_monto: monto,
+        clm_alm_mov_OBSERVACION: $('#almEntradaObservacion')?.value || '',
+        clm_mov_factura: $('#almEntradaFactura')?.value || '',
+        clm_mov_ruc: $('#almEntradaProveedor')?.value || '',
+        clm_alm_mov_ofic_destino: $('#almEntradaSede')?.value || $('#almEntradaSedeLocked')?.value || null,
+        clm_alm_mov_anaquel: $('#almEntradaAnaquel')?.value || null,
+        clm_alm_mov_ubicacion: $('#almEntradaUbicacionRaw')?.value || null,
+        clm_alm_mov_gen_etq: $('#almEntradaGenEtq')?.checked ? 1 : 0,
+      },
+    };
+  }
+
+  function buildSalidaPayload(extra = {}) {
+    return {
+      orgn_id: originId,
+      placa_id: $('#almSalidaPlacaId')?.value || '',
+      entregado_a: $('#almSalidaEntregado')?.value || '',
+      motivo: $('#almSalidaMotivo')?.value || '',
+      items: state.salidaItems.map((item) => ({
+        producto_id: item.id,
+        cantidad: item.cantidad,
+      })),
+      ...extra,
+    };
+  }
+
+  function buildSalidaDebugPayload() {
+    const payload = buildSalidaPayload();
+    return {
+      origen: 'salida',
+      payload,
+      nota: {
+        tabla: 'tb_notas_salida',
+        clm_nota_serie: 'NS',
+        clm_nota_modulo: 'Almacen',
+        clm_nota_motivo: payload.motivo,
+        clm_nota_placa: payload.placa_id,
+        clm_nota_espacio: originLabel,
+        clm_nota_proveedor: payload.entregado_a,
+      },
+      movimientos: state.salidaItems.map((item, index) => ({
+        tabla: 'tb_alm_movimientos',
+        orden_item: index + 1,
+        clm_alm_mov_orgn: originId,
+        clm_alm_mov_itmtable: index + 1,
+        clm_alm_mov_TIPO: 'SALIDA',
+        clm_alm_mov_idPRODUCTO: item.id,
+        clm_alm_mov_cantidad: item.cantidad,
+        clm_alm_mov_preciounitario: canEditPrices ? item.precio : '(backend)',
+        clm_alm_mov_monto: canEditPrices ? item.monto : '(backend)',
+        clm_alm_mov_placa: payload.placa_id,
+        clm_alm_mov_OBSERVACION: payload.motivo,
+      })),
+    };
+  }
+
   function updateRefsVisibility() {
     const toggle = $('#almToggleRefs');
     const group = $('#almRefsGroup');
@@ -402,11 +539,14 @@
 
     $$('#almEntradaAnaquel option').forEach((option) => {
       if (!option.value) return;
-      option.hidden = option.dataset.sede !== sedeId;
+      option.hidden = Boolean(sedeId) && option.dataset.sede !== sedeId;
     });
 
+    const currentStillVisible = select.value && !select.selectedOptions?.[0]?.hidden;
     const firstVisible = Array.from(select.options).find((option) => option.value && !option.hidden);
-    select.value = firstVisible ? firstVisible.value : '';
+    if (!currentStillVisible) {
+      select.value = firstVisible ? firstVisible.value : '';
+    }
     updateLocationPreview();
   }
 
@@ -418,7 +558,7 @@
     $(selector)?.addEventListener('blur', updateLocationPreview);
   });
   setEntradaTipo($('#almEntradaTipo')?.value || '');
-  updateLocationPreview();
+  loadAnaquelesForSede();
 
   $('#almToggleRefs')?.addEventListener('change', updateRefsVisibility);
   updateRefsVisibility();
@@ -433,6 +573,10 @@
     if (event.key !== 'Enter' || event.shiftKey) return;
     event.preventDefault();
     $('#almEntradaForm')?.requestSubmit();
+  });
+
+  $('#almEntradaDebug')?.addEventListener('click', () => {
+    sendDebugPayload('entrada', buildEntradaDebugPayload());
   });
 
   $('#almEntradaForm')?.addEventListener('submit', async (event) => {
@@ -486,7 +630,7 @@
     $('#almEntradaProductoId').value = '';
     setEntradaTipo('');
     updateRefsVisibility();
-    updateLocationPreview();
+    loadAnaquelesForSede();
   });
 
   $('#almOpenSalida')?.addEventListener('click', () => {
@@ -529,6 +673,29 @@
     }, 240);
   });
 
+  function updateSalidaSubmitState() {
+    const submit = $('#almSalidaSubmit');
+    if (!submit) return;
+    submit.disabled = !$('#almSalidaConfirm')?.checked;
+  }
+
+  function resetSalidaForm() {
+    const form = $('#almSalidaForm');
+    if (form) form.reset();
+    state.selectedSalida = null;
+    state.salidaItems = [];
+    const hiddenBus = $('#almSalidaPlacaId');
+    if (hiddenBus) hiddenBus.value = '';
+    const suggest = $('#almSalidaBusSuggest');
+    if (suggest) {
+      suggest.hidden = true;
+      suggest.innerHTML = '';
+    }
+    renderSelectedProduct('salida', null);
+    renderSalidaItems();
+    updateSalidaSubmitState();
+  }
+
   $('#almSalidaBusSuggest')?.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-bus-id]');
     if (!button) return;
@@ -544,6 +711,7 @@
 
     if (!state.salidaItems.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="alm-table__empty">Aun no hay items en la salida.</td></tr>';
+      updateSalidaSubmitState();
       return;
     }
 
@@ -562,6 +730,7 @@
         </td>
       </tr>
     `).join('');
+    updateSalidaSubmitState();
   }
 
   $('#almSalidaAddItem')?.addEventListener('click', async () => {
@@ -614,6 +783,12 @@
     renderSalidaItems();
   });
 
+  $('#almSalidaConfirm')?.addEventListener('change', updateSalidaSubmitState);
+
+  $('#almSalidaDebug')?.addEventListener('click', () => {
+    sendDebugPayload('salida', buildSalidaDebugPayload());
+  });
+
   $('#almSalidaItems')?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-remove-salida]');
     if (!button) return;
@@ -641,15 +816,7 @@
       return;
     }
 
-    const payload = {
-      placa_id: $('#almSalidaPlacaId').value,
-      entregado_a: $('#almSalidaEntregado').value,
-      motivo: $('#almSalidaMotivo').value,
-      items: state.salidaItems.map((item) => ({
-        producto_id: item.id,
-        cantidad: item.cantidad,
-      })),
-    };
+    const payload = buildSalidaPayload();
 
     const confirmed = await confirmBox('Se registrara una nota de salida NS con los items indicados. ¿Continuamos?', {
       title: 'Confirmar salida',
@@ -658,6 +825,20 @@
       variant: 'danger',
     });
     if (!confirmed) return;
+
+    const password = await promptBox('Ingresa tu contrasena de sesion para registrar esta salida.', {
+      title: 'Validar salida',
+      inputType: 'password',
+      inputLabel: 'Contrasena',
+      placeholder: 'Contrasena de tu usuario',
+      confirmText: 'Validar y guardar',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      required: true,
+      autocomplete: 'current-password',
+    });
+    if (password === null) return;
+    payload.password = password;
 
     try {
       const data = await withLoader(

@@ -57,22 +57,50 @@ if (!function_exists('alm_fetch_one')) {
     }
 }
 
+if (!function_exists('alm_session_module_ids')) {
+    function alm_session_module_ids(): array {
+        $permisos = $_SESSION['permisos'] ?? [];
+        if ($permisos === 'all') {
+            return ['all'];
+        }
+
+        return is_array($permisos) ? array_map('intval', $permisos) : [];
+    }
+}
+
+if (!function_exists('alm_session_has_vista')) {
+    function alm_session_has_vista(array $codes): bool {
+        if (($_SESSION['permisos'] ?? []) === 'all') {
+            return true;
+        }
+
+        $vistas = $_SESSION['vistas'] ?? [];
+        if (!is_array($vistas)) {
+            return false;
+        }
+
+        foreach ($codes as $code) {
+            if (in_array($code, $vistas, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 if (!function_exists('alm_can_almacen')) {
     function alm_can_almacen(): bool {
         if (($_SESSION['web_rol'] ?? '') === 'Admin') {
             return true;
         }
 
-        $permisos = $_SESSION['permisos'] ?? [];
-        if ($permisos === 'all') {
+        $moduleIds = alm_session_module_ids();
+        if ($moduleIds === ['all']) {
             return true;
         }
 
-        if (!is_array($permisos)) {
-            return false;
-        }
-
-        return in_array(3, array_map('intval', $permisos), true);
+        return in_array(3, $moduleIds, true)
+            || (in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm']));
     }
 }
 
@@ -82,16 +110,55 @@ if (!function_exists('alm_can_registrar')) {
             return true;
         }
 
-        if (!alm_can_almacen()) {
-            return false;
-        }
-
-        if (($_SESSION['permisos'] ?? []) === 'all') {
+        $moduleIds = alm_session_module_ids();
+        if ($moduleIds === ['all']) {
             return true;
         }
 
-        $vistas = $_SESSION['vistas'] ?? [];
-        return is_array($vistas) && in_array('a-formulreg', $vistas, true);
+        $fromAlmacen = in_array(3, $moduleIds, true) && alm_session_has_vista(['a-register', 'a-formulreg']);
+        $fromRrhh = in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm']);
+
+        return $fromAlmacen || $fromRrhh;
+    }
+}
+
+if (!function_exists('alm_allowed_origin_ids')) {
+    function alm_allowed_origin_ids(): array {
+        if (($_SESSION['web_rol'] ?? '') === 'Admin') {
+            return [1, 4];
+        }
+
+        $moduleIds = alm_session_module_ids();
+        if ($moduleIds === ['all']) {
+            return [1, 4];
+        }
+
+        $allowed = [];
+        if (in_array(3, $moduleIds, true) && alm_session_has_vista(['a-register', 'a-formulreg'])) {
+            $allowed[] = 1;
+        }
+        if (in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm'])) {
+            $allowed[] = 4;
+        }
+
+        return $allowed;
+    }
+}
+
+if (!function_exists('alm_origin_id_from_payload')) {
+    function alm_origin_id_from_payload(array $payload): int {
+        $allowed = alm_allowed_origin_ids();
+        $requested = (int)($payload['orgn_id'] ?? 0);
+
+        if ($requested > 0 && in_array($requested, $allowed, true)) {
+            return $requested;
+        }
+
+        if ($requested <= 0 && $allowed) {
+            return (int)$allowed[0];
+        }
+
+        alm_json(['ok' => false, 'message' => 'No tienes permiso para registrar movimientos desde este origen.'], 403);
     }
 }
 
@@ -132,6 +199,28 @@ if (!function_exists('alm_user_id')) {
         }
 
         return 0;
+    }
+}
+
+if (!function_exists('alm_validate_current_password')) {
+    function alm_validate_current_password(mysqli $conn, string $password): void {
+        $password = trim($password);
+        if ($password === '') {
+            alm_json(['ok' => false, 'message' => 'Ingresa tu contrasena para confirmar la salida.'], 422);
+        }
+
+        $userId = alm_user_id($conn);
+        if ($userId <= 0) {
+            alm_json(['ok' => false, 'message' => 'No se pudo identificar al usuario de sesion.'], 422);
+        }
+
+        $row = alm_fetch_one($conn, 'SELECT contrasena FROM tb_usuarios WHERE id_usuario = ? LIMIT 1', 'i', [$userId]);
+        $stored = (string)($row['contrasena'] ?? '');
+        $received = hash('sha256', $password);
+
+        if ($stored === '' || !hash_equals($stored, $received)) {
+            alm_json(['ok' => false, 'message' => 'Contrasena incorrecta. La salida no fue registrada.'], 403);
+        }
     }
 }
 

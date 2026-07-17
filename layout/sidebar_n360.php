@@ -199,6 +199,13 @@ function n360_menu_config(): array {
                                 'url' => '01_contratos/tbvistacontratadosent.php',
                                 'modulo' => 6
                             ],
+                            [
+                                'titulo' => 'Registro de almacen',
+                                'icono' => 'bi bi-box-arrow-in-down',
+                                'url' => '01_contratos/registro_almacen.php',
+                                'vistas' => ['rrhh-registeralm'],
+                                'modulo' => 6
+                            ],
                         ]
                     ],
                     [
@@ -423,7 +430,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Registrar movimiento',
                                 'icono' => 'bi bi-box-arrow-in-down',
                                 'url' => '01_almacen/formulario_movalm.php',
-                                'vistas' => ['a-formulreg'],
+                                'vistas' => ['a-register', 'a-formulreg'],
                                 'modulo' => 3
                             ],
                             [
