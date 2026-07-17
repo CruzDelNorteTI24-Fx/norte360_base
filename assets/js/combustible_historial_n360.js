@@ -33,7 +33,7 @@
     const getTablePayload = () => {
         if (!table) return { head: [], body: [] };
         const head = Array.from(table.querySelectorAll('thead th')).map((th) => clean(th.textContent));
-        const body = visibleRows().map((row) => Array.from(row.children).map((td) => clean(td.textContent)));
+        const body = visibleRows().map((row) => Array.from(row.children).map((td) => clean(td.dataset.combExportText || td.textContent)));
         return { head, body };
     };
 

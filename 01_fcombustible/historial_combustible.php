@@ -718,7 +718,21 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                     <td><span class="stock-code"><?= comb_h($row['id_mov'] ?? '-') ?></span></td>
                                     <td><?= comb_h(comb_fecha_display($row['fecha'] ?? '')) ?></td>
                                     <td><span class="comb-type comb-type--<?= comb_h(comb_tipo_class($tipoRow)) ?>"><?= comb_h(comb_tipo_label($tipoRow)) ?></span></td>
-                                    <td><span class="stock-code"><?= comb_h(comb_text($row['nota'] ?? '')) ?></span></td>
+                                    <td data-comb-export-text="<?= comb_h(comb_text($row['nota'] ?? '')) ?>">
+                                        <div class="comb-note-cell">
+                                            <span class="stock-code"><?= comb_h(comb_text($row['nota'] ?? '')) ?></span>
+                                            <?php if (comb_text($row['nota'] ?? '') !== '-'): ?>
+                                                <button type="button"
+                                                        class="comb-note-pdf-btn"
+                                                        data-n360-note-download
+                                                        data-movement-id="<?= (int)($row['id_mov'] ?? 0) ?>"
+                                                        title="Descargar nota PDF"
+                                                        aria-label="Descargar PDF de nota <?= comb_h(comb_text($row['nota'] ?? '')) ?>">
+                                                    <i class="bi bi-file-earmark-pdf"></i>
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
                                     <td><?= comb_h(comb_text($row['grifo'] ?? '')) ?></td>
                                     <td><div class="comb-product"><strong><?= comb_h(comb_text($row['producto'] ?? '')) ?></strong></div></td>
                                     <td><?= comb_h(comb_text($row['unidad'] ?? '')) ?></td>
@@ -969,7 +983,20 @@ window.N360_COMBUSTIBLE_REPORT = {
     logoLeft: <?= json_encode(n360_asset('img/icon.png'), JSON_UNESCAPED_SLASHES) ?>,
     logoRight: <?= json_encode(n360_asset('img/norte360_black.png'), JSON_UNESCAPED_SLASHES) ?>
 };
+window.N360_NOTA_PDF_CONFIG = {
+    endpoint: <?= json_encode(n360_base_url('php/nota_pdf_data.php'), JSON_UNESCAPED_SLASHES) ?>,
+    userName: <?= json_encode((string)($_SESSION['usuario'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+    dni: <?= json_encode((string)($_SESSION['DNI'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+    logoTicket: <?= json_encode(n360_base_url('img/completo.png'), JSON_UNESCAPED_SLASHES) ?>,
+    footerLabel: 'NORTE 360'
+};
 </script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_notas_common.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/combustible_historial_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>

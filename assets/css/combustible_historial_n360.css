@@ -459,3 +459,42 @@
 .comb-price-modal.show {
     z-index: 1050;
 }
+.comb-note-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.comb-note-pdf-btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid rgba(19, 42, 64, 0.14);
+    border-radius: 9px;
+    background: #edf6ff;
+    color: #1683d8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.84rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 8px 18px rgba(19, 42, 64, 0.08);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.comb-note-pdf-btn:hover {
+    background: #1683d8;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(19, 42, 64, 0.16);
+}
+
+.comb-note-pdf-btn:disabled {
+    cursor: wait;
+    opacity: 0.72;
+    transform: none;
+}
