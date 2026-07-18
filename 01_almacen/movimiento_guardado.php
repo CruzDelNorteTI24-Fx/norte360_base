@@ -64,6 +64,8 @@ function alm_action_save_entrada(mysqli $conn): void {
     $bb = strtoupper(alm_clean_text($payload['ubi_bloque'] ?? '00', 2));
     $nn = str_pad(preg_replace('/\D/', '', (string)($payload['ubi_nivel'] ?? '00')), 2, '0', STR_PAD_LEFT);
     $ssss = str_pad(preg_replace('/\D/', '', (string)($payload['ubi_seccion'] ?? '0000')), 4, '0', STR_PAD_LEFT);
+    $originId = alm_origin_id_from_payload($payload);
+    $context = alm_context_config_from_origin($originId);
 
     if ($productId <= 0 || $cantidad <= 0) {
         alm_json(['ok' => false, 'message' => 'Producto y cantidad son obligatorios.'], 422);
@@ -75,11 +77,13 @@ function alm_action_save_entrada(mysqli $conn): void {
         FROM tb_alm_producto p
         WHERE p.clm_alm_producto_id = ?
           AND p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)
+          AND UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN')) = ?
+          AND UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE')) = ?
         LIMIT 1
-    ", 'i', [$productId]);
+    ", 'iss', [$productId, $context['area_control'], $context['tipo_control']]);
 
     if (!$product) {
-        alm_json(['ok' => false, 'message' => 'Producto no encontrado o no pertenece a almacen.'], 404);
+        alm_json(['ok' => false, 'message' => 'Producto no encontrado para el origen actual.'], 404);
     }
 
     $precio = alm_can_edit_prices() ? alm_float($payload['precio_unitario'] ?? 0) : (float)($product['precio'] ?? 0);
@@ -88,10 +92,19 @@ function alm_action_save_entrada(mysqli $conn): void {
     }
     $monto = $cantidad * $precio;
     $autoPdf = !empty($payload['auto_pdf']);
-    $originId = alm_origin_id_from_payload($payload);
+
+    if ($originId !== 1) {
+        $sedeId = 0;
+        $anaquelId = 0;
+        $ubicacionRaw = '';
+        $ubicacionLabel = '';
+        $bb = '00';
+        $nn = '00';
+        $ssss = '0000';
+    }
 
     $tipo = alm_producto_tiene_movimientos($conn, $productId) ? 'ENTRADA' : 'INVENTARIADO';
-    $generarEtq = !empty($payload['gen_etq']) && $sedeId > 0 ? 1 : 0;
+    $generarEtq = ($originId === 1 && !empty($payload['gen_etq']) && $sedeId > 0) ? 1 : 0;
     $etqCant = null;
 
     if ($generarEtq) {
@@ -117,13 +130,16 @@ function alm_action_save_entrada(mysqli $conn): void {
     $fecha = date('Y-m-d H:i:s');
     $responsable = alm_clean_text($_SESSION['usuario'] ?? 'Usuario', 120);
     $dni = alm_clean_text($_SESSION['DNI'] ?? '', 30);
-    $espacio = $ubicacionLabel !== '' ? $ubicacionLabel : 'ALMACEN (ALM)';
-    $serie = 'NE';
+    $espacio = $originId === 1
+        ? ($ubicacionLabel !== '' ? $ubicacionLabel : $context['espacio_default'])
+        : $context['espacio_default'];
+    $serie = $context['serie_entrada'];
+    $notaModulo = $context['nota_modulo'];
     $placaNull = null;
 
     $conn->begin_transaction();
 
-    $notaParams = [$fecha, $responsable, 'Almacen', $observacion, $placaNull, $espacio, $proveedor, $dni, $serie];
+    $notaParams = [$fecha, $responsable, $notaModulo, $observacion, $placaNull, $espacio, $proveedor, $dni, $serie];
     $stmtNota = $conn->prepare("
         INSERT INTO tb_notas_salida
         (clm_nota_fecha, clm_nota_responsable, clm_nota_modulo, clm_nota_motivo,
@@ -136,7 +152,7 @@ function alm_action_save_entrada(mysqli $conn): void {
     $stmtNota->close();
 
     $nota = alm_fetch_one($conn, 'SELECT clm_nota_sco FROM tb_notas_salida WHERE clm_nota_id = ?', 'i', [$notaId]);
-    $notaCodigo = (string)($nota['clm_nota_sco'] ?? ('NE-' . str_pad((string)$notaId, 4, '0', STR_PAD_LEFT)));
+    $notaCodigo = (string)($nota['clm_nota_sco'] ?? ($serie . '-' . str_pad((string)$notaId, 4, '0', STR_PAD_LEFT)));
 
     $sedeDb = $sedeId > 0 ? $sedeId : null;
     $anaquelDb = $anaquelId > 0 ? $anaquelId : null;
@@ -197,6 +213,7 @@ function alm_action_save_salida(mysqli $conn): void {
     unset($payload['password']);
 
     $salidaOriginId = alm_origin_id_from_payload($payload);
+    $context = alm_context_config_from_origin($salidaOriginId);
     $placaId = (int)($payload['placa_id'] ?? 0);
     $entregado = alm_clean_text($payload['entregado_a'] ?? '', 220);
     $motivo = alm_clean_text($payload['motivo'] ?? '', 900);
@@ -235,11 +252,13 @@ function alm_action_save_salida(mysqli $conn): void {
             LEFT JOIN vw_control_inventario v ON v.ID = p.clm_alm_producto_id
             WHERE p.clm_alm_producto_id = ?
               AND p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)
+              AND UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN')) = ?
+              AND UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE')) = ?
             LIMIT 1
-        ", 'i', [$productId]);
+        ", 'iss', [$productId, $context['area_control'], $context['tipo_control']]);
 
         if (!$product) {
-            alm_json(['ok' => false, 'message' => 'Uno de los productos no existe o no pertenece a almacen.'], 422);
+            alm_json(['ok' => false, 'message' => 'Uno de los productos no existe para el origen actual.'], 422);
         }
 
         $stock = (float)$product['stock'];
@@ -264,13 +283,14 @@ function alm_action_save_salida(mysqli $conn): void {
     $fecha = date('Y-m-d H:i:s');
     $responsable = alm_clean_text($_SESSION['usuario'] ?? 'Usuario', 120);
     $dni = alm_clean_text($_SESSION['DNI'] ?? '', 30);
-    $serie = 'NS';
-    $espacio = 'ALMACEN (ALM)';
+    $serie = $context['serie_salida'];
+    $espacio = $context['espacio_default'];
+    $notaModulo = $context['nota_modulo'];
     $tipo = 'SALIDA';
 
     $conn->begin_transaction();
 
-    $notaParams = [$fecha, $responsable, 'Almacen', $motivo, $placaId, $espacio, $entregado, $dni, $serie];
+    $notaParams = [$fecha, $responsable, $notaModulo, $motivo, $placaId, $espacio, $entregado, $dni, $serie];
     $stmtNota = $conn->prepare("
         INSERT INTO tb_notas_salida
         (clm_nota_fecha, clm_nota_responsable, clm_nota_modulo, clm_nota_motivo,
@@ -283,7 +303,7 @@ function alm_action_save_salida(mysqli $conn): void {
     $stmtNota->close();
 
     $nota = alm_fetch_one($conn, 'SELECT clm_nota_sco FROM tb_notas_salida WHERE clm_nota_id = ?', 'i', [$notaId]);
-    $notaCodigo = (string)($nota['clm_nota_sco'] ?? ('NS-' . str_pad((string)$notaId, 4, '0', STR_PAD_LEFT)));
+    $notaCodigo = (string)($nota['clm_nota_sco'] ?? ($serie . '-' . str_pad((string)$notaId, 4, '0', STR_PAD_LEFT)));
 
     $stmtMov = $conn->prepare("
         INSERT INTO tb_alm_movimientos

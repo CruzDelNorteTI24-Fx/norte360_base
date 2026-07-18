@@ -162,6 +162,34 @@ if (!function_exists('alm_origin_id_from_payload')) {
     }
 }
 
+
+if (!function_exists('alm_context_config_from_origin')) {
+    function alm_context_config_from_origin(int $originId): array {
+        if ($originId === 4) {
+            return [
+                'origin_id' => 4,
+                'context' => 'rrhh',
+                'area_control' => 'RRHH',
+                'tipo_control' => 'BIEN_CONTROLADO',
+                'nota_modulo' => 'RRHH',
+                'serie_entrada' => 'RE',
+                'serie_salida' => 'RS',
+                'espacio_default' => 'RRHH',
+            ];
+        }
+
+        return [
+            'origin_id' => 1,
+            'context' => 'almacen',
+            'area_control' => 'ALMACEN',
+            'tipo_control' => 'CONSUMIBLE',
+            'nota_modulo' => 'Almacen',
+            'serie_entrada' => 'NE',
+            'serie_salida' => 'NS',
+            'espacio_default' => 'ALMACEN (ALM)',
+        ];
+    }
+}
 if (!function_exists('alm_can_edit_prices')) {
     function alm_can_edit_prices(): bool {
         if (($_SESSION['web_rol'] ?? '') === 'Admin') {

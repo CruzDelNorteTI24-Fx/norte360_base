@@ -35,6 +35,10 @@ try {
             alm_action_buses($conn);
             break;
 
+        case 'trabajadores':
+            alm_action_trabajadores($conn);
+            break;
+
         case 'debug_payload':
             alm_action_debug_payload($conn);
             break;

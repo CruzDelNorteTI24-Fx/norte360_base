@@ -39,7 +39,8 @@ function alm_select_anaqueles(mysqli $conn): array {
     ");
 }
 
-function alm_select_stats(mysqli $conn): array {
+function alm_select_stats(mysqli $conn, int $originId = 1): array {
+    $originId = in_array($originId, [1, 4], true) ? $originId : 1;
     $row = alm_fetch_one($conn, "
         SELECT
             COUNT(*) AS hoy,
@@ -50,12 +51,14 @@ function alm_select_stats(mysqli $conn): array {
         JOIN tb_alm_producto p ON p.clm_alm_producto_id = m.clm_alm_mov_idPRODUCTO
         WHERE DATE(m.clm_alm_mov_fecha_registro) = CURDATE()
           AND p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)
-    ");
+          AND COALESCE(m.clm_alm_mov_orgn, 1) = ?
+    ", 'i', [$originId]);
 
     return $row ?: [];
 }
 
-function alm_select_recent_movements(mysqli $conn, int $limit = 12): array {
+function alm_select_recent_movements(mysqli $conn, int $originId = 1, int $limit = 12): array {
+    $originId = in_array($originId, [1, 4], true) ? $originId : 1;
     $limit = max(1, min(50, $limit));
     return alm_fetch_all($conn, "
         SELECT
@@ -75,16 +78,24 @@ function alm_select_recent_movements(mysqli $conn, int $limit = 12): array {
         LEFT JOIN tb_notas_salida ns ON ns.clm_nota_id = m.clm_alm_mov_idNOTA
         LEFT JOIN tb_usuarios u ON u.id_usuario = m.clm_alm_mov_iduser
         WHERE p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)
+          AND COALESCE(m.clm_alm_mov_orgn, 1) = ?
         ORDER BY m.clm_alm_mov_id DESC
         LIMIT {$limit}
-    ");
+    ", 'i', [$originId]);
 }
 
 function alm_action_catalogo_productos(mysqli $conn): void {
     $q = alm_clean_text($_GET['q'] ?? '', 80);
-    $where = ['p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)'];
-    $types = '';
-    $params = [];
+    $originId = alm_origin_id_from_payload(['orgn_id' => (int)($_GET['origin_id'] ?? 0)]);
+    $context = alm_context_config_from_origin($originId);
+
+    $where = [
+        'p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)',
+        "UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN')) = ?",
+        "UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE')) = ?"
+    ];
+    $types = 'ss';
+    $params = [$context['area_control'], $context['tipo_control']];
 
     if ($q !== '') {
         $where[] = "(
@@ -93,8 +104,8 @@ function alm_action_catalogo_productos(mysqli $conn): void {
             OR CONVERT(p.clm_alm_producto_DESCRIPCION USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ? COLLATE utf8mb4_unicode_ci, '%')
             OR CONVERT(c.clm_alm_categoria_DESCRIPCION USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ? COLLATE utf8mb4_unicode_ci, '%')
         )";
-        $types = 'ssss';
-        $params = [$q, $q, $q, $q];
+        $types .= 'ssss';
+        array_push($params, $q, $q, $q, $q);
     }
 
     $rows = alm_fetch_all($conn, "
@@ -105,6 +116,8 @@ function alm_action_catalogo_productos(mysqli $conn): void {
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_DESCRIPCION), ''), '') AS descripcion,
             COALESCE(NULLIF(TRIM(c.clm_alm_categoria_DESCRIPCION), ''), 'Sin categoria') AS categoria,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_unidad), ''), '-') AS unidad,
+            COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN') AS area_control,
+            COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE') AS tipo_control,
             COALESCE(p.clm_alm_producto_stock_minimo, 0) AS stock_min,
             COALESCE(v.Stock_Actual, 0) AS stock,
             COALESCE(p.clm_alm_producto_prec_unit, 0) AS precio,
@@ -133,7 +146,18 @@ function alm_action_catalogo_productos(mysqli $conn): void {
         unset($row);
     }
 
-    alm_json(['ok' => true, 'rows' => $rows]);
+    alm_json([
+        'ok' => true,
+        'rows' => $rows,
+        'context' => [
+            'origin_id' => $originId,
+            'area_control' => $context['area_control'],
+            'tipo_control' => $context['tipo_control'],
+            'serie_entrada' => $context['serie_entrada'],
+            'serie_salida' => $context['serie_salida'],
+            'nota_modulo' => $context['nota_modulo'],
+        ],
+    ]);
 }
 
 function alm_action_buses(mysqli $conn): void {
@@ -147,7 +171,7 @@ function alm_action_buses(mysqli $conn): void {
             clm_placas_id AS id,
             COALESCE(NULLIF(TRIM(clm_placas_BUS), ''), CONCAT('Unidad ', clm_placas_id)) AS bus,
             COALESCE(NULLIF(TRIM(clm_placas_PLACA), ''), '-') AS placa,
-            COALESCE(NULLIF(TRIM(`clm_placas_DUEÑO`), ''), '') AS dueno
+            COALESCE(NULLIF(TRIM(`clm_placas_DUEÃƒâ€˜O`), ''), '') AS dueno
         FROM tb_placas
         WHERE clm_placas_ESTADO = 'Activo'
           AND (
@@ -158,6 +182,38 @@ function alm_action_buses(mysqli $conn): void {
         ORDER BY clm_placas_BUS ASC
         LIMIT 12
     ", 'sss', [$q, $q, $q]);
+
+    alm_json(['ok' => true, 'rows' => $rows]);
+}
+
+function alm_action_trabajadores(mysqli $conn): void {
+    $q = alm_clean_text($_GET['q'] ?? '', 80);
+    $types = '';
+    $params = [];
+    $where = '1=1';
+
+    if ($q !== '') {
+        $where = "(
+            CONVERT(clm_tra_nombres USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ? COLLATE utf8mb4_unicode_ci, '%')
+            OR CONVERT(clm_tra_dni USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ? COLLATE utf8mb4_unicode_ci, '%')
+            OR CONVERT(clm_tra_cargo USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ? COLLATE utf8mb4_unicode_ci, '%')
+        )";
+        $types = 'sss';
+        $params = [$q, $q, $q];
+    }
+
+    $rows = alm_fetch_all($conn, "
+        SELECT
+            clm_tra_id AS id,
+            COALESCE(NULLIF(TRIM(clm_tra_nombres), ''), CONCAT('Trabajador ', clm_tra_id)) AS nombre,
+            COALESCE(NULLIF(TRIM(clm_tra_dni), ''), '-') AS dni,
+            COALESCE(NULLIF(TRIM(clm_tra_cargo), ''), '') AS cargo,
+            COALESCE(NULLIF(TRIM(clm_tra_tipo_trabajador), ''), '') AS tipo
+        FROM tb_trabajador
+        WHERE {$where}
+        ORDER BY clm_tra_nombres ASC
+        LIMIT 20
+    ", $types, $params);
 
     alm_json(['ok' => true, 'rows' => $rows]);
 }

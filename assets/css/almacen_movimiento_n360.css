@@ -150,8 +150,14 @@
     color: #fff;
 }
 
-.alm-modebar__title strong,
+
 .alm-card__title strong {
+    display: block;
+    color: #000;
+    font-size: 1rem;
+    font-weight: 950;
+}
+.alm-modebar__title strong {
     display: block;
     color: #fff;
     font-size: 1rem;
@@ -676,7 +682,7 @@
 
 .alm-catalog__tools {
     display: grid;
-    grid-template-columns: minmax(260px, 1fr) auto;
+    grid-template-columns: minmax(260px, 1fr) auto auto;
     gap: 12px;
     align-items: end;
     padding: 16px 18px 10px;
@@ -1041,4 +1047,118 @@
     color: #0d5f90;
     font-size: .82rem;
     font-weight: 800;
+}
+.alm-catalog__origin {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #cddbea;
+    border-radius: 999px;
+    background: #eef7ff;
+    color: #075d91;
+    padding: 9px 12px;
+    font-size: .82rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.alm-catalog-control {
+    display: inline-flex;
+    margin-top: 4px;
+    color: #075d91;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.alm-field--worker {
+    z-index: 5;
+}
+
+.alm-worker-input {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    gap: 8px;
+    align-items: center;
+}
+
+.alm-worker-input .alm-icon-btn {
+    width: 42px;
+    height: 42px;
+}
+
+.alm-worker-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: min(430px, calc(100vw - 44px));
+    border: 1px solid #cddbea;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, .20);
+    padding: 12px;
+    z-index: 18;
+}
+
+.alm-worker-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.alm-worker-panel__head strong {
+    color: #102235;
+    font-weight: 950;
+}
+
+.alm-worker-panel__rows {
+    max-height: 230px;
+    overflow: auto;
+    display: grid;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.alm-worker-panel__rows p {
+    margin: 0;
+    color: #64748b;
+    font-weight: 800;
+}
+
+.alm-worker-panel__rows button {
+    width: 100%;
+    border: 0;
+    border-radius: 9px;
+    background: #f7fbff;
+    color: #102235;
+    padding: 9px 10px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.alm-worker-panel__rows button:hover {
+    background: #eef6ff;
+}
+
+.alm-worker-panel__rows small {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-weight: 780;
+}
+
+@media (max-width: 900px) {
+    .alm-catalog__origin {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+    }
+
+    .alm-worker-panel {
+        left: 0;
+        right: 0;
+        width: auto;
+    }
 }

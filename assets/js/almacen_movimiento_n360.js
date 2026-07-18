@@ -7,8 +7,14 @@
   const api = page.dataset.api || 'movimiento_api.php';
   const csrf = page.dataset.csrf || '';
   const canEditPrices = page.dataset.canEditPrices === '1';
+  const isAdmin = page.dataset.isAdmin === '1';
   const originId = page.dataset.originId || '1';
   const originLabel = page.dataset.originLabel || 'ALMACEN (ALM)';
+  const originArea = page.dataset.originArea || (originId === '4' ? 'RRHH' : 'ALMACEN');
+  const originTipo = page.dataset.originTipo || (originId === '4' ? 'BIEN_CONTROLADO' : 'CONSUMIBLE');
+  const originSerieEntrada = page.dataset.serieEntrada || (originId === '4' ? 'RE' : 'NE');
+  const originSerieSalida = page.dataset.serieSalida || (originId === '4' ? 'RS' : 'NS');
+  const originModule = page.dataset.noteModule || (originId === '4' ? 'RRHH' : 'Almacen');
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
@@ -19,6 +25,7 @@
     salidaItems: [],
     busTimer: null,
     productTimer: null,
+    workerTimer: null,
   };
 
   const esc = (value) => String(value ?? '')
@@ -194,6 +201,9 @@
     const priceChip = canEditPrices
       ? `<span class="alm-chip"><i class="bi bi-cash"></i> ${esc(fmtMoney(product.precio))}</span>`
       : '';
+    const controlChip = isAdmin
+      ? `<span class="alm-chip"><i class="bi bi-sliders"></i> ${esc(product.area_control || originArea)} / ${esc(product.tipo_control || originTipo)}</span>`
+      : '';
 
     box.innerHTML = `
       <strong>(${esc(product.codigo || product.id)}) ${esc(product.producto)}</strong>
@@ -201,6 +211,7 @@
       <div class="alm-product-chips">
         <span class="alm-chip"><i class="bi bi-boxes"></i> Stock ${esc(fmtQty(product.stock))}</span>
         ${priceChip}
+        ${controlChip}
       </div>
     `;
   }
@@ -246,15 +257,19 @@
     if (!tbody) return;
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="alm-table__empty">No se encontraron productos.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="alm-table__empty">No se encontraron productos para este origen.</td></tr>';
       if (status) status.textContent = 'Sin resultados para el filtro actual.';
       return;
     }
 
-    tbody.innerHTML = rows.map((row, index) => `
+    tbody.innerHTML = rows.map((row, index) => {
+      const controlLine = isAdmin
+        ? `<br><small class="alm-catalog-control">${esc(row.area_control || originArea)} - ${esc(row.tipo_control || originTipo)}</small>`
+        : '';
+      return `
       <tr data-index="${index}">
         <td><span class="alm-badge">${esc(row.codigo || row.id)}</span></td>
-        <td><strong>${esc(row.producto)}</strong><br><small>${esc(row.descripcion || '')}</small></td>
+        <td><strong>${esc(row.producto)}</strong><br><small>${esc(row.descripcion || '')}</small>${controlLine}</td>
         <td>${esc(row.categoria || '-')}</td>
         <td>${esc(row.unidad || '-')}</td>
         <td>${esc(fmtQty(row.stock))}</td>
@@ -265,22 +280,31 @@
           </button>
         </td>
       </tr>
-    `).join('');
+    `; }).join('');
 
     tbody.dataset.rows = JSON.stringify(rows);
-    if (status) status.textContent = `${rows.length} productos visibles.`;
+    if (status) status.textContent = `${rows.length} productos visibles para ${originArea}.`;
   }
-
   async function loadProducts(query = '') {
     const status = $('#almCatalogStatus');
     if (status) status.textContent = 'Cargando catalogo...';
 
-    const data = await fetchJson('catalogo_productos&q=' + encodeURIComponent(query));
+    const data = await fetchJson('catalogo_productos&q=' + encodeURIComponent(query) + '&origin_id=' + encodeURIComponent(originId));
     renderCatalogRows(data.rows || []);
+  }
+
+  function updateContextLabels() {
+    const catalogOrigin = $('#almCatalogOrigin');
+    if (catalogOrigin) {
+      catalogOrigin.innerHTML = `<i class="bi bi-compass"></i><span>Abierto desde <strong>${esc(originArea)}</strong> - ${esc(originTipo)}</span>`;
+    }
+    const salidaEyebrow = $('#almSalidaEyebrow');
+    if (salidaEyebrow) salidaEyebrow.textContent = `Nota de salida ${originSerieSalida}`;
   }
 
   function openCatalog(target) {
     state.catalogTarget = target || 'entrada';
+    updateContextLabels();
     const modal = $('#almProductCatalog');
     modal?.classList.toggle('is-stacked', state.catalogTarget === 'salida');
     openModal(modal);
@@ -355,8 +379,8 @@
       formulario: formDataSnapshot(formData),
       nota: {
         tabla: 'tb_notas_salida',
-        clm_nota_serie: 'NE',
-        clm_nota_modulo: 'Almacen',
+        clm_nota_serie: originSerieEntrada,
+        clm_nota_modulo: originModule,
         clm_nota_motivo: $('#almEntradaObservacion')?.value || '',
         clm_nota_espacio: $('#almEntradaUbicacionLabel')?.value || 'ALMACEN (ALM)',
         clm_nota_proveedor: $('#almEntradaProveedor')?.value || '',
@@ -384,6 +408,7 @@
       orgn_id: originId,
       placa_id: $('#almSalidaPlacaId')?.value || '',
       entregado_a: $('#almSalidaEntregado')?.value || '',
+      personal_id: $('#almSalidaPersonalId')?.value || '',
       motivo: $('#almSalidaMotivo')?.value || '',
       items: state.salidaItems.map((item) => ({
         producto_id: item.id,
@@ -401,7 +426,7 @@
       nota: {
         tabla: 'tb_notas_salida',
         clm_nota_serie: 'NS',
-        clm_nota_modulo: 'Almacen',
+        clm_nota_modulo: originModule,
         clm_nota_motivo: payload.motivo,
         clm_nota_placa: payload.placa_id,
         clm_nota_espacio: originLabel,
@@ -625,7 +650,8 @@
 
   $('#almEntradaReset')?.addEventListener('click', () => {
     state.selectedEntrada = null;
-    renderSelectedProduct('entrada', null);
+    updateContextLabels();
+  renderSelectedProduct('entrada', null);
     $('#almEntradaForm')?.reset();
     $('#almEntradaProductoId').value = '';
     setEntradaTipo('');
@@ -665,6 +691,74 @@
     `).join('');
   }
 
+  function openWorkerPanel() {
+    const panel = $('#almWorkerPanel');
+    if (!panel) return;
+    panel.hidden = false;
+    window.setTimeout(() => $('#almWorkerSearch')?.focus(), 30);
+    searchWorkers($('#almWorkerSearch')?.value || $('#almSalidaEntregado')?.value || '').catch((error) => alertBox(error.message, 'error'));
+  }
+
+  function closeWorkerPanel() {
+    const panel = $('#almWorkerPanel');
+    if (!panel) return;
+    panel.hidden = true;
+  }
+
+  function renderWorkers(rows) {
+    const box = $('#almWorkerRows');
+    if (!box) return;
+    if (!rows.length) {
+      box.innerHTML = '<p>No se encontraron trabajadores.</p>';
+      return;
+    }
+    box.innerHTML = rows.map((row) => `
+      <button type="button" data-worker-id="${esc(row.id)}" data-worker-name="${esc(row.nombre)}" data-worker-dni="${esc(row.dni)}">
+        <strong>${esc(row.nombre)}</strong>
+        <small>DNI ${esc(row.dni || '-')} ${row.cargo ? '- ' + esc(row.cargo) : ''}</small>
+      </button>
+    `).join('');
+  }
+
+  async function searchWorkers(query = '') {
+    const data = await fetchJson('trabajadores&q=' + encodeURIComponent(query));
+    renderWorkers(data.rows || []);
+  }
+
+  $('#almOpenWorkerSearch')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    openWorkerPanel();
+  });
+
+  $('#almCloseWorkerPanel')?.addEventListener('click', closeWorkerPanel);
+
+  $('#almWorkerSearch')?.addEventListener('input', (event) => {
+    window.clearTimeout(state.workerTimer);
+    state.workerTimer = window.setTimeout(() => {
+      searchWorkers(event.target.value).catch((error) => alertBox(error.message, 'error'));
+    }, 240);
+  });
+
+  $('#almWorkerRows')?.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-worker-id]');
+    if (!button) return;
+    $('#almSalidaPersonalId').value = button.dataset.workerId || '';
+    const workerName = button.dataset.workerName || '';
+    const workerDni = button.dataset.workerDni || '';
+    $('#almSalidaEntregado').value = workerDni && workerDni !== '-'
+      ? `${workerName} (${workerDni})`
+      : workerName;
+    closeWorkerPanel();
+    $('#almSalidaMotivo')?.focus();
+  });
+
+  document.addEventListener('click', (event) => {
+    const panel = $('#almWorkerPanel');
+    if (!panel || panel.hidden) return;
+    if (event.target.closest('.alm-field--worker')) return;
+    closeWorkerPanel();
+  });
+
   $('#almSalidaBusInput')?.addEventListener('input', (event) => {
     $('#almSalidaPlacaId').value = '';
     window.clearTimeout(state.busTimer);
@@ -691,6 +785,13 @@
       suggest.hidden = true;
       suggest.innerHTML = '';
     }
+    const workerId = $('#almSalidaPersonalId');
+    if (workerId) workerId.value = '';
+    const workerSearch = $('#almWorkerSearch');
+    if (workerSearch) workerSearch.value = '';
+    const workerRows = $('#almWorkerRows');
+    if (workerRows) workerRows.innerHTML = '<p>Busca por nombre o DNI para asignar el responsable.</p>';
+    closeWorkerPanel();
     renderSelectedProduct('salida', null);
     renderSalidaItems();
     updateSalidaSubmitState();
@@ -852,6 +953,7 @@
     }
   });
 
+  updateContextLabels();
   renderSelectedProduct('entrada', null);
   renderSelectedProduct('salida', null);
   renderSalidaItems();

@@ -33,6 +33,9 @@ require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 require_once __DIR__ . '/movimiento_backend.php';
 require_once __DIR__ . '/movimiento_selects.php';
 
+$originConfig = alm_context_config_from_origin($originSpaceId);
+$isRrhhContext = $registerContext === 'rrhh';
+
 if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
     die('No se pudo conectar a la base de datos.');
 }
@@ -70,8 +73,8 @@ try {
     $sedes = alm_select_sedes($conn);
     $anaqueles = alm_select_anaqueles($conn);
     $originSpace = alm_select_espacio($conn, $originSpaceId) ?: [];
-    $stats = array_merge($stats, alm_select_stats($conn));
-    $recentMovements = alm_select_recent_movements($conn);
+    $stats = array_merge($stats, alm_select_stats($conn, $originSpaceId));
+    $recentMovements = alm_select_recent_movements($conn, $originSpaceId);
 } catch (Throwable $e) {
     $pageError = $e->getMessage();
 }
@@ -105,7 +108,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
     <link rel="stylesheet" href="<?= n360_asset('assets/css/almacen_movimiento_n360.css') ?>">
 </head>
 <body>
-<?php n360_render_header(['title' => 'Registro de movimientos', 'subtitle' => 'Almacen operativo']); ?>
+<?php n360_render_header(['title' => 'Registro de movimientos', 'subtitle' => $isRrhhContext ? 'RRHH operativo' : 'Almacen operativo']); ?>
 <?php n360_render_sidebar(); ?>
 
 <main class="main-content n360-main n360-main--module">
@@ -120,20 +123,25 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
          data-current-sede-id="<?= alm_page_h($currentSedeId) ?>"
          data-context="<?= alm_page_h($registerContext) ?>"
          data-origin-id="<?= alm_page_h($originSpaceId) ?>"
-         data-origin-label="<?= alm_page_h($originSpaceLabel) ?>">
+         data-origin-label="<?= alm_page_h($originSpaceLabel) ?>"
+         data-origin-area="<?= alm_page_h($originConfig['area_control'] ?? '') ?>"
+         data-origin-tipo="<?= alm_page_h($originConfig['tipo_control'] ?? '') ?>"
+         data-serie-entrada="<?= alm_page_h($originConfig['serie_entrada'] ?? '') ?>"
+         data-serie-salida="<?= alm_page_h($originConfig['serie_salida'] ?? '') ?>"
+         data-note-module="<?= alm_page_h($originConfig['nota_modulo'] ?? '') ?>">
         <section class="alm-mov-hero">
             <div class="alm-mov-hero__copy">
                 <div>
-                    <p class="alm-mov-eyebrow"><i class="bi bi-boxes"></i> Almacen - movimiento operativo</p>
+                    <p class="alm-mov-eyebrow"><i class="bi bi-boxes"></i> <?= $isRrhhContext ? 'RRHH - movimiento operativo' : 'Almacen - movimiento operativo' ?></p>
                     <h1>Registro de movimientos</h1>
                 </div>
             </div>
             <div class="alm-mov-hero__actions">
-                <a class="alm-btn alm-btn--soft" href="movimientos_ofi.php">
+                <a class="alm-btn alm-btn--soft" href="<?= alm_page_h(n360_base_url('01_almacen/movimientos_ofi.php')) ?>">
                     <i class="bi bi-clock-history"></i>
                     <span>Movimientos</span>
                 </a>
-                <a class="alm-btn alm-btn--primary" href="notas_almacen.php">
+                <a class="alm-btn alm-btn--primary" href="<?= alm_page_h(n360_base_url('01_almacen/notas_almacen.php')) ?>">
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Notas</span>
                 </a>
@@ -163,7 +171,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
 
         <section class="alm-modebar" aria-label="Tipo de movimiento">
             <div class="alm-modebar__title">
-                <strong>Formulario de Almacen</strong>
+                <strong>Formulario de <?= $isRrhhContext ? 'RRHH' : 'Almacen' ?></strong>
                 <span class="alm-origin-chip"><i class="bi bi-geo-alt-fill"></i> Origen: <?= alm_page_h($originSpaceLabel) ?></span>
             </div>
             <div class="alm-modebar__buttons">
@@ -265,6 +273,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
             </article>
 
             <div class="alm-side-stack">
+                <?php if (!$isRrhhContext): ?>
                 <section class="alm-location alm-location--side">
                             <div class="alm-location__head">
                                 <div>
@@ -331,6 +340,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
                                 </label>
                             </div>
                         </section>
+                <?php endif; ?>
                 <details class="alm-card alm-accordion" id="almRecentAccordion">
                     <summary class="alm-card__head alm-accordion__summary">
                         <div class="alm-card__title" style="color: #000;" >

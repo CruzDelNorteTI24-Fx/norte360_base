@@ -38,6 +38,10 @@ if (!function_exists('n360_render_almacen_product_catalog')) {
                         <i class="bi bi-mouse2"></i>
                         <span>Doble click o seleccionar para usar el producto.</span>
                     </div>
+                    <div class="alm-catalog__origin" id="almCatalogOrigin">
+                        <i class="bi bi-compass"></i>
+                        <span>Origen pendiente</span>
+                    </div>
                 </div>
 
                 <div class="alm-catalog__status" id="almCatalogStatus" role="status" aria-live="polite">
@@ -81,7 +85,7 @@ if (!function_exists('n360_render_almacen_salida_modal')) {
                         <i class="bi bi-box-arrow-up"></i>
                     </div>
                     <div>
-                        <p class="alm-modal__eyebrow">Nota de salida NS</p>
+                        <p class="alm-modal__eyebrow" id="almSalidaEyebrow">Nota de salida NS</p>
                         <h2 id="almSalidaTitle">Armar salida de almacen</h2>
                     </div>
                     <button class="alm-modal__close" type="button" aria-label="Cerrar salida" data-alm-modal-close>
@@ -97,10 +101,32 @@ if (!function_exists('n360_render_almacen_salida_modal')) {
                             <input id="almSalidaPlacaId" name="placa_id" type="hidden">
                             <div class="alm-suggest" id="almSalidaBusSuggest" hidden></div>
                         </label>
-                        <label class="alm-field">
+                        <div class="alm-field alm-field--worker">
                             <span>Entregado a</span>
-                            <input id="almSalidaEntregado" name="entregado_a" type="text" placeholder="Taller, responsable o destino">
-                        </label>
+                            <div class="alm-worker-input">
+                                <input id="almSalidaEntregado" name="entregado_a" type="text" placeholder="Taller, responsable o destino" autocomplete="off">
+                                <button class="alm-icon-btn" type="button" id="almOpenWorkerSearch" aria-label="Buscar trabajador">
+                                    <i class="bi bi-person-check"></i>
+                                </button>
+                            </div>
+                            <input id="almSalidaPersonalId" name="personal_id" type="hidden">
+                            <aside class="alm-worker-panel" id="almWorkerPanel" hidden>
+                                <div class="alm-worker-panel__head">
+                                    <strong>Seleccionar personal</strong>
+                                    <button type="button" class="alm-icon-btn" id="almCloseWorkerPanel" aria-label="Cerrar buscador de personal">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                                <label class="alm-field alm-field--search">
+                                    <span>Buscar trabajador</span>
+                                    <i class="bi bi-search"></i>
+                                    <input id="almWorkerSearch" type="search" autocomplete="off" placeholder="Nombre, DNI o cargo...">
+                                </label>
+                                <div class="alm-worker-panel__rows" id="almWorkerRows">
+                                    <p>Busca por nombre o DNI para asignar el responsable.</p>
+                                </div>
+                            </aside>
+                        </div>
                         <label class="alm-field alm-field--wide">
                             <span>Motivo</span>
                             <textarea id="almSalidaMotivo" name="motivo" rows="2" placeholder="Motivo de la salida..."></textarea>

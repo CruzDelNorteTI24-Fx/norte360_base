@@ -23,6 +23,7 @@ require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
 $permisos = (($_SESSION['permisos'] ?? '') == 'all') ? [] : ($_SESSION['permisos'] ?? []);
 $vistas = (($_SESSION['permisos'] ?? '') == 'all') ? [] : ($_SESSION['vistas'] ?? []);
+$isAdminCatalog = (($_SESSION['web_rol'] ?? '') === 'Admin');
 
 // ---------- Helpers ----------
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
@@ -165,7 +166,9 @@ $list_sql = "
         c.clm_alm_categoria_descripcion AS categoria,
         cod.clm_alm_codigo_NOMBRE AS codigo_categoria,
         COALESCE(v.Stock_Actual, 0) AS stock,
-        COALESCE(v.Estado, 'Sin estado') AS estado
+        COALESCE(v.Estado, 'Sin estado') AS estado,
+        COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN') AS area_control,
+        COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE') AS tipo_control
     FROM tb_alm_producto p
     JOIN tb_alm_categoria c ON p.clm_alm_producto_idCATEGORIA = c.clm_alm_categoria_id
     JOIN tb_alm_codigo cod ON c.clm_alm_categoria_idCODIGO = cod.clm_alm_codigo_id
@@ -205,6 +208,8 @@ if (count($rows) > 0) {
         $estado = h($row['estado'] ?? 'Sin estado');
         $stockClass = estado_stock_class($row['estado'] ?? '', $row['stock'] ?? 0);
         $catLabel = trim(($codigoCategoria ? "($codigoCategoria) " : '') . $categoria);
+        $areaControl = h($row['area_control'] ?? 'ALMACEN');
+        $tipoControl = h($row['tipo_control'] ?? 'CONSUMIBLE');
 
         $mensaje .= "<article class='product-card product-card-pro'>";
         $mensaje .= "  <div class='product-image-area'>" . mostrar_imagen($row['producto_img'], '') . "</div>";
@@ -215,6 +220,12 @@ if (count($rows) > 0) {
         $mensaje .= "    </div>";
         $mensaje .= "    <h4 title='" . $producto . "'>" . $producto . "</h4>";
         $mensaje .= "    <div class='product-category'><i class='bi bi-diagram-3'></i><span>" . h($catLabel) . "</span></div>";
+        if ($isAdminCatalog) {
+            $mensaje .= "    <div class='product-control-tags'>";
+            $mensaje .= "      <span><i class='bi bi-building-gear'></i> Area: " . $areaControl . "</span>";
+            $mensaje .= "      <span><i class='bi bi-sliders'></i> Tipo: " . $tipoControl . "</span>";
+            $mensaje .= "    </div>";
+        }
         $mensaje .= "    <div class='product-metrics'>";
         $mensaje .= "      <div><span>Stock actual</span><strong>" . h($stock) . "</strong></div>";
         $mensaje .= "      <div><span>ID producto</span><strong>#" . $id . "</strong></div>";
@@ -1358,6 +1369,8 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
 .product-category{display:flex;gap:8px;align-items:flex-start;color:#475569;background:#f8fafc;border:1px solid #edf2f7;border-radius:13px;padding:9px 10px;font-size:.83rem;font-weight:750;min-height:44px;}
 .product-category i{color:#0ea5e9;margin-top:1px;}
 .product-category span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.product-control-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:-2px}
+.product-control-tags span{display:inline-flex;align-items:center;gap:6px;border:1px solid #dbeafe;border-radius:999px;background:#eef7ff;color:#075d91;padding:5px 9px;font-size:.72rem;font-weight:900;text-transform:uppercase}
 .product-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .product-metrics div{background:#fff;border:1px solid #e8eef6;border-radius:13px;padding:9px 10px;}
 .product-metrics span{display:block;color:#64748b;font-size:.72rem;font-weight:850;text-transform:uppercase;letter-spacing:.025em;}
