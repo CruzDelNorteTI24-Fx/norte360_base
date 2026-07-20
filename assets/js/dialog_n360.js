@@ -149,6 +149,22 @@
       els.input.placeholder = opts.placeholder || '';
       els.input.value = opts.value || '';
       els.input.autocomplete = opts.autocomplete || 'off';
+      els.input.name = opts.name || ('n360_prompt_' + Date.now());
+      els.input.setAttribute('autocorrect', 'off');
+      els.input.setAttribute('autocapitalize', 'off');
+      els.input.setAttribute('spellcheck', 'false');
+      els.input.setAttribute('data-lpignore', 'true');
+      els.input.setAttribute('data-1p-ignore', 'true');
+      els.input.setAttribute('data-form-type', 'other');
+      if (opts.preventAutofill) {
+        els.input.readOnly = true;
+        window.setTimeout(() => {
+          els.input.value = '';
+          els.input.readOnly = false;
+        }, 80);
+      } else {
+        els.input.readOnly = false;
+      }
     }
 
     els.root.classList.add('is-open');
@@ -194,6 +210,8 @@
         inputLabel: options.inputLabel || 'Dato requerido',
         placeholder: options.placeholder || '',
         autocomplete: options.autocomplete || 'off',
+        name: options.name || '',
+        preventAutofill: Boolean(options.preventAutofill),
         required: options.required !== false,
         value: options.value || '',
       });

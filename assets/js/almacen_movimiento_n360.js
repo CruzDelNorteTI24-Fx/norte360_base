@@ -994,16 +994,18 @@
     });
     if (!confirmed) return;
 
-    const password = await promptBox('Ingresa tu contrasena de sesion para registrar esta salida.', {
+    const password = await promptBox('Ingresa la contrasena de seguridad para registrar esta salida.', {
       title: 'Validar salida',
       inputType: 'password',
-      inputLabel: 'Contrasena',
-      placeholder: 'Contrasena de tu usuario',
+      inputLabel: 'Contrasena de seguridad',
+      placeholder: 'Clave de nota de salida',
       confirmText: 'Validar y guardar',
       cancelText: 'Cancelar',
       variant: 'danger',
       required: true,
-      autocomplete: 'current-password',
+      autocomplete: 'one-time-code',
+      name: 'n360_salida_security_code',
+      preventAutofill: true,
     });
     if (password === null) return;
     payload.password = password;

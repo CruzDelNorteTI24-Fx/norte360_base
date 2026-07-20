@@ -346,7 +346,7 @@ function alm_action_save_salida(mysqli $conn): void {
         alm_json(['ok' => false, 'message' => 'Solicitud invalida.'], 400);
     }
     alm_validate_csrf($payload);
-    alm_validate_current_password($conn, (string)($payload['password'] ?? ''));
+    alm_validate_config_password($conn, 'NOTA_SALIDA_PASS', (string)($payload['password'] ?? ''), 'salida');
     unset($payload['password']);
 
     $salidaOriginId = alm_origin_id_from_payload($payload);

@@ -252,6 +252,34 @@ if (!function_exists('alm_validate_current_password')) {
     }
 }
 
+
+if (!function_exists('alm_validate_config_password')) {
+    function alm_validate_config_password(mysqli $conn, string $configKey, string $password, string $contextLabel = 'operacion'): void {
+        $password = trim($password);
+        if ($password === '') {
+            alm_json(['ok' => false, 'message' => 'Ingresa la contrasena de seguridad para confirmar la ' . $contextLabel . '.'], 422);
+        }
+
+        $row = alm_fetch_one(
+            $conn,
+            "SELECT valor FROM tb_config_sistema WHERE clave = ? AND estado = 1 LIMIT 1",
+            's',
+            [$configKey]
+        );
+        $stored = trim((string)($row['valor'] ?? ''));
+
+        if ($stored === '') {
+            alm_json(['ok' => false, 'message' => 'No se encontro la contrasena de seguridad configurada. Contacta al administrador.'], 500);
+        }
+
+        $matchesPlain = hash_equals($stored, $password);
+        $matchesSha256 = (bool)preg_match('/^[a-f0-9]{64}$/i', $stored) && hash_equals(strtolower($stored), hash('sha256', $password));
+
+        if (!$matchesPlain && !$matchesSha256) {
+            alm_json(['ok' => false, 'message' => 'Contrasena de seguridad incorrecta. La salida no fue registrada.'], 403);
+        }
+    }
+}
 if (!function_exists('alm_float')) {
     function alm_float($value): float {
         $value = str_replace(',', '.', trim((string)$value));
