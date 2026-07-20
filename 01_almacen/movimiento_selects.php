@@ -50,7 +50,7 @@ function alm_select_stats(mysqli $conn, int $originId = 1): array {
         FROM tb_alm_movimientos m
         JOIN tb_alm_producto p ON p.clm_alm_producto_id = m.clm_alm_mov_idPRODUCTO
         WHERE DATE(m.clm_alm_mov_fecha_registro) = CURDATE()
-          AND p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)
+          AND p.clm_alm_producto_idCATEGORIA <> 11
           AND COALESCE(m.clm_alm_mov_orgn, 1) = ?
     ", 'i', [$originId]);
 
@@ -77,20 +77,48 @@ function alm_select_recent_movements(mysqli $conn, int $originId = 1, int $limit
         JOIN tb_alm_producto p ON p.clm_alm_producto_id = m.clm_alm_mov_idPRODUCTO
         LEFT JOIN tb_notas_salida ns ON ns.clm_nota_id = m.clm_alm_mov_idNOTA
         LEFT JOIN tb_usuarios u ON u.id_usuario = m.clm_alm_mov_iduser
-        WHERE p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)
+        WHERE p.clm_alm_producto_idCATEGORIA <> 11
           AND COALESCE(m.clm_alm_mov_orgn, 1) = ?
         ORDER BY m.clm_alm_mov_id DESC
         LIMIT {$limit}
     ", 'i', [$originId]);
 }
 
+
+function alm_action_categorias_producto(mysqli $conn): void {
+    $originId = alm_origin_id_from_payload(['orgn_id' => (int)($_GET['origin_id'] ?? 0)]);
+    $context = alm_context_config_from_origin($originId);
+
+    $rows = alm_fetch_all($conn, "
+        SELECT
+            c.clm_alm_categoria_id AS id,
+            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_NOMBRE), ''), CONCAT('CAT', c.clm_alm_categoria_id)) AS nombre,
+            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_DESCRIPCION), ''), COALESCE(NULLIF(TRIM(c.clm_alm_categoria_NOMBRE), ''), 'Sin descripcion')) AS descripcion,
+            COALESCE(NULLIF(TRIM(cod.clm_alm_codigo_DESCRIPCION), ''), NULLIF(TRIM(cod.clm_alm_codigo_NOMBRE), ''), 'Sin grupo') AS grupo,
+            COALESCE(NULLIF(TRIM(cod.clm_alm_codigo_NOMBRE), ''), '') AS codigo_grupo
+        FROM tb_alm_categoria c
+        JOIN tb_alm_codigo cod ON cod.clm_alm_codigo_id = c.clm_alm_categoria_idCODIGO
+        WHERE c.clm_alm_categoria_id <> 11
+        ORDER BY c.clm_alm_categoria_DESCRIPCION ASC, c.clm_alm_categoria_NOMBRE ASC
+    ");
+
+    alm_json([
+        'ok' => true,
+        'rows' => $rows,
+        'context' => [
+            'origin_id' => $originId,
+            'area_control' => $context['area_control'],
+            'tipo_control' => $context['tipo_control'],
+        ],
+    ]);
+}
 function alm_action_catalogo_productos(mysqli $conn): void {
     $q = alm_clean_text($_GET['q'] ?? '', 80);
     $originId = alm_origin_id_from_payload(['orgn_id' => (int)($_GET['origin_id'] ?? 0)]);
     $context = alm_context_config_from_origin($originId);
 
     $where = [
-        'p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)',
+        'p.clm_alm_producto_idCATEGORIA <> 11',
         "UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN')) = ?",
         "UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE')) = ?"
     ];
@@ -171,7 +199,7 @@ function alm_action_buses(mysqli $conn): void {
             clm_placas_id AS id,
             COALESCE(NULLIF(TRIM(clm_placas_BUS), ''), CONCAT('Unidad ', clm_placas_id)) AS bus,
             COALESCE(NULLIF(TRIM(clm_placas_PLACA), ''), '-') AS placa,
-            COALESCE(NULLIF(TRIM(`clm_placas_DUEÃƒâ€˜O`), ''), '') AS dueno
+            COALESCE(NULLIF(TRIM(`clm_placas_DUEÑO`), ''), '') AS dueno
         FROM tb_placas
         WHERE clm_placas_ESTADO = 'Activo'
           AND (

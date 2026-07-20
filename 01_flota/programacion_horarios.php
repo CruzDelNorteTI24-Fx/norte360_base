@@ -3582,6 +3582,203 @@ aside img {
   line-height: 1.45;
 }
 
+.export-groups-card {
+  background: #ffffff;
+  border: 1px solid #dbe6f0;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.export-groups-card__head {
+  padding: 16px 18px;
+  border-bottom: 1px solid #e6edf5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+}
+
+.export-groups-card__title {
+  font-weight: 900;
+  color: #243447;
+  margin-bottom: 3px;
+}
+
+.export-groups-card__desc {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.export-groups-count {
+  flex: 0 0 auto;
+  min-width: 90px;
+  text-align: center;
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: #eef5fc;
+  border: 1px solid #d5e5f4;
+  color: #1f5f91;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.export-groups-list {
+  max-height: 310px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.export-group-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 14px;
+  border: 1px solid #e1e9f1;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.export-group-item + .export-group-item {
+  margin-top: 9px;
+}
+
+.export-group-item:hover {
+  border-color: #c5d7e8;
+  background: #fbfdff;
+}
+
+.export-group-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.export-group-name {
+  color: #243447;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.export-group-default {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #f1f5f9;
+  color: #526174;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .03em;
+}
+
+.export-group-meta,
+.export-group-offices {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.export-group-meta {
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.export-group-offices {
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export-group-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-group-btn {
+  min-width: 98px;
+  border-radius: 12px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 900;
+  transition: .18s ease;
+}
+
+.export-group-btn i {
+  margin-right: 5px;
+}
+
+.export-group-btn--pizarra {
+  color: #1f6fb2;
+  background: #edf7ff;
+  border-color: #b9daf5;
+}
+
+.export-group-btn--tabla {
+  color: #167b4d;
+  background: #eefbf3;
+  border-color: #bfe7cd;
+}
+
+.export-group-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .10);
+}
+
+.export-group-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.export-groups-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.export-section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #526174;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 767.98px) {
+  .export-groups-card__head,
+  .export-group-item {
+    grid-template-columns: 1fr;
+  }
+
+  .export-groups-card__head {
+    align-items: flex-start;
+  }
+
+  .export-groups-count {
+    min-width: 0;
+  }
+
+  .export-group-actions {
+    width: 100%;
+  }
+
+  .export-group-btn {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .export-switch-box {
   background: #eef5fc;
   border: 1px solid #d6e6f5;
@@ -4197,7 +4394,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 <div class="modal fade" id="modalInhabilitados" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Horarios inhabilitados</h5><div class="small text-white-50">Desde aquí puedes reactivar horarios sin mostrarlos en la pizarra principal.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div id="inhabilitadosContainer"></div></div></div></div></div>
 
 <div class="modal fade" id="modalExportImagen" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content modal-img-export">
 
       <div class="modal-header modal-img-export__header">
@@ -4212,6 +4409,27 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
       </div>
 
       <div class="modal-body modal-img-export__body">
+
+        <div class="export-groups-card mt-3">
+          <div class="export-groups-card__head">
+            <div>
+              <div class="export-groups-card__title">
+                Descarga individual por grupo
+              </div>
+            </div>
+
+            <div class="export-groups-count" id="gruposExportResumen">
+              0 grupos
+            </div>
+          </div>
+
+          <div class="export-groups-list" id="gruposExportLista"></div>
+        </div>
+
+        <div class="export-section-label mt-3">
+          <i class="bi bi-collection"></i>
+          Descarga masiva por formato
+        </div>
 
         <div class="export-mode-card">
           <div>
@@ -4229,7 +4447,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
           </div>
         </div>
 
-        <div class="row g-3 mt-2">
+        <div class="row g-3 mt-1">
           <div class="col-md-6">
             <button type="button" class="export-option export-option--pizarra" id="btnDescargarPizarra">
               <i class="bi bi-layout-text-window-reverse"></i>
@@ -4365,7 +4583,8 @@ btnDescargarTablaPDF: $('btnDescargarTablaPDF'),
 switchModoImagen: $('switchModoImagen'),
 lblModoImagen: $('lblModoImagen'),
 txtModoImagen: $('txtModoImagen'),
-
+gruposExportLista: $('gruposExportLista'),
+gruposExportResumen: $('gruposExportResumen'),
     btnHistorial: $('btnHistorial'),
     btnInhabilitados: $('btnInhabilitados'),
     btnLimpiarPizarra: $('btnLimpiarPizarra'),
@@ -4442,7 +4661,9 @@ txtModoImagen: $('txtModoImagen'),
         if (btn) btn.disabled = flag;
       });
 
-      document.querySelectorAll('[data-action], [data-reactivar], [data-marcar-taller], [data-marcar-sin-horario]').forEach(el => {
+      document.querySelectorAll(
+        '[data-action], [data-reactivar], [data-marcar-taller], [data-marcar-sin-horario], [data-export-grupo]'
+      ).forEach(el => {
         if (flag) {
           el.style.pointerEvents = 'none';
           el.style.opacity = '0.65';
@@ -5264,6 +5485,210 @@ function actualizarTextoModoImagen() {
   } else {
     els.lblModoImagen.textContent = 'Predefinido';
     els.txtModoImagen.textContent = 'Predefinido: solo descarga los grupos que pertenecen al formato seleccionado.';
+  }
+}
+
+
+function normalizarNombreGrupoExportacion(value) {
+  return String(value || 'SIN GRUPO').trim() || 'SIN GRUPO';
+}
+
+function obtenerGruposDisponiblesExportacion() {
+  const grupos = new Map();
+
+  const asegurarGrupo = (nombreRaw, tipoRaw = 'PIZARRA') => {
+    const nombre = normalizarNombreGrupoExportacion(nombreRaw);
+    const key = nombre.toLocaleUpperCase('es');
+    const tipo = String(tipoRaw || 'PIZARRA').trim().toUpperCase() || 'PIZARRA';
+
+    if (!grupos.has(key)) {
+      grupos.set(key, {
+        nombreGrupo: nombre,
+        tipoImagen: tipo,
+        oficinas: new Set(),
+        filas: []
+      });
+    }
+
+    return grupos.get(key);
+  };
+
+  // No se crea ninguna conexión adicional: esta data ya viene en el snapshot.
+  (state.snapshot.oficinas_origen || []).forEach(oficina => {
+    const grupo = asegurarGrupo(oficina.grupo_pizarra, oficina.tipo_imagen_grupo);
+    const nombreOficina = String(oficina.oficina || '').trim();
+
+    if (nombreOficina) {
+      grupo.oficinas.add(nombreOficina);
+    }
+  });
+
+  // Se usan las filas actualmente visibles para mantener la misma lógica de exportación existente.
+  getFilteredRows().forEach(fila => {
+    const grupo = asegurarGrupo(
+      fila.grupo_pizarra_origen,
+      fila.tipo_imagen_grupo_origen
+    );
+
+    grupo.filas.push(fila);
+
+    const nombreOficina = String(fila.oficina_origen || '').trim();
+    if (nombreOficina) {
+      grupo.oficinas.add(nombreOficina);
+    }
+  });
+
+  return Array.from(grupos.values())
+    .map(grupo => ({
+      ...grupo,
+      oficinas: Array.from(grupo.oficinas).sort(compareTextNatural),
+      totalHorarios: grupo.filas.length
+    }))
+    .sort((a, b) => compareTextNatural(a.nombreGrupo, b.nombreGrupo));
+}
+
+function renderListaGruposExportacion() {
+  if (!els.gruposExportLista || !els.gruposExportResumen) return;
+
+  const grupos = obtenerGruposDisponiblesExportacion();
+  els.gruposExportResumen.textContent = `${grupos.length} ${grupos.length === 1 ? 'grupo' : 'grupos'}`;
+
+  if (!grupos.length) {
+    els.gruposExportLista.innerHTML = `
+      <div class="export-groups-empty">
+        <i class="bi bi-inboxes me-1"></i>
+        No hay grupos configurados en las sedes de origen.
+      </div>
+    `;
+    return;
+  }
+
+  els.gruposExportLista.innerHTML = grupos.map(grupo => {
+    const totalOficinas = grupo.oficinas.length;
+    const oficinasTxt = totalOficinas
+      ? grupo.oficinas.join(' · ')
+      : 'Sin sedes asociadas';
+    const sinHorarios = grupo.totalHorarios === 0;
+    const estadoTitle = sinHorarios
+      ? 'Este grupo no tiene horarios visibles con el filtro actual.'
+      : `Descargar ${grupo.totalHorarios} horario(s) de este grupo.`;
+
+    return `
+      <div class="export-group-item">
+        <div class="export-group-info">
+          <div class="export-group-name-row">
+            <span class="export-group-name">${esc(grupo.nombreGrupo)}</span>
+            <span class="export-group-default">PREDEF. ${esc(grupo.tipoImagen)}</span>
+          </div>
+          <div class="export-group-meta">
+            ${totalOficinas} ${totalOficinas === 1 ? 'sede' : 'sedes'} ·
+            ${grupo.totalHorarios} ${grupo.totalHorarios === 1 ? 'horario' : 'horarios'}
+          </div>
+          <div class="export-group-offices" title="${esc(oficinasTxt)}">${esc(oficinasTxt)}</div>
+        </div>
+
+        <div class="export-group-actions">
+          <button
+            type="button"
+            class="export-group-btn export-group-btn--pizarra"
+            data-export-grupo="${esc(grupo.nombreGrupo)}"
+            data-export-formato="PIZARRA"
+            title="${esc(estadoTitle)}"
+            ${sinHorarios ? 'disabled' : ''}
+          >
+            <i class="bi bi-layout-text-window-reverse"></i>Pizarra
+          </button>
+
+          <button
+            type="button"
+            class="export-group-btn export-group-btn--tabla"
+            data-export-grupo="${esc(grupo.nombreGrupo)}"
+            data-export-formato="TABLA"
+            title="${esc(estadoTitle)}"
+            ${sinHorarios ? 'disabled' : ''}
+          >
+            <i class="bi bi-table"></i>Tabla
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  els.gruposExportLista.querySelectorAll('[data-export-grupo]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      descargarGrupoIndividual(
+        btn.dataset.exportGrupo,
+        btn.dataset.exportFormato,
+        btn
+      );
+    });
+  });
+}
+
+async function descargarGrupoIndividual(nombreGrupo, formatoSeleccionado, btn = null) {
+  if (state.isBusy) return;
+
+  const nombreNormalizado = normalizarNombreGrupoExportacion(nombreGrupo);
+  const formato = String(formatoSeleccionado || 'PIZARRA').trim().toUpperCase();
+
+  const filasGrupo = getFilteredRows().filter(fila => {
+    return normalizarNombreGrupoExportacion(fila.grupo_pizarra_origen)
+      .localeCompare(nombreNormalizado, 'es', { sensitivity: 'base' }) === 0;
+  });
+
+  if (!filasGrupo.length) {
+    showAlert('warning', `El grupo ${nombreNormalizado} no tiene horarios visibles para exportar.`);
+    renderListaGruposExportacion();
+    return;
+  }
+
+  const busesSinHorario = (state.snapshot.buses_sin_horario || [])
+    .slice()
+    .sort(compareBusNatural);
+
+  const busesTaller = (state.snapshot.buses_taller || [])
+    .slice()
+    .sort(compareBusNatural);
+
+  const btnHtml = btn ? btn.innerHTML : '';
+
+  horarioBeginLoading();
+
+  try {
+    if (btn) {
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generando';
+    }
+
+    if (formato === 'TABLA') {
+      await generarImagenTablaGrupo(
+        nombreNormalizado,
+        filasGrupo,
+        busesSinHorario,
+        busesTaller
+      );
+    } else {
+      await generarImagenPizarraGrupo(
+        nombreNormalizado,
+        filasGrupo,
+        busesSinHorario,
+        busesTaller
+      );
+    }
+
+    showAlert(
+      'success',
+      `${nombreNormalizado}: imagen ${formato} descargada correctamente.`
+    );
+  } catch (err) {
+    showAlert(
+      'danger',
+      err.message || `No se pudo generar ${formato} para ${nombreNormalizado}.`
+    );
+  } finally {
+    if (btn) {
+      btn.innerHTML = btnHtml;
+    }
+    horarioEndLoading();
   }
 }
 
@@ -6310,7 +6735,7 @@ busesSinHorario.forEach(b => {
 }
 
 
-  function updateAll(){ renderDates(); renderSummary(); renderBoard(); 
+  function updateAll(){ renderDates(); renderSummary(); renderBoard(); renderListaGruposExportacion();
   renderSideList(
     els.sideTaller,
     state.snapshot.buses_taller || [],
@@ -7158,15 +7583,14 @@ if (btnContraerAcordeones) {
   }
 });
 
-els.btnAbrirModalImagen.addEventListener('click', () => {
-  modalExportImagen.show();
-});
-
 els.switchModoImagen.addEventListener('change', actualizarTextoModoImagen);
 
 els.btnAbrirModalImagen.addEventListener('click', () => {
   if (els.switchModoImagen) els.switchModoImagen.checked = false;
   actualizarTextoModoImagen();
+
+  actualizarTextoModoImagen();
+  renderListaGruposExportacion();  
   modalExportImagen.show();
 });
 

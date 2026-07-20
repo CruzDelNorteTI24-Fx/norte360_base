@@ -53,7 +53,7 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
             <div>
                 <span class="admin-doc-kicker"><i class="bi bi-file-earmark-pdf-fill" aria-hidden="true"></i> Administracion - Sistema</span>
                 <h1>Formatos</h1>
-                <p>Prueba visual de los formatos PDF Norte 360. Incluye hoja A4 corporativa y formatos compactos de etiquetera para notas NS, CM, NE y AB sin consultar la base de datos.</p>
+                <p>Prueba visual de los formatos PDF Norte 360. Incluye hoja A4 corporativa y formatos compactos de etiquetera para notas NS, CM, NE, AB, RE y RS sin consultar la base de datos.</p>
             </div>
             <div class="admin-doc-badge">
                 <span>Estandar</span>
@@ -104,6 +104,14 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
                             <i class="bi bi-droplet-half" aria-hidden="true"></i>
                             <span><strong>AB - Abastecimiento</strong><span>Entrada combustible con importes</span></span>
                         </button>
+                        <button type="button" class="admin-doc-btn admin-doc-btn--ticket" data-ticket-format="RE">
+                            <i class="bi bi-person-fill-down" aria-hidden="true"></i>
+                            <span><strong>RE - Ingreso bienes</strong><span>Entrada RRHH para bienes activos</span></span>
+                        </button>
+                        <button type="button" class="admin-doc-btn admin-doc-btn--ticket" data-ticket-format="RS">
+                            <i class="bi bi-person-fill-up" aria-hidden="true"></i>
+                            <span><strong>RS - Salida bienes</strong><span>Asignacion RRHH sin bus obligatorio</span></span>
+                        </button>
                     </div>
 
                     <div class="admin-doc-preview">
@@ -124,7 +132,7 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
                     <div class="admin-doc-list">
                         <div><span>A4</span><strong>Basado en _page_caratula, _caratula_generica y agregar_pie_pagina</strong></div>
                         <div><span>Etiquetera</span><strong>80 mm de ancho con alto dinamico segun detalle</strong></div>
-                        <div><span>Notas</span><strong>NS salida, CM tanqueada, NE entrada y AB abastecimiento</strong></div>
+                        <div><span>Notas</span><strong>NS salida, CM tanqueada, NE entrada, AB abastecimiento, RE ingreso bienes y RS salida bienes</strong></div>
                         <div><span>Uso futuro</span><strong>Plantillas, reportes y notas bajo assets/js/formatos</strong></div>
                     </div>
                 </div>
@@ -145,6 +153,8 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_almacen.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_bienes.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_bienes.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script>
 const pdfConfig = {
@@ -172,6 +182,8 @@ async function generarNotaDemo(format, button) {
         NS: window.N360NotaSalidaAlmacen,
         CM: window.N360NotaTanqueada,
         NE: window.N360NotaEntradaAlmacen,
+        RE: window.N360NotaEntradaBienes,
+        RS: window.N360NotaSalidaBienes,
         AB: window.N360NotaAbastecimiento
     };
     const generator = generators[format];

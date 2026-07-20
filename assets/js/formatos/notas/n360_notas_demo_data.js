@@ -73,6 +73,34 @@
         });
     }
 
+    function salidaBienes(cfg) {
+        return Object.assign(base(cfg, 'RS'), {
+            correlativo: 12,
+            module: 'RRHH',
+            space: 'RRHH',
+            unitText: '',
+            actor: 'Juan Perez Gomez (72953637)',
+            reason: 'Asignacion de bien controlado para uso operativo.',
+            products: [
+                {qty: '1', description: '(SI1061) BOTAS DE PERSONAL - UN'},
+                {qty: '1', description: '(SI1077) CASCO DE SEGURIDAD - UN'}
+            ]
+        });
+    }
+
+    function entradaBienes(cfg) {
+        return Object.assign(base(cfg, 'RE'), {
+            correlativo: 9,
+            module: 'RRHH',
+            space: 'RRHH',
+            provider: 'Compra interna / stock inicial',
+            documentRef: 'RRHH-REF-001',
+            reason: 'Ingreso de bienes controlados para personal.',
+            products: [
+                {qty: '5', description: '(SI1061) BOTAS DE PERSONAL - UN'}
+            ]
+        });
+    }
     function abastecimiento(cfg) {
         return Object.assign(base(cfg, 'AB'), {
             correlativo: 11,
@@ -93,6 +121,8 @@
             NS: salidaAlmacen,
             CM: tanqueada,
             NE: entradaAlmacen,
+            RE: entradaBienes,
+            RS: salidaBienes,
             AB: abastecimiento
         };
 
@@ -108,6 +138,8 @@
         salidaAlmacen,
         tanqueada,
         entradaAlmacen,
+        entradaBienes,
+        salidaBienes,
         abastecimiento
     };
 })(window);

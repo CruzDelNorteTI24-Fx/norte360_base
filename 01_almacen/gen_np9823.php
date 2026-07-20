@@ -11,6 +11,10 @@ if (($_SESSION['web_rol'] ?? '') !== 'Admin') {
     exit();
 }
 
+if (empty($_SESSION['alm_mov_csrf'])) {
+    $_SESSION['alm_mov_csrf'] = bin2hex(random_bytes(24));
+}
+
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
 
@@ -21,6 +25,7 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
 require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
+require_once __DIR__ . '/../layout/product_create_n360.php';
 $permisos = (($_SESSION['permisos'] ?? '') == 'all') ? [] : ($_SESSION['permisos'] ?? []);
 $vistas = (($_SESSION['permisos'] ?? '') == 'all') ? [] : ($_SESSION['vistas'] ?? []);
 $isAdminCatalog = (($_SESSION['web_rol'] ?? '') === 'Admin');
@@ -1340,6 +1345,8 @@ body.sidebar-collapsed .main-content{margin-left:0!important;}
 .catalog-filters .btn-reset{background:#f8fafc!important;color:#334155!important;border:1px solid #dbe4ef!important;}
 .catalog-filters .btn-scan{background:#0ea5e9!important;color:#fff!important;border:1px solid #0ea5e9!important;animation:none!important;}
 .catalog-filters .btn-scan:hover{background:#0284c7!important;transform:translateY(-1px);}
+.catalog-filters .btn-create-product{background:#16a34a!important;color:#fff!important;border:1px solid #16a34a!important;}
+.catalog-filters .btn-create-product:hover{background:#15803d!important;transform:translateY(-1px);}
 .catalog-actions{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--cat-line);border-radius:18px;padding:13px 16px;margin-bottom:14px;box-shadow:0 12px 28px rgba(15,23,42,.07);}
 .catalog-actions .left,.catalog-actions .right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .catalog-chip{display:inline-flex;align-items:center;gap:7px;background:#f8fafc;border:1px solid #dbe4ef;border-radius:999px;padding:7px 11px;color:#334155;font-weight:850;font-size:.84rem;}
@@ -1566,6 +1573,7 @@ body.drawer-open{
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/almacen_movimiento_n360.css') ?>">
 </head>
 
 <body>
@@ -1655,6 +1663,7 @@ body.drawer-open{
         <button type="submit" class="btn-apply"><i class="bi bi-check2-circle"></i> Aplicar</button>
         <button type="button" class="btn-reset" onclick="limpiarFiltros()"><i class="bi bi-x-circle"></i> Limpiar</button>
         <button type="button" class="btn-scan" onclick="abrirScanner()"><i class="bi bi-camera-video"></i> Escanear</button>
+        <button type="button" class="btn-create-product" data-n360-product-create-open><i class="bi bi-plus-circle"></i> Nuevo producto</button>
       </div>
     </form>
 
@@ -1714,6 +1723,20 @@ body.drawer-open{
 
 
 
+
+<?php
+n360_render_product_create_config([
+  'api' => n360_base_url('01_almacen/movimiento_api.php'),
+  'csrf' => $_SESSION['alm_mov_csrf'] ?? '',
+  'origin_id' => 1,
+  'origin_label' => 'ALMACEN (ALM)',
+  'origin_area' => 'ALMACEN',
+  'origin_tipo' => 'CONSUMIBLE',
+  'is_admin' => true,
+  'after_create' => 'reload',
+]);
+n360_render_product_create_modal();
+?>
 <?php n360_render_content_separator('bottom'); ?>
 
 <?php n360_render_footer(); ?>
@@ -1833,10 +1856,13 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_notas_common.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_almacen.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_bienes.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_bienes.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

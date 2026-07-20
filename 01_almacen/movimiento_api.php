@@ -31,6 +31,14 @@ try {
             alm_action_catalogo_productos($conn);
             break;
 
+        case 'categorias_producto':
+            alm_action_categorias_producto($conn);
+            break;
+
+        case 'crear_producto':
+            alm_action_crear_producto($conn);
+            break;
+
         case 'buses':
             alm_action_buses($conn);
             break;

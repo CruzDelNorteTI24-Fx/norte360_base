@@ -26,6 +26,7 @@
     busTimer: null,
     productTimer: null,
     workerTimer: null,
+    salidaBusBlocked: false,
   };
 
   const esc = (value) => String(value ?? '')
@@ -83,6 +84,11 @@
   const filePreview = (file) => {
     if (!file || !file.name) return '';
     return { name: file.name, size: file.size, type: file.type || 'sin tipo' };
+  };
+
+  const getEntradaForm = () => {
+    const form = document.getElementById('almEntradaForm');
+    return form instanceof HTMLFormElement ? form : null;
   };
 
   const formDataSnapshot = (formData) => {
@@ -350,6 +356,24 @@
     button?.click();
   });
 
+
+  document.addEventListener('n360:product-created', (event) => {
+    const product = event.detail?.product;
+    if (!product) return;
+
+    const area = String(product.area_control || '').toUpperCase();
+    const tipo = String(product.tipo_control || '').toUpperCase();
+    if (area !== String(originArea).toUpperCase() || tipo !== String(originTipo).toUpperCase()) {
+      loadProducts($('#almCatalogSearch')?.value || '').catch((error) => alertBox(error.message, 'error'));
+      return;
+    }
+
+    if (state.catalogTarget === 'salida') applySalidaProduct(product);
+    else applyEntradaProduct(product);
+
+    closeModal($('#almProductCatalog'));
+    loadProducts($('#almCatalogSearch')?.value || '').catch((error) => alertBox(error.message, 'error'));
+  });
   function calculateEntradaMonto() {
     const cantidad = toNumber($('#almEntradaCantidad')?.value);
     const precio = toNumber($('#almEntradaPrecio')?.value);
@@ -363,7 +387,10 @@
 
   function buildEntradaDebugPayload() {
     calculateEntradaMonto();
-    const form = $('#almEntradaForm');
+    const form = getEntradaForm();
+    if (!form) {
+      throw new Error('No se encontro el formulario de entrada.');
+    }
     const formData = new FormData(form);
     formData.set('csrf', csrf);
     const cantidad = toNumber($('#almEntradaCantidad')?.value);
@@ -406,7 +433,8 @@
   function buildSalidaPayload(extra = {}) {
     return {
       orgn_id: originId,
-      placa_id: $('#almSalidaPlacaId')?.value || '',
+      placa_id: state.salidaBusBlocked ? '' : ($('#almSalidaPlacaId')?.value || ''),
+      bus_bloqueado: state.salidaBusBlocked ? 1 : 0,
       entregado_a: $('#almSalidaEntregado')?.value || '',
       personal_id: $('#almSalidaPersonalId')?.value || '',
       motivo: $('#almSalidaMotivo')?.value || '',
@@ -425,7 +453,7 @@
       payload,
       nota: {
         tabla: 'tb_notas_salida',
-        clm_nota_serie: 'NS',
+        clm_nota_serie: originSerieSalida,
         clm_nota_modulo: originModule,
         clm_nota_motivo: payload.motivo,
         clm_nota_placa: payload.placa_id,
@@ -629,7 +657,11 @@
     });
     if (!confirmed) return;
 
-    const form = event.currentTarget;
+    const form = getEntradaForm();
+    if (!form) {
+      await alertBox('No se encontro el formulario de entrada. Actualiza la pagina e intenta nuevamente.', 'error');
+      return;
+    }
     const formData = new FormData(form);
     formData.set('csrf', csrf);
 
@@ -661,7 +693,7 @@
 
   $('#almOpenSalida')?.addEventListener('click', () => {
     openModal($('#almSalidaModal'));
-    window.setTimeout(() => $('#almSalidaBusInput')?.focus(), 40);
+    window.setTimeout(() => (state.salidaBusBlocked ? $('#almSalidaEntregado') : $('#almSalidaBusInput'))?.focus(), 40);
   });
 
   async function searchBuses(query) {
@@ -691,6 +723,34 @@
     `).join('');
   }
 
+  function setSalidaBusBlocked(blocked) {
+    state.salidaBusBlocked = Boolean(blocked);
+    const field = $('#almSalidaBusField');
+    const input = $('#almSalidaBusInput');
+    const hiddenId = $('#almSalidaPlacaId');
+    const hiddenBlocked = $('#almSalidaBusBloqueado');
+    const button = $('#almSalidaBlockBus');
+    const suggest = $('#almSalidaBusSuggest');
+
+    if (hiddenBlocked) hiddenBlocked.value = state.salidaBusBlocked ? '1' : '0';
+    if (hiddenId && state.salidaBusBlocked) hiddenId.value = '';
+    if (input) {
+      input.disabled = state.salidaBusBlocked;
+      input.value = state.salidaBusBlocked ? 'Sin bus asociado' : '';
+      input.placeholder = state.salidaBusBlocked ? 'Bus bloqueado para esta nota' : 'Ej. 158 o ABC-321';
+    }
+    if (button) {
+      button.classList.toggle('is-active', state.salidaBusBlocked);
+      button.setAttribute('aria-pressed', state.salidaBusBlocked ? 'true' : 'false');
+      const label = button.querySelector('span');
+      if (label) label.textContent = state.salidaBusBlocked ? 'Bus bloqueado' : 'Sin bus';
+    }
+    field?.classList.toggle('is-bus-blocked', state.salidaBusBlocked);
+    if (suggest) {
+      suggest.hidden = true;
+      suggest.innerHTML = '';
+    }
+  }
   function openWorkerPanel() {
     const panel = $('#almWorkerPanel');
     if (!panel) return;
@@ -760,6 +820,7 @@
   });
 
   $('#almSalidaBusInput')?.addEventListener('input', (event) => {
+    if (state.salidaBusBlocked) return;
     $('#almSalidaPlacaId').value = '';
     window.clearTimeout(state.busTimer);
     state.busTimer = window.setTimeout(() => {
@@ -767,6 +828,11 @@
     }, 240);
   });
 
+  $('#almSalidaBlockBus')?.addEventListener('click', () => {
+    setSalidaBusBlocked(!state.salidaBusBlocked);
+    const nextFocus = state.salidaBusBlocked ? $('#almSalidaEntregado') : $('#almSalidaBusInput');
+    nextFocus?.focus();
+  });
   function updateSalidaSubmitState() {
     const submit = $('#almSalidaSubmit');
     if (!submit) return;
@@ -776,6 +842,7 @@
   function resetSalidaForm() {
     const form = $('#almSalidaForm');
     if (form) form.reset();
+    setSalidaBusBlocked(false);
     state.selectedSalida = null;
     state.salidaItems = [];
     const hiddenBus = $('#almSalidaPlacaId');
@@ -799,7 +866,7 @@
 
   $('#almSalidaBusSuggest')?.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-bus-id]');
-    if (!button) return;
+    if (!button || state.salidaBusBlocked) return;
     $('#almSalidaPlacaId').value = button.dataset.busId;
     $('#almSalidaBusInput').value = `${button.dataset.busLabel} (${button.dataset.busPlaca})`;
     $('#almSalidaBusSuggest').hidden = true;
@@ -900,8 +967,8 @@
   $('#almSalidaForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
 
-    if (!$('#almSalidaPlacaId').value) {
-      await alertBox('Selecciona una unidad valida para la salida.', 'warning');
+    if (!state.salidaBusBlocked && !$('#almSalidaPlacaId').value) {
+      await alertBox('Selecciona una unidad valida para la salida o activa Sin bus.', 'warning');
       $('#almSalidaBusInput').focus();
       return;
     }
@@ -919,7 +986,7 @@
 
     const payload = buildSalidaPayload();
 
-    const confirmed = await confirmBox('Se registrara una nota de salida NS con los items indicados. ¿Continuamos?', {
+    const confirmed = await confirmBox('Se registrara una nota de salida ' + originSerieSalida + ' con los items indicados. Continuamos?', {
       title: 'Confirmar salida',
       confirmText: 'Registrar salida',
       cancelText: 'Cancelar',
@@ -946,6 +1013,9 @@
         () => fetchJson('save_salida', { method: 'POST', json: payload }),
         { title: 'Registrando salida', detail: 'Validando stock y guardando nota...', button: '#almSalidaSubmit' }
       );
+      if (data.nota_id && window.N360NotaPDF) {
+        await window.N360NotaPDF.downloadByNotaId(data.nota_id);
+      }
       await alertBox(`Salida registrada correctamente.\nNota: ${data.nota_codigo || data.nota_id}`, 'success', 'Salida guardada');
       window.location.reload();
     } catch (error) {

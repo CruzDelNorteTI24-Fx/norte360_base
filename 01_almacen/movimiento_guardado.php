@@ -18,6 +18,143 @@ function alm_debug_sanitize($value) {
     return $value;
 }
 
+
+function alm_action_crear_producto(mysqli $conn): void {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        alm_json(['ok' => false, 'message' => 'Metodo no permitido.'], 405);
+    }
+
+    if (!alm_can_registrar()) {
+        alm_json(['ok' => false, 'message' => 'No tienes permiso para crear productos.'], 403);
+    }
+
+    $payload = $_POST;
+    alm_validate_csrf($payload);
+
+    $originId = alm_origin_id_from_payload($payload);
+    $context = alm_context_config_from_origin($originId);
+    $categoriaId = (int)($payload['categoria_id'] ?? 0);
+    $nombre = alm_clean_text($payload['nombre'] ?? '', 220);
+    $unidad = strtoupper(alm_clean_text($payload['unidad'] ?? '', 30));
+    $stockMinimo = alm_float($payload['stock_minimo'] ?? 0);
+    $descripcion = alm_clean_text($payload['descripcion'] ?? '', 900);
+    $areaControl = $context['area_control'];
+    $tipoControl = $context['tipo_control'];
+
+    if ($categoriaId <= 0 || $nombre === '' || $unidad === '') {
+        alm_json(['ok' => false, 'message' => 'Categoria, nombre y unidad son obligatorios.'], 422);
+    }
+
+    if ($categoriaId === 11) {
+        alm_json(['ok' => false, 'message' => 'La categoria combustible se registra desde el modulo de combustible.'], 422);
+    }
+
+    if ($stockMinimo < 0) {
+        alm_json(['ok' => false, 'message' => 'El stock minimo no puede ser negativo.'], 422);
+    }
+
+    $category = alm_fetch_one($conn, "
+        SELECT
+            c.clm_alm_categoria_id,
+            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_NOMBRE), ''), 'PR') AS categoria_abv,
+            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_DESCRIPCION), ''), 'Sin categoria') AS categoria,
+            COALESCE(NULLIF(TRIM(cod.clm_alm_codigo_NOMBRE), ''), '') AS codigo_grupo
+        FROM tb_alm_categoria c
+        JOIN tb_alm_codigo cod ON cod.clm_alm_codigo_id = c.clm_alm_categoria_idCODIGO
+        WHERE c.clm_alm_categoria_id = ?
+          AND c.clm_alm_categoria_id <> 11
+        LIMIT 1
+    ", 'i', [$categoriaId]);
+
+    if (!$category) {
+        alm_json(['ok' => false, 'message' => 'Categoria no disponible para crear productos.'], 422);
+    }
+
+    $imagenBin = null;
+    if (isset($_FILES['imagen']) && is_uploaded_file($_FILES['imagen']['tmp_name'])) {
+        $size = (int)($_FILES['imagen']['size'] ?? 0);
+        if ($size > 4 * 1024 * 1024) {
+            alm_json(['ok' => false, 'message' => 'La imagen supera el limite de 4 MB.'], 422);
+        }
+
+        $tmpPath = (string)$_FILES['imagen']['tmp_name'];
+        $mime = function_exists('mime_content_type') ? (string)@mime_content_type($tmpPath) : '';
+        if ($mime !== '' && !in_array($mime, ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], true)) {
+            alm_json(['ok' => false, 'message' => 'La imagen debe ser PNG, JPG, WEBP o GIF.'], 422);
+        }
+
+        $imagenBin = file_get_contents($tmpPath);
+    }
+
+    $fecha = date('Y-m-d H:i:s');
+    $conn->begin_transaction();
+
+    $params = [$categoriaId, $nombre, $unidad, $stockMinimo, $descripcion, $imagenBin, $fecha, $areaControl, $tipoControl];
+    $stmt = $conn->prepare("
+        INSERT INTO tb_alm_producto
+        (clm_alm_producto_idCATEGORIA, clm_alm_producto_NOMBRE, clm_alm_producto_unidad,
+         clm_alm_producto_stock_minimo, clm_alm_producto_DESCRIPCION, clm_alm_producto_IMG,
+         clm_alm_producto_fecha_registro, clm_alm_producto_area_control, clm_alm_producto_tipo_control)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    alm_bind($stmt, 'issdsssss', $params);
+    $stmt->execute();
+    $productId = (int)$conn->insert_id;
+    $stmt->close();
+
+    $categoriaAbv = trim((string)($category['categoria_abv'] ?? 'PR'));
+    if ($categoriaAbv === '') {
+        $categoriaAbv = 'PR';
+    }
+    $codigoProducto = $categoriaAbv . str_pad((string)$productId, 4, '0', STR_PAD_LEFT);
+
+    $updateParams = [$codigoProducto, $productId];
+    $stmtUpdate = $conn->prepare("
+        UPDATE tb_alm_producto
+        SET clm_alm_producto_codigo = ?
+        WHERE clm_alm_producto_id = ?
+    ");
+    alm_bind($stmtUpdate, 'si', $updateParams);
+    $stmtUpdate->execute();
+    $stmtUpdate->close();
+
+    $conn->commit();
+
+    $product = alm_fetch_one($conn, "
+        SELECT
+            p.clm_alm_producto_id AS id,
+            COALESCE(NULLIF(TRIM(p.clm_alm_producto_codigo), ''), p.clm_alm_producto_id) AS codigo,
+            p.clm_alm_producto_NOMBRE AS producto,
+            COALESCE(NULLIF(TRIM(p.clm_alm_producto_DESCRIPCION), ''), '') AS descripcion,
+            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_DESCRIPCION), ''), 'Sin categoria') AS categoria,
+            COALESCE(NULLIF(TRIM(p.clm_alm_producto_unidad), ''), '-') AS unidad,
+            COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN') AS area_control,
+            COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE') AS tipo_control,
+            COALESCE(p.clm_alm_producto_stock_minimo, 0) AS stock_min,
+            0 AS stock,
+            COALESCE(p.clm_alm_producto_prec_unit, 0) AS precio,
+            0 AS tiene_movimientos
+        FROM tb_alm_producto p
+        JOIN tb_alm_categoria c ON c.clm_alm_categoria_id = p.clm_alm_producto_idCATEGORIA
+        WHERE p.clm_alm_producto_id = ?
+        LIMIT 1
+    ", 'i', [$productId]);
+
+    if (!alm_can_edit_prices() && $product) {
+        $product['precio'] = 0;
+    }
+
+    alm_json([
+        'ok' => true,
+        'message' => 'Producto creado correctamente.',
+        'product' => $product,
+        'context' => [
+            'origin_id' => $originId,
+            'area_control' => $areaControl,
+            'tipo_control' => $tipoControl,
+        ],
+    ]);
+}
 function alm_action_debug_payload(mysqli $conn): void {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         alm_json(['ok' => false, 'message' => 'Metodo no permitido.'], 405);
@@ -76,7 +213,7 @@ function alm_action_save_entrada(mysqli $conn): void {
                COALESCE(p.clm_alm_producto_prec_unit, 0) AS precio
         FROM tb_alm_producto p
         WHERE p.clm_alm_producto_id = ?
-          AND p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)
+          AND p.clm_alm_producto_idCATEGORIA <> 11
           AND UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN')) = ?
           AND UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE')) = ?
         LIMIT 1
@@ -214,24 +351,31 @@ function alm_action_save_salida(mysqli $conn): void {
 
     $salidaOriginId = alm_origin_id_from_payload($payload);
     $context = alm_context_config_from_origin($salidaOriginId);
-    $placaId = (int)($payload['placa_id'] ?? 0);
+    $busBloqueado = !empty($payload['bus_bloqueado']);
+    $placaId = $busBloqueado ? null : (int)($payload['placa_id'] ?? 0);
     $entregado = alm_clean_text($payload['entregado_a'] ?? '', 220);
     $motivo = alm_clean_text($payload['motivo'] ?? '', 900);
     $items = $payload['items'] ?? [];
 
-    if ($placaId <= 0 || !is_array($items) || count($items) === 0) {
-        alm_json(['ok' => false, 'message' => 'Selecciona unidad e items para la salida.'], 422);
+    if (!is_array($items) || count($items) === 0) {
+        alm_json(['ok' => false, 'message' => 'Agrega items para la salida.'], 422);
     }
 
-    $bus = alm_fetch_one($conn, "
-        SELECT clm_placas_id
-        FROM tb_placas
-        WHERE clm_placas_id = ? AND clm_placas_ESTADO = 'Activo'
-        LIMIT 1
-    ", 'i', [$placaId]);
+    if (!$busBloqueado && (int)$placaId <= 0) {
+        alm_json(['ok' => false, 'message' => 'Selecciona unidad o activa Sin bus para la salida.'], 422);
+    }
 
-    if (!$bus) {
-        alm_json(['ok' => false, 'message' => 'La unidad seleccionada no esta activa o no existe.'], 422);
+    if (!$busBloqueado) {
+        $bus = alm_fetch_one($conn, "
+            SELECT clm_placas_id
+            FROM tb_placas
+            WHERE clm_placas_id = ? AND clm_placas_ESTADO = 'Activo'
+            LIMIT 1
+        ", 'i', [$placaId]);
+
+        if (!$bus) {
+            alm_json(['ok' => false, 'message' => 'La unidad seleccionada no esta activa o no existe.'], 422);
+        }
     }
 
     $preparedItems = [];
@@ -251,7 +395,7 @@ function alm_action_save_salida(mysqli $conn): void {
             FROM tb_alm_producto p
             LEFT JOIN vw_control_inventario v ON v.ID = p.clm_alm_producto_id
             WHERE p.clm_alm_producto_id = ?
-              AND p.clm_alm_producto_idCATEGORIA NOT IN (11, 14)
+              AND p.clm_alm_producto_idCATEGORIA <> 11
               AND UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN')) = ?
               AND UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE')) = ?
             LIMIT 1
@@ -344,5 +488,10 @@ function alm_action_save_salida(mysqli $conn): void {
         'movimiento_id' => $movId,
         'nota_id' => $notaId,
         'nota_codigo' => $notaCodigo,
+        'auto_pdf' => true,
+        'pdf_params' => [
+            'id_nota' => $notaId,
+            'series' => $serie,
+        ],
     ]);
 }

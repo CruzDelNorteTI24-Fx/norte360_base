@@ -19,6 +19,8 @@
         const generators = {
             NS: window.N360NotaSalidaAlmacen,
             NE: window.N360NotaEntradaAlmacen,
+            RE: window.N360NotaEntradaBienes,
+            RS: window.N360NotaSalidaBienes,
             CM: window.N360NotaTanqueada,
             AB: window.N360NotaAbastecimiento
         };

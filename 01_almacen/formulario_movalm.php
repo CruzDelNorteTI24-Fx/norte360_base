@@ -17,6 +17,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 require_once __DIR__ . '/../layout/quick_scan_n360.php';
 require_once __DIR__ . '/../layout/bus_lookup_n360.php';
 require_once __DIR__ . '/../layout/almacen_movimiento_n360.php';
+require_once __DIR__ . '/../layout/product_create_n360.php';
 
 $registerContext = (defined('N360_ALM_REGISTER_CONTEXT') && N360_ALM_REGISTER_CONTEXT === 'rrhh') ? 'rrhh' : 'almacen';
 $originSpaceId = $registerContext === 'rrhh' ? 4 : 1;
@@ -394,6 +395,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
 </main>
 
 <?php n360_render_almacen_product_catalog(); ?>
+<?php n360_render_product_create_modal(); ?>
 <?php n360_render_almacen_salida_modal(); ?>
 <?php n360_render_footer(); ?>
 
@@ -411,12 +413,15 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_notas_common.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_almacen.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_almacen.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_entrada_bienes.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_bienes.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

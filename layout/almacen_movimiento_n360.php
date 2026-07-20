@@ -42,6 +42,10 @@ if (!function_exists('n360_render_almacen_product_catalog')) {
                         <i class="bi bi-compass"></i>
                         <span>Origen pendiente</span>
                     </div>
+                    <button class="alm-btn alm-btn--primary alm-catalog__new" type="button" data-n360-product-create-open>
+                        <i class="bi bi-plus-circle"></i>
+                        <span>Nuevo producto</span>
+                    </button>
                 </div>
 
                 <div class="alm-catalog__status" id="almCatalogStatus" role="status" aria-live="polite">
@@ -95,12 +99,20 @@ if (!function_exists('n360_render_almacen_salida_modal')) {
 
                 <form class="alm-salida__body" id="almSalidaForm" autocomplete="off">
                     <div class="alm-salida__grid">
-                        <label class="alm-field alm-field--lookup">
+                        <div class="alm-field alm-field--lookup" id="almSalidaBusField">
                             <span>Unidad / bus</span>
-                            <input id="almSalidaBusInput" name="bus_texto" type="text" autocomplete="off" placeholder="Ej. 158 o ABC-321">
+                            <div class="alm-bus-lock-row">
+                                <input id="almSalidaBusInput" name="bus_texto" type="text" autocomplete="off" placeholder="Ej. 158 o ABC-321">
+                                <button class="alm-bus-lock-btn" type="button" id="almSalidaBlockBus" aria-pressed="false">
+                                    <i class="bi bi-slash-circle"></i>
+                                    <span>Sin bus</span>
+                                </button>
+                            </div>
                             <input id="almSalidaPlacaId" name="placa_id" type="hidden">
+                            <input id="almSalidaBusBloqueado" name="bus_bloqueado" type="hidden" value="0">
+                            <small class="alm-help">Usa "Sin bus" cuando la nota no debe asociarse a una unidad.</small>
                             <div class="alm-suggest" id="almSalidaBusSuggest" hidden></div>
-                        </label>
+                        </div>
                         <div class="alm-field alm-field--worker">
                             <span>Entregado a</span>
                             <div class="alm-worker-input">
