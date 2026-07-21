@@ -1,0 +1,261 @@
+.rrhh-actas {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.rrhh-actas__hero {
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    border-radius: 8px;
+    padding: 30px 34px;
+    color: #fff;
+    background: radial-gradient(circle at top right, rgba(33,139,208,.22), transparent 34%), linear-gradient(135deg, #122a40, #1f536f);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, .16);
+}
+
+.rrhh-actas__hero p {
+    margin: 0 0 10px;
+    color: #dbeafe;
+    font-size: .78rem;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+.rrhh-actas__hero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 3vw, 3rem);
+    font-weight: 950;
+}
+
+.rrhh-actas__hero span {
+    display: block;
+    margin-top: 8px;
+    color: #eaf5ff;
+    font-weight: 750;
+}
+
+.rrhh-actas__btn {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #cddbea;
+    border-radius: 8px;
+    background: #f7fbff;
+    color: #102235;
+    padding: 9px 14px;
+    font-weight: 900;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.rrhh-actas__btn--primary {
+    border-color: #238dd1;
+    background: #238dd1;
+    color: #fff;
+}
+
+.rrhh-actas__alert {
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fff5f5;
+    color: #991b1b;
+    padding: 14px 16px;
+    font-weight: 850;
+}
+
+.rrhh-actas__kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.rrhh-actas__kpis article {
+    min-height: 80px;
+    border: 1px solid #d6e2ef;
+    border-left: 5px solid #238dd1;
+    border-radius: 8px;
+    background: #fff;
+    padding: 14px 16px;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .07);
+}
+
+.rrhh-actas__kpis span,
+.rrhh-actas__filters span {
+    display: block;
+    color: #64748b;
+    font-size: .76rem;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+.rrhh-actas__kpis strong {
+    display: block;
+    margin-top: 5px;
+    color: #071b31;
+    font-size: 1.72rem;
+    line-height: 1;
+    font-weight: 950;
+}
+
+.rrhh-actas__filters {
+    display: grid;
+    grid-template-columns: 160px 160px 220px minmax(260px, 1fr) auto auto;
+    gap: 12px;
+    align-items: end;
+    border: 1px solid #d6e2ef;
+    border-radius: 8px;
+    background: #fff;
+    padding: 14px;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .06);
+}
+
+.rrhh-actas__filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.rrhh-actas__filters input,
+.rrhh-actas__filters select {
+    min-height: 42px;
+    border: 1px solid #cddbea;
+    border-radius: 8px;
+    background: #fff;
+    color: #102235;
+    padding: 9px 12px;
+    outline: none;
+}
+
+.rrhh-actas__table-card {
+    border: 1px solid #d6e2ef;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, .08);
+    overflow: hidden;
+}
+
+.rrhh-actas__table-card header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px;
+    border-top: 5px solid #14283b;
+}
+
+.rrhh-actas__table-card h2 {
+    margin: 0;
+    color: #071b31;
+    font-size: 1.15rem;
+    font-weight: 950;
+}
+
+.rrhh-actas__table-card p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-weight: 750;
+}
+
+.rrhh-actas__table-card header > span,
+.rrhh-actas__badge,
+.rrhh-actas__chip {
+    display: inline-flex;
+    border-radius: 999px;
+    background: #eef6ff;
+    color: #075d91;
+    padding: 5px 9px;
+    font-size: .76rem;
+    font-weight: 950;
+}
+
+.rrhh-actas__table-wrap {
+    width: 100%;
+    overflow: auto;
+}
+
+.rrhh-actas table {
+    width: 100%;
+    min-width: 960px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.rrhh-actas th {
+    background: #14283b;
+    color: #fff;
+    font-size: .76rem;
+    font-weight: 950;
+    text-transform: uppercase;
+    padding: 12px 11px;
+    white-space: nowrap;
+}
+
+.rrhh-actas td {
+    border-bottom: 1px solid #e3edf5;
+    color: #102235;
+    padding: 12px 11px;
+    vertical-align: top;
+    font-weight: 750;
+}
+
+.rrhh-actas td small {
+    display: block;
+    margin-top: 3px;
+    color: #64748b;
+}
+
+.rrhh-actas__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.rrhh-actas__actions button {
+    min-height: 34px;
+    border: 1px solid #cddbea;
+    border-radius: 8px;
+    background: #f7fbff;
+    color: #102235;
+    padding: 6px 10px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.rrhh-actas__actions button:first-child {
+    border-color: #238dd1;
+    background: #238dd1;
+    color: #fff;
+}
+
+.rrhh-actas__empty {
+    color: #64748b !important;
+    text-align: center;
+    font-weight: 850 !important;
+}
+
+@media (max-width: 1100px) {
+    .rrhh-actas__filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .rrhh-actas__hero,
+    .rrhh-actas__table-card header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .rrhh-actas__kpis,
+    .rrhh-actas__filters {
+        grid-template-columns: 1fr;
+    }
+    .rrhh-actas__btn {
+        width: 100%;
+    }
+}

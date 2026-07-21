@@ -15,6 +15,8 @@
   const originSerieEntrada = page.dataset.serieEntrada || (originId === '4' ? 'RE' : 'NE');
   const originSerieSalida = page.dataset.serieSalida || (originId === '4' ? 'RS' : 'NS');
   const originModule = page.dataset.noteModule || (originId === '4' ? 'RRHH' : 'Almacen');
+  const sessionUserName = page.dataset.userName || page.dataset.user || '';
+  const sessionUserDni = page.dataset.userDni || '';
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
@@ -85,6 +87,127 @@
     if (!file || !file.name) return '';
     return { name: file.name, size: file.size, type: file.type || 'sin tipo' };
   };
+
+  const isRrhhContext = () => String(originId) === '4';
+
+  const todayIso = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  const parsePersonText = (value) => {
+    const text = String(value || '').trim();
+    const match = text.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+    if (match) {
+      return { name: match[1].trim(), dni: match[2].trim() };
+    }
+    return { name: text, dni: '' };
+  };
+
+  const checkedValue = (name, fallback = '') => {
+    return $(`input[name="${name}"]:checked`)?.value || fallback;
+  };
+
+  function applyRrhhSalidaSkin() {
+    const modal = $('#almSalidaModal');
+    modal?.classList.toggle('alm-salida--rrhh', isRrhhContext());
+
+    const title = $('#almSalidaTitle');
+    const entregado = $('#almSalidaEntregado');
+    const busHelp = $('#almSalidaBusField .alm-help');
+
+    if (isRrhhContext()) {
+      if (title) title.textContent = 'Salida de bienes RRHH';
+      if (entregado) entregado.placeholder = 'Trabajador que recibe los bienes';
+      if (busHelp) busHelp.textContent = 'Activa "Sin bus" cuando la entrega no corresponde a una unidad.';
+      return;
+    }
+
+    if (title) title.textContent = 'Armar salida de almacen';
+    if (entregado) entregado.placeholder = 'Taller, responsable o destino';
+    if (busHelp) busHelp.textContent = 'Usa "Sin bus" cuando la nota no debe asociarse a una unidad.';
+  }
+
+  function syncActaDiscountState() {
+    if (!isRrhhContext()) return;
+    const enabled = Boolean($('#almActaDescuenta')?.checked);
+    const cuotas = $('#almActaCuotas');
+    const fecha = $('#almActaFechaDescuento');
+    if (cuotas) cuotas.disabled = !enabled;
+    if (fecha) fecha.disabled = !enabled;
+    $('.alm-acta__cuotas')?.classList.toggle('is-disabled', !enabled);
+    $('.alm-acta__first-payment')?.classList.toggle('is-disabled', !enabled);
+  }
+
+  function syncActaRecibeFromEntregado(force = false, cargo = '') {
+    if (!isRrhhContext()) return;
+    const parsed = parsePersonText($('#almSalidaEntregado')?.value || '');
+    const name = $('#almActaRecibeNombre');
+    const dni = $('#almActaRecibeDni');
+    const cargoInput = $('#almActaRecibeCargo');
+    if (name && (force || !name.value.trim())) name.value = parsed.name || '';
+    if (dni && (force || !dni.value.trim())) dni.value = parsed.dni || '';
+    if (cargoInput && cargo && (force || cargoInput.value === 'EMPLEADO')) cargoInput.value = cargo;
+  }
+
+  function initActaFields() {
+    applyRrhhSalidaSkin();
+    const section = $('#almActaSection');
+    if (!section) return;
+    section.hidden = !isRrhhContext();
+    if (!isRrhhContext()) return;
+
+    const fecha = $('#almActaFechaEntrega');
+    if (fecha && !fecha.value) fecha.value = todayIso();
+    const cuotas = $('#almActaCuotas');
+    if (cuotas && !cuotas.value) cuotas.value = '1';
+    const entregaNombre = $('#almActaEntregaNombre');
+    const entregaDni = $('#almActaEntregaDni');
+    if (entregaNombre && !entregaNombre.value) entregaNombre.value = sessionUserName || 'admin';
+    if (entregaDni && !entregaDni.value) entregaDni.value = sessionUserDni || '';
+    syncActaRecibeFromEntregado(false);
+    syncActaDiscountState();
+  }
+
+  function resetActaFields() {
+    if (!isRrhhContext()) return;
+    $('#almActaFechaEntrega') && ($('#almActaFechaEntrega').value = todayIso());
+    $$('input[name="alm_acta_area"]').forEach((input) => { input.checked = input.value === 'OFICINA'; });
+    $$('input[name="alm_acta_posicion"]').forEach((input) => { input.checked = input.value === 'FULL_TIME'; });
+    $$('input[name="alm_acta_motivo"]').forEach((input) => { input.checked = input.value === 'INICIO_CONTRATO_CORTESIA'; });
+    $('#almActaDescuenta') && ($('#almActaDescuenta').checked = false);
+    $('#almActaCuotas') && ($('#almActaCuotas').value = '1');
+    $('#almActaFechaDescuento') && ($('#almActaFechaDescuento').value = '');
+    $('#almActaObservaciones') && ($('#almActaObservaciones').value = '');
+    $('#almActaRecibeNombre') && ($('#almActaRecibeNombre').value = '');
+    $('#almActaRecibeDni') && ($('#almActaRecibeDni').value = '');
+    $('#almActaRecibeCargo') && ($('#almActaRecibeCargo').value = 'EMPLEADO');
+    $('#almActaEntregaNombre') && ($('#almActaEntregaNombre').value = sessionUserName || 'admin');
+    $('#almActaEntregaDni') && ($('#almActaEntregaDni').value = sessionUserDni || '');
+    $('#almActaEntregaCargo') && ($('#almActaEntregaCargo').value = 'ASISTENTE');
+    syncActaDiscountState();
+  }
+
+  function buildActaPayload() {
+    if (!isRrhhContext()) return null;
+    return {
+      fecha_entrega: $('#almActaFechaEntrega')?.value || todayIso(),
+      area: checkedValue('alm_acta_area', 'OFICINA'),
+      posicion: checkedValue('alm_acta_posicion', 'FULL_TIME'),
+      motivo: checkedValue('alm_acta_motivo', 'INICIO_CONTRATO_CORTESIA'),
+      descuenta: $('#almActaDescuenta')?.checked ? 1 : 0,
+      cuotas: $('#almActaCuotas')?.value || '1',
+      fecha_descuento: $('#almActaFechaDescuento')?.value || '',
+      observaciones: $('#almActaObservaciones')?.value || '',
+      recibe_nombre: $('#almActaRecibeNombre')?.value || '',
+      recibe_dni: $('#almActaRecibeDni')?.value || '',
+      recibe_cargo: $('#almActaRecibeCargo')?.value || '',
+      entrega_nombre: $('#almActaEntregaNombre')?.value || '',
+      entrega_dni: $('#almActaEntregaDni')?.value || '',
+      entrega_cargo: $('#almActaEntregaCargo')?.value || '',
+    };
+  }
 
   const getEntradaForm = () => {
     const form = document.getElementById('almEntradaForm');
@@ -300,6 +423,7 @@
   }
 
   function updateContextLabels() {
+    applyRrhhSalidaSkin();
     const catalogOrigin = $('#almCatalogOrigin');
     if (catalogOrigin) {
       catalogOrigin.innerHTML = `<i class="bi bi-compass"></i><span>Abierto desde <strong>${esc(originArea)}</strong> - ${esc(originTipo)}</span>`;
@@ -442,6 +566,7 @@
         producto_id: item.id,
         cantidad: item.cantidad,
       })),
+      acta: buildActaPayload(),
       ...extra,
     };
   }
@@ -460,6 +585,7 @@
         clm_nota_espacio: originLabel,
         clm_nota_proveedor: payload.entregado_a,
       },
+      acta_uniformes: payload.acta,
       movimientos: state.salidaItems.map((item, index) => ({
         tabla: 'tb_alm_movimientos',
         orden_item: index + 1,
@@ -683,7 +809,8 @@
   $('#almEntradaReset')?.addEventListener('click', () => {
     state.selectedEntrada = null;
     updateContextLabels();
-  renderSelectedProduct('entrada', null);
+    initActaFields();
+    renderSelectedProduct('entrada', null);
     $('#almEntradaForm')?.reset();
     $('#almEntradaProductoId').value = '';
     setEntradaTipo('');
@@ -691,7 +818,10 @@
     loadAnaquelesForSede();
   });
 
+  $('#almActaDescuenta')?.addEventListener('change', syncActaDiscountState);
+
   $('#almOpenSalida')?.addEventListener('click', () => {
+    initActaFields();
     openModal($('#almSalidaModal'));
     window.setTimeout(() => (state.salidaBusBlocked ? $('#almSalidaEntregado') : $('#almSalidaBusInput'))?.focus(), 40);
   });
@@ -773,7 +903,7 @@
       return;
     }
     box.innerHTML = rows.map((row) => `
-      <button type="button" data-worker-id="${esc(row.id)}" data-worker-name="${esc(row.nombre)}" data-worker-dni="${esc(row.dni)}">
+      <button type="button" data-worker-id="${esc(row.id)}" data-worker-name="${esc(row.nombre)}" data-worker-dni="${esc(row.dni)}" data-worker-cargo="${esc(row.cargo || row.tipo || '')}">
         <strong>${esc(row.nombre)}</strong>
         <small>DNI ${esc(row.dni || '-')} ${row.cargo ? '- ' + esc(row.cargo) : ''}</small>
       </button>
@@ -808,6 +938,7 @@
     $('#almSalidaEntregado').value = workerDni && workerDni !== '-'
       ? `${workerName} (${workerDni})`
       : workerName;
+    syncActaRecibeFromEntregado(true, button.dataset.workerCargo || '');
     closeWorkerPanel();
     $('#almSalidaMotivo')?.focus();
   });
@@ -859,6 +990,7 @@
     const workerRows = $('#almWorkerRows');
     if (workerRows) workerRows.innerHTML = '<p>Busca por nombre o DNI para asignar el responsable.</p>';
     closeWorkerPanel();
+    resetActaFields();
     renderSelectedProduct('salida', null);
     renderSalidaItems();
     updateSalidaSubmitState();
@@ -952,6 +1084,7 @@
   });
 
   $('#almSalidaConfirm')?.addEventListener('change', updateSalidaSubmitState);
+  $('#almSalidaEntregado')?.addEventListener('input', () => syncActaRecibeFromEntregado(false));
 
   $('#almSalidaDebug')?.addEventListener('click', () => {
     sendDebugPayload('salida', buildSalidaDebugPayload());
@@ -970,6 +1103,12 @@
     if (!state.salidaBusBlocked && !$('#almSalidaPlacaId').value) {
       await alertBox('Selecciona una unidad valida para la salida o activa Sin bus.', 'warning');
       $('#almSalidaBusInput').focus();
+      return;
+    }
+
+    if (isRrhhContext() && !String($('#almSalidaEntregado')?.value || '').trim()) {
+      await alertBox('Selecciona o escribe el trabajador que recibira los bienes.', 'warning');
+      $('#almSalidaEntregado')?.focus();
       return;
     }
 
@@ -1018,6 +1157,9 @@
       if (data.nota_id && window.N360NotaPDF) {
         await window.N360NotaPDF.downloadByNotaId(data.nota_id);
       }
+      if (data.acta_id && window.N360ActaUniformes) {
+        await window.N360ActaUniformes.downloadByActaId(data.acta_id);
+      }
       await alertBox(`Salida registrada correctamente.\nNota: ${data.nota_codigo || data.nota_id}`, 'success', 'Salida guardada');
       window.location.reload();
     } catch (error) {
@@ -1026,6 +1168,7 @@
   });
 
   updateContextLabels();
+  initActaFields();
   renderSelectedProduct('entrada', null);
   renderSelectedProduct('salida', null);
   renderSalidaItems();

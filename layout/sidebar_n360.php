@@ -289,6 +289,13 @@ function n360_menu_config(): array {
                                 'modulo' => 6
                             ],
                             [
+                                'titulo' => 'Actas de uniformes',
+                                'icono' => 'bi bi-file-earmark-text-fill',
+                                'url' => '01_contratos/actas_uniformes.php',
+                                'vistas' => ['rrhh-registeralm'],
+                                'modulo' => 6
+                            ],
+                            [
                                 'titulo' => 'Documentación general',
                                 'icono' => 'bi bi-folder-fill',
                                 'url' => '01_contratos/dorrhcdn.php',

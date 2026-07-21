@@ -129,7 +129,9 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
          data-origin-tipo="<?= alm_page_h($originConfig['tipo_control'] ?? '') ?>"
          data-serie-entrada="<?= alm_page_h($originConfig['serie_entrada'] ?? '') ?>"
          data-serie-salida="<?= alm_page_h($originConfig['serie_salida'] ?? '') ?>"
-         data-note-module="<?= alm_page_h($originConfig['nota_modulo'] ?? '') ?>">
+         data-note-module="<?= alm_page_h($originConfig['nota_modulo'] ?? '') ?>"
+         data-user-name="<?= alm_page_h((string)($_SESSION['usuario_nombre'] ?? $_SESSION['nombre_completo'] ?? $_SESSION['usuario'] ?? '')) ?>"
+         data-user-dni="<?= alm_page_h((string)($_SESSION['DNI'] ?? '')) ?>">
         <section class="alm-mov-hero">
             <div class="alm-mov-hero__copy">
                 <div>
@@ -407,6 +409,13 @@ window.N360_NOTA_PDF_CONFIG = {
     logoTicket: '<?= alm_page_h(n360_base_url('img/completo.png')) ?>',
     footerLabel: 'NORTE 360'
 };
+window.N360_RRHH_ACTA_PDF_CONFIG = {
+    endpoint: '<?= alm_page_h(n360_base_url('php/rrhh_acta_uniforme_data.php')) ?>',
+    userName: <?= json_encode((string)($_SESSION['usuario'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+    dni: <?= json_encode((string)($_SESSION['DNI'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+    logoLeft: '<?= alm_page_h(n360_base_url('img/icon.png')) ?>',
+    logoRight: '<?= alm_page_h(n360_base_url('img/norte360_black.png')) ?>'
+};
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
@@ -417,6 +426,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_salida_bienes.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/rrhh/n360_acta_uniformes.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>

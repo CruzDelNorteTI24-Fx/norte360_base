@@ -177,6 +177,136 @@ function alm_action_debug_payload(mysqli $conn): void {
     alm_json(['ok' => true, 'message' => 'Payload de prueba enviado al log del servidor.']);
 }
 
+function alm_parse_person_label(string $value): array {
+    $value = alm_clean_text($value, 220);
+    if (preg_match('/^(.*?)\s*\(([^)]+)\)\s*$/u', $value, $m)) {
+        return [
+            'nombre' => alm_clean_text($m[1] ?? '', 180),
+            'dni' => alm_clean_text($m[2] ?? '', 20),
+        ];
+    }
+
+    return ['nombre' => $value, 'dni' => ''];
+}
+
+function alm_whitelist_value($value, array $allowed, string $fallback): string {
+    $value = strtoupper(alm_clean_text($value ?? '', 60));
+    return in_array($value, $allowed, true) ? $value : $fallback;
+}
+
+function alm_valid_date_or_null($value): ?string {
+    $value = trim((string)($value ?? ''));
+    if ($value === '') {
+        return null;
+    }
+
+    $dt = DateTime::createFromFormat('Y-m-d', $value);
+    return ($dt && $dt->format('Y-m-d') === $value) ? $value : null;
+}
+
+function alm_save_rrhh_acta_uniformes(mysqli $conn, int $notaId, int $userId, array $payload, array $preparedItems, string $entregado): int {
+    $acta = is_array($payload['acta'] ?? null) ? $payload['acta'] : [];
+    $personalId = (int)($payload['personal_id'] ?? 0);
+    $person = alm_parse_person_label($entregado);
+
+    if ($personalId > 0) {
+        $trab = alm_fetch_one($conn, "
+            SELECT
+                clm_tra_id,
+                COALESCE(NULLIF(TRIM(clm_tra_nombres), ''), CONCAT('Trabajador ', clm_tra_id)) AS nombre,
+                COALESCE(NULLIF(TRIM(clm_tra_dni), ''), '') AS dni,
+                COALESCE(NULLIF(TRIM(clm_tra_cargo), ''), 'EMPLEADO') AS cargo
+            FROM tb_trabajador
+            WHERE clm_tra_id = ?
+            LIMIT 1
+        ", 'i', [$personalId]);
+
+        if ($trab) {
+            $person['nombre'] = alm_clean_text($trab['nombre'] ?? $person['nombre'], 180);
+            $person['dni'] = alm_clean_text($trab['dni'] ?? $person['dni'], 20);
+            if (empty($acta['recibe_cargo'])) {
+                $acta['recibe_cargo'] = $trab['cargo'] ?? 'EMPLEADO';
+            }
+        }
+    }
+
+    if ($person['nombre'] === '') {
+        alm_json(['ok' => false, 'message' => 'Ingresa el trabajador que recibira los bienes para generar el acta.'], 422);
+    }
+
+    $fechaEntrega = alm_valid_date_or_null($acta['fecha_entrega'] ?? null) ?: date('Y-m-d');
+    $area = alm_whitelist_value($acta['area'] ?? '', ['COUNTER_H', 'COUNTER_M', 'CONDUCTOR', 'OFICINA'], 'OFICINA');
+    $posicion = alm_whitelist_value($acta['posicion'] ?? '', ['PART_TIME', 'FULL_TIME'], 'FULL_TIME');
+    $motivo = alm_whitelist_value($acta['motivo'] ?? '', ['INICIO_CONTRATO_CORTESIA', 'REPOSICION_DESGASTE', 'PERDIDA_ROBO', 'COMPRA'], 'INICIO_CONTRATO_CORTESIA');
+    $total = 0.0;
+    foreach ($preparedItems as $item) {
+        $total += (float)($item['monto'] ?? 0);
+    }
+
+    $descuenta = !empty($acta['descuenta']) ? 1 : 0;
+    $cuotas = max(1, min(24, (int)($acta['cuotas'] ?? 1)));
+    $fechaDescuento = $descuenta ? alm_valid_date_or_null($acta['fecha_descuento'] ?? null) : null;
+    $observaciones = alm_clean_text($acta['observaciones'] ?? '', 1200);
+
+    $recibeNombre = alm_clean_text($acta['recibe_nombre'] ?? $person['nombre'], 180);
+    $recibeDni = alm_clean_text($acta['recibe_dni'] ?? $person['dni'], 20);
+    $recibeCargo = alm_clean_text($acta['recibe_cargo'] ?? 'EMPLEADO', 80);
+    if ($recibeNombre === '') $recibeNombre = $person['nombre'];
+    if ($recibeDni === '') $recibeDni = $person['dni'];
+    if ($recibeCargo === '') $recibeCargo = 'EMPLEADO';
+
+    $entregaNombre = alm_clean_text($acta['entrega_nombre'] ?? ($_SESSION['usuario'] ?? ''), 180);
+    $entregaDni = alm_clean_text($acta['entrega_dni'] ?? ($_SESSION['DNI'] ?? ''), 20);
+    $entregaCargo = alm_clean_text($acta['entrega_cargo'] ?? 'ASISTENTE', 80);
+    if ($entregaNombre === '') $entregaNombre = alm_clean_text($_SESSION['usuario'] ?? 'Usuario', 180);
+    if ($entregaCargo === '') $entregaCargo = 'ASISTENTE';
+
+    $params = [
+        $notaId, $fechaEntrega, $personalId > 0 ? $personalId : null, $person['nombre'], $person['dni'],
+        $area, $posicion, $motivo, $total, $descuenta, $cuotas, $fechaDescuento, $observaciones,
+        $recibeNombre, $recibeDni, $recibeCargo, $entregaNombre, $entregaDni, $entregaCargo, $userId
+    ];
+
+    $stmt = $conn->prepare("
+        INSERT INTO tb_rrhh_acta_uniformes
+        (clm_rrhh_acta_idnota, clm_rrhh_acta_fecha_entrega, clm_rrhh_acta_trabajador_id,
+         clm_rrhh_acta_trabajador_nombre, clm_rrhh_acta_trabajador_dni, clm_rrhh_acta_area,
+         clm_rrhh_acta_posicion, clm_rrhh_acta_motivo, clm_rrhh_acta_total,
+         clm_rrhh_acta_descuenta, clm_rrhh_acta_cuotas, clm_rrhh_acta_fecha_descuento,
+         clm_rrhh_acta_observaciones, clm_rrhh_acta_recibe_nombre, clm_rrhh_acta_recibe_dni,
+         clm_rrhh_acta_recibe_cargo, clm_rrhh_acta_entrega_nombre, clm_rrhh_acta_entrega_dni,
+         clm_rrhh_acta_entrega_cargo, clm_rrhh_acta_usuario_creacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            clm_rrhh_acta_fecha_entrega = VALUES(clm_rrhh_acta_fecha_entrega),
+            clm_rrhh_acta_trabajador_id = VALUES(clm_rrhh_acta_trabajador_id),
+            clm_rrhh_acta_trabajador_nombre = VALUES(clm_rrhh_acta_trabajador_nombre),
+            clm_rrhh_acta_trabajador_dni = VALUES(clm_rrhh_acta_trabajador_dni),
+            clm_rrhh_acta_area = VALUES(clm_rrhh_acta_area),
+            clm_rrhh_acta_posicion = VALUES(clm_rrhh_acta_posicion),
+            clm_rrhh_acta_motivo = VALUES(clm_rrhh_acta_motivo),
+            clm_rrhh_acta_total = VALUES(clm_rrhh_acta_total),
+            clm_rrhh_acta_descuenta = VALUES(clm_rrhh_acta_descuenta),
+            clm_rrhh_acta_cuotas = VALUES(clm_rrhh_acta_cuotas),
+            clm_rrhh_acta_fecha_descuento = VALUES(clm_rrhh_acta_fecha_descuento),
+            clm_rrhh_acta_observaciones = VALUES(clm_rrhh_acta_observaciones),
+            clm_rrhh_acta_recibe_nombre = VALUES(clm_rrhh_acta_recibe_nombre),
+            clm_rrhh_acta_recibe_dni = VALUES(clm_rrhh_acta_recibe_dni),
+            clm_rrhh_acta_recibe_cargo = VALUES(clm_rrhh_acta_recibe_cargo),
+            clm_rrhh_acta_entrega_nombre = VALUES(clm_rrhh_acta_entrega_nombre),
+            clm_rrhh_acta_entrega_dni = VALUES(clm_rrhh_acta_entrega_dni),
+            clm_rrhh_acta_entrega_cargo = VALUES(clm_rrhh_acta_entrega_cargo),
+            clm_rrhh_acta_fecha_actualizacion = CURRENT_TIMESTAMP
+    ");
+
+    alm_bind($stmt, 'isisssssdiissssssssi', $params);
+    $stmt->execute();
+    $stmt->close();
+
+    $row = alm_fetch_one($conn, 'SELECT clm_rrhh_acta_id FROM tb_rrhh_acta_uniformes WHERE clm_rrhh_acta_idnota = ? LIMIT 1', 'i', [$notaId]);
+    return (int)($row['clm_rrhh_acta_id'] ?? 0);
+}
+
 function alm_action_save_entrada(mysqli $conn): void {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         alm_json(['ok' => false, 'message' => 'Metodo no permitido.'], 405);
@@ -361,6 +491,10 @@ function alm_action_save_salida(mysqli $conn): void {
         alm_json(['ok' => false, 'message' => 'Agrega items para la salida.'], 422);
     }
 
+    if ($salidaOriginId === 4 && $entregado === '') {
+        alm_json(['ok' => false, 'message' => 'Selecciona o escribe el trabajador que recibira los bienes.'], 422);
+    }
+
     if (!$busBloqueado && (int)$placaId <= 0) {
         alm_json(['ok' => false, 'message' => 'Selecciona unidad o activa Sin bus para la salida.'], 422);
     }
@@ -480,6 +614,11 @@ function alm_action_save_salida(mysqli $conn): void {
     }
     $stmtMov->close();
 
+    $actaId = null;
+    if ($salidaOriginId === 4) {
+        $actaId = alm_save_rrhh_acta_uniformes($conn, $notaId, $userId, $payload, $preparedItems, $entregado);
+    }
+
     $conn->commit();
 
     alm_json([
@@ -488,6 +627,7 @@ function alm_action_save_salida(mysqli $conn): void {
         'movimiento_id' => $movId,
         'nota_id' => $notaId,
         'nota_codigo' => $notaCodigo,
+        'acta_id' => $actaId,
         'auto_pdf' => true,
         'pdf_params' => [
             'id_nota' => $notaId,

@@ -145,6 +145,76 @@ if (!function_exists('n360_render_almacen_salida_modal')) {
                         </label>
                     </div>
 
+                    <section class="alm-acta" id="almActaSection" hidden>
+                        <div class="alm-acta__head">
+                            <div>
+                                <p>Acta de entrega</p>
+                                <strong>Datos complementarios</strong>
+                            </div>
+                            <span id="almActaNoteHint">Se referenciara con la nota RS generada.</span>
+                        </div>
+
+                        <div class="alm-acta__grid">
+                            <label class="alm-field alm-field--span-3 alm-acta__date">
+                                <span>Fecha entrega</span>
+                                <input id="almActaFechaEntrega" type="date" autocomplete="off">
+                            </label>
+                            <div class="alm-field alm-field--span-5 alm-acta__area">
+                                <span>Area</span>
+                                <div class="alm-acta__pills">
+                                    <label><input type="radio" name="alm_acta_area" value="COUNTER_H"> Counter H.</label>
+                                    <label><input type="radio" name="alm_acta_area" value="COUNTER_M"> Counter M.</label>
+                                    <label><input type="radio" name="alm_acta_area" value="CONDUCTOR"> Conductor</label>
+                                    <label><input type="radio" name="alm_acta_area" value="OFICINA" checked> Oficina</label>
+                                </div>
+                            </div>
+                            <div class="alm-field alm-field--span-4 alm-acta__position">
+                                <span>Posicion</span>
+                                <div class="alm-acta__pills">
+                                    <label><input type="radio" name="alm_acta_posicion" value="PART_TIME"> Part Time</label>
+                                    <label><input type="radio" name="alm_acta_posicion" value="FULL_TIME" checked> Full Time</label>
+                                </div>
+                            </div>
+                            <div class="alm-field alm-field--span-6 alm-acta__reason">
+                                <span>Motivo acta</span>
+                                <div class="alm-acta__pills">
+                                    <label><input type="radio" name="alm_acta_motivo" value="INICIO_CONTRATO_CORTESIA" checked> Inicio/Cortesia</label>
+                                    <label><input type="radio" name="alm_acta_motivo" value="REPOSICION_DESGASTE"> Reposicion</label>
+                                    <label><input type="radio" name="alm_acta_motivo" value="PERDIDA_ROBO"> Perdida/Robo</label>
+                                    <label><input type="radio" name="alm_acta_motivo" value="COMPRA"> Compra</label>
+                                </div>
+                            </div>
+                            <label class="alm-toggle alm-field--span-2 alm-acta__discount">
+                                <input type="checkbox" id="almActaDescuenta">
+                                <span>Se descuenta</span>
+                            </label>
+                            <label class="alm-field alm-field--span-2 alm-acta__cuotas">
+                                <span>Cuotas</span>
+                                <input id="almActaCuotas" type="number" min="1" max="24" step="1" value="1" autocomplete="off">
+                            </label>
+                            <label class="alm-field alm-field--span-2 alm-acta__first-payment">
+                                <span>Primera cuota</span>
+                                <input id="almActaFechaDescuento" type="date" autocomplete="off">
+                            </label>
+                            <label class="alm-field alm-field--span-12">
+                                <span>Observaciones del acta</span>
+                                <textarea id="almActaObservaciones" rows="2" placeholder="Observaciones adicionales del acta..."></textarea>
+                            </label>
+                            <div class="alm-acta__sign alm-field--span-6">
+                                <span>Recibe</span>
+                                <input id="almActaRecibeNombre" type="text" placeholder="Nombre de quien recibe" autocomplete="off">
+                                <input id="almActaRecibeDni" type="text" placeholder="DNI / CE" autocomplete="off">
+                                <input id="almActaRecibeCargo" type="text" placeholder="Cargo" value="EMPLEADO" autocomplete="off">
+                            </div>
+                            <div class="alm-acta__sign alm-field--span-6">
+                                <span>Entrega</span>
+                                <input id="almActaEntregaNombre" type="text" placeholder="Nombre de quien entrega" autocomplete="off">
+                                <input id="almActaEntregaDni" type="text" placeholder="DNI" autocomplete="off">
+                                <input id="almActaEntregaCargo" type="text" placeholder="Cargo" value="ASISTENTE" autocomplete="off">
+                            </div>
+                        </div>
+                    </section>
+
                     <div class="alm-salida__picker">
                         <div class="alm-selected-product alm-selected-product--compact" id="almSalidaProductBox">
                             <span class="alm-selected-product__empty">Selecciona un producto para agregarlo a la nota.</span>
