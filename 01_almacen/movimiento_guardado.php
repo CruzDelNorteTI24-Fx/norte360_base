@@ -767,8 +767,10 @@ function alm_action_save_salida(mysqli $conn): void {
 
     $salidaOriginId = alm_origin_id_from_payload($payload);
     $context = alm_context_config_from_origin($salidaOriginId);
-    $busBloqueado = !empty($payload['bus_bloqueado']);
-    $placaId = $busBloqueado ? null : (int)($payload['placa_id'] ?? 0);
+    $rawPlacaId = (int)($payload['placa_id'] ?? 0);
+    $busBloqueado = !empty($payload['bus_bloqueado'])
+        || (in_array($salidaOriginId, [4, 12], true) && $rawPlacaId <= 0);
+    $placaId = $busBloqueado ? null : $rawPlacaId;
     $entregado = alm_clean_text($payload['entregado_a'] ?? '', 220);
     $motivo = alm_clean_text($payload['motivo'] ?? '', 900);
     $items = $payload['items'] ?? [];

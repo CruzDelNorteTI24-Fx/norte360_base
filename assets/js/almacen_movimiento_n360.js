@@ -34,6 +34,8 @@
     salidaLabels: [],
   };
 
+  const shouldDefaultBlockBus = () => isRrhhContext() || isAccountingOrigin;
+
   const esc = (value) => String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -827,15 +829,28 @@
   }
 
   function updateLocationPreview() {
+    const rawField = $('#almEntradaUbicacionRaw');
+    const labelField = $('#almEntradaUbicacionLabel');
+    const preview = $('#almLocationPreview');
+
+    if (isRrhhContext()) {
+      if (rawField) rawField.value = '';
+      if (labelField) labelField.value = originLabel;
+      if (preview) {
+        preview.innerHTML = `<i class="bi bi-geo-alt-fill"></i><span>${esc(originLabel)}</span>`;
+      }
+      return;
+    }
+
     if (isAccountingOrigin) {
       const sede = $('#almEntradaSede');
       const sedeId = sede?.value || '';
       const sedeLabel = sedeId ? selectedOptionText(sede) : '';
       const raw = sedeId ? `OFI-${sedeId}` : '';
-      if ($('#almEntradaUbicacionRaw')) $('#almEntradaUbicacionRaw').value = raw;
-      if ($('#almEntradaUbicacionLabel')) $('#almEntradaUbicacionLabel').value = sedeLabel;
-      if ($('#almLocationPreview')) {
-        $('#almLocationPreview').innerHTML = raw
+      if (rawField) rawField.value = raw;
+      if (labelField) labelField.value = sedeLabel;
+      if (preview) {
+        preview.innerHTML = raw
           ? `<i class="bi bi-geo-alt-fill"></i><span>${esc(sedeLabel || raw)}</span>`
           : '<i class="bi bi-geo-alt"></i><span>Sin ubicacion seleccionada</span>';
       }
@@ -850,6 +865,15 @@
     const bbInput = $('#almEntradaBloque');
     const nnInput = $('#almEntradaNivel');
     const ssssInput = $('#almEntradaSeccion');
+
+    if (!anaquel || !bbInput || !nnInput || !ssssInput) {
+      if (rawField) rawField.value = '';
+      if (labelField) labelField.value = originLabel;
+      if (preview) {
+        preview.innerHTML = `<i class="bi bi-geo-alt-fill"></i><span>${esc(originLabel)}</span>`;
+      }
+      return;
+    }
 
     let bb = '00';
     let nn = '00';
@@ -879,11 +903,13 @@
     updateLocationFieldState();
 
     const raw = code ? `${code}-${bb}.${nn}.${ssss}` : '';
-    $('#almEntradaUbicacionRaw').value = raw;
-    $('#almEntradaUbicacionLabel').value = raw ? `${selectedOptionText($('#almEntradaSede'))} | ${selectedOptionText(anaquel)}` : '';
-    $('#almLocationPreview').innerHTML = raw
-      ? `<i class="bi bi-geo-alt-fill"></i><span>${esc(raw.replace(/\./g, ' '))}</span>`
-      : '<i class="bi bi-geo-alt"></i><span>Sin ubicacion seleccionada</span>';
+    if (rawField) rawField.value = raw;
+    if (labelField) labelField.value = raw ? `${selectedOptionText($('#almEntradaSede'))} | ${selectedOptionText(anaquel)}` : '';
+    if (preview) {
+      preview.innerHTML = raw
+        ? `<i class="bi bi-geo-alt-fill"></i><span>${esc(raw.replace(/\./g, ' '))}</span>`
+        : '<i class="bi bi-geo-alt"></i><span>Sin ubicacion seleccionada</span>';
+    }
   }
 
   function loadAnaquelesForSede() {
@@ -1014,6 +1040,7 @@
 
   $('#almOpenSalida')?.addEventListener('click', () => {
     initActaFields();
+    setSalidaBusBlocked(shouldDefaultBlockBus());
     openModal($('#almSalidaModal'));
     window.setTimeout(() => (state.salidaBusBlocked ? $('#almSalidaEntregado') : $('#almSalidaBusInput'))?.focus(), 40);
   });
@@ -1171,7 +1198,7 @@
   function resetSalidaForm() {
     const form = $('#almSalidaForm');
     if (form) form.reset();
-    setSalidaBusBlocked(false);
+    setSalidaBusBlocked(shouldDefaultBlockBus());
     state.selectedSalida = null;
     state.salidaItems = [];
     const hiddenBus = $('#almSalidaPlacaId');
@@ -1392,13 +1419,25 @@
         () => fetchJson('save_salida', { method: 'POST', json: payload }),
         { title: 'Registrando salida', detail: 'Validando stock y guardando nota...', button: '#almSalidaSubmit' }
       );
+      const downloadWarnings = [];
       if (data.nota_id && window.N360NotaPDF) {
-        await window.N360NotaPDF.downloadByNotaId(data.nota_id);
+        try {
+          await window.N360NotaPDF.downloadByNotaId(data.nota_id);
+        } catch (downloadError) {
+          downloadWarnings.push(`nota PDF: ${downloadError.message}`);
+        }
       }
       if (data.acta_id && window.N360ActaUniformes) {
-        await window.N360ActaUniformes.downloadByActaId(data.acta_id);
+        try {
+          await window.N360ActaUniformes.downloadByActaId(data.acta_id);
+        } catch (downloadError) {
+          downloadWarnings.push(`acta PDF: ${downloadError.message}`);
+        }
       }
-      await alertBox(`Salida registrada correctamente.\nNota: ${data.nota_codigo || data.nota_id}`, 'success', 'Salida guardada');
+      const warningText = downloadWarnings.length
+        ? `\nGuardado OK, pero revisa descarga de ${downloadWarnings.join(' / ')}.`
+        : '';
+      await alertBox(`Salida registrada correctamente.\nNota: ${data.nota_codigo || data.nota_id}${warningText}`, downloadWarnings.length ? 'warning' : 'success', 'Salida guardada');
       window.location.reload();
     } catch (error) {
       await alertBox(error.message, 'error');
