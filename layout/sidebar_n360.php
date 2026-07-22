@@ -497,6 +497,7 @@ function n360_menu_config(): array {
                     [
                         'titulo' => 'CONTROL DE COMBUSTIBLE',
                         'items' => [
+                            ['titulo' => 'Registro de combustible', 'icono' => 'bi bi-fuel-pump', 'url' => '01_fcombustible/registro_combustible.php', 'modulo' => 9],
                             ['titulo' => 'Historial de combustible', 'icono' => 'bi bi-clock-history', 'url' => '01_fcombustible/historial_combustible.php', 'modulo' => 9],
                         ],
                     ],
