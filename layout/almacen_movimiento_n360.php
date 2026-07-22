@@ -233,6 +233,18 @@ if (!function_exists('n360_render_almacen_salida_modal')) {
                                 <span>Agregar</span>
                             </button>
                         </div>
+                        <div class="alm-label-picker" id="almSalidaLabelPicker" hidden>
+                            <div class="alm-label-picker__head">
+                                <div>
+                                    <strong>Etiquetas trazables</strong>
+                                    <span>Marca las unidades exactas que saldran de contabilidad.</span>
+                                </div>
+                                <em id="almSalidaLabelCounter">0 seleccionadas</em>
+                            </div>
+                            <div class="alm-label-picker__rows" id="almSalidaLabelRows">
+                                <p>Selecciona un activo fijo para ver sus etiquetas disponibles.</p>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="alm-table-wrap alm-salida__items">

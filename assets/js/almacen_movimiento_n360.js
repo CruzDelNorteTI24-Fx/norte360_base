@@ -10,11 +10,13 @@
   const isAdmin = page.dataset.isAdmin === '1';
   const originId = page.dataset.originId || '1';
   const originLabel = page.dataset.originLabel || 'ALMACEN (ALM)';
-  const originArea = page.dataset.originArea || (originId === '4' ? 'RRHH' : 'ALMACEN');
-  const originTipo = page.dataset.originTipo || (originId === '4' ? 'BIEN_CONTROLADO' : 'CONSUMIBLE');
-  const originSerieEntrada = page.dataset.serieEntrada || (originId === '4' ? 'RE' : 'NE');
-  const originSerieSalida = page.dataset.serieSalida || (originId === '4' ? 'RS' : 'NS');
-  const originModule = page.dataset.noteModule || (originId === '4' ? 'RRHH' : 'Almacen');
+  const isAccountingOrigin = String(originId) === '12';
+  const originArea = page.dataset.originArea || (originId === '4' ? 'RRHH' : (isAccountingOrigin ? 'ACTIVOS' : 'ALMACEN'));
+  const originTipo = page.dataset.originTipo || (originId === '4' ? 'BIEN_CONTROLADO' : (isAccountingOrigin ? 'ACTIVO_FIJO' : 'CONSUMIBLE'));
+  const originSerieEntrada = page.dataset.serieEntrada || (originId === '4' ? 'RE' : (isAccountingOrigin ? 'CE' : 'NE'));
+  const originSerieSalida = page.dataset.serieSalida || (originId === '4' ? 'RS' : (isAccountingOrigin ? 'CS' : 'NS'));
+  const originModule = page.dataset.noteModule || (originId === '4' ? 'RRHH' : (isAccountingOrigin ? 'Contabilidad' : 'Almacen'));
+  const barcodeLogo = page.dataset.barcodeLogo || '';
   const sessionUserName = page.dataset.userName || page.dataset.user || '';
   const sessionUserDni = page.dataset.userDni || '';
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -29,6 +31,7 @@
     productTimer: null,
     workerTimer: null,
     salidaBusBlocked: false,
+    salidaLabels: [],
   };
 
   const esc = (value) => String(value ?? '')
@@ -121,6 +124,13 @@
       if (title) title.textContent = 'Salida de bienes RRHH';
       if (entregado) entregado.placeholder = 'Trabajador que recibe los bienes';
       if (busHelp) busHelp.textContent = 'Activa "Sin bus" cuando la entrega no corresponde a una unidad.';
+      return;
+    }
+
+    if (isAccountingOrigin) {
+      if (title) title.textContent = 'Salida de activos fijos';
+      if (entregado) entregado.placeholder = 'Responsable, area o destino';
+      if (busHelp) busHelp.textContent = 'Activa "Sin bus" cuando el activo no corresponde a una unidad.';
       return;
     }
 
@@ -281,6 +291,33 @@
     return data;
   }
 
+  const safeBarcodeFile = (value) => String(value ?? 'ETQ')
+    .trim()
+    .replace(/[^\w.\- ]+/g, '')
+    .replace(/\s+/g, '_')
+    .slice(0, 90) || 'ETQ';
+
+  async function downloadGeneratedLabels(codes, product) {
+    if (!isAccountingOrigin || !Array.isArray(codes) || !codes.length || !window.N360Barcode?.downloadPng) {
+      return;
+    }
+
+    const name = product?.producto || product?.nombre || 'Activo fijo';
+    const category = [product?.categoria, product?.unidad].filter(Boolean).join(' - ') || originArea;
+
+    for (const code of codes) {
+      const temp = document.createElement('div');
+      temp.dataset.n360Barcode = '';
+      temp.dataset.barcodeKind = 'etiqueta';
+      temp.dataset.barcodeLogo = barcodeLogo;
+      temp.dataset.barcodeCode = String(code || '').trim();
+      temp.dataset.barcodeName = name;
+      temp.dataset.barcodeCategory = category;
+      temp.dataset.barcodeFilename = `ETQ_${safeBarcodeFile(code)}_${safeBarcodeFile(name)}.png`;
+      await window.N360Barcode.downloadPng(temp);
+    }
+  }
+
   function syncModalOpenClass() {
     document.body.classList.toggle('alm-modal-open', $$('.alm-modal.is-open').length > 0);
   }
@@ -344,6 +381,85 @@
       </div>
     `;
   }
+
+  function clearSalidaLabels(message = 'Selecciona un activo fijo para ver sus etiquetas disponibles.') {
+    state.salidaLabels = [];
+    const picker = $('#almSalidaLabelPicker');
+    const rows = $('#almSalidaLabelRows');
+    const counter = $('#almSalidaLabelCounter');
+    if (picker) picker.hidden = !isAccountingOrigin || !state.selectedSalida;
+    if (rows) rows.innerHTML = `<p>${esc(message)}</p>`;
+    if (counter) counter.textContent = '0 seleccionadas';
+  }
+
+  function getSelectedSalidaLabels() {
+    return $$('.alm-salida-label-check:checked')
+      .map((input) => state.salidaLabels.find((row) => Number(row.id) === Number(input.value)))
+      .filter(Boolean);
+  }
+
+  function syncSalidaLabelCounter() {
+    if (!isAccountingOrigin) return;
+    const selected = getSelectedSalidaLabels();
+    const counter = $('#almSalidaLabelCounter');
+    if (counter) {
+      counter.textContent = `${selected.length} seleccionada${selected.length === 1 ? '' : 's'}`;
+    }
+    if (selected.length && $('#almSalidaCantidad')) {
+      $('#almSalidaCantidad').value = String(selected.length);
+    }
+  }
+
+  function renderSalidaLabels(rows) {
+    const picker = $('#almSalidaLabelPicker');
+    const rowsBox = $('#almSalidaLabelRows');
+    if (!picker || !rowsBox || !isAccountingOrigin) {
+      clearSalidaLabels();
+      return;
+    }
+
+    picker.hidden = false;
+    state.salidaLabels = rows || [];
+    const pickedIds = new Set(state.salidaItems.flatMap((item) => item.label_ids || []).map((id) => Number(id)));
+
+    if (!state.salidaLabels.length) {
+      rowsBox.innerHTML = '<p>No hay etiquetas disponibles para este activo. Revisa trazabilidad antes de registrar una salida.</p>';
+      syncSalidaLabelCounter();
+      return;
+    }
+
+    rowsBox.innerHTML = state.salidaLabels.map((row) => {
+      const id = Number(row.id);
+      const picked = pickedIds.has(id);
+      return `
+        <label class="alm-label-option${picked ? ' is-disabled' : ''}">
+          <input class="alm-salida-label-check" type="checkbox" value="${esc(id)}" ${picked ? 'disabled' : ''}>
+          <span>
+            <strong>${esc(row.codigo || `ETQ-${id}`)}</strong>
+            <small>${esc(row.sede || 'Sin ubicacion')} ${row.fecha ? `- ${esc(row.fecha)}` : ''}</small>
+          </span>
+          <span class="alm-label-option__note">${picked ? 'Agregada' : esc(row.nota || 'Disponible')}</span>
+        </label>
+      `;
+    }).join('');
+    syncSalidaLabelCounter();
+  }
+
+  async function loadSalidaLabels(productId) {
+    if (!isAccountingOrigin) {
+      clearSalidaLabels();
+      return;
+    }
+
+    const picker = $('#almSalidaLabelPicker');
+    const rows = $('#almSalidaLabelRows');
+    if (picker) picker.hidden = false;
+    if (rows) rows.innerHTML = '<p>Cargando etiquetas disponibles...</p>';
+
+    const data = await fetchJson(`etiquetas_contabilidad&product_id=${encodeURIComponent(productId)}&orgn_id=${encodeURIComponent(originId)}`);
+    renderSalidaLabels(data.rows || []);
+  }
+
   function setEntradaTipo(tipo) {
     const input = $('#almEntradaTipo');
     const label = $('#almEntradaTipoLabel');
@@ -377,6 +493,14 @@
   function applySalidaProduct(product) {
     state.selectedSalida = product;
     renderSelectedProduct('salida', product);
+    if (isAccountingOrigin) {
+      loadSalidaLabels(product.id).catch((error) => {
+        clearSalidaLabels('No se pudieron cargar las etiquetas disponibles.');
+        alertBox(error.message, 'error');
+      });
+    } else {
+      clearSalidaLabels();
+    }
     $('#almSalidaCantidad')?.focus();
   }
 
@@ -505,9 +629,31 @@
     if ($('#almEntradaMonto')) $('#almEntradaMonto').value = monto ? monto.toFixed(4) : '';
   }
 
+  function setupAccountingQuantity() {
+    if (!isAccountingOrigin) return;
+    ['#almEntradaCantidad', '#almSalidaCantidad'].forEach((selector) => {
+      const input = $(selector);
+      if (!input) return;
+      input.min = '1';
+      input.step = '1';
+      input.inputMode = 'numeric';
+      input.addEventListener('keydown', (event) => {
+        if (['.', ',', '-', '+', 'e', 'E'].includes(event.key)) {
+          event.preventDefault();
+        }
+      });
+      input.addEventListener('input', () => {
+        const cleaned = String(input.value || '').split(/[.,]/)[0].replace(/[^\d]/g, '');
+        if (input.value !== cleaned) input.value = cleaned;
+        if (selector === '#almEntradaCantidad') calculateEntradaMonto();
+      });
+    });
+  }
+
   ['#almEntradaCantidad', '#almEntradaPrecio'].forEach((selector) => {
     $(selector)?.addEventListener('input', calculateEntradaMonto);
   });
+  setupAccountingQuantity();
 
   function buildEntradaDebugPayload() {
     calculateEntradaMonto();
@@ -533,7 +679,7 @@
         clm_nota_serie: originSerieEntrada,
         clm_nota_modulo: originModule,
         clm_nota_motivo: $('#almEntradaObservacion')?.value || '',
-        clm_nota_espacio: $('#almEntradaUbicacionLabel')?.value || 'ALMACEN (ALM)',
+        clm_nota_espacio: $('#almEntradaUbicacionLabel')?.value || originLabel,
         clm_nota_proveedor: $('#almEntradaProveedor')?.value || '',
       },
       movimiento: {
@@ -549,7 +695,13 @@
         clm_alm_mov_ofic_destino: $('#almEntradaSede')?.value || $('#almEntradaSedeLocked')?.value || null,
         clm_alm_mov_anaquel: $('#almEntradaAnaquel')?.value || null,
         clm_alm_mov_ubicacion: $('#almEntradaUbicacionRaw')?.value || null,
-        clm_alm_mov_gen_etq: $('#almEntradaGenEtq')?.checked ? 1 : 0,
+        clm_alm_mov_gen_etq: isAccountingOrigin ? 1 : ($('#almEntradaGenEtq')?.checked ? 1 : 0),
+        trazabilidad_contable: isAccountingOrigin ? {
+          tabla_etiquetas: 'tb_alm_etiquetado',
+          tabla_historial_ubicacion: 'tb_alm_etiquetadoofi',
+          tabla_secuencia: 'tb_alm_etq_seq',
+          etiquetas_a_generar: cantidad,
+        } : null,
       },
     };
   }
@@ -565,6 +717,7 @@
       items: state.salidaItems.map((item) => ({
         producto_id: item.id,
         cantidad: item.cantidad,
+        label_ids: item.label_ids || [],
       })),
       acta: buildActaPayload(),
       ...extra,
@@ -598,7 +751,14 @@
         clm_alm_mov_monto: canEditPrices ? item.monto : '(backend)',
         clm_alm_mov_placa: payload.placa_id,
         clm_alm_mov_OBSERVACION: payload.motivo,
+        etiquetas_seleccionadas: item.label_codes || [],
       })),
+      trazabilidad_contable: isAccountingOrigin ? {
+        accion: 'consumir etiquetas disponibles del producto',
+        criterio: 'etiquetas seleccionadas por usuario; si no hay seleccion, FIFO por clm_alm_etiquetado_id',
+        tabla_etiquetas: 'tb_alm_etiquetado',
+        tabla_historial_ubicacion: 'tb_alm_etiquetadoofi',
+      } : null,
     };
   }
 
@@ -667,6 +827,21 @@
   }
 
   function updateLocationPreview() {
+    if (isAccountingOrigin) {
+      const sede = $('#almEntradaSede');
+      const sedeId = sede?.value || '';
+      const sedeLabel = sedeId ? selectedOptionText(sede) : '';
+      const raw = sedeId ? `OFI-${sedeId}` : '';
+      if ($('#almEntradaUbicacionRaw')) $('#almEntradaUbicacionRaw').value = raw;
+      if ($('#almEntradaUbicacionLabel')) $('#almEntradaUbicacionLabel').value = sedeLabel;
+      if ($('#almLocationPreview')) {
+        $('#almLocationPreview').innerHTML = raw
+          ? `<i class="bi bi-geo-alt-fill"></i><span>${esc(sedeLabel || raw)}</span>`
+          : '<i class="bi bi-geo-alt"></i><span>Sin ubicacion seleccionada</span>';
+      }
+      return;
+    }
+
     const anaquel = $('#almEntradaAnaquel');
     const option = anaquel?.selectedOptions?.[0];
     const code = option?.dataset.code || '';
@@ -714,7 +889,10 @@
   function loadAnaquelesForSede() {
     const sedeId = $('#almEntradaSede')?.value || '';
     const select = $('#almEntradaAnaquel');
-    if (!select) return;
+    if (!select) {
+      updateLocationPreview();
+      return;
+    }
 
     $$('#almEntradaAnaquel option').forEach((option) => {
       if (!option.value) return;
@@ -773,6 +951,16 @@
       $('#almEntradaCantidad').focus();
       return;
     }
+    if (isAccountingOrigin && !Number.isInteger(cantidad)) {
+      await alertBox('En Contabilidad la cantidad debe ser entera para generar etiquetas trazables.', 'warning');
+      $('#almEntradaCantidad').focus();
+      return;
+    }
+    if (isAccountingOrigin && !($('#almEntradaSede')?.value || '').trim()) {
+      await alertBox('Selecciona la ubicacion/oficina destino del activo fijo.', 'warning');
+      $('#almEntradaSede')?.focus();
+      return;
+    }
 
     calculateEntradaMonto();
     const confirmed = await confirmBox('Se registrara una nota de entrada y el movimiento asociado. ¿Deseas continuar?', {
@@ -799,7 +987,11 @@
       if (data.auto_pdf && data.nota_id && window.N360NotaPDF) {
         await window.N360NotaPDF.downloadByNotaId(data.nota_id);
       }
-      await alertBox(`Movimiento registrado correctamente.\nNota: ${data.nota_codigo || data.nota_id}`, 'success', 'Entrada guardada');
+      await downloadGeneratedLabels(data.etiquetas || [], state.selectedEntrada);
+      const labelText = data.etiquetas_generadas
+        ? `\nEtiquetas generadas: ${(data.etiquetas || []).join(', ')}`
+        : '';
+      await alertBox(`Movimiento registrado correctamente.\nNota: ${data.nota_codigo || data.nota_id}${labelText}`, 'success', 'Entrada guardada');
       window.location.reload();
     } catch (error) {
       await alertBox(error.message, 'error');
@@ -964,6 +1156,12 @@
     const nextFocus = state.salidaBusBlocked ? $('#almSalidaEntregado') : $('#almSalidaBusInput');
     nextFocus?.focus();
   });
+
+  $('#almSalidaLabelRows')?.addEventListener('change', (event) => {
+    if (!event.target.closest('.alm-salida-label-check')) return;
+    syncSalidaLabelCounter();
+  });
+
   function updateSalidaSubmitState() {
     const submit = $('#almSalidaSubmit');
     if (!submit) return;
@@ -992,6 +1190,7 @@
     closeWorkerPanel();
     resetActaFields();
     renderSelectedProduct('salida', null);
+    clearSalidaLabels();
     renderSalidaItems();
     updateSalidaSubmitState();
   }
@@ -1015,21 +1214,26 @@
       return;
     }
 
-    tbody.innerHTML = state.salidaItems.map((item, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td><strong>(${esc(item.codigo)}) ${esc(item.producto)}</strong></td>
-        <td>${esc(item.unidad || '-')}</td>
-        <td>${esc(fmtQty(item.cantidad))}</td>
-        <td>${canEditPrices ? esc(fmtMoney(item.precio)) : '-'}</td>
-        <td>${canEditPrices ? esc(fmtMoney(item.monto)) : '-'}</td>
-        <td>
-          <button class="alm-icon-btn" type="button" data-remove-salida="${index}" aria-label="Quitar item">
-            <i class="bi bi-trash"></i>
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = state.salidaItems.map((item, index) => {
+      const labelChips = item.label_codes?.length
+        ? `<div class="alm-item-labels">${item.label_codes.map((code) => `<span>${esc(code)}</span>`).join('')}</div>`
+        : '';
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td><strong>(${esc(item.codigo)}) ${esc(item.producto)}</strong>${labelChips}</td>
+          <td>${esc(item.unidad || '-')}</td>
+          <td>${esc(fmtQty(item.cantidad))}</td>
+          <td>${canEditPrices ? esc(fmtMoney(item.precio)) : '-'}</td>
+          <td>${canEditPrices ? esc(fmtMoney(item.monto)) : '-'}</td>
+          <td>
+            <button class="alm-icon-btn" type="button" data-remove-salida="${index}" aria-label="Quitar item">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
     updateSalidaSubmitState();
   }
 
@@ -1047,6 +1251,11 @@
       $('#almSalidaCantidad').focus();
       return;
     }
+    if (isAccountingOrigin && !Number.isInteger(cantidad)) {
+      await alertBox('En Contabilidad la cantidad de salida debe ser entera.', 'warning');
+      $('#almSalidaCantidad').focus();
+      return;
+    }
 
     const stock = toNumber(product.stock);
     if (cantidad > stock) {
@@ -1055,8 +1264,23 @@
       return;
     }
 
+    const selectedLabels = isAccountingOrigin ? getSelectedSalidaLabels() : [];
+    if (isAccountingOrigin && selectedLabels.length && selectedLabels.length !== cantidad) {
+      await alertBox('La cantidad debe coincidir con las etiquetas seleccionadas.', 'warning');
+      $('#almSalidaCantidad').focus();
+      return;
+    }
+
     const existing = state.salidaItems.find((item) => Number(item.id) === Number(product.id));
     if (existing) {
+      if (isAccountingOrigin) {
+        const existingHasLabels = Boolean(existing.label_ids?.length);
+        const nextHasLabels = Boolean(selectedLabels.length);
+        if (existingHasLabels !== nextHasLabels) {
+          await alertBox('No mezcles en el mismo producto una salida con etiquetas seleccionadas y otra sin seleccion. Quita el item y vuelve a agregarlo completo.', 'warning');
+          return;
+        }
+      }
       const nextQty = toNumber(existing.cantidad) + cantidad;
       if (nextQty > stock) {
         await alertBox(`La suma de items supera el stock actual (${fmtQty(stock)}).`, 'warning');
@@ -1064,6 +1288,17 @@
       }
       existing.cantidad = nextQty;
       existing.monto = nextQty * toNumber(existing.precio);
+      if (selectedLabels.length) {
+        const existingIds = new Set(existing.label_ids || []);
+        selectedLabels.forEach((label) => {
+          const id = Number(label.id);
+          if (!existingIds.has(id)) {
+            existing.label_ids.push(id);
+            existing.label_codes.push(label.codigo || `ETQ-${id}`);
+            existingIds.add(id);
+          }
+        });
+      }
     } else {
       const precio = toNumber(product.precio);
       state.salidaItems.push({
@@ -1074,12 +1309,15 @@
         cantidad,
         precio,
         monto: cantidad * precio,
+        label_ids: selectedLabels.map((label) => Number(label.id)),
+        label_codes: selectedLabels.map((label) => label.codigo || `ETQ-${label.id}`),
       });
     }
 
     $('#almSalidaCantidad').value = '';
     state.selectedSalida = null;
     renderSelectedProduct('salida', null);
+    clearSalidaLabels();
     renderSalidaItems();
   });
 

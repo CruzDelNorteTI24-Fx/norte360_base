@@ -43,6 +43,7 @@ function n360_note_has_access(): bool {
 
     return in_array(3, $ids, true)
         || in_array(9, $ids, true)
+        || in_array(12, $ids, true)
         || ($hasRrhhRegister && in_array(6, $ids, true));
 }
 
@@ -225,7 +226,7 @@ try {
     }
 
     $series = (string)$nota['serie'];
-    $allowedSeries = ['NS', 'NE', 'CM', 'AB', 'RE', 'RS'];
+    $allowedSeries = ['NS', 'NE', 'CM', 'AB', 'RE', 'RS', 'CE', 'CS'];
 
     if (!in_array($series, $allowedSeries, true)) {
         n360_note_fail('La serie de esta nota no tiene formato PDF configurado.');
@@ -314,7 +315,10 @@ try {
     $codigoNota = n360_note_text($nota['nota_codigo'] ?? '', $series . '-' . str_pad((string)($nota['clm_nota_corr'] ?? '0'), 4, '0', STR_PAD_LEFT));
     $space = n360_note_text($nota['clm_nota_espacio'] ?? '', '-');
     $provider = n360_note_text($nota['clm_nota_proveedor'] ?? '', '-');
-    $module = n360_note_text($nota['clm_nota_modulo'] ?? '', ($series === 'CM' || $series === 'AB') ? 'Combustible' : (($series === 'RE' || $series === 'RS') ? 'RRHH' : 'Almacen'));
+    $moduleFallback = ($series === 'CM' || $series === 'AB')
+        ? 'Combustible'
+        : (in_array($series, ['RE', 'RS'], true) ? 'RRHH' : (in_array($series, ['CE', 'CS'], true) ? 'Contabilidad' : 'Almacen'));
+    $module = n360_note_text($nota['clm_nota_modulo'] ?? '', $moduleFallback);
     $reason = n360_note_text($nota['clm_nota_motivo'] ?? '', '-');
     $unitText = n360_note_text($nota['unidad_label'] ?? '', n360_note_text($nota['bus'] ?? '', n360_note_text($nota['placa'] ?? '', '-')));
     $fileName = n360_note_safe_filename('nota_' . strtolower($series) . '_' . $codigoNota) . '.pdf';
@@ -345,14 +349,14 @@ try {
 
     if ($series === 'NS') {
         $noteData['actorLabel'] = 'Entregado a';
-    } elseif ($series === 'RS') {
+    } elseif ($series === 'RS' || $series === 'CS') {
         $noteData['actorLabel'] = 'Asignado a';
         $noteData['pointLabel'] = 'Origen';
     } elseif ($series === 'CM') {
         $noteData['actorLabel'] = 'Conductor';
     } elseif ($series === 'AB') {
         $noteData['providerLabel'] = 'Suministrador';
-    } elseif ($series === 'RE') {
+    } elseif ($series === 'RE' || $series === 'CE') {
         $noteData['providerLabel'] = 'Proveedor / referencia';
         $noteData['pointLabel'] = 'Origen';
     } elseif ($series === 'NE') {

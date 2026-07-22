@@ -40,7 +40,7 @@ function alm_select_anaqueles(mysqli $conn): array {
 }
 
 function alm_select_stats(mysqli $conn, int $originId = 1): array {
-    $originId = in_array($originId, [1, 4], true) ? $originId : 1;
+    $originId = in_array($originId, [1, 4, 12], true) ? $originId : 1;
     $row = alm_fetch_one($conn, "
         SELECT
             COUNT(*) AS hoy,
@@ -58,7 +58,7 @@ function alm_select_stats(mysqli $conn, int $originId = 1): array {
 }
 
 function alm_select_recent_movements(mysqli $conn, int $originId = 1, int $limit = 12): array {
-    $originId = in_array($originId, [1, 4], true) ? $originId : 1;
+    $originId = in_array($originId, [1, 4, 12], true) ? $originId : 1;
     $limit = max(1, min(50, $limit));
     return alm_fetch_all($conn, "
         SELECT

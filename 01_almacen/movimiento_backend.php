@@ -100,7 +100,8 @@ if (!function_exists('alm_can_almacen')) {
         }
 
         return in_array(3, $moduleIds, true)
-            || (in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm']));
+            || (in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm']))
+            || in_array(12, $moduleIds, true);
     }
 }
 
@@ -117,20 +118,21 @@ if (!function_exists('alm_can_registrar')) {
 
         $fromAlmacen = in_array(3, $moduleIds, true) && alm_session_has_vista(['a-register', 'a-formulreg']);
         $fromRrhh = in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm']);
+        $fromContabilidad = in_array(12, $moduleIds, true);
 
-        return $fromAlmacen || $fromRrhh;
+        return $fromAlmacen || $fromRrhh || $fromContabilidad;
     }
 }
 
 if (!function_exists('alm_allowed_origin_ids')) {
     function alm_allowed_origin_ids(): array {
         if (($_SESSION['web_rol'] ?? '') === 'Admin') {
-            return [1, 4];
+            return [1, 4, 12];
         }
 
         $moduleIds = alm_session_module_ids();
         if ($moduleIds === ['all']) {
-            return [1, 4];
+            return [1, 4, 12];
         }
 
         $allowed = [];
@@ -139,6 +141,9 @@ if (!function_exists('alm_allowed_origin_ids')) {
         }
         if (in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm'])) {
             $allowed[] = 4;
+        }
+        if (in_array(12, $moduleIds, true)) {
+            $allowed[] = 12;
         }
 
         return $allowed;
@@ -175,6 +180,18 @@ if (!function_exists('alm_context_config_from_origin')) {
                 'serie_entrada' => 'RE',
                 'serie_salida' => 'RS',
                 'espacio_default' => 'RRHH',
+            ];
+        }
+        if ($originId === 12) {
+            return [
+                'origin_id' => 12,
+                'context' => 'contabilidad',
+                'area_control' => 'ACTIVOS',
+                'tipo_control' => 'ACTIVO_FIJO',
+                'nota_modulo' => 'Contabilidad',
+                'serie_entrada' => 'CE',
+                'serie_salida' => 'CS',
+                'espacio_default' => 'CONTABILIDAD',
             ];
         }
 

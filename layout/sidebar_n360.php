@@ -464,6 +464,31 @@ function n360_menu_config(): array {
                 ]
             ],
             [
+                'id' => 'contabilidad',
+                'titulo' => 'Contabilidad',
+                'icono' => 'bi bi-calculator-fill',
+                'modulo' => 12,
+                'grupos' => [
+                    [
+                        'titulo' => 'Activos fijos',
+                        'items' => [
+                            [
+                                'titulo' => 'Registro de activos',
+                                'icono' => 'bi bi-pc-display-horizontal',
+                                'url' => '01_contabilidad/registro_activos.php',
+                                'modulo' => 12
+                            ],
+                            [
+                                'titulo' => 'Trazabilidad de activos',
+                                'icono' => 'bi bi-upc-scan',
+                                'url' => '01_contabilidad/trazabilidad_activos.php',
+                                'modulo' => 12
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            [
                 'id' => 'combustible',
                 'titulo' => 'Combustible',
                 'icono' => 'bi bi-fuel-pump-fill',

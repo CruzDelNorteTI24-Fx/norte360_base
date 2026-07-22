@@ -204,6 +204,271 @@ function alm_valid_date_or_null($value): ?string {
     return ($dt && $dt->format('Y-m-d') === $value) ? $value : null;
 }
 
+function alm_integer_quantity_or_fail(float $cantidad, string $message): int {
+    $rounded = (int)round($cantidad);
+    if (abs($cantidad - $rounded) > 0.00001 || $rounded <= 0) {
+        alm_json(['ok' => false, 'message' => $message], 422);
+    }
+
+    return $rounded;
+}
+
+function alm_sede_display_name(mysqli $conn, int $sedeId): string {
+    if ($sedeId <= 0) {
+        return '';
+    }
+
+    $row = alm_fetch_one($conn, "
+        SELECT COALESCE(NULLIF(TRIM(clm_sedes_name), ''), CONCAT('Sede ', clm_sedes_id)) AS nombre
+        FROM tb_sedes
+        WHERE clm_sedes_id = ?
+        LIMIT 1
+    ", 'i', [$sedeId]);
+
+    return alm_clean_text($row['nombre'] ?? ('Sede ' . $sedeId), 180);
+}
+
+function alm_sync_contabilidad_etiquetas_desde_trigger(
+    mysqli $conn,
+    int $movId,
+    int $userId,
+    int $sedeId
+): array {
+    $labels = alm_fetch_all($conn, "
+        SELECT
+            clm_alm_etiquetado_id AS id,
+            COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo
+        FROM tb_alm_etiquetado
+        WHERE clm_alm_etiquetado_idMOVIMIENTO = ?
+        ORDER BY clm_alm_etiquetado_id ASC
+    ", 'i', [$movId]);
+
+    if (!$labels) {
+        throw new RuntimeException('El trigger trg_mov_generar_etiquetas no devolvio etiquetas para este movimiento.');
+    }
+
+    $stmtExists = $conn->prepare("
+        SELECT clm_alm_etiquetadoofi_id
+        FROM tb_alm_etiquetadoofi
+        WHERE clm_alm_etiquetadoofi_etiref = ?
+        LIMIT 1
+    ");
+    $stmtHistory = $conn->prepare("
+        INSERT INTO tb_alm_etiquetadoofi
+        (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
+         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER)
+        VALUES (?, NULL, ?, ?)
+    ");
+    $stmtMov = $conn->prepare("
+        UPDATE tb_alm_movimientos
+        SET clm_alm_movimientos_estadoetiq = 1
+        WHERE clm_alm_mov_id = ?
+        LIMIT 1
+    ");
+
+    if (!$stmtExists || !$stmtHistory || !$stmtMov) {
+        throw new RuntimeException($conn->error ?: 'No se pudo preparar la sincronizacion del etiquetado de activos.');
+    }
+
+    $codes = [];
+    foreach ($labels as $label) {
+        $labelId = (int)($label['id'] ?? 0);
+        if ($labelId <= 0) {
+            continue;
+        }
+
+        $existsParams = [$labelId];
+        alm_bind($stmtExists, 'i', $existsParams);
+        $stmtExists->execute();
+        $existsResult = $stmtExists->get_result();
+        $alreadySynced = $existsResult && $existsResult->num_rows > 0;
+        if ($existsResult) {
+            $existsResult->free();
+        }
+
+        if (!$alreadySynced) {
+            $historyParams = [$labelId, $sedeId > 0 ? $sedeId : null, $userId];
+            alm_bind($stmtHistory, 'iii', $historyParams);
+            $stmtHistory->execute();
+        }
+
+        $codes[] = (string)($label['codigo'] ?? ('ETQ-' . $labelId));
+    }
+
+    $movParams = [$movId];
+    alm_bind($stmtMov, 'i', $movParams);
+    $stmtMov->execute();
+
+    $stmtExists->close();
+    $stmtHistory->close();
+    $stmtMov->close();
+
+    return $codes;
+}
+
+function alm_consumir_contabilidad_etiquetas(
+    mysqli $conn,
+    int $productId,
+    int $userId,
+    int $cantidad,
+    array $selectedLabelIds = []
+): array {
+    $selectedLabelIds = array_values(array_unique(array_filter(array_map('intval', $selectedLabelIds), static function ($id) {
+        return $id > 0;
+    })));
+
+    if ($selectedLabelIds) {
+        if (count($selectedLabelIds) !== $cantidad) {
+            $conn->rollback();
+            alm_json([
+                'ok' => false,
+                'message' => 'Selecciona exactamente ' . $cantidad . ' etiqueta(s) para consumir este activo.',
+            ], 422);
+        }
+
+        $placeholders = implode(',', array_fill(0, count($selectedLabelIds), '?'));
+        $types = 'i' . str_repeat('i', count($selectedLabelIds));
+        $params = array_merge([$productId], $selectedLabelIds);
+        $labels = alm_fetch_all($conn, "
+            SELECT
+                clm_alm_etiquetado_id AS id,
+                COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,
+                clm_alm_etiquetado_oficina_destino AS sede_actual
+            FROM tb_alm_etiquetado
+            WHERE clm_alm_etiquetado_idPRODUCTO = ?
+              AND clm_alm_etiquetado_id IN ($placeholders)
+              AND UPPER(COALESCE(NULLIF(TRIM(clm_alm_etiquetado_ESTADO), ''), 'GENERADO')) <> 'CONSUMIDO'
+            ORDER BY clm_alm_etiquetado_id ASC
+            FOR UPDATE
+        ", $types, $params);
+
+        if (count($labels) !== $cantidad) {
+            $conn->rollback();
+            alm_json([
+                'ok' => false,
+                'message' => 'Una o mas etiquetas seleccionadas ya no estan disponibles para este producto.',
+            ], 422);
+        }
+    } else {
+        $labels = alm_fetch_all($conn, "
+            SELECT
+                clm_alm_etiquetado_id AS id,
+                COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,
+                clm_alm_etiquetado_oficina_destino AS sede_actual
+            FROM tb_alm_etiquetado
+            WHERE clm_alm_etiquetado_idPRODUCTO = ?
+              AND UPPER(COALESCE(NULLIF(TRIM(clm_alm_etiquetado_ESTADO), ''), 'GENERADO')) <> 'CONSUMIDO'
+            ORDER BY clm_alm_etiquetado_id ASC
+            LIMIT ?
+            FOR UPDATE
+        ", 'ii', [$productId, $cantidad]);
+    }
+
+    if (count($labels) < $cantidad) {
+        $conn->rollback();
+        alm_json([
+            'ok' => false,
+            'message' => 'No hay etiquetas trazables disponibles para consumir este activo. Revisa o regulariza el etiquetado antes de registrar la salida.',
+        ], 422);
+    }
+
+    $stmtUpdate = $conn->prepare("
+        UPDATE tb_alm_etiquetado
+        SET clm_alm_etiquetado_ESTADO = 'CONSUMIDO',
+            clm_alm_etiquetado_USUARIO = ?
+        WHERE clm_alm_etiquetado_id = ?
+        LIMIT 1
+    ");
+    $stmtHistory = $conn->prepare("
+        INSERT INTO tb_alm_etiquetadoofi
+        (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
+         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER)
+        VALUES (?, ?, NULL, ?)
+    ");
+
+    if (!$stmtUpdate || !$stmtHistory) {
+        throw new RuntimeException($conn->error ?: 'No se pudo preparar la baja trazable del activo.');
+    }
+
+    $codes = [];
+    foreach ($labels as $label) {
+        $labelId = (int)($label['id'] ?? 0);
+        $sedeAntes = (int)($label['sede_actual'] ?? 0);
+
+        $updateParams = [$userId, $labelId];
+        alm_bind($stmtUpdate, 'ii', $updateParams);
+        $stmtUpdate->execute();
+
+        $historyParams = [$labelId, $sedeAntes > 0 ? $sedeAntes : null, $userId];
+        alm_bind($stmtHistory, 'iii', $historyParams);
+        $stmtHistory->execute();
+
+        $codes[] = (string)($label['codigo'] ?? ('ETQ-' . $labelId));
+    }
+
+    $stmtUpdate->close();
+    $stmtHistory->close();
+
+    return $codes;
+}
+
+function alm_action_etiquetas_contabilidad(mysqli $conn): void {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        alm_json(['ok' => false, 'message' => 'Metodo no permitido.'], 405);
+    }
+
+    if (!alm_can_registrar()) {
+        alm_json(['ok' => false, 'message' => 'No tienes permiso para consultar etiquetas.'], 403);
+    }
+
+    $originId = alm_origin_id_from_payload($_GET);
+    if ($originId !== 12) {
+        alm_json(['ok' => true, 'rows' => []]);
+    }
+
+    $productId = (int)($_GET['product_id'] ?? 0);
+    if ($productId <= 0) {
+        alm_json(['ok' => false, 'message' => 'Producto invalido para consultar etiquetas.'], 422);
+    }
+
+    $product = alm_fetch_one($conn, "
+        SELECT clm_alm_producto_id
+        FROM tb_alm_producto
+        WHERE clm_alm_producto_id = ?
+          AND UPPER(COALESCE(NULLIF(TRIM(clm_alm_producto_area_control), ''), '')) = 'ACTIVOS'
+          AND UPPER(COALESCE(NULLIF(TRIM(clm_alm_producto_tipo_control), ''), '')) = 'ACTIVO_FIJO'
+        LIMIT 1
+    ", 'i', [$productId]);
+
+    if (!$product) {
+        alm_json(['ok' => false, 'message' => 'Producto no disponible para trazabilidad contable.'], 422);
+    }
+
+    $rows = alm_fetch_all($conn, "
+        SELECT
+            e.clm_alm_etiquetado_id AS id,
+            COALESCE(NULLIF(TRIM(e.clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', e.clm_alm_etiquetado_id)) AS codigo,
+            e.clm_alm_etiquetado_FECHA AS fecha,
+            e.clm_alm_etiquetado_oficina_destino AS sede_id,
+            COALESCE(NULLIF(TRIM(s.clm_sedes_name), ''), IF(e.clm_alm_etiquetado_oficina_destino IS NULL, 'Sin ubicacion', CONCAT('Sede ', e.clm_alm_etiquetado_oficina_destino))) AS sede,
+            COALESCE(NULLIF(TRIM(n.clm_nota_sco), ''), CONCAT('MOV-', m.clm_alm_mov_id)) AS nota
+        FROM tb_alm_etiquetado e
+        JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
+        LEFT JOIN tb_notas_salida n ON m.clm_alm_mov_idNOTA = n.clm_nota_id
+        LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
+        WHERE e.clm_alm_etiquetado_idPRODUCTO = ?
+          AND UPPER(COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'GENERADO')) <> 'CONSUMIDO'
+        ORDER BY e.clm_alm_etiquetado_id ASC
+        LIMIT 300
+    ", 'i', [$productId]);
+
+    alm_json([
+        'ok' => true,
+        'rows' => $rows,
+        'total' => count($rows),
+    ]);
+}
+
 function alm_save_rrhh_acta_uniformes(mysqli $conn, int $notaId, int $userId, array $payload, array $preparedItems, string $entregado): int {
     $acta = is_array($payload['acta'] ?? null) ? $payload['acta'] : [];
     $personalId = (int)($payload['personal_id'] ?? 0);
@@ -340,6 +605,7 @@ function alm_action_save_entrada(mysqli $conn): void {
 
     $product = alm_fetch_one($conn, "
         SELECT p.clm_alm_producto_id,
+               COALESCE(NULLIF(TRIM(p.clm_alm_producto_codigo), ''), CONCAT('P', p.clm_alm_producto_id)) AS codigo,
                COALESCE(p.clm_alm_producto_prec_unit, 0) AS precio
         FROM tb_alm_producto p
         WHERE p.clm_alm_producto_id = ?
@@ -359,8 +625,22 @@ function alm_action_save_entrada(mysqli $conn): void {
     }
     $monto = $cantidad * $precio;
     $autoPdf = !empty($payload['auto_pdf']);
+    $etqCant = null;
 
-    if ($originId !== 1) {
+    if ($originId === 12) {
+        $etqCant = alm_integer_quantity_or_fail($cantidad, 'En Contabilidad la cantidad debe ser entera y mayor a cero para generar trazabilidad.');
+        if ($sedeId <= 0) {
+            alm_json(['ok' => false, 'message' => 'Selecciona la ubicacion/oficina destino del activo fijo.'], 422);
+        }
+        $anaquelId = 0;
+        $ubicacionRaw = 'OFI-' . $sedeId;
+        if ($ubicacionLabel === '') {
+            $ubicacionLabel = alm_sede_display_name($conn, $sedeId);
+        }
+        $bb = '00';
+        $nn = '00';
+        $ssss = '0000';
+    } elseif ($originId !== 1) {
         $sedeId = 0;
         $anaquelId = 0;
         $ubicacionRaw = '';
@@ -371,14 +651,13 @@ function alm_action_save_entrada(mysqli $conn): void {
     }
 
     $tipo = alm_producto_tiene_movimientos($conn, $productId) ? 'ENTRADA' : 'INVENTARIADO';
-    $generarEtq = ($originId === 1 && !empty($payload['gen_etq']) && $sedeId > 0) ? 1 : 0;
-    $etqCant = null;
+    $generarEtq = (
+        ($originId === 12 && $sedeId > 0)
+        || ($originId === 1 && !empty($payload['gen_etq']) && $sedeId > 0)
+    ) ? 1 : 0;
 
-    if ($generarEtq) {
-        if (abs($cantidad - round($cantidad)) > 0.00001 || (int)round($cantidad) <= 0) {
-            alm_json(['ok' => false, 'message' => 'Para generar etiquetas la cantidad debe ser entera y mayor a cero.'], 422);
-        }
-        $etqCant = (int)round($cantidad);
+    if ($generarEtq && $etqCant === null) {
+        $etqCant = alm_integer_quantity_or_fail($cantidad, 'Para generar etiquetas la cantidad debe ser entera y mayor a cero.');
     }
 
     $documentoBin = null;
@@ -397,7 +676,7 @@ function alm_action_save_entrada(mysqli $conn): void {
     $fecha = date('Y-m-d H:i:s');
     $responsable = alm_clean_text($_SESSION['usuario'] ?? 'Usuario', 120);
     $dni = alm_clean_text($_SESSION['DNI'] ?? '', 30);
-    $espacio = $originId === 1
+    $espacio = in_array($originId, [1, 12], true)
         ? ($ubicacionLabel !== '' ? $ubicacionLabel : $context['espacio_default'])
         : $context['espacio_default'];
     $serie = $context['serie_entrada'];
@@ -445,6 +724,11 @@ function alm_action_save_entrada(mysqli $conn): void {
     $movId = (int)$conn->insert_id;
     $stmtMov->close();
 
+    $labelCodes = [];
+    if ($originId === 12 && $etqCant !== null) {
+        $labelCodes = alm_sync_contabilidad_etiquetas_desde_trigger($conn, $movId, $userId, $sedeId);
+    }
+
     $conn->commit();
 
     alm_json([
@@ -454,6 +738,8 @@ function alm_action_save_entrada(mysqli $conn): void {
         'movimiento_id' => $movId,
         'nota_id' => $notaId,
         'nota_codigo' => $notaCodigo,
+        'etiquetas_generadas' => count($labelCodes),
+        'etiquetas' => $labelCodes,
         'auto_pdf' => $autoPdf,
         'pdf_params' => [
             'id_nota' => $notaId,
@@ -521,6 +807,21 @@ function alm_action_save_salida(mysqli $conn): void {
             alm_json(['ok' => false, 'message' => 'Hay items con producto o cantidad invalida.'], 422);
         }
 
+        if ($salidaOriginId === 12) {
+            $cantidad = alm_integer_quantity_or_fail($cantidad, 'En Contabilidad las salidas deben manejar cantidades enteras.');
+        }
+
+        $labelIds = [];
+        if ($salidaOriginId === 12 && isset($item['label_ids']) && is_array($item['label_ids'])) {
+            $labelIds = array_values(array_unique(array_filter(array_map('intval', $item['label_ids']), static function ($id) {
+                return $id > 0;
+            })));
+
+            if ($labelIds && count($labelIds) !== (int)$cantidad) {
+                alm_json(['ok' => false, 'message' => 'La cantidad de salida debe coincidir con las etiquetas seleccionadas.'], 422);
+            }
+        }
+
         $product = alm_fetch_one($conn, "
             SELECT
                 p.clm_alm_producto_id AS id,
@@ -550,6 +851,7 @@ function alm_action_save_salida(mysqli $conn): void {
             'cantidad' => $cantidad,
             'precio' => $precio,
             'monto' => $cantidad * $precio,
+            'label_ids' => $labelIds,
         ];
     }
 
@@ -592,6 +894,7 @@ function alm_action_save_salida(mysqli $conn): void {
     ");
 
     $movId = 0;
+    $consumedLabelCodes = [];
     foreach ($preparedItems as $index => $item) {
         $orden = $index + 1;
         $movParams = [
@@ -611,6 +914,13 @@ function alm_action_save_salida(mysqli $conn): void {
         alm_bind($stmtMov, 'isdddssiiiii', $movParams);
         $stmtMov->execute();
         $movId = (int)$conn->insert_id;
+
+        if ($salidaOriginId === 12) {
+            $consumedLabelCodes = array_merge(
+                $consumedLabelCodes,
+                alm_consumir_contabilidad_etiquetas($conn, (int)$item['producto_id'], $userId, (int)$item['cantidad'], $item['label_ids'] ?? [])
+            );
+        }
     }
     $stmtMov->close();
 
@@ -628,6 +938,8 @@ function alm_action_save_salida(mysqli $conn): void {
         'nota_id' => $notaId,
         'nota_codigo' => $notaCodigo,
         'acta_id' => $actaId,
+        'etiquetas_consumidas' => count($consumedLabelCodes),
+        'etiquetas' => $consumedLabelCodes,
         'auto_pdf' => true,
         'pdf_params' => [
             'id_nota' => $notaId,

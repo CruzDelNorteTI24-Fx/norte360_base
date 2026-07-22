@@ -10,7 +10,7 @@ if (!isset($_SESSION['usuario'])) {
 }
 
 if (!alm_can_almacen()) {
-    alm_json(['ok' => false, 'message' => 'No tienes permiso para usar almacen.'], 403);
+    alm_json(['ok' => false, 'message' => 'No tienes permiso para usar este registro de movimientos.'], 403);
 }
 
 define('ACCESS_GRANTED', true);
@@ -45,6 +45,10 @@ try {
 
         case 'trabajadores':
             alm_action_trabajadores($conn);
+            break;
+
+        case 'etiquetas_contabilidad':
+            alm_action_etiquetas_contabilidad($conn);
             break;
 
         case 'debug_payload':

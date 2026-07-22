@@ -19,13 +19,49 @@ require_once __DIR__ . '/../layout/bus_lookup_n360.php';
 require_once __DIR__ . '/../layout/almacen_movimiento_n360.php';
 require_once __DIR__ . '/../layout/product_create_n360.php';
 
-$registerContext = (defined('N360_ALM_REGISTER_CONTEXT') && N360_ALM_REGISTER_CONTEXT === 'rrhh') ? 'rrhh' : 'almacen';
-$originSpaceId = $registerContext === 'rrhh' ? 4 : 1;
-$canOpenContext = $registerContext === 'rrhh'
-    ? (n360_puede_modulo(6) && n360_puede_vista('rrhh-registeralm'))
-    : (n360_puede_modulo(3) && (n360_puede_vista('a-register') || n360_puede_vista('a-formulreg')));
+$registerContext = defined('N360_ALM_REGISTER_CONTEXT') ? strtolower((string)N360_ALM_REGISTER_CONTEXT) : 'almacen';
+if (!in_array($registerContext, ['almacen', 'rrhh', 'contabilidad'], true)) {
+    $registerContext = 'almacen';
+}
+
+$contextRuntime = [
+    'almacen' => [
+        'origin_id' => 1,
+        'permission' => n360_puede_modulo(3) && (n360_puede_vista('a-register') || n360_puede_vista('a-formulreg')),
+        'fallback_code' => 'ALM',
+        'fallback_name' => 'ALMACEN',
+        'label' => 'Almacen',
+        'subtitle' => 'Almacen operativo',
+        'eyebrow' => 'Almacen - movimiento operativo',
+        'denied_view' => 'Registrar movimiento',
+    ],
+    'rrhh' => [
+        'origin_id' => 4,
+        'permission' => n360_puede_modulo(6) && n360_puede_vista('rrhh-registeralm'),
+        'fallback_code' => 'RRHH',
+        'fallback_name' => 'RECURSOS HUMANOS',
+        'label' => 'RRHH',
+        'subtitle' => 'RRHH operativo',
+        'eyebrow' => 'RRHH - movimiento operativo',
+        'denied_view' => 'Registro de almacen RRHH',
+    ],
+    'contabilidad' => [
+        'origin_id' => 12,
+        'permission' => n360_puede_modulo(12),
+        'fallback_code' => 'CONT',
+        'fallback_name' => 'ACTIVOS FIJOS',
+        'label' => 'Contabilidad',
+        'subtitle' => 'Activos fijos',
+        'eyebrow' => 'Contabilidad - activos fijos',
+        'denied_view' => 'Registro de activos fijos',
+    ],
+];
+
+$currentContext = $contextRuntime[$registerContext];
+$originSpaceId = (int)$currentContext['origin_id'];
+$canOpenContext = (bool)$currentContext['permission'];
 if (!n360_is_admin() && !$canOpenContext) {
-    header('Location: ../login/none_permisos.php?vista=' . urlencode('Registrar movimiento'));
+    header('Location: ../login/none_permisos.php?vista=' . urlencode((string)$currentContext['denied_view']));
     exit;
 }
 
@@ -36,6 +72,9 @@ require_once __DIR__ . '/movimiento_selects.php';
 
 $originConfig = alm_context_config_from_origin($originSpaceId);
 $isRrhhContext = $registerContext === 'rrhh';
+$isAccountingContext = $registerContext === 'contabilidad';
+$usesAlmacenLocation = $originSpaceId === 1;
+$usesAccountingLocation = $originSpaceId === 12;
 
 if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
     die('No se pudo conectar a la base de datos.');
@@ -85,8 +124,8 @@ $isAdmin = n360_is_admin();
 $canEditPrices = alm_can_edit_prices();
 $currentSedeId = trim((string)($_SESSION['clm_usuarios_sede'] ?? ''));
 $currentSedeName = trim((string)($_SESSION['clm_usuarios_sede_nombre'] ?? ''));
-$originSpaceCode = trim((string)($originSpace['nombre'] ?? ($registerContext === 'rrhh' ? 'RRHH' : 'ALM')));
-$originSpaceName = trim((string)($originSpace['descripcion'] ?? ($registerContext === 'rrhh' ? 'RECURSOS HUMANOS' : 'ALMACEN')));
+$originSpaceCode = trim((string)($originSpace['nombre'] ?? $currentContext['fallback_code']));
+$originSpaceName = trim((string)($originSpace['descripcion'] ?? $currentContext['fallback_name']));
 $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
 ?>
 <!DOCTYPE html>
@@ -109,7 +148,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
     <link rel="stylesheet" href="<?= n360_asset('assets/css/almacen_movimiento_n360.css') ?>">
 </head>
 <body>
-<?php n360_render_header(['title' => 'Registro de movimientos', 'subtitle' => $isRrhhContext ? 'RRHH operativo' : 'Almacen operativo']); ?>
+<?php n360_render_header(['title' => 'Registro de movimientos', 'subtitle' => (string)$currentContext['subtitle']]); ?>
 <?php n360_render_sidebar(); ?>
 
 <main class="main-content n360-main n360-main--module">
@@ -130,12 +169,13 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
          data-serie-entrada="<?= alm_page_h($originConfig['serie_entrada'] ?? '') ?>"
          data-serie-salida="<?= alm_page_h($originConfig['serie_salida'] ?? '') ?>"
          data-note-module="<?= alm_page_h($originConfig['nota_modulo'] ?? '') ?>"
+         data-barcode-logo="<?= alm_page_h(n360_base_url('img/completo.png')) ?>"
          data-user-name="<?= alm_page_h((string)($_SESSION['usuario_nombre'] ?? $_SESSION['nombre_completo'] ?? $_SESSION['usuario'] ?? '')) ?>"
          data-user-dni="<?= alm_page_h((string)($_SESSION['DNI'] ?? '')) ?>">
         <section class="alm-mov-hero">
             <div class="alm-mov-hero__copy">
                 <div>
-                    <p class="alm-mov-eyebrow"><i class="bi bi-boxes"></i> <?= $isRrhhContext ? 'RRHH - movimiento operativo' : 'Almacen - movimiento operativo' ?></p>
+                    <p class="alm-mov-eyebrow"><i class="bi bi-boxes"></i> <?= alm_page_h($currentContext['eyebrow']) ?></p>
                     <h1>Registro de movimientos</h1>
                 </div>
             </div>
@@ -174,7 +214,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
 
         <section class="alm-modebar" aria-label="Tipo de movimiento">
             <div class="alm-modebar__title">
-                <strong>Formulario de <?= $isRrhhContext ? 'RRHH' : 'Almacen' ?></strong>
+                <strong>Formulario de <?= alm_page_h($currentContext['label']) ?></strong>
                 <span class="alm-origin-chip"><i class="bi bi-geo-alt-fill"></i> Origen: <?= alm_page_h($originSpaceLabel) ?></span>
             </div>
             <div class="alm-modebar__buttons">
@@ -215,7 +255,10 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
                         </div>
                         <label class="alm-field alm-field--span-3">
                             <span>Cantidad *</span>
-                            <input name="cantidad" id="almEntradaCantidad" type="number" min="0.001" step="0.001" placeholder="0">
+                            <input name="cantidad" id="almEntradaCantidad" type="number" min="<?= $isAccountingContext ? '1' : '0.001' ?>" step="<?= $isAccountingContext ? '1' : '0.001' ?>" inputmode="<?= $isAccountingContext ? 'numeric' : 'decimal' ?>" placeholder="0">
+                            <?php if ($isAccountingContext): ?>
+                                <small class="alm-help">Cada unidad entera generara una etiqueta trazable.</small>
+                            <?php endif; ?>
                         </label>
                         <label class="alm-field alm-field--span-3 alm-field--price <?= $canEditPrices ? '' : 'alm-hidden' ?>">
                             <span>Precio unitario</span>
@@ -276,7 +319,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
             </article>
 
             <div class="alm-side-stack">
-                <?php if (!$isRrhhContext): ?>
+                <?php if ($usesAlmacenLocation): ?>
                 <section class="alm-location alm-location--side">
                             <div class="alm-location__head">
                                 <div>
@@ -344,6 +387,40 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
                             </div>
                         </section>
                 <?php endif; ?>
+                <?php if ($usesAccountingLocation): ?>
+                <section class="alm-location alm-location--side alm-location--accounting">
+                    <div class="alm-location__head">
+                        <div>
+                            <p class="alm-location__label">Ubicacion del activo</p>
+                            <p class="alm-help">La entrada generara una etiqueta por cada unidad y dejara el primer rastro de ubicacion.</p>
+                        </div>
+                        <div class="alm-location__preview" id="almLocationPreview">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>Sin ubicacion seleccionada</span>
+                        </div>
+                    </div>
+
+                    <div class="alm-location__grid">
+                        <label class="alm-field alm-field--span-6">
+                            <span>Oficina / sede destino</span>
+                            <select name="sede_id" id="almEntradaSede" form="almEntradaForm" required>
+                                <option value="" <?= $currentSedeId === '' ? 'selected' : '' ?>>Selecciona ubicacion</option>
+                                <?php foreach ($sedes as $sede): ?>
+                                    <?php $sedeOptionId = (string)($sede['id'] ?? ''); ?>
+                                    <option value="<?= alm_page_h($sedeOptionId) ?>" <?= $sedeOptionId === $currentSedeId ? 'selected' : '' ?>><?= alm_page_h($sede['nombre'] ?? '') ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <div class="alm-trace-note alm-field--span-6">
+                            <i class="bi bi-upc-scan"></i>
+                            <div>
+                                <strong>Trazabilidad activa</strong>
+                                <span>Se usara tb_alm_etiquetado, tb_alm_etiquetadoofi y tb_alm_etq_seq.</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <?php endif; ?>
                 <details class="alm-card alm-accordion" id="almRecentAccordion">
                     <summary class="alm-card__head alm-accordion__summary">
                         <div class="alm-card__title" style="color: #000;" >
@@ -397,6 +474,14 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
 </main>
 
 <?php n360_render_almacen_product_catalog(); ?>
+<?php n360_render_product_create_config([
+    'csrf' => $csrf,
+    'origin_id' => $originSpaceId,
+    'origin_label' => $originSpaceLabel,
+    'origin_area' => $originConfig['area_control'] ?? '',
+    'origin_tipo' => $originConfig['tipo_control'] ?? '',
+    'is_admin' => $isAdmin,
+]); ?>
 <?php n360_render_product_create_modal(); ?>
 <?php n360_render_almacen_salida_modal(); ?>
 <?php n360_render_footer(); ?>
@@ -430,6 +515,7 @@ window.N360_RRHH_ACTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>

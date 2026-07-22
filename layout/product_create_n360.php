@@ -14,9 +14,9 @@ if (!function_exists('n360_render_product_create_config')) {
         $api = $options['api'] ?? (function_exists('n360_base_url') ? n360_base_url('01_almacen/movimiento_api.php') : 'movimiento_api.php');
         $csrf = $options['csrf'] ?? ($_SESSION['alm_mov_csrf'] ?? '');
         $originId = (int)($options['origin_id'] ?? 1);
-        $originLabel = $options['origin_label'] ?? ($originId === 4 ? 'RRHH' : 'ALMACEN (ALM)');
-        $originArea = $options['origin_area'] ?? ($originId === 4 ? 'RRHH' : 'ALMACEN');
-        $originTipo = $options['origin_tipo'] ?? ($originId === 4 ? 'BIEN_CONTROLADO' : 'CONSUMIBLE');
+        $originLabel = $options['origin_label'] ?? ($originId === 4 ? 'RRHH' : ($originId === 12 ? 'CONTABILIDAD' : 'ALMACEN (ALM)'));
+        $originArea = $options['origin_area'] ?? ($originId === 4 ? 'RRHH' : ($originId === 12 ? 'ACTIVOS' : 'ALMACEN'));
+        $originTipo = $options['origin_tipo'] ?? ($originId === 4 ? 'BIEN_CONTROLADO' : ($originId === 12 ? 'ACTIVO_FIJO' : 'CONSUMIBLE'));
         $isAdmin = !empty($options['is_admin']);
         $afterCreate = $options['after_create'] ?? 'event';
         ?>
