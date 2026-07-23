@@ -530,6 +530,13 @@ function n360_menu_config(): array {
                                 'url' => '01_flota/gest_prog_horarios.php',
                                 'vista' => 'f-proghist'
                             ],
+                            [
+                                'titulo' => 'Consolidado de salidas',
+                                'icono' => 'bi bi-calendar2-check-fill',
+                                'url' => '01_flota/consolidado_salidas_buses.php',
+                                'vistas' => ['f-consalbus', 'f-proghist'],
+                                'modulo' => 10
+                            ],
                         ]
                     ],
                     [
