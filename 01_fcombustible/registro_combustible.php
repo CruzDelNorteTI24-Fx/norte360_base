@@ -17,7 +17,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 require_once __DIR__ . '/../layout/quick_scan_n360.php';
 require_once __DIR__ . '/../layout/bus_lookup_n360.php';
 
-if (!n360_puede_modulo(9)) {
+if (!n360_puede_modulo(9) || !n360_puede_vista('registdialga-combust')) {
     header('Location: ../login/none_permisos.php?vista=' . urlencode('Registro de combustible'));
     exit;
 }
@@ -50,6 +50,7 @@ $stats = [
 ];
 $recent = [];
 $fuelStocks = [];
+$buses = [];
 $pageError = '';
 $isAdmin = comb_reg_is_admin();
 
@@ -66,6 +67,8 @@ try {
     if ($isAdmin) {
         $recent = comb_reg_recent($conn);
     }
+
+    $buses = comb_reg_buses_catalog($conn);
 } catch (Throwable $e) {
     $pageError = $e->getMessage();
 }
@@ -451,6 +454,45 @@ $firstGrifo = $grifos[0] ?? null;
 </main>
 
 <?php if ($isAdmin): ?>
+    <div class="comb-reg-modal comb-reg-plate-modal" id="combPlateModal" aria-hidden="true">
+        <div class="comb-reg-modal__backdrop" data-plate-close></div>
+        <section class="comb-reg-modal__panel comb-reg-plate-modal__panel" role="dialog" aria-modal="true" aria-labelledby="combPlateTitle">
+            <header class="comb-reg-modal__head">
+                <div>
+                    <span>Unidad no encontrada</span>
+                    <h2 id="combPlateTitle">Agregar nueva placa</h2>
+                </div>
+                <button type="button" class="comb-reg-modal__close" data-plate-close aria-label="Cerrar">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </header>
+            <form class="comb-reg-plate-form" id="combPlateForm" autocomplete="off">
+                <p class="comb-reg-plate-form__hint">
+                    Se creara la unidad activa y quedara seleccionada para la tanqueada actual.
+                </p>
+                <label class="stock-field">
+                    <span>Placa</span>
+                    <input type="text" id="combPlateInput" maxlength="10" autocomplete="new-password" placeholder="ABC-123">
+                </label>
+                <label class="stock-field">
+                    <span>Nombre / bus</span>
+                    <input type="text" id="combPlateName" maxlength="80" autocomplete="new-password" placeholder="ABC123">
+                </label>
+                <div class="comb-reg-plate-form__status" id="combPlateStatus">Formato sugerido: letras y numeros. Ejemplo ABC-123.</div>
+                <footer class="comb-reg-actions">
+                    <button type="button" class="stock-btn stock-btn--soft" data-plate-close>
+                        Cancelar
+                    </button>
+                    <button type="submit" class="stock-btn stock-btn--primary" id="combPlateSave">
+                        <i class="bi bi-plus-circle"></i> Crear placa
+                    </button>
+                </footer>
+            </form>
+        </section>
+    </div>
+<?php endif; ?>
+
+<?php if ($isAdmin): ?>
     <div class="comb-reg-modal" id="combRecentModal" aria-hidden="true">
         <div class="comb-reg-modal__backdrop" data-recent-close></div>
         <section class="comb-reg-modal__panel" role="dialog" aria-modal="true" aria-labelledby="combRecentTitle">
@@ -533,6 +575,7 @@ $firstGrifo = $grifos[0] ?? null;
 window.N360_COMB_REG_BOOTSTRAP = {
     productos: <?= json_encode($productos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     grifos: <?= json_encode($grifos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    buses: <?= json_encode($buses, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     stats: <?= json_encode($stats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     recent: <?= json_encode($recent, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     fuelStocks: <?= json_encode($fuelStocks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,

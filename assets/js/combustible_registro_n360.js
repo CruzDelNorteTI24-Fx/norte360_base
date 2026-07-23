@@ -53,10 +53,17 @@
     chooserInput: $('#combChooserInput'),
     chooserStatus: $('#combChooserStatus'),
     chooserResults: $('#combChooserResults'),
+    plateModal: $('#combPlateModal'),
+    plateForm: $('#combPlateForm'),
+    plateInput: $('#combPlateInput'),
+    plateName: $('#combPlateName'),
+    plateStatus: $('#combPlateStatus'),
+    plateSave: $('#combPlateSave'),
   };
 
   const state = {
     product: null,
+    buses: Array.isArray(bootstrap.buses) ? bootstrap.buses : [],
     fuelStocks: bootstrap.fuelStocks || {},
     stockProducto: 0,
     stockGrifo: 0,
@@ -65,6 +72,7 @@
     conductorTimer: null,
     chooserTimer: null,
     chooserKind: '',
+    stateRequestId: 0,
     loadingState: false,
   };
 
@@ -84,6 +92,74 @@
   const text = (value, fallback = '-') => {
     const clean = String(value ?? '').trim();
     return clean || fallback;
+  };
+
+  const normalizeText = (value) => String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+
+  const placaStoreFromRaw = (value) => {
+    let clean = String(value ?? '')
+      .replace(/[–—]/g, '-')
+      .replace(/\s+/g, '')
+      .toUpperCase();
+
+    if (!clean.includes('-') && clean.length === 6 && /^[A-Z0-9]+$/.test(clean)) {
+      clean = clean.slice(0, 3) + '-' + clean.slice(3);
+    }
+
+    return clean;
+  };
+
+  const placaPlain = (value) => placaStoreFromRaw(value).replace(/[^A-Z0-9]/g, '');
+
+  const looksLikePlaca = (value) => {
+    const stored = placaStoreFromRaw(value);
+    const plain = placaPlain(stored);
+    return plain.length >= 5
+      && plain.length <= 7
+      && /[A-Z]/.test(plain)
+      && /\d/.test(plain)
+      && /^[A-Z0-9-]+$/.test(stored);
+  };
+
+  const busLabel = (row) => `${text(row.bus || row.nombre, 'Unidad')} (${text(row.placa)})`;
+
+  const busMatches = (row, query) => {
+    const q = normalizeText(query);
+    const qPlain = placaPlain(query);
+    const bus = normalizeText(row.bus || row.nombre || '');
+    const placa = normalizeText(row.placa || '');
+    const placaCompact = placaPlain(row.placa || '');
+    const label = normalizeText(busLabel(row));
+
+    return label.includes(q)
+      || bus.includes(q)
+      || placa.includes(q)
+      || (qPlain !== '' && placaCompact.includes(qPlain));
+  };
+
+  const findExactBus = (query) => {
+    const q = normalizeText(query);
+    const qPlain = placaPlain(query);
+    if (!q) return null;
+
+    return state.buses.find((row) => {
+      const bus = normalizeText(row.bus || row.nombre || '');
+      const placa = normalizeText(row.placa || '');
+      const placaCompact = placaPlain(row.placa || '');
+      return q === bus || q === placa || (qPlain !== '' && qPlain === placaCompact);
+    }) || null;
+  };
+
+  const filterBusesLocal = (query, limit = 15) => {
+    const q = String(query ?? '').trim();
+    if (!q) return [];
+    return state.buses
+      .filter((row) => busMatches(row, q))
+      .slice(0, limit);
   };
 
   const fmtQty = (value) => {
@@ -171,6 +247,33 @@
       return window.N360Loader.during(task, options);
     }
     return task();
+  };
+
+  const setButtonBusy = (button, busy) => {
+    if (!button) return;
+    if (window.N360Loader?.setButtonBusy) {
+      window.N360Loader.setButtonBusy(button, busy);
+      return;
+    }
+    button.classList.toggle('is-loading', busy);
+    button.disabled = busy;
+  };
+
+  const setMicroLoading = (busy, button = null, label = 'Actualizando datos...') => {
+    page.classList.toggle('is-state-loading', busy);
+    page.dataset.loadingLabel = busy ? label : '';
+    setButtonBusy(button, busy);
+  };
+
+  const setLookupLoading = (container, message = 'Buscando...') => {
+    if (!container) return;
+    container.hidden = false;
+    container.innerHTML = `
+      <div class="comb-reg-results__loading">
+        <span class="comb-reg-spinner" aria-hidden="true"></span>
+        <strong>${esc(message)}</strong>
+      </div>
+    `;
   };
 
   const buildUrl = (action, params = {}) => {
@@ -321,7 +424,7 @@
     recalcSalida();
   }
 
-  async function refreshState(showError = true) {
+  async function refreshState(showError = true, options = {}) {
     const productId = el.producto?.value || '';
     const grifoId = el.grifo?.value || '';
     if (!productId || !grifoId) {
@@ -335,8 +438,9 @@
       return;
     }
 
-    if (state.loadingState) return;
+    const requestId = ++state.stateRequestId;
     state.loadingState = true;
+    setMicroLoading(true, options.button || null, options.label || 'Actualizando stock y precios...');
 
     try {
       const data = await fetchJson('state', {
@@ -345,11 +449,16 @@
           grifo_id: grifoId,
         },
       });
+      if (requestId !== state.stateRequestId) return;
       applyState(data);
     } catch (error) {
-      if (showError) await alertBox(error.message, 'error');
+      if (showError && requestId === state.stateRequestId) await alertBox(error.message, 'error');
     } finally {
-      state.loadingState = false;
+      setButtonBusy(options.button || null, false);
+      if (requestId === state.stateRequestId) {
+        state.loadingState = false;
+        setMicroLoading(false, null);
+      }
     }
   }
 
@@ -421,6 +530,7 @@
     if (kind === 'bus') {
       if (el.salidaBusId) el.salidaBusId.value = '';
       if (el.selectedBus) el.selectedBus.textContent = 'Sin seleccionar';
+      el.salidaBusSearch?.classList.remove('is-local-valid', 'is-local-missing');
       if (el.salidaBusResults) {
         el.salidaBusResults.hidden = true;
         el.salidaBusResults.innerHTML = '';
@@ -436,25 +546,39 @@
     }
   }
 
-  function renderLookup(container, rows, emptyText, type) {
+  function renderLookup(container, rows, emptyText, type, options = {}) {
     if (!container) return;
     container.hidden = false;
 
     if (!rows.length) {
-      container.innerHTML = `<button type="button" disabled><strong>${esc(emptyText)}</strong></button>`;
+      const createAction = type === 'bus' && isAdmin && looksLikePlaca(options.query || '');
+      container.innerHTML = `
+        <button type="button" disabled><strong>${esc(emptyText)}</strong></button>
+        ${createAction ? `
+          <button type="button" class="comb-reg-results__create" data-create-plate="${esc(placaStoreFromRaw(options.query || ''))}">
+            <strong><i class="bi bi-plus-circle"></i> Agregar placa ${esc(placaStoreFromRaw(options.query || ''))}</strong>
+            <small>Se creara una unidad activa para usarla en esta tanqueada.</small>
+          </button>
+        ` : ''}
+      `;
       return;
     }
 
     if (type === 'bus') {
       container.innerHTML = rows.map((row) => {
-        const label = `${row.bus || 'Unidad'} (${row.placa || '-'})`;
+        const label = busLabel(row);
         return `
           <button type="button" data-id="${esc(row.id)}" data-label="${esc(label)}">
             <strong>${esc(label)}</strong>
             <small>${esc(row.servicio || 'Unidad activa')}</small>
           </button>
         `;
-      }).join('');
+      }).join('') + (isAdmin && looksLikePlaca(options.query || '') && !findExactBus(options.query || '') ? `
+        <button type="button" class="comb-reg-results__create" data-create-plate="${esc(placaStoreFromRaw(options.query || ''))}">
+          <strong><i class="bi bi-plus-circle"></i> Agregar nueva placa</strong>
+          <small>No usar si una de las coincidencias ya corresponde a la unidad.</small>
+        </button>
+      ` : '');
       return;
     }
 
@@ -469,13 +593,24 @@
     }).join('');
   }
 
-  async function searchBuses(query) {
-    if (!query.trim()) {
+  function searchBuses(query) {
+    const q = String(query || '').trim();
+    if (!q) {
       clearLookup('bus');
       return;
     }
-    const data = await fetchJson('buses', { params: { q: query } });
-    renderLookup(el.salidaBusResults, data.rows || [], 'Sin unidades coincidentes', 'bus');
+
+    const exact = findExactBus(q);
+    if (exact) {
+      setBus(exact);
+      return;
+    }
+
+    if (el.salidaBusId) el.salidaBusId.value = '';
+    if (el.selectedBus) el.selectedBus.textContent = looksLikePlaca(q) ? 'Placa no registrada' : 'Sin seleccionar';
+    el.salidaBusSearch?.classList.toggle('is-local-missing', looksLikePlaca(q));
+    el.salidaBusSearch?.classList.remove('is-local-valid');
+    renderLookup(el.salidaBusResults, filterBusesLocal(q), 'Sin unidades coincidentes', 'bus', { query: q });
   }
 
   async function searchConductores(query) {
@@ -483,6 +618,7 @@
       clearLookup('conductor');
       return;
     }
+    setLookupLoading(el.salidaConductorResults, 'Buscando conductor...');
     const data = await fetchJson('conductores', { params: { q: query } });
     renderLookup(el.salidaConductorResults, data.rows || [], 'Sin conductores coincidentes', 'conductor');
   }
@@ -491,12 +627,88 @@
     if (el.salidaBusId) el.salidaBusId.value = id || '';
     if (el.salidaBusSearch) el.salidaBusSearch.value = label || '';
     if (el.selectedBus) el.selectedBus.textContent = label || 'Sin seleccionar';
+    el.salidaBusSearch?.classList.toggle('is-local-valid', Boolean(id));
+    el.salidaBusSearch?.classList.remove('is-local-missing');
     if (el.salidaBusResults) el.salidaBusResults.hidden = true;
   }
 
   function setBus(row) {
-    const label = `${text(row.bus || row.nombre, 'Unidad')} (${text(row.placa)})`;
+    const label = busLabel(row);
     setBusSelection(row.id || '', label);
+  }
+
+  function openPlateModal(rawValue = '') {
+    if (!isAdmin || !el.plateModal) return;
+
+    const placa = placaStoreFromRaw(rawValue || el.salidaBusSearch?.value || '');
+    if (el.plateInput) el.plateInput.value = placa;
+    if (el.plateName) el.plateName.value = placa.replace('-', '');
+    if (el.plateStatus) {
+      el.plateStatus.textContent = looksLikePlaca(placa)
+        ? 'La placa tiene formato valido. Revisa el nombre antes de crearla.'
+        : 'Ingresa una placa valida. Ejemplo ABC-123.';
+      el.plateStatus.classList.toggle('is-ok', looksLikePlaca(placa));
+    }
+
+    el.plateModal.classList.add('is-open');
+    el.plateModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('n360-modal-open');
+    window.setTimeout(() => el.plateInput?.focus(), 70);
+  }
+
+  function closePlateModal() {
+    if (!el.plateModal) return;
+    el.plateModal.classList.remove('is-open');
+    el.plateModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('n360-modal-open');
+  }
+
+  function syncBuses(rows = []) {
+    if (!Array.isArray(rows)) return;
+    state.buses = rows;
+  }
+
+  async function handlePlateSubmit(event) {
+    event.preventDefault();
+
+    const placa = placaStoreFromRaw(el.plateInput?.value || '');
+    const nombre = String(el.plateName?.value || '').trim();
+
+    if (!looksLikePlaca(placa)) {
+      if (el.plateStatus) {
+        el.plateStatus.textContent = 'La placa no tiene un formato valido. Ejemplo ABC-123.';
+        el.plateStatus.classList.remove('is-ok');
+      }
+      el.plateInput?.focus();
+      return;
+    }
+
+    try {
+      setButtonBusy(el.plateSave, true);
+      const data = await fetchJson('create_bus', {
+        method: 'POST',
+        json: {
+          csrf,
+          placa,
+          nombre,
+        },
+      });
+
+      syncBuses(data.buses || []);
+      setBus(data.bus || {});
+      closePlateModal();
+      await alertBox(data.message || 'Placa creada correctamente.', 'success', 'Unidad lista');
+      el.salidaConductorSearch?.focus();
+    } catch (error) {
+      if (el.plateStatus) {
+        el.plateStatus.textContent = error.message;
+        el.plateStatus.classList.remove('is-ok');
+      } else {
+        await alertBox(error.message, 'error');
+      }
+    } finally {
+      setButtonBusy(el.plateSave, false);
+    }
   }
 
   function setConductor(row) {
@@ -725,13 +937,16 @@
     document.body.classList.remove('n360-modal-open');
   }
 
-  async function refreshRecent() {
+  async function refreshRecent(button = null) {
     if (!isAdmin || !el.recentBody) return;
     try {
+      setButtonBusy(button, true);
       const data = await fetchJson('recent');
       renderRecent(data.rows || []);
     } catch (error) {
       await alertBox(error.message, 'error');
+    } finally {
+      setButtonBusy(button, false);
     }
   }
 
@@ -755,7 +970,7 @@
     window.setTimeout(() => {
       el.chooserInput?.focus();
       const value = String(el.chooserInput?.value || '').trim();
-      if (kind === 'conductor' || value.length >= 1) {
+      if (kind === 'bus' || kind === 'conductor' || value.length >= 1) {
         searchChooser(value).catch((error) => {
           if (el.chooserStatus) el.chooserStatus.textContent = error.message;
         });
@@ -775,14 +990,45 @@
     if (!kind) return;
     const q = String(query || '').trim();
 
-    if (kind === 'bus' && q.length < 1) {
-      if (el.chooserStatus) el.chooserStatus.textContent = 'Escribe el bus o placa para buscar.';
-      if (el.chooserResults) el.chooserResults.innerHTML = '';
+    if (kind === 'bus') {
+      const rows = q === '' ? state.buses.slice(0, 50) : filterBusesLocal(q, 50);
+      if (!rows.length) {
+        if (el.chooserStatus) el.chooserStatus.textContent = looksLikePlaca(q) ? 'No hay unidad registrada con esa placa.' : 'No hay unidades coincidentes.';
+        if (el.chooserResults) {
+          el.chooserResults.innerHTML = isAdmin && looksLikePlaca(q) ? `
+            <button type="button" class="comb-reg-chooser__item comb-reg-results__create" data-create-plate="${esc(placaStoreFromRaw(q))}">
+              <strong><i class="bi bi-plus-circle"></i> Agregar placa ${esc(placaStoreFromRaw(q))}</strong>
+              <small>Se creara como unidad activa y quedara seleccionada.</small>
+            </button>
+          ` : '';
+        }
+        return;
+      }
+
+      if (el.chooserStatus) el.chooserStatus.textContent = rows.length + ' coincidencia(s) en memoria.';
+      if (!el.chooserResults) return;
+
+      el.chooserResults.innerHTML = rows.map((row) => {
+        const label = busLabel(row);
+        return `
+          <button type="button" class="comb-reg-chooser__item" data-choose-id="${esc(row.id)}" data-choose-label="${esc(label)}" data-choose-json="${esc(JSON.stringify(row))}">
+            <strong>${esc(label)}</strong>
+            <small>${esc(row.servicio || 'Unidad activa')}</small>
+          </button>
+        `;
+      }).join('') + (isAdmin && looksLikePlaca(q) && !findExactBus(q) ? `
+        <button type="button" class="comb-reg-chooser__item comb-reg-results__create" data-create-plate="${esc(placaStoreFromRaw(q))}">
+          <strong><i class="bi bi-plus-circle"></i> Agregar nueva placa</strong>
+          <small>No usar si una coincidencia ya corresponde a la unidad.</small>
+        </button>
+      ` : '');
       return;
     }
 
-    if (el.chooserStatus) el.chooserStatus.textContent = 'Buscando...';
-    const data = await fetchJson(kind === 'bus' ? 'buses' : 'conductores', { params: { q } });
+    if (el.chooserStatus) {
+      el.chooserStatus.innerHTML = '<span class="comb-reg-spinner" aria-hidden="true"></span> Buscando conductor...';
+    }
+    const data = await fetchJson('conductores', { params: { q } });
     const rows = data.rows || [];
 
     if (!rows.length) {
@@ -795,16 +1041,6 @@
     if (!el.chooserResults) return;
 
     el.chooserResults.innerHTML = rows.map((row) => {
-      if (kind === 'bus') {
-        const label = `${text(row.bus || row.nombre, 'Unidad')} (${text(row.placa)})`;
-        return `
-          <button type="button" class="comb-reg-chooser__item" data-choose-id="${esc(row.id)}" data-choose-label="${esc(label)}" data-choose-json="${esc(JSON.stringify(row))}">
-            <strong>${esc(label)}</strong>
-            <small>${esc(row.servicio || 'Unidad activa')}</small>
-          </button>
-        `;
-      }
-
       const label = `${text(row.nombre, 'Conductor')} (${text(row.dni)})`;
       return `
         <button type="button" class="comb-reg-chooser__item" data-choose-id="${esc(row.id)}" data-choose-label="${esc(label)}" data-choose-json="${esc(JSON.stringify(row))}">
@@ -815,8 +1051,8 @@
     }).join('');
   }
 
-  el.producto?.addEventListener('change', () => refreshState());
-  el.grifo?.addEventListener('change', () => refreshState());
+  el.producto?.addEventListener('change', () => refreshState(true, { label: 'Actualizando combustible...' }));
+  el.grifo?.addEventListener('change', () => refreshState(true, { label: 'Actualizando grifo...' }));
   el.entradaCantidad?.addEventListener('input', recalcEntrada);
   el.entradaPrecio?.addEventListener('input', recalcEntrada);
   el.salidaCantidad?.addEventListener('input', recalcSalida);
@@ -826,7 +1062,7 @@
     button.addEventListener('click', () => {
       if (el.producto) el.producto.value = button.dataset.productId || '';
       setActiveProductButton(button.dataset.productId || 0);
-      refreshState();
+      refreshState(true, { button, label: 'Actualizando combustible...' });
     });
   });
 
@@ -834,7 +1070,7 @@
     button.addEventListener('click', () => {
       if (el.grifo) el.grifo.value = button.dataset.grifoId || '';
       setActiveGrifoButton(button.dataset.grifoId || 0);
-      refreshState();
+      refreshState(true, { button, label: 'Actualizando grifo...' });
     });
   });
 
@@ -861,7 +1097,7 @@
     clearLookup('bus');
     window.clearTimeout(state.busTimer);
     state.busTimer = window.setTimeout(() => {
-      searchBuses(event.target.value).catch((error) => alertBox(error.message, 'error'));
+      searchBuses(event.target.value);
     }, 240);
   });
 
@@ -874,6 +1110,12 @@
   });
 
   el.salidaBusResults?.addEventListener('click', (event) => {
+    const createButton = event.target.closest('[data-create-plate]');
+    if (createButton) {
+      openPlateModal(createButton.dataset.createPlate || el.salidaBusSearch?.value || '');
+      return;
+    }
+
     const button = event.target.closest('button[data-id]');
     if (!button) return;
     setBusSelection(button.dataset.id || '', button.dataset.label || '');
@@ -911,6 +1153,13 @@
   });
 
   el.chooserResults?.addEventListener('click', (event) => {
+    const createButton = event.target.closest('[data-create-plate]');
+    if (createButton) {
+      closeChooser();
+      openPlateModal(createButton.dataset.createPlate || el.chooserInput?.value || '');
+      return;
+    }
+
     const button = event.target.closest('[data-choose-json]');
     if (!button) return;
     let row = {};
@@ -936,12 +1185,36 @@
     button.addEventListener('click', closeChooser);
   });
 
+  $$('[data-plate-close]').forEach((button) => {
+    button.addEventListener('click', closePlateModal);
+  });
+
+  el.plateInput?.addEventListener('input', () => {
+    const placa = placaStoreFromRaw(el.plateInput.value || '');
+    if (el.plateInput.value !== placa) {
+      const pos = el.plateInput.selectionStart || placa.length;
+      el.plateInput.value = placa;
+      el.plateInput.setSelectionRange(Math.min(pos, placa.length), Math.min(pos, placa.length));
+    }
+    if (el.plateName && !String(el.plateName.value || '').trim()) {
+      el.plateName.value = placa.replace('-', '');
+    }
+    if (el.plateStatus) {
+      const ok = looksLikePlaca(placa);
+      el.plateStatus.textContent = ok ? 'Formato valido para crear la placa.' : 'Ingresa letras y numeros. Ejemplo ABC-123.';
+      el.plateStatus.classList.toggle('is-ok', ok);
+    }
+  });
+
+  el.plateForm?.addEventListener('submit', handlePlateSubmit);
+
   $('[data-recent-open]')?.addEventListener('click', openRecentModal);
   $$('[data-recent-close]').forEach((button) => button.addEventListener('click', closeRecentModal));
-  $('[data-recent-refresh]')?.addEventListener('click', () => refreshRecent());
+  $('[data-recent-refresh]')?.addEventListener('click', (event) => refreshRecent(event.currentTarget));
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    if (el.plateModal?.classList.contains('is-open')) closePlateModal();
     if (el.chooserModal?.classList.contains('is-open')) closeChooser();
     if (el.recentModal?.classList.contains('is-open')) closeRecentModal();
   });

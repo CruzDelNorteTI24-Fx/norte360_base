@@ -101,6 +101,24 @@ function comb_reg_can_modulo(int $moduloId): bool {
     return in_array($moduloId, array_map('intval', $permisos), true);
 }
 
+function comb_reg_can_view(string $vista): bool {
+    if (comb_reg_is_admin()) {
+        return true;
+    }
+
+    if (($_SESSION['permisos'] ?? []) === 'all') {
+        return true;
+    }
+
+    $vistas = $_SESSION['vistas'] ?? [];
+    if (!is_array($vistas)) {
+        return false;
+    }
+
+    $vistas = array_map(static fn($value) => trim((string)$value), $vistas);
+    return in_array(trim($vista), $vistas, true);
+}
+
 function comb_reg_user_id(mysqli $conn): int {
     if (isset($_SESSION['id_usuario']) && is_numeric($_SESSION['id_usuario'])) {
         return (int)$_SESSION['id_usuario'];
@@ -248,6 +266,236 @@ function comb_reg_grifo_label(mysqli $conn, int $grifoId): string {
     }
 
     return '(' . $row['codigo'] . ') ' . $row['nombre'];
+}
+
+function comb_reg_ident(string $name): string {
+    return '`' . str_replace('`', '``', $name) . '`';
+}
+
+function comb_reg_placa_store_from_raw($raw): string {
+    $value = trim((string)($raw ?? ''));
+    $value = str_replace(["\xE2\x80\x93", "\xE2\x80\x94", '–', '—'], '-', $value);
+    $value = preg_replace('/\s+/', '', $value) ?? '';
+    $value = function_exists('mb_strtoupper') ? mb_strtoupper($value, 'UTF-8') : strtoupper($value);
+
+    if (strpos($value, '-') === false && strlen($value) === 6 && ctype_alnum($value)) {
+        $value = substr($value, 0, 3) . '-' . substr($value, 3);
+    }
+
+    return $value;
+}
+
+function comb_reg_placa_plain($raw): string {
+    $value = comb_reg_placa_store_from_raw($raw);
+    return preg_replace('/[^A-Z0-9]/', '', $value) ?? '';
+}
+
+function comb_reg_looks_like_placa($raw): bool {
+    $placa = comb_reg_placa_store_from_raw($raw);
+    $plain = comb_reg_placa_plain($placa);
+
+    if (strlen($plain) < 5 || strlen($plain) > 7) {
+        return false;
+    }
+    if (!preg_match('/[A-Z]/', $plain) || !preg_match('/\d/', $plain)) {
+        return false;
+    }
+
+    return (bool)preg_match('/^[A-Z0-9-]+$/', $placa);
+}
+
+function comb_reg_table_columns(mysqli $conn, string $table): array {
+    $safeTable = preg_replace('/[^A-Za-z0-9_]/', '', $table) ?? '';
+    if ($safeTable === '') {
+        throw new RuntimeException('Tabla invalida.');
+    }
+
+    $result = $conn->query('SHOW COLUMNS FROM ' . comb_reg_ident($safeTable));
+    if (!$result) {
+        throw new RuntimeException($conn->error ?: 'No se pudo leer la estructura de ' . $safeTable . '.');
+    }
+
+    $columns = [];
+    while ($row = $result->fetch_assoc()) {
+        $field = (string)($row['Field'] ?? '');
+        if ($field === '') {
+            continue;
+        }
+        $columns[$field] = [
+            'type' => strtolower((string)($row['Type'] ?? '')),
+            'null' => strtoupper((string)($row['Null'] ?? '')),
+            'default' => $row['Default'] ?? null,
+            'extra' => strtolower((string)($row['Extra'] ?? '')),
+        ];
+    }
+    $result->free();
+
+    return $columns;
+}
+
+function comb_reg_pick_column(array $columns, array $candidates): ?string {
+    $map = [];
+    foreach (array_keys($columns) as $column) {
+        $map[strtolower($column)] = $column;
+    }
+
+    foreach ($candidates as $candidate) {
+        $key = strtolower((string)$candidate);
+        if (isset($map[$key])) {
+            return $map[$key];
+        }
+    }
+
+    return null;
+}
+
+function comb_reg_buses_catalog(mysqli $conn, int $limit = 600): array {
+    $limit = max(1, min(1000, $limit));
+
+    return comb_reg_fetch_all(
+        $conn,
+        "SELECT
+            clm_placas_id AS id,
+            COALESCE(NULLIF(TRIM(clm_placas_BUS), ''), CONCAT('Unidad ', clm_placas_id)) AS bus,
+            COALESCE(NULLIF(TRIM(clm_placas_PLACA), ''), '-') AS placa,
+            COALESCE(NULLIF(TRIM(clm_placas_servicio), ''), '') AS servicio
+         FROM tb_placas
+         WHERE UPPER(TRIM(COALESCE(clm_placas_ESTADO, ''))) IN ('ACTIVO', 'ACTIVE', '1')
+         ORDER BY CAST(clm_placas_BUS AS UNSIGNED) ASC, clm_placas_BUS ASC, clm_placas_PLACA ASC
+         LIMIT {$limit}"
+    );
+}
+
+function comb_reg_bus_by_id(mysqli $conn, int $busId): ?array {
+    if ($busId <= 0) {
+        return null;
+    }
+
+    return comb_reg_fetch_one(
+        $conn,
+        "SELECT
+            clm_placas_id AS id,
+            COALESCE(NULLIF(TRIM(clm_placas_BUS), ''), CONCAT('Unidad ', clm_placas_id)) AS bus,
+            COALESCE(NULLIF(TRIM(clm_placas_PLACA), ''), '-') AS placa,
+            COALESCE(NULLIF(TRIM(clm_placas_servicio), ''), '') AS servicio
+         FROM tb_placas
+         WHERE clm_placas_id = ?
+         LIMIT 1",
+        'i',
+        [$busId]
+    );
+}
+
+function comb_reg_find_bus_by_placa(mysqli $conn, string $placa): ?array {
+    $plain = comb_reg_placa_plain($placa);
+    if ($plain === '') {
+        return null;
+    }
+
+    return comb_reg_fetch_one(
+        $conn,
+        "SELECT
+            clm_placas_id AS id,
+            COALESCE(NULLIF(TRIM(clm_placas_BUS), ''), CONCAT('Unidad ', clm_placas_id)) AS bus,
+            COALESCE(NULLIF(TRIM(clm_placas_PLACA), ''), '-') AS placa,
+            COALESCE(NULLIF(TRIM(clm_placas_servicio), ''), '') AS servicio
+         FROM tb_placas
+         WHERE REPLACE(REPLACE(UPPER(TRIM(COALESCE(clm_placas_PLACA, ''))), '-', ''), ' ', '') = ?
+         LIMIT 1",
+        's',
+        [$plain]
+    );
+}
+
+function comb_reg_create_bus(mysqli $conn, string $placa, string $nombre = ''): array {
+    $placa = comb_reg_placa_store_from_raw($placa);
+    if (!comb_reg_looks_like_placa($placa)) {
+        throw new RuntimeException('Ingresa una placa valida. Ejemplo: ABC-123.');
+    }
+
+    $existing = comb_reg_find_bus_by_placa($conn, $placa);
+    if ($existing) {
+        $existing['created'] = false;
+        return $existing;
+    }
+
+    $columns = comb_reg_table_columns($conn, 'tb_placas');
+    $colId = comb_reg_pick_column($columns, ['clm_placas_id', 'id', 'ID']);
+    $colPlaca = comb_reg_pick_column($columns, ['clm_placas_PLACA', 'clm_placas_placa', 'placa', 'PLACA']);
+    $colBus = comb_reg_pick_column($columns, ['clm_placas_BUS', 'clm_placas_bus', 'clm_placas_nombre', 'bus', 'nombre']);
+
+    if (!$colId || !$colPlaca) {
+        throw new RuntimeException('No se encontro la estructura esperada de tb_placas.');
+    }
+
+    $nombre = comb_reg_clean_text($nombre, 80);
+    if ($nombre === '') {
+        $nombre = str_replace('-', '', $placa);
+    }
+
+    $valuesByColumn = [
+        $colPlaca => $placa,
+    ];
+    if ($colBus) {
+        $valuesByColumn[$colBus] = $nombre;
+    }
+
+    $colEstado = comb_reg_pick_column($columns, ['clm_placas_ESTADO', 'clm_placas_estado', 'estado']);
+    if ($colEstado && !array_key_exists($colEstado, $valuesByColumn)) {
+        $estadoType = $columns[$colEstado]['type'] ?? '';
+        $valuesByColumn[$colEstado] = (strpos($estadoType, 'int') !== false || strpos($estadoType, 'tinyint') !== false) ? 1 : 'Activo';
+    }
+
+    $defaults = [
+        'clm_placas_servicio' => 'REGULAR',
+        'servicio' => 'REGULAR',
+        'clm_placas_TIPO_VEHÍCULO' => 'BUS',
+        'clm_placas_tipo_vehiculo' => 'BUS',
+        'clm_placas_KILOMETRAJE' => 0,
+        'clm_placas_kilometraje' => 0,
+        'clm_placas_fecha_inicio' => date('Y-m-d'),
+        'fecha_inicio' => date('Y-m-d'),
+    ];
+
+    foreach ($defaults as $candidate => $value) {
+        $column = comb_reg_pick_column($columns, [$candidate]);
+        if ($column && !array_key_exists($column, $valuesByColumn)) {
+            $valuesByColumn[$column] = $value;
+        }
+    }
+
+    $fields = array_keys($valuesByColumn);
+    $placeholders = implode(', ', array_fill(0, count($fields), '?'));
+    $types = '';
+    $params = [];
+    foreach ($fields as $field) {
+        $value = $valuesByColumn[$field];
+        $types .= is_int($value) ? 'i' : (is_float($value) ? 'd' : 's');
+        $params[] = $value;
+    }
+
+    $sql = 'INSERT INTO tb_placas (' . implode(', ', array_map('comb_reg_ident', $fields)) . ') VALUES (' . $placeholders . ')';
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new RuntimeException($conn->error ?: 'No se pudo preparar el registro de placa.');
+    }
+
+    comb_reg_bind($stmt, $types, $params);
+    if (!$stmt->execute()) {
+        $error = $stmt->error;
+        $stmt->close();
+        throw new RuntimeException($error ?: 'No se pudo crear la placa.');
+    }
+    $newId = (int)$conn->insert_id;
+    $stmt->close();
+
+    $bus = comb_reg_bus_by_id($conn, $newId);
+    if (!$bus) {
+        throw new RuntimeException('La placa fue creada, pero no se pudo recuperar su informacion.');
+    }
+
+    $bus['created'] = true;
+    return $bus;
 }
 
 function comb_reg_stock_producto_grifo(mysqli $conn, int $productId, int $grifoId): float {

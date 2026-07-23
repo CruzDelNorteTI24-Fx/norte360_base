@@ -240,24 +240,26 @@ require_once __DIR__ . '/../layout/content_n360.php';
             </div>
         <?php endif; ?>
 
-        <section class="stock-kpis">
-            <article class="stock-kpi">
-                <span>Productos</span>
-                <strong data-stock-visible-count><?= inv_h($totalProductos) ?></strong>
-            </article>
-            <article class="stock-kpi stock-kpi--green">
-                <span>Con movimientos</span>
-                <strong><?= inv_h($conMovimientos) ?></strong>
-            </article>
-            <article class="stock-kpi stock-kpi--amber">
-                <span>En reposicion</span>
-                <strong><?= inv_h($enReposicion) ?></strong>
-            </article>
-            <article class="stock-kpi stock-kpi--blue">
-                <span>Stock total</span>
-                <strong><?= inv_h(inv_fmt_num($stockTotal)) ?></strong>
-            </article>
-        </section>
+        <?php if ($isAdmin): ?>
+            <section class="stock-kpis">
+                <article class="stock-kpi">
+                    <span>Productos</span>
+                    <strong data-stock-visible-count><?= inv_h($totalProductos) ?></strong>
+                </article>
+                <article class="stock-kpi stock-kpi--green">
+                    <span>Con movimientos</span>
+                    <strong><?= inv_h($conMovimientos) ?></strong>
+                </article>
+                <article class="stock-kpi stock-kpi--amber">
+                    <span>En reposicion</span>
+                    <strong><?= inv_h($enReposicion) ?></strong>
+                </article>
+                <article class="stock-kpi stock-kpi--blue">
+                    <span>Stock total</span>
+                    <strong><?= inv_h(inv_fmt_num($stockTotal)) ?></strong>
+                </article>
+            </section>
+        <?php endif; ?>
 
         <form class="stock-filters" method="get" action="inventario.php" autocomplete="off">
             <label class="stock-field stock-field--search">

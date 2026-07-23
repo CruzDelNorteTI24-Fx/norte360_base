@@ -49,6 +49,7 @@
 }
 
 .comb-reg-card {
+    position: relative;
     border: 1px solid #d6e2ef;
     border-radius: 8px;
     background: #fff;
@@ -167,6 +168,37 @@
     border-left-color: #218bd0;
     background: #eef7ff;
     box-shadow: 0 14px 28px rgba(33, 139, 208, .16);
+}
+
+.comb-reg-fuel-btn.is-loading,
+.comb-reg-grifo-btn.is-loading,
+.comb-reg-icon-btn.is-loading {
+    opacity: .72;
+    pointer-events: none;
+}
+
+.comb-reg-fuel-btn.n360-is-loading > *,
+.comb-reg-grifo-btn.n360-is-loading > *,
+.comb-reg-icon-btn.n360-is-loading > * {
+    visibility: hidden;
+}
+
+.comb-reg-grifo-btn.n360-is-loading {
+    color: transparent;
+}
+
+.comb-reg-fuel-btn.n360-is-loading::after,
+.comb-reg-grifo-btn.n360-is-loading::after,
+.comb-reg-icon-btn.n360-is-loading::after,
+#combPlateSave.n360-is-loading::after {
+    border: 2px solid rgba(33, 139, 208, .22);
+    border-top-color: #218bd0;
+}
+
+.comb-reg-mode.is-active.n360-is-loading::after,
+.stock-btn--primary.n360-is-loading::after {
+    border: 2px solid rgba(255, 255, 255, .32);
+    border-top-color: #fff;
 }
 
 .comb-reg-fuel-btn span,
@@ -365,6 +397,7 @@
 }
 
 .comb-reg-product-card {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -374,6 +407,41 @@
     background: #f8fbff;
     margin: 15px;
     padding: 13px 14px;
+}
+
+.comb-reg-page.is-state-loading .comb-reg-product-card,
+.comb-reg-page.is-state-loading .comb-reg-money-card {
+    border-color: #9fcbe8;
+}
+
+.comb-reg-page.is-state-loading .comb-reg-product-card::after,
+.comb-reg-page.is-state-loading .comb-reg-money-card.is-active::after {
+    content: attr(data-loading-text);
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    min-width: 22px;
+    min-height: 22px;
+    border-radius: 999px;
+    background: #eef7ff;
+    color: #176fa9;
+    font-size: 0;
+    box-shadow: 0 8px 18px rgba(33, 139, 208, .14);
+}
+
+.comb-reg-page.is-state-loading .comb-reg-product-card::before,
+.comb-reg-page.is-state-loading .comb-reg-money-card.is-active::before {
+    content: "";
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(33, 139, 208, .18);
+    border-top-color: #218bd0;
+    border-radius: 999px;
+    animation: combRegSpin .72s linear infinite;
 }
 
 .comb-reg-product-card__code {
@@ -554,6 +622,51 @@
     color: #64748b;
     font-size: .78rem;
     font-weight: 750;
+}
+
+.comb-reg-results__loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    padding: 9px 10px;
+    color: #176fa9;
+}
+
+.comb-reg-spinner {
+    display: inline-block;
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    border: 2px solid rgba(33, 139, 208, .18);
+    border-top-color: #218bd0;
+    border-radius: 999px;
+    vertical-align: -3px;
+    animation: combRegSpin .72s linear infinite;
+}
+
+.comb-reg-results .comb-reg-results__create,
+.comb-reg-chooser__item.comb-reg-results__create {
+    border: 1px dashed #5cbf89;
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.comb-reg-results .comb-reg-results__create:hover,
+.comb-reg-chooser__item.comb-reg-results__create:hover {
+    background: #dcfce7;
+}
+
+.comb-reg-fields input.is-local-valid {
+    border-color: #7ad2a7;
+    background: #fbfffd;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, .10);
+}
+
+.comb-reg-fields input.is-local-missing {
+    border-color: #f4a5ad;
+    background: #fffafa;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, .08);
 }
 
 .comb-reg-selected {
@@ -848,6 +961,59 @@
 .comb-reg-chooser__item {
     border: 1px solid #d6e2ef;
     background: #f8fbff;
+}
+
+.comb-reg-plate-modal__panel {
+    width: min(480px, 94vw);
+}
+
+.comb-reg-plate-form {
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+}
+
+.comb-reg-plate-form__hint {
+    margin: 0;
+    border: 1px solid #d6e2ef;
+    border-radius: 8px;
+    background: #f8fbff;
+    color: #41566d;
+    padding: 11px 12px;
+    font-weight: 800;
+}
+
+.comb-reg-plate-form .stock-field input {
+    min-height: 42px;
+    width: 100%;
+    border: 1px solid #cddbea;
+    border-radius: 8px;
+    background: #fff;
+    color: #102235;
+    padding: 9px 12px;
+    font-size: .95rem;
+    outline: none;
+}
+
+.comb-reg-plate-form__status {
+    border: 1px solid #f4c4c4;
+    border-radius: 8px;
+    background: #fff5f5;
+    color: #a11d2a;
+    padding: 10px 12px;
+    font-weight: 850;
+}
+
+.comb-reg-plate-form__status.is-ok {
+    border-color: #b7e4ca;
+    background: #ecfdf5;
+    color: #047857;
+}
+
+@keyframes combRegSpin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 body.n360-modal-open {

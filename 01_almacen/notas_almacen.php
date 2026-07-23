@@ -151,6 +151,23 @@ function notas_fmt_qty($value): string {
     return $text === '' ? '0' : $text;
 }
 
+function notas_modulo_sql_expr(string $alias = 'ns'): string {
+    return "CONVERT(COALESCE(NULLIF(TRIM(CAST({$alias}.clm_nota_modulo AS CHAR)), ''), 'Sin modulo') USING utf8mb4) COLLATE utf8mb4_unicode_ci";
+}
+
+function notas_is_almacen_modulo($value): bool {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return false;
+    }
+
+    $upper = function_exists('mb_strtoupper')
+        ? mb_strtoupper($value, 'UTF-8')
+        : strtoupper($value);
+
+    return strncmp($upper, 'ALMAC', 5) === 0;
+}
+
 function notas_nota_sql_select(): string {
     return "
         SELECT
@@ -212,7 +229,7 @@ function notas_nota_sql_select(): string {
     ";
 }
 
-function notas_build_where(string $desde, string $hasta, string $modulo, string $buscar, string &$types, array &$params): string {
+function notas_build_where(string $desde, string $hasta, string $modulo, string $buscar, string &$types, array &$params, bool $soloAlmacen = false): string {
     $where = " WHERE 1=1 ";
 
     if ($desde !== '') {
@@ -227,8 +244,12 @@ function notas_build_where(string $desde, string $hasta, string $modulo, string 
         $params[] = $hasta;
     }
 
-    if ($modulo !== '' && $modulo !== '(Todos)') {
-        $where .= " AND COALESCE(NULLIF(TRIM(CAST(ns.clm_nota_modulo AS CHAR)), ''), 'Sin modulo') = ? ";
+    if ($soloAlmacen) {
+        $where .= " AND " . notas_modulo_sql_expr('ns') . " = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci ";
+        $types .= 's';
+        $params[] = 'Almacen';
+    } elseif ($modulo !== '' && $modulo !== '(Todos)') {
+        $where .= " AND " . notas_modulo_sql_expr('ns') . " = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci ";
         $types .= 's';
         $params[] = $modulo;
     }
@@ -252,12 +273,16 @@ function notas_build_where(string $desde, string $hasta, string $modulo, string 
     return $where;
 }
 
-function notas_detail_payload(mysqli $conn, int $idNota): array {
+function notas_detail_payload(mysqli $conn, int $idNota, bool $soloAlmacen = false): array {
     $sqlNota = notas_nota_sql_select() . " WHERE ns.clm_nota_id = ? LIMIT 1";
     $nota = notas_fetch_one($conn, $sqlNota, 'i', [$idNota]);
 
     if (!$nota) {
         throw new RuntimeException('No se encontro la nota solicitada.');
+    }
+
+    if ($soloAlmacen && !notas_is_almacen_modulo($nota['modulo'] ?? '')) {
+        throw new RuntimeException('No tienes permiso para consultar esta nota.');
     }
 
     $productos = notas_fetch_all($conn, "
@@ -313,7 +338,7 @@ if ($isAjax) {
             throw new InvalidArgumentException('ID de nota invalido.');
         }
 
-        notas_json_response(notas_detail_payload($conn, $idNota));
+        notas_json_response(notas_detail_payload($conn, $idNota, !$isAdmin));
     } catch (Throwable $e) {
         notas_json_response(['ok' => false, 'message' => $e->getMessage()], 400);
     }
@@ -329,7 +354,8 @@ if ($desde > $hasta) {
 }
 
 $buscar = trim((string)($_GET['buscar'] ?? ''));
-$modulo = trim((string)($_GET['modulo'] ?? 'Almacén'));
+$soloAlmacen = !$isAdmin;
+$modulo = $soloAlmacen ? 'Almacen' : trim((string)($_GET['modulo'] ?? 'Almacén'));
 
 if ($modulo === '') {
     $modulo = '(Todos)';
@@ -343,15 +369,17 @@ try {
         throw new RuntimeException($pageError);
     }
 
-    $modulosDisponibles = notas_fetch_all($conn, "
-        SELECT DISTINCT COALESCE(NULLIF(TRIM(CAST(clm_nota_modulo AS CHAR)), ''), 'Sin modulo') AS modulo
-        FROM tb_notas_salida
-        ORDER BY modulo ASC
-    ");
+    $modulosDisponibles = $soloAlmacen
+        ? [['modulo' => 'Almacen']]
+        : notas_fetch_all($conn, "
+            SELECT DISTINCT COALESCE(NULLIF(TRIM(CAST(clm_nota_modulo AS CHAR)), ''), 'Sin modulo') AS modulo
+            FROM tb_notas_salida
+            ORDER BY modulo ASC
+        ");
 
     $types = '';
     $params = [];
-    $where = notas_build_where($desde, $hasta, $modulo, $buscar, $types, $params);
+    $where = notas_build_where($desde, $hasta, $modulo, $buscar, $types, $params, $soloAlmacen);
     $sql = notas_nota_sql_select() . $where . "
         ORDER BY ns.clm_nota_fecha DESC, ns.clm_nota_id DESC
         LIMIT 1200
@@ -410,10 +438,11 @@ foreach ($notas as $nota) {
 }
 
 $exportQuery = $_GET;
+$exportQuery['modulo'] = $soloAlmacen ? 'Almacen' : $modulo;
 $exportQuery['export'] = 'csv';
 $exportUrl = 'notas_almacen.php?' . http_build_query($exportQuery);
 
-$moduloOptions = ['(Todos)'];
+$moduloOptions = $soloAlmacen ? ['Almacen'] : ['(Todos)'];
 
 foreach ($modulosDisponibles as $rowModulo) {
     $value = trim((string)($rowModulo['modulo'] ?? ''));
@@ -523,16 +552,24 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 <span>Hasta</span>
                 <input type="date" name="hasta" value="<?= notas_h($hasta) ?>">
             </label>
-            <label class="notas-field">
-                <span>Modulo</span>
-                <select name="modulo">
-                    <?php foreach ($moduloOptions as $option): ?>
-                        <option value="<?= notas_h($option) ?>" <?= $option === $modulo ? 'selected' : '' ?>>
-                            <?= notas_h($option) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
+            <?php if ($isAdmin): ?>
+                <label class="notas-field">
+                    <span>Modulo</span>
+                    <select name="modulo">
+                        <?php foreach ($moduloOptions as $option): ?>
+                            <option value="<?= notas_h($option) ?>" <?= $option === $modulo ? 'selected' : '' ?>>
+                                <?= notas_h($option) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+            <?php else: ?>
+                <label class="notas-field">
+                    <span>Modulo</span>
+                    <input type="text" value="Almacen" readonly>
+                    <input type="hidden" name="modulo" value="Almacen">
+                </label>
+            <?php endif; ?>
             <div class="notas-filter-actions">
                 <button type="submit" class="notas-btn notas-btn--primary">
                     <i class="bi bi-funnel"></i>

@@ -13,8 +13,8 @@ if (!isset($_SESSION['usuario'])) {
     comb_reg_json(['ok' => false, 'message' => 'Sesion expirada. Vuelve a iniciar sesion.'], 401);
 }
 
-if (!comb_reg_can_modulo(9)) {
-    comb_reg_json(['ok' => false, 'message' => 'No tienes permiso para el modulo de combustible.'], 403);
+if (!comb_reg_can_modulo(9) || !comb_reg_can_view('registdialga-combust')) {
+    comb_reg_json(['ok' => false, 'message' => 'No tienes permiso para registrar combustible.'], 403);
 }
 
 if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
@@ -44,6 +44,7 @@ function comb_reg_api_bootstrap(mysqli $conn): void {
         'ok' => true,
         'productos' => comb_reg_productos($conn),
         'grifos' => comb_reg_grifos($conn),
+        'buses' => comb_reg_buses_catalog($conn),
         'stats' => comb_reg_stats($conn),
         'recent' => comb_reg_api_recent_payload($conn),
     ]);
@@ -83,7 +84,7 @@ function comb_reg_api_recent(mysqli $conn): void {
 function comb_reg_api_buses(mysqli $conn): void {
     $q = comb_reg_clean_text($_GET['q'] ?? '', 80);
     if ($q === '') {
-        comb_reg_json(['ok' => true, 'rows' => []]);
+        comb_reg_json(['ok' => true, 'rows' => array_slice(comb_reg_buses_catalog($conn), 0, 30)]);
     }
     $like = '%' . $q . '%';
     $plateLike = '%' . str_replace('-', '', $q) . '%';
@@ -109,6 +110,29 @@ function comb_reg_api_buses(mysqli $conn): void {
     );
 
     comb_reg_json(['ok' => true, 'rows' => $rows]);
+}
+
+function comb_reg_api_create_bus(mysqli $conn, array $payload): void {
+    comb_reg_validate_csrf($payload);
+
+    if (!comb_reg_is_admin()) {
+        comb_reg_json(['ok' => false, 'message' => 'Solo administradores pueden crear nuevas placas.'], 403);
+    }
+
+    $placa = comb_reg_clean_text($payload['placa'] ?? '', 20);
+    $nombre = comb_reg_clean_text($payload['nombre'] ?? '', 80);
+
+    try {
+        $bus = comb_reg_create_bus($conn, $placa, $nombre);
+        comb_reg_json([
+            'ok' => true,
+            'message' => !empty($bus['created']) ? 'Placa creada correctamente.' : 'La placa ya existia y fue seleccionada.',
+            'bus' => $bus,
+            'buses' => comb_reg_buses_catalog($conn),
+        ]);
+    } catch (Throwable $e) {
+        comb_reg_json(['ok' => false, 'message' => $e->getMessage() ?: 'No se pudo crear la placa.'], 422);
+    }
 }
 
 function comb_reg_api_conductores(mysqli $conn): void {
@@ -440,6 +464,9 @@ try {
             break;
         case 'buses':
             comb_reg_api_buses($conn);
+            break;
+        case 'create_bus':
+            comb_reg_api_create_bus($conn, $payload);
             break;
         case 'conductores':
             comb_reg_api_conductores($conn);

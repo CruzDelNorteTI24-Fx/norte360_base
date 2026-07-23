@@ -263,28 +263,30 @@ require_once __DIR__ . '/../layout/content_n360.php';
             </div>
         <?php endif; ?>
 
-        <section class="stock-kpis">
-            <article class="stock-kpi">
-                <span>Productos movidos</span>
-                <strong data-stock-visible-count><?= hist_h($totalProductos) ?></strong>
-            </article>
-            <article class="stock-kpi stock-kpi--blue">
-                <span>Saldo inicial</span>
-                <strong><?= hist_h(hist_fmt_num($sumInicial)) ?></strong>
-            </article>
-            <article class="stock-kpi stock-kpi--green">
-                <span>Entradas</span>
-                <strong><?= hist_h(hist_fmt_num($sumEntradas)) ?></strong>
-            </article>
-            <article class="stock-kpi stock-kpi--red">
-                <span>Salidas</span>
-                <strong><?= hist_h(hist_fmt_num($sumSalidas)) ?></strong>
-            </article>
-            <article class="stock-kpi stock-kpi--amber">
-                <span>Saldo final</span>
-                <strong><?= hist_h(hist_fmt_num($sumFinal)) ?></strong>
-            </article>
-        </section>
+        <?php if ($isAdmin): ?>
+            <section class="stock-kpis">
+                <article class="stock-kpi">
+                    <span>Productos movidos</span>
+                    <strong data-stock-visible-count><?= hist_h($totalProductos) ?></strong>
+                </article>
+                <article class="stock-kpi stock-kpi--blue">
+                    <span>Saldo inicial</span>
+                    <strong><?= hist_h(hist_fmt_num($sumInicial)) ?></strong>
+                </article>
+                <article class="stock-kpi stock-kpi--green">
+                    <span>Entradas</span>
+                    <strong><?= hist_h(hist_fmt_num($sumEntradas)) ?></strong>
+                </article>
+                <article class="stock-kpi stock-kpi--red">
+                    <span>Salidas</span>
+                    <strong><?= hist_h(hist_fmt_num($sumSalidas)) ?></strong>
+                </article>
+                <article class="stock-kpi stock-kpi--amber">
+                    <span>Saldo final</span>
+                    <strong><?= hist_h(hist_fmt_num($sumFinal)) ?></strong>
+                </article>
+            </section>
+        <?php endif; ?>
 
         <form class="stock-filters stock-filters--history" method="get" action="historial_stock.php" autocomplete="off">
             <label class="stock-field">

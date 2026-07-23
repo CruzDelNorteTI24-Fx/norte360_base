@@ -79,8 +79,8 @@ function n360_header_birthdate_from_db(): ?string {
         FROM tb_trabajador
         WHERE clm_tra_dni = ?
           AND clm_tra_fecha_nacimiento IS NOT NULL
-          AND clm_tra_fecha_nacimiento <> ''
-          AND clm_tra_fecha_nacimiento <> '0000-00-00'
+          AND clm_tra_fecha_nacimiento >= '1900-01-01'
+          AND clm_tra_fecha_nacimiento <= CURDATE()
         ORDER BY clm_tra_id DESC
         LIMIT 1
     ";
