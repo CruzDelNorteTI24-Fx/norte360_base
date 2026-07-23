@@ -340,13 +340,12 @@ $kpis['conductores'] = count($conductoresSet);
     <main class="n360-content csb-page">
         <section class="csb-hero">
             <div>
-                <span class="csb-eyebrow"><i class="bi bi-bus-front-fill"></i> Consolidado de salidas</span>
-                <h1>Buses programados cerrados</h1>
-                <p>Respaldo del cron diario antes de limpiar la pizarra. Filtra por fecha operativa y registra observaciones o correcciones.</p>
+                <span class="csb-eyebrow"><i class="bi bi-bus-front-fill"></i> Consolidado de salidas de Buses</span>
+                <h1>Buses con Programación Cerrada</h1>
             </div>
             <div class="csb-hero-meta">
                 <span><i class="bi bi-calendar2-check"></i> <?= csb_h(csb_date_label($fechaOperativa)) ?></span>
-                <span><i class="bi bi-clock-history"></i> Cierre 04:59 Peru</span>
+                <span><i class="bi bi-clock-history"></i> Cierre (Pe) 04:59am</span>
             </div>
         </section>
 
@@ -403,7 +402,7 @@ $kpis['conductores'] = count($conductoresSet);
                 <strong><?= csb_h(csb_date_label($fechaOperativa)) ?></strong>
             </div>
             <div>
-                <span>Ejecucion cron</span>
+                <span>Ejecucion</span>
                 <strong><?= $ultimoCierre ? csb_h(csb_date_label($ultimoCierre['clm_cierre_datetime'] ?? '', 'd/m/Y H:i')) : '-' ?></strong>
             </div>
             <div>
