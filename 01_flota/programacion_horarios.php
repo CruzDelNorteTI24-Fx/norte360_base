@@ -5458,13 +5458,70 @@ function agruparFilasPorGrupoPizarra(rows) {
   return groups;
 }
 
-function descargarCanvas(canvas, nombreArchivo) {
-  const a = document.createElement('a');
-  a.href = canvas.toDataURL('image/png');
-  a.download = nombreArchivo;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+function esDispositivoAppleConSafariMovil() {
+  const ua = navigator.userAgent || '';
+  const platform = navigator.platform || '';
+  const isIOS = /iPad|iPhone|iPod/i.test(ua);
+  const isIPadOSDesktopMode = platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1;
+  return isIOS || isIPadOSDesktopMode;
+}
+
+function canvasToPngBlob(canvas) {
+  return new Promise(resolve => {
+    if (!canvas?.toBlob) {
+      resolve(null);
+      return;
+    }
+    canvas.toBlob(blob => resolve(blob), 'image/png');
+  });
+}
+
+async function descargarCanvas(canvas, nombreArchivo) {
+  const esAppleMovil = esDispositivoAppleConSafariMovil();
+
+  if (!esAppleMovil) {
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
+
+  const blob = await canvasToPngBlob(canvas);
+
+  if (blob && window.File && navigator.share && navigator.canShare) {
+    const file = new File([blob], nombreArchivo, { type: 'image/png' });
+
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: nombreArchivo,
+          text: 'Pizarra operativa Norte 360'
+        });
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+  }
+
+  const url = blob ? URL.createObjectURL(blob) : canvas.toDataURL('image/png');
+  const nuevaVentana = window.open(url, '_blank');
+
+  if (!nuevaVentana) {
+    window.location.href = url;
+  }
+
+  showAlert('info', 'En iPhone/iPad Safari se abrio la imagen en una pestana. Usa Compartir o manten presionada la imagen para guardarla.');
+
+  if (blob) {
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
 }
 
 function pausa(ms) {
@@ -6281,7 +6338,7 @@ async function generarImagenTablaGrupo(nombreGrupo, filasGrupo, busesSinHorario,
     return resultado;
   }
 
-  descargarCanvas(canvas, nombreArchivo);
+  await descargarCanvas(canvas, nombreArchivo);
   return resultado;
 }
 
@@ -6730,7 +6787,7 @@ busesSinHorario.forEach(b => {
     return resultado;
   }
 
-  descargarCanvas(canvas, nombreArchivo);
+  await descargarCanvas(canvas, nombreArchivo);
   return resultado;
 }
 
