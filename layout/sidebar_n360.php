@@ -455,6 +455,37 @@ function n360_menu_config(): array {
                 ],
             ],
             [
+                'id' => 'peajes',
+                'titulo' => 'Peajes',
+                'icono' => 'bi bi-signpost-2-fill',
+                'modulo' => 4,
+                'grupos' => [
+                    [
+                        'titulo' => 'Control de peajes',
+                        'items' => [
+                            [
+                                'titulo' => 'Vista general',
+                                'icono' => 'bi bi-receipt-cutoff',
+                                'url' => '24_peajes/index.php',
+                                'modulo' => 4
+                            ],
+                            [
+                                'titulo' => 'Resumen por placa',
+                                'icono' => 'bi bi-bus-front-fill',
+                                'url' => '24_peajes/resumen_placas.php',
+                                'modulo' => 4
+                            ],
+                            [
+                                'titulo' => 'Control fisico',
+                                'icono' => 'bi bi-clipboard2-check-fill',
+                                'url' => '24_peajes/control_fisico.php',
+                                'modulo' => 4
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            [
                 'id' => 'flota',
                 'titulo' => 'Flota y Operaciones',
                 'icono' => 'bi bi-bus-front-fill',

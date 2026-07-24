@@ -1555,7 +1555,38 @@ margin: 20px
     color: #2980b9;
 }
 
+#horariosAlertZone {
+  position: fixed;
+  top: 92px;
+  right: 24px;
+  width: min(460px, calc(100vw - 32px));
+  z-index: 200000;
+  pointer-events: none;
+}
 
+#horariosAlertZone .alert {
+  pointer-events: auto;
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, .24);
+}
+
+@media (max-width: 768px) {
+  #horariosAlertZone {
+    top: 78px;
+    right: 14px;
+    left: 14px;
+    width: auto;
+  }
+}
+
+#modalMotivo.modal {
+  z-index: 10080 !important;
+}
+
+.modal-backdrop.modal-motivo-backdrop {
+  z-index: 10070 !important;
+}
 
 .modal {
   display: none;
@@ -7059,7 +7090,8 @@ async function saveEditedHora(){
   function askMotivo(config){ const conf=getMotivoConfig(config||{}); state.pendingMotivoConfig={...conf,selected:'NORMAL'}; els.motivoTitulo.textContent=conf.titulo; els.motivoLibre.value=''; renderMotivoOptions(); modalMotivo.show(); return new Promise(resolve=>{ state.pendingMotivoResolver=resolve; }); }
   function resolveMotivo(value){ const resolver=state.pendingMotivoResolver; state.pendingMotivoResolver=null; state.pendingMotivoConfig=null; if(typeof resolver==='function') resolver(value); }
   async function acceptMotivo(){ const conf=state.pendingMotivoConfig; if(!conf) return; const libre=(els.motivoLibre.value||'').trim(); if(conf.selected==='OTRO'&&!libre){ showAlert('warning','Escribe el motivo libre.'); return; } modalMotivo.hide(); resolveMotivo(conf.build(conf.selected, libre)); }
-  $('modalMotivo').addEventListener('hidden.bs.modal',()=>{ if(state.pendingMotivoResolver) resolveMotivo(null); });
+  $('modalMotivo').addEventListener('shown.bs.modal',()=>{ const backdrops=document.querySelectorAll('.modal-backdrop'); const lastBackdrop=backdrops[backdrops.length-1]; if(lastBackdrop) lastBackdrop.classList.add('modal-motivo-backdrop'); });
+  $('modalMotivo').addEventListener('hidden.bs.modal',()=>{ document.querySelectorAll('.modal-backdrop.modal-motivo-backdrop').forEach(el=>el.classList.remove('modal-motivo-backdrop')); if(state.pendingMotivoResolver) resolveMotivo(null); });
   async function loadBusList() {
   const data = await fetchJson('buses_disponibles');
   state.busList = (data.buses || []).slice().sort(compareBusNatural);

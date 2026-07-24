@@ -809,8 +809,70 @@ $frases = [
     "¡Cada paso que das te acerca al éxito!",
     "¡Gracias por tu compromiso con Norte360!",
     "¡Juntos hacemos posible lo imposible!",
-    "Un cafecito y como nuev@",
-    "Atrévete ;)"
+    "Un cafecito y como nuev@ ☕",
+    "Atrévete ;)",
+    "Texto random para motivarte a seguir con todo.",
+    "No olvides guardar tu excel antes de que se vaya la luz xd",
+    "Hace falta un poquito más de café para que todo fluya ☕",
+    "Esto lo escribió un loquillo con mucho amor y café ☕",
+    "La samba brasileira no es lo único que se mueve, tu productividad también.",
+    "Que no falte el chisme, pero que sobre la productividad.",
+    "Para amar a otr@s hay que aprender a amarse a sí mismo.",
+    "No hay nada mejor que un buen cafecito",
+    "A chambear a chambear vamos todos a chambear",
+    "Hoy toca avanzar, aunque sea de a poquitos.",
+    "Las grandes mejoras comienzan con una pequeña acción.",
+    "¡Vamos con todo, que recién empezamos!",
+    "Tu esfuerzo de hoy construye los resultados de mañana.",
+    "Un día productivo comienza con una buena actitud.",
+    "Confía en el proceso… y también en Norte360 😎",
+    "Menos excusas, más resultados.",
+    "Todo bajo control… o al menos eso dice el sistema xd",
+    "Respira, organiza y continúa.",
+    "Lo difícil solo necesita un poquito más de paciencia.",
+    "Hoy puede ser el día de ese gran avance.",
+    "Hazlo con ganas o hazlo con café pero hazlo ☕",
+    "Cada registro correcto hace la diferencia.",
+    "Tu trabajo mantiene todo en movimiento.",
+    "¡Excelente trabajo! Sigue así.",
+    "Paso a paso, proceso a proceso.",
+    "No tienes que ser perfect@, solo constante.",
+    "Los buenos resultados nacen de un buen equipo.",
+    "Hoy venimos a resolver, no a complicarnos.",
+    "Un pendiente menos, una victoria más.",
+    "Todo esfuerzo suma, aunque no siempre se note.",
+    "Norte360: información clara, decisiones inteligentes.",
+    "Organiza hoy para trabajar mejor mañana.",
+    "La disciplina también es hacer clic donde corresponde xd",
+    "Antes de guardar… revisa una vez más 👀",
+    "Que no se te pase nada, Norte360 te respalda.",
+    "La productividad también necesita una pausa.",
+    "Si algo no funciona, respira… y vuelve a intentarlo.",
+    "Los errores también forman parte del progreso.",
+    "Hoy toca dejar el sistema más ordenado que ayer.",
+    "Un buen equipo convierte los problemas en soluciones.",
+    "Cada dato cuenta, cada acción importa.",
+    "Lo estás haciendo mejor de lo que crees.",
+    "Mantén el enfoque, la meta está más cerca.",
+    "No pares hasta sentirte orgullos@.",
+    "El éxito se construye con constancia.",
+    "Hoy se trabaja bonito y sin errores, por favor xd",
+    "Modo chambeador: ACTIVADO",
+    "Con actitud, hasta el lunes se supera.",
+    "Primero el diente después el pendiente.",
+    "Si ya llegaste hasta aquí, termina con todo.",
+    "Primero lo importante, después el cafecito.",
+    "Que hoy sobren resultados y falten pendientes.",
+    "Norte360 contigo en cada proceso.",
+    "Una buena gestión comienza con información confiable.",
+    "Haz que cada acción valga la pena.",
+    "Hoy también es una oportunidad para mejorar.",
+    "No solo buscamos hacerlo rápido, buscamos hacerlo bien.",
+    "Pequeños avances generan grandes cambios.",
+    "Tu mejor versión también está en construcción.",
+    "Dale con fe, que el sistema aguanta 😏",
+    "No fue suerte, fue esfuerzo y un buen sistema.",
+    "Ingresaste a Norte360… ahora sí, a chambear mi king 😎"
 ];
 
 $mensaje_extra = $frases[array_rand($frases)];
@@ -874,6 +936,16 @@ if (n360_puede_modulo(3)) {
     <h4>Inventario</h4>
     <p>Gestiona almacén y productos</p>
     <a href="01_almacen/scanner.php" class="btn-validar">Ingresar</a>
+  </div>';
+}
+
+if (n360_puede_modulo(4)) {
+  echo '
+  <div class="product-card">
+    <div class="admin-access-card__icon" aria-hidden="true"><i class="bi bi-signpost-2-fill"></i></div>
+    <h4>Peajes</h4>
+    <p>Consulta peajes, placas y detracciones</p>
+    <a href="24_peajes/index.php" class="btn-validar">Ingresar</a>
   </div>';
 }
 
