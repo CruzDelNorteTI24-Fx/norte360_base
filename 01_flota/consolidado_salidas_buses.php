@@ -76,6 +76,24 @@ function csb_table_exists(mysqli $conn, string $table): bool {
     return (int)($row['total'] ?? 0) > 0;
 }
 
+function csb_column_exists(mysqli $conn, string $table, string $column): bool {
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) AS total
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+    ");
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param('ss', $table, $column);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return (int)($row['total'] ?? 0) > 0;
+}
+
 function csb_fetch_all(mysqli $conn, string $sql, string $types = '', array $params = []): array {
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
@@ -131,10 +149,56 @@ function csb_estado_class(string $estado): string {
     return 'csb-status--pending';
 }
 
+function csb_norm(?string $value): string {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+    $value = str_replace(['Á', 'É', 'Í', 'Ó', 'Ú', 'Ñ', 'á', 'é', 'í', 'ó', 'ú', 'ñ'], ['A', 'E', 'I', 'O', 'U', 'N', 'a', 'e', 'i', 'o', 'u', 'n'], $value);
+    $value = strtolower($value);
+    return preg_replace('/\s+/', ' ', $value) ?: '';
+}
+
+function csb_conductores_lineas(?string $value): array {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return [];
+    }
+
+    $parts = preg_split('/\s+\|\s+|\r\n|\r|\n/', $value) ?: [];
+    $parts = array_map('trim', $parts);
+    return array_values(array_filter($parts, static function ($part) {
+        return $part !== '';
+    }));
+}
+
+function csb_row_groups(array $row, array $sedeGroups): array {
+    if (!$sedeGroups) {
+        return [];
+    }
+
+    $origen = csb_norm($row['clm_salprog_origen'] ?? '');
+
+    $groups = [];
+    foreach ($sedeGroups as $label => $group) {
+        if ($label === '') {
+            continue;
+        }
+        $isDirect = $label === $origen;
+        $isOriginHit = strlen($label) > 2 && $origen !== '' && strpos($origen, $label) !== false;
+        if ($isDirect || $isOriginHit) {
+            $groups[$group] = true;
+        }
+    }
+
+    return array_keys($groups);
+}
+
 if (empty($_SESSION['csb_token'])) {
     $_SESSION['csb_token'] = bin2hex(random_bytes(16));
 }
 $csrfToken = $_SESSION['csb_token'];
+$isAdmin = n360_is_admin();
 $tableReady = isset($conn) && $conn instanceof mysqli && csb_table_exists($conn, 'tb_progbuses_salida_consolidado');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -146,6 +210,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $action = (string)($_POST['action'] ?? '');
+    if ($action === 'calendar_counts') {
+        if (!$isAdmin) {
+            csb_json(false, [], 'Solo administradores pueden consultar el calendario.', 403);
+        }
+
+        $month = trim((string)($_POST['month'] ?? date('Y-m')));
+        $monthDate = DateTime::createFromFormat('Y-m-d', $month . '-01');
+        if (!$monthDate || $monthDate->format('Y-m') !== $month) {
+            csb_json(false, [], 'Mes invalido.', 422);
+        }
+
+        $start = $monthDate->format('Y-m-01');
+        $end = $monthDate->format('Y-m-t');
+        $calendarRows = csb_fetch_all($conn, "
+            SELECT clm_salprog_fecha_operativa AS fecha, COUNT(*) AS total
+            FROM tb_progbuses_salida_consolidado
+            WHERE clm_salprog_fecha_operativa BETWEEN ? AND ?
+            GROUP BY clm_salprog_fecha_operativa
+            ORDER BY clm_salprog_fecha_operativa ASC
+        ", 'ss', [$start, $end]);
+
+        $counts = [];
+        foreach ($calendarRows as $calendarRow) {
+            $counts[(string)$calendarRow['fecha']] = (int)$calendarRow['total'];
+        }
+
+        csb_json(true, [
+            'month' => $month,
+            'start' => $start,
+            'end' => $end,
+            'counts' => $counts,
+        ]);
+    }
+
     if ($action !== 'update_revision') {
         csb_json(false, [], 'Accion no reconocida.', 400);
     }
@@ -203,6 +301,9 @@ $rows = [];
 $pageError = '';
 $ultimoCierre = null;
 $rowsForDateTotal = 0;
+$sedeGroups = [];
+$rowGroupsById = [];
+$groupCounters = [];
 $kpis = [
     'registros' => 0,
     'unidades' => 0,
@@ -215,6 +316,30 @@ $kpis = [
 
 if ($tableReady) {
     try {
+        if (csb_column_exists($conn, 'tb_sedes', 'clm_sedes_grupo_pizarra')) {
+            $estadoWhere = csb_column_exists($conn, 'tb_sedes', 'clm_sedes_estado')
+                ? "WHERE IFNULL(clm_sedes_estado, 1) = 1"
+                : "";
+            $sedeRows = csb_fetch_all($conn, "
+                SELECT
+                    COALESCE(NULLIF(TRIM(clm_sedes_abr), ''), '') AS abr,
+                    COALESCE(NULLIF(TRIM(clm_sedes_name), ''), '') AS nombre,
+                    COALESCE(NULLIF(TRIM(clm_sedes_grupo_pizarra), ''), 'SIN GRUPO') AS grupo
+                FROM tb_sedes
+                {$estadoWhere}
+            ");
+            foreach ($sedeRows as $sedeRow) {
+                $grupo = trim((string)($sedeRow['grupo'] ?? 'SIN GRUPO'));
+                $grupo = $grupo !== '' ? $grupo : 'SIN GRUPO';
+                foreach (['abr', 'nombre'] as $field) {
+                    $label = csb_norm($sedeRow[$field] ?? '');
+                    if ($label !== '') {
+                        $sedeGroups[$label] = $grupo;
+                    }
+                }
+            }
+        }
+
         $dateTotalRows = csb_fetch_all($conn, "
             SELECT COUNT(*) AS total
             FROM tb_progbuses_salida_consolidado
@@ -276,6 +401,16 @@ $placas = [];
 $conductoresSet = [];
 foreach ($rows as $row) {
     $kpis['registros']++;
+    $rowId = (int)($row['clm_salprog_id'] ?? 0);
+    $groups = csb_row_groups($row, $sedeGroups);
+    if (!$groups && $sedeGroups) {
+        $groups = ['SIN GRUPO'];
+    }
+    $rowGroupsById[$rowId] = $groups;
+    foreach ($groups as $group) {
+        $groupCounters[$group] = ($groupCounters[$group] ?? 0) + 1;
+    }
+
     $placaId = (int)($row['clm_salprog_idplaca'] ?? 0);
     if ($placaId > 0) {
         $placas[$placaId] = true;
@@ -313,6 +448,7 @@ foreach ($rows as $row) {
 }
 $kpis['unidades'] = count($placas);
 $kpis['conductores'] = count($conductoresSet);
+ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -346,6 +482,10 @@ $kpis['conductores'] = count($conductoresSet);
             <div class="csb-hero-meta">
                 <span><i class="bi bi-calendar2-check"></i> <?= csb_h(csb_date_label($fechaOperativa)) ?></span>
                 <span><i class="bi bi-clock-history"></i> Cierre (Pe) 04:59am</span>
+                <button type="button" class="csb-btn csb-btn--hero" data-csb-export-pdf><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+                <?php if ($isAdmin): ?>
+                    <button type="button" class="csb-btn csb-btn--hero-soft" data-csb-calendar-open><i class="bi bi-calendar3"></i> Calendario</button>
+                <?php endif; ?>
             </div>
         </section>
 
@@ -415,17 +555,30 @@ $kpis['conductores'] = count($conductoresSet);
             </div>
         </section>
 
+        <?php if ($groupCounters): ?>
+            <section class="csb-group-filter" data-csb-group-filter>
+                <button type="button" class="csb-group-btn is-active" data-csb-group="__ALL__">
+                    Todos <span><?= number_format(count($rows)) ?></span>
+                </button>
+                <?php foreach ($groupCounters as $group => $total): ?>
+                    <button type="button" class="csb-group-btn" data-csb-group="<?= csb_h($group) ?>">
+                        <?= csb_h($group) ?> <span><?= number_format($total) ?></span>
+                    </button>
+                <?php endforeach; ?>
+            </section>
+        <?php endif; ?>
+
         <section class="csb-card">
             <div class="csb-card-head">
                 <div>
                     <h2>Consolidado de salidas de buses programados</h2>
                     <p>Datos capturados antes de limpiar la pizarra; los comentarios se guardan en esta tabla auxiliar.</p>
                 </div>
-                <span><?= number_format(count($rows)) ?> registros</span>
+                <span data-csb-visible-pill><?= number_format(count($rows)) ?> registros</span>
             </div>
 
             <div class="csb-table-wrap">
-                <table class="csb-table">
+                <table class="csb-table" data-csb-table>
                     <thead>
                         <tr>
                             <th>Hora</th>
@@ -455,8 +608,10 @@ $kpis['conductores'] = count($conductoresSet);
                                 $busLabel = trim((string)($row['clm_salprog_bus'] ?? ''));
                                 $placaLabel = trim((string)($row['clm_salprog_placa'] ?? ''));
                                 $unidadLabel = $busLabel !== '' && $placaLabel !== '' ? "{$busLabel} ({$placaLabel})" : ($busLabel ?: ($placaLabel ?: '-'));
+                                $rowGroups = $rowGroupsById[$id] ?? [];
+                                $conductoresLineas = csb_conductores_lineas($row['clm_salprog_conductores_texto'] ?? '');
                             ?>
-                            <tr data-csb-row="<?= $id ?>">
+                            <tr data-csb-row="<?= $id ?>" data-csb-groups="<?= csb_h(implode('|', $rowGroups)) ?>">
                                 <td>
                                     <strong><?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?></strong>
                                     <small>#<?= (int)($row['clm_salprog_progid'] ?? 0) ?></small>
@@ -473,7 +628,14 @@ $kpis['conductores'] = count($conductoresSet);
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <strong><?= csb_h($row['clm_salprog_conductores_texto'] ?: 'Sin conductor asignado') ?></strong>
+                                    <div class="csb-drivers">
+                                        <?php if (!$conductoresLineas): ?>
+                                            <span>Sin conductor asignado</span>
+                                        <?php endif; ?>
+                                        <?php foreach ($conductoresLineas as $conductor): ?>
+                                            <span><?= csb_h($conductor) ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
                                     <small>Asignacion capturada del modulo Conductores</small>
                                 </td>
                                 <td>
@@ -489,12 +651,14 @@ $kpis['conductores'] = count($conductoresSet);
                                     <textarea data-csb-field="correccion" rows="2" placeholder="Correccion aplicada o pendiente"><?= csb_h($row['clm_salprog_correccion'] ?? '') ?></textarea>
                                 </td>
                                 <td>
-                                    <button type="button" class="csb-btn csb-btn--primary csb-btn--save" data-csb-save="<?= $id ?>">
-                                        <i class="bi bi-save"></i> Guardar
-                                    </button>
-                                    <small data-csb-saved>
-                                        <?= !empty($row['clm_salprog_datetime_revision']) ? csb_h(csb_date_label($row['clm_salprog_datetime_revision'], 'd/m/Y H:i')) : '' ?>
-                                    </small>
+                                    <div class="csb-row-actions">
+                                        <button type="button" class="csb-icon-btn" data-csb-save="<?= $id ?>" title="Guardar revision" aria-label="Guardar revision">
+                                            <i class="bi bi-check2"></i>
+                                        </button>
+                                        <small data-csb-saved>
+                                            <?= !empty($row['clm_salprog_datetime_revision']) ? csb_h(csb_date_label($row['clm_salprog_datetime_revision'], 'd/m/Y H:i')) : '' ?>
+                                        </small>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -507,12 +671,56 @@ $kpis['conductores'] = count($conductoresSet);
     <?php n360_render_content_separator('bottom'); ?>
 </div>
 
+<?php if ($isAdmin): ?>
+<div class="modal fade csb-calendar-modal" id="csbCalendarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="csb-modal-head">
+                <div>
+                    <span><i class="bi bi-calendar3"></i> Solo administradores</span>
+                    <h2>Calendario de programaciones cerradas</h2>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="csb-calendar-toolbar">
+                    <label>
+                        <span>Mes operativo</span>
+                        <input type="month" value="<?= csb_h(substr($fechaOperativa, 0, 7)) ?>" data-csb-calendar-month>
+                    </label>
+                    <p>Cantidad de buses capturados por dia operativo en el consolidado.</p>
+                </div>
+                <div class="csb-calendar-grid" data-csb-calendar-grid>
+                    <div class="csb-calendar-loading">Selecciona un mes para cargar el calendario.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
 window.N360_CSB = {
     csrf: <?= json_encode($csrfToken) ?>,
-    endpoint: 'consolidado_salidas_buses.php'
+    endpoint: 'consolidado_salidas_buses.php',
+    report: {
+        title: 'CONSOLIDADO DE SALIDAS DE BUSES',
+        subtitle: 'Buses con programacion cerrada',
+        docCode: 'FLOTA_CONS_SALIDAS',
+        period: <?= json_encode(csb_date_label($fechaOperativa)) ?>,
+        revision: <?= json_encode($revision) ?>,
+        buscar: <?= json_encode($buscar) ?>,
+        generatedBy: <?= json_encode($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? '') ?>,
+        dni: <?= json_encode($_SESSION['DNI'] ?? 'No registrado') ?>,
+        logoLeft: <?= json_encode(n360_asset('img/icon.png')) ?>,
+        logoRight: <?= json_encode(n360_asset('img/norte360_black.png')) ?>,
+        fileBase: <?= json_encode('consolidado_salidas_buses_' . str_replace('-', '', $fechaOperativa)) ?>
+    }
 };
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
