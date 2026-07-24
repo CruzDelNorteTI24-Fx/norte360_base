@@ -239,72 +239,13 @@ function n360_menu_config(): array {
                         ]
                     ],
                     [
-                        'titulo' => 'Consultas',
-                        'items' => [
-                            [
-                                'titulo' => 'Licencias',
-                                'icono' => 'bi bi-award-fill',
-                                'url' => '01_contratos/trabajadores/ver_licencias.php',
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Cumpleaños',
-                                'icono' => 'bi bi-calendar2-event-fill',
-                                'url' => '01_contratos/trabajadores/ver_cumpleanos.php',
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Cargos',
-                                'icono' => 'bi bi-briefcase-fill',
-                                'url' => '01_contratos/trabajadores/ver_cargos.php',
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Emergencia',
-                                'icono' => 'bi bi-telephone-inbound-fill',
-                                'url' => '01_contratos/trabajadores/ver_emergencia.php',
-                                'modulo' => 6
-                            ],
-                        ]
-                    ],
-                    [
                         'titulo' => 'Documentación',
                         'items' => [
-                            [
-                                'titulo' => 'Agregar documento',
-                                'icono' => 'bi bi-file-earmark-plus-fill',
-                                'url' => '01_contratos/documentacion/agregadocu.php',
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Generar documento',
-                                'icono' => 'bi bi-journal-plus',
-                                'url' => '01_contratos/documentacion/generdocuplant.php',
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Ver documentos',
-                                'icono' => 'bi bi-folder2-open',
-                                'url' => '01_contratos/documentacion/ver.php',
-                                'modulo' => 6
-                            ],
                             [
                                 'titulo' => 'Actas de uniformes',
                                 'icono' => 'bi bi-file-earmark-text-fill',
                                 'url' => '01_contratos/actas_uniformes.php',
                                 'vistas' => ['rrhh-registeralm'],
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Documentación general',
-                                'icono' => 'bi bi-folder-fill',
-                                'url' => '01_contratos/dorrhcdn.php',
-                                'modulo' => 6
-                            ],
-                            [
-                                'titulo' => 'Tipos documentos',
-                                'icono' => 'bi bi-archive-fill',
-                                'url' => '01_contratos/documentacion/tipo_docu.php',
                                 'modulo' => 6
                             ],
                         ]
@@ -399,7 +340,7 @@ function n360_menu_config(): array {
                 'modulo' => 3,
                 'grupos' => [
                     [
-                        'titulo' => 'Almacén',
+                        'titulo' => 'Catálogo',
                         'items' => [
                             [
                                 'titulo' => 'Código de barra',
@@ -407,6 +348,18 @@ function n360_menu_config(): array {
                                 'url' => '01_almacen/scanner.php',
                                 'modulo' => 3
                             ],
+                            [
+                                'titulo' => 'Catálogo productos',
+                                'icono' => 'bi bi-card-list',
+                                'url' => '01_almacen/gen_np9823.php',
+                                'admin' => true,
+                                'modulo' => 3
+                            ],
+                        ]
+                    ],
+                    [
+                        'titulo' => 'Stock',
+                        'items' => [
                             [
                                 'titulo' => 'Inventario',
                                 'icono' => 'bi bi-clipboard-data-fill',
@@ -426,13 +379,11 @@ function n360_menu_config(): array {
                                 'admin' => true,
                                 'modulo' => 3
                             ],
-                            [
-                                'titulo' => 'Catálogo productos',
-                                'icono' => 'bi bi-card-list',
-                                'url' => '01_almacen/gen_np9823.php',
-                                'admin' => true,
-                                'modulo' => 3
-                            ],
+                        ]
+                    ],
+                    [
+                        'titulo' => 'Operación',
+                        'items' => [
                             [
                                 'titulo' => 'Registrar movimiento',
                                 'icono' => 'bi bi-box-arrow-in-down',

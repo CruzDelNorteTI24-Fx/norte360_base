@@ -20,10 +20,62 @@ require_once("../../.c0nn3ct/db_securebd2.php");
 require_once(__DIR__ . "/../lib/planillas_contratos.php"); // ajusta la ruta si es necesario
 // Función para calcular la edad actual
 function calcularEdad($fechaNacimiento) {
-    $hoy = new DateTime();
-    $fechaNac = new DateTime($fechaNacimiento);
-    $edad = $hoy->diff($fechaNac)->y;
-    return $edad;
+    if (empty($fechaNacimiento) || $fechaNacimiento === '0000-00-00') {
+        return '-';
+    }
+
+    try {
+        $hoy = new DateTime();
+        $fechaNac = new DateTime($fechaNacimiento);
+        return $hoy->diff($fechaNac)->y;
+    } catch (Throwable $e) {
+        return '-';
+    }
+}
+
+function rrhh_format_date($value) {
+    if (empty($value) || $value === '0000-00-00') {
+        return '-';
+    }
+
+    try {
+        return (new DateTime($value))->format('d/m/Y');
+    } catch (Throwable $e) {
+        return '-';
+    }
+}
+
+function rrhh_days_to_birthday($fechaNacimiento) {
+    if (empty($fechaNacimiento) || $fechaNacimiento === '0000-00-00') {
+        return 9999;
+    }
+
+    try {
+        $hoy = new DateTime('today');
+        $base = new DateTime($fechaNacimiento);
+        $cumple = DateTime::createFromFormat('Y-m-d', $hoy->format('Y') . '-' . $base->format('m-d'));
+        if (!$cumple) {
+            return 9999;
+        }
+        if ($cumple < $hoy) {
+            $cumple->modify('+1 year');
+        }
+        return (int)$hoy->diff($cumple)->days;
+    } catch (Throwable $e) {
+        return 9999;
+    }
+}
+
+function rrhh_fetch_assoc_all(mysqli $conn, string $sql) {
+    $rows = [];
+    $res = $conn->query($sql);
+    if ($res instanceof mysqli_result) {
+        while ($row = $res->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $res->free();
+    }
+    return $rows;
 }
 // Config paginación
 $limit = 200;
@@ -51,11 +103,69 @@ while($row = $resultado->fetch_assoc()) {
     $row['edad_actual'] = calcularEdad($row['clm_tra_fecha_nacimiento']);
     $trabajadores[] = $row;
 }
-$ids_trab = array_map(fn($r) => (int)$r['clm_tra_id'], $trabajadores);
-$mapa_contratos = contratos_estado_bulk($conn, $ids_trab);
 // Total rows
 $totalRows = $conn->query("SELECT FOUND_ROWS()")->fetch_row()[0];
 $totalPages = ceil($totalRows / $limit);
+$ids_trab = array_map(fn($r) => (int)$r['clm_tra_id'], $trabajadores);
+$mapa_contratos = contratos_estado_bulk($conn, $ids_trab);
+$contratosActivos = 0;
+foreach ($trabajadores as $trabajadorTmp) {
+    $estadoContrato = strtoupper($mapa_contratos[(int)$trabajadorTmp['clm_tra_id']]['tabla_estado'] ?? 'INACTIVO');
+    if ($estadoContrato === 'ACTIVO') {
+        $contratosActivos++;
+    }
+}
+
+$consultaLicencias = rrhh_fetch_assoc_all($conn, "
+    SELECT clm_tra_id, clm_tra_nombres, clm_tra_dni, clm_tra_nlicenciaconducir, clm_tra_licfecha_expedicion
+    FROM tb_trabajador
+    WHERE clm_tra_nlicenciaconducir IS NOT NULL AND clm_tra_nlicenciaconducir <> ''
+    ORDER BY clm_tra_licfecha_expedicion IS NULL, clm_tra_licfecha_expedicion ASC, clm_tra_nombres ASC
+    LIMIT 120
+");
+
+$consultaCumpleanos = rrhh_fetch_assoc_all($conn, "
+    SELECT clm_tra_id, clm_tra_nombres, clm_tra_dni, clm_tra_sexo, clm_tra_fecha_nacimiento
+    FROM tb_trabajador
+    WHERE clm_tra_fecha_nacimiento IS NOT NULL
+      AND clm_tra_fecha_nacimiento >= '1900-01-01'
+");
+foreach ($consultaCumpleanos as &$cumpleRow) {
+    $cumpleRow['dias_para_cumple'] = rrhh_days_to_birthday($cumpleRow['clm_tra_fecha_nacimiento'] ?? null);
+}
+unset($cumpleRow);
+usort($consultaCumpleanos, fn($a, $b) => ($a['dias_para_cumple'] ?? 9999) <=> ($b['dias_para_cumple'] ?? 9999));
+$consultaCumpleanos = array_slice($consultaCumpleanos, 0, 120);
+
+$consultaCargos = rrhh_fetch_assoc_all($conn, "
+    SELECT clm_tra_id, clm_tra_nombres, clm_tra_dni, clm_tra_tipo_trabajador, clm_tra_cargo
+    FROM tb_trabajador
+    WHERE (clm_tra_tipo_trabajador IS NOT NULL AND clm_tra_tipo_trabajador <> '')
+       OR (clm_tra_cargo IS NOT NULL AND clm_tra_cargo <> '')
+    ORDER BY clm_tra_tipo_trabajador ASC, clm_tra_cargo ASC, clm_tra_nombres ASC
+    LIMIT 180
+");
+
+$consultaEmergencia = rrhh_fetch_assoc_all($conn, "
+    SELECT
+        e.clm_emerg_parentesco,
+        e.clm_emerg_nombre,
+        e.clm_emerg_celular,
+        t.clm_tra_id,
+        t.clm_tra_nombres,
+        t.clm_tra_dni
+    FROM tb_trabajador_emergencia e
+    INNER JOIN tb_trabajador t ON e.clm_emerg_trabid = t.clm_tra_id
+    ORDER BY t.clm_tra_nombres ASC, e.clm_emerg_nombre ASC
+    LIMIT 180
+");
+
+$consultaCounts = [
+    'licencias' => count($consultaLicencias),
+    'cumpleanos' => count($consultaCumpleanos),
+    'cargos' => count($consultaCargos),
+    'emergencia' => count($consultaEmergencia),
+];
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../../');
 require_once __DIR__ . '/../../layout/sidebar_n360.php';
@@ -1292,6 +1402,7 @@ table {
 <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
 <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
 <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/rrhh_tabla_trabajadores_n360.css') ?>">
 </head>
 <body>
 <?php if ($exito): ?>
@@ -1309,14 +1420,79 @@ table {
 <?php n360_render_sidebar(); ?>
 <div class="main-content n360-main n360-main--module">
 <?php n360_render_content_separator('top'); ?>
-<h2>Lista de Personal</h2>
-<form class="search-form" onsubmit="return false;">
-  <input type="text" id="buscador" placeholder="Buscar por nombre o DNI..." class="search-input">
-</form>
-<div class="tabla-scroll-x">
-<button id="descargarPDF" class="btn-cv-profesional" style="margin-bottom:18px;">
-  <i class="fa-solid fa-file-pdf icono-pdf"></i> Descargar PDF
-</button>
+<section class="rrhh-workers-hero">
+  <div class="rrhh-workers-hero__copy">
+    <span class="rrhh-workers-eyebrow"><i class="bi bi-people-fill"></i> RRHH - PERSONAL</span>
+    <h1>Tabla de trabajadores</h1>
+    <p>Vista operativa para consultar personal, contratos, licencias y datos de seguimiento sin salir de la tabla.</p>
+  </div>
+  <div class="rrhh-workers-hero__actions">
+    <a href="../nregrcdn_h.php" class="rrhh-top-btn rrhh-top-btn--primary">
+      <i class="bi bi-person-plus-fill"></i>
+      <span>Nuevo</span>
+    </a>
+    <a href="../nlaskdrcdn_h.php" class="rrhh-top-btn">
+      <i class="bi bi-search"></i>
+      <span>Buscar trabajador</span>
+    </a>
+  </div>
+</section>
+
+<section class="rrhh-workers-kpis" aria-label="Resumen de trabajadores">
+  <article class="rrhh-kpi">
+    <span>Trabajadores</span>
+    <strong><?= number_format((int)$totalRows) ?></strong>
+  </article>
+  <article class="rrhh-kpi rrhh-kpi--ok">
+    <span>Contrato activo</span>
+    <strong><?= number_format((int)$contratosActivos) ?></strong>
+  </article>
+  <article class="rrhh-kpi rrhh-kpi--warn">
+    <span>Licencias</span>
+    <strong><?= number_format((int)$consultaCounts['licencias']) ?></strong>
+  </article>
+  <article class="rrhh-kpi rrhh-kpi--info">
+    <span>Emergencias</span>
+    <strong><?= number_format((int)$consultaCounts['emergencia']) ?></strong>
+  </article>
+</section>
+
+<section class="rrhh-worker-tools">
+  <div class="rrhh-worker-search">
+    <label for="buscador">Buscar</label>
+    <div class="rrhh-search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" id="buscador" placeholder="Nombre, DNI, cargo, licencia...">
+    </div>
+  </div>
+  <div class="rrhh-worker-actions" aria-label="Consultas rápidas">
+    <button type="button" class="rrhh-consulta-btn rrhh-consulta-btn--license" data-rrhh-modal-open="rrhhModalLicencias">
+      <i class="bi bi-award-fill"></i><span>Licencias</span><small><?= number_format((int)$consultaCounts['licencias']) ?></small>
+    </button>
+    <button type="button" class="rrhh-consulta-btn rrhh-consulta-btn--birthday" data-rrhh-modal-open="rrhhModalCumpleanos">
+      <i class="bi bi-calendar2-event-fill"></i><span>Cumpleaños</span><small><?= number_format((int)$consultaCounts['cumpleanos']) ?></small>
+    </button>
+    <button type="button" class="rrhh-consulta-btn rrhh-consulta-btn--job" data-rrhh-modal-open="rrhhModalCargos">
+      <i class="bi bi-briefcase-fill"></i><span>Cargos</span><small><?= number_format((int)$consultaCounts['cargos']) ?></small>
+    </button>
+    <button type="button" class="rrhh-consulta-btn rrhh-consulta-btn--alert" data-rrhh-modal-open="rrhhModalEmergencia">
+      <i class="bi bi-telephone-inbound-fill"></i><span>Emergencia</span><small><?= number_format((int)$consultaCounts['emergencia']) ?></small>
+    </button>
+    <button id="descargarPDF" type="button" class="rrhh-consulta-btn rrhh-consulta-btn--pdf">
+      <i class="fa-solid fa-file-pdf"></i><span>PDF</span>
+    </button>
+  </div>
+</section>
+
+<section class="rrhh-workers-table-card">
+  <div class="rrhh-table-head">
+    <div>
+      <h2>Personal registrado</h2>
+      <p>Doble lectura rápida de estado contractual, cargo y datos base.</p>
+    </div>
+    <span class="rrhh-table-pill"><?= number_format(count($trabajadores)) ?> visibles</span>
+  </div>
+<div class="tabla-scroll-x rrhh-table-wrap">
 <table>
     <thead>
         <tr>
@@ -1412,6 +1588,7 @@ table {
         <a href="?page=<?= $page + 1 ?>&search=<?= urlencode($search) ?>">Siguiente »</a>
     <?php endif; ?>
 </div>
+</section>
 <?php $stmt->close(); $conn->close(); ?>
 <div id="modalPlanillas" class="modal">
   <div class="modal-content">
@@ -1422,6 +1599,8 @@ table {
     </div>
   </div>
 </div>
+
+<?php require __DIR__ . '/consultas_modales.php'; ?>
 
 </div>
 <?php n360_render_content_separator('bottom'); ?>
@@ -1643,6 +1822,46 @@ async function contratar(trabId) {
 window.addEventListener('click', function(e) {
   const m = document.getElementById('modalPlanillas');
   if (e.target === m) cerrarModalPlanillas();
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-rrhh-modal-open]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const modal = document.getElementById(btn.dataset.rrhhModalOpen);
+      if (modal) {
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-rrhh-modal-close]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const modal = btn.closest('.rrhh-modal');
+      if (modal) {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    });
+  });
+
+  document.querySelectorAll('.rrhh-modal').forEach(function (modal) {
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    });
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    document.querySelectorAll('.rrhh-modal.is-open').forEach(function (modal) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    });
+  });
 });
 </script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
