@@ -194,6 +194,17 @@ foreach ($permisos as $index => $modulo) {
             header('Location: ../01_amantenimiento/lista_cheklist.php');
             exit();
         }
+    } elseif ($modulo == 6) {
+        if ($vista == 'r-gen') {
+            header('Location: ../01_contratos/nregrcdn_h.php');
+            exit();
+        }    
+        if ($vista == 'rrhh-registeralm') {
+            header('Location: ../01_contratos/registro_almacen.php');
+            exit();
+        }    
+        header('Location: ../01_contratos/trabajadores/ver_personal.php');
+        exit();        
     } elseif ($modulo == 9) {
         header('Location: ../01_fcombustible/historial_combustible.php');
         exit();        
