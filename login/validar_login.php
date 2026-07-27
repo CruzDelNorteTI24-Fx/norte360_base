@@ -177,6 +177,10 @@ foreach ($permisos as $index => $modulo) {
             header('Location: ../01_contratos/nregrcdn_h.php');
             exit();
         }
+        if ($vista == 'z-gen') {
+            header('Location: ../01_contratos/trabajadores/ver_listatrab.php');
+            exit();
+        }
         if ($vista == 'e-gen') {
             header('Location: ../01_entrevistas/reentrev.php');
             exit();

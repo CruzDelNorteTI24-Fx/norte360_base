@@ -167,19 +167,21 @@ function n360_menu_config(): array {
                                 'titulo' => 'Nueva entrevista',
                                 'icono' => 'bi bi-clipboard-plus-fill',
                                 'url' => '01_entrevistas/reentrev.php',
-                                'vistas' => ['r-gen', 'e-gen'],
+                                'vistas' => ['r-gen'],
                                 'modulo' => 6
                             ],
                             [
                                 'titulo' => 'Ver entrevistas',
                                 'icono' => 'bi bi-clipboard-data-fill',
                                 'url' => '01_entrevistas/bvisentrevisaf.php',
+                                'vistas' => ['r-gen'],                                
                                 'modulo' => 6
                             ],
                             [
                                 'titulo' => 'Etapas de entrevistas',
                                 'icono' => 'bi bi-kanban-fill',
                                 'url' => '01_entrevistas/propukanban.php',
+                                'vistas' => ['r-gen'],                                
                                 'modulo' => 6
                             ],
                         ]
@@ -215,7 +217,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Nuevo trabajador',
                                 'icono' => 'bi bi-person-plus-fill',
                                 'url' => '01_contratos/nregrcdn_h.php',
-                                'vistas' => ['r-gen'],
+                                'vistas' => ['e-gen', 'r-gen', 'z-gen'],
                                 'modulo' => 6
                             ],
                             [
