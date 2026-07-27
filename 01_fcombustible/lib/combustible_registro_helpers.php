@@ -174,9 +174,81 @@ function comb_reg_validate_config_password(mysqli $conn, string $configKey, stri
     }
 }
 
+function comb_reg_producto_precio_extra(mysqli $conn, int $productId): float {
+    if ($productId <= 0) {
+        return 0.0;
+    }
+
+    try {
+        $columns = comb_reg_table_columns($conn, 'tb_alm_producto');
+        $column = comb_reg_pick_column($columns, [
+            'clm_alm_producto_precioextra',
+            'clm_alm_producto_prec_extra',
+            'clm_alm_producto_EXTRA',
+        ]);
+        if (!$column) {
+            return 0.0;
+        }
+
+        $row = comb_reg_fetch_one(
+            $conn,
+            'SELECT COALESCE(' . comb_reg_ident($column) . ', 0) AS precio_extra
+             FROM tb_alm_producto
+             WHERE clm_alm_producto_id = ?
+             LIMIT 1',
+            'i',
+            [$productId]
+        );
+
+        return (float)($row['precio_extra'] ?? 0);
+    } catch (Throwable $e) {
+        return 0.0;
+    }
+}
+
+function comb_reg_producto_precio_extra_map(mysqli $conn): array {
+    try {
+        $columns = comb_reg_table_columns($conn, 'tb_alm_producto');
+        $column = comb_reg_pick_column($columns, [
+            'clm_alm_producto_precioextra',
+            'clm_alm_producto_prec_extra',
+            'clm_alm_producto_EXTRA',
+        ]);
+        if (!$column) {
+            return [];
+        }
+
+        $rows = comb_reg_fetch_all(
+            $conn,
+            'SELECT clm_alm_producto_id AS id,
+                    COALESCE(' . comb_reg_ident($column) . ', 0) AS precio_extra
+             FROM tb_alm_producto
+             WHERE clm_alm_producto_idCATEGORIA = 11'
+        );
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int)$row['id']] = (float)($row['precio_extra'] ?? 0);
+        }
+        return $map;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function comb_reg_enrich_productos_extra(mysqli $conn, array $rows): array {
+    $extraMap = comb_reg_producto_precio_extra_map($conn);
+    foreach ($rows as &$row) {
+        $id = (int)($row['id'] ?? 0);
+        $row['precio_extra'] = $extraMap[$id] ?? 0.0;
+    }
+    unset($row);
+    return $rows;
+}
+
 function comb_reg_productos(mysqli $conn): array {
     try {
-        return comb_reg_fetch_all(
+        $rows = comb_reg_fetch_all(
             $conn,
             "SELECT
                 clm_alm_producto_id AS id,
@@ -188,7 +260,7 @@ function comb_reg_productos(mysqli $conn): array {
              ORDER BY clm_alm_producto_NOMBRE ASC"
         );
     } catch (Throwable $e) {
-        return comb_reg_fetch_all(
+        $rows = comb_reg_fetch_all(
             $conn,
             "SELECT
                 clm_alm_producto_id AS id,
@@ -201,6 +273,8 @@ function comb_reg_productos(mysqli $conn): array {
              ORDER BY clm_alm_producto_NOMBRE ASC"
         );
     }
+
+    return comb_reg_enrich_productos_extra($conn, $rows);
 }
 
 function comb_reg_grifos(mysqli $conn): array {
@@ -231,7 +305,7 @@ function comb_reg_grifos(mysqli $conn): array {
 }
 
 function comb_reg_producto(mysqli $conn, int $productId): ?array {
-    return comb_reg_fetch_one(
+    $row = comb_reg_fetch_one(
         $conn,
         "SELECT
             clm_alm_producto_id AS id,
@@ -246,6 +320,12 @@ function comb_reg_producto(mysqli $conn, int $productId): ?array {
         'i',
         [$productId]
     );
+
+    if ($row) {
+        $row['precio_extra'] = comb_reg_producto_precio_extra($conn, $productId);
+    }
+
+    return $row;
 }
 
 function comb_reg_grifo_label(mysqli $conn, int $grifoId): string {

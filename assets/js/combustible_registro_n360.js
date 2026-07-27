@@ -68,6 +68,7 @@
     stockProducto: 0,
     stockGrifo: 0,
     puRef: 0,
+    puExtra: 0,
     busTimer: null,
     conductorTimer: null,
     chooserTimer: null,
@@ -333,6 +334,7 @@
       nombre: option.dataset.name || '',
       unidad: option.dataset.unit || '',
       precio_unitario: toNumber(option.dataset.price || 0),
+      precio_extra: toNumber(option.dataset.extra || 0),
     };
   }
 
@@ -346,6 +348,7 @@
     state.product = data;
 
     if (!data) {
+      state.puExtra = 0;
       if (el.productCode) el.productCode.textContent = '--';
       if (el.productName) el.productName.textContent = 'Selecciona un combustible';
       if (el.productUnit) el.productUnit.textContent = 'Unidad';
@@ -355,11 +358,19 @@
     if (el.productCode) el.productCode.textContent = data.codigo || ('COMB' + data.id);
     if (el.productName) el.productName.textContent = data.nombre || 'Combustible';
     if (el.productUnit) el.productUnit.textContent = data.unidad || 'GLN';
+    if (Object.prototype.hasOwnProperty.call(data, 'precio_extra')) {
+      state.puExtra = toNumber(data.precio_extra);
+    }
 
     const currentPrice = toNumber(el.entradaPrecio?.value);
     if (el.entradaPrecio && currentPrice <= 0 && toNumber(data.precio_unitario) > 0) {
       el.entradaPrecio.value = Number(data.precio_unitario).toFixed(4);
     }
+  }
+
+  function setSalidaPrecioExtra(value) {
+    state.puExtra = Math.max(0, toNumber(value));
+    if (el.salidaPuExtra) el.salidaPuExtra.value = state.puExtra.toFixed(4);
   }
 
   function setActiveProductButton(productId) {
@@ -402,6 +413,7 @@
     state.stockProducto = toNumber(next.stock_producto_grifo || 0);
     state.stockGrifo = toNumber(next.stock_grifo || 0);
     state.puRef = toNumber(next.pu_ref_salida || 0);
+    const selectedProduct = next.product || selectedProductFromOption();
 
     if (next.fuel_stocks) {
       updateFuelStocks(next.fuel_stocks);
@@ -410,8 +422,9 @@
     if (next.product) {
       setProductDisplay(next.product);
     } else {
-      setProductDisplay(selectedProductFromOption());
+      setProductDisplay(selectedProduct);
     }
+    setSalidaPrecioExtra(next.pu_extra_salida ?? state.puExtra ?? selectedProduct?.precio_extra ?? 0);
 
     setActiveProductButton(el.producto?.value || 0);
     setActiveGrifoButton(el.grifo?.value || 0);
@@ -433,6 +446,7 @@
         stock_producto_grifo: 0,
         stock_grifo: 0,
         pu_ref_salida: 0,
+        pu_extra_salida: selectedProductFromOption()?.precio_extra || 0,
         fuel_stocks: {},
       });
       return;
@@ -443,12 +457,19 @@
     setMicroLoading(true, options.button || null, options.label || 'Actualizando stock y precios...');
 
     try {
-      const data = await fetchJson('state', {
+      const stateTask = () => fetchJson('state', {
         params: {
           producto_id: productId,
           grifo_id: grifoId,
         },
       });
+      const data = options.blocking === false
+        ? await stateTask()
+        : await withLoader(stateTask, {
+          title: options.title || 'Actualizando combustible',
+          detail: options.detail || options.label || 'Consultando stock, saldo y precio operativo...',
+          button: options.button || null,
+        });
       if (requestId !== state.stateRequestId) return;
       applyState(data);
     } catch (error) {
@@ -684,15 +705,21 @@
     }
 
     try {
-      setButtonBusy(el.plateSave, true);
-      const data = await fetchJson('create_bus', {
-        method: 'POST',
-        json: {
-          csrf,
-          placa,
-          nombre,
-        },
-      });
+      const data = await withLoader(
+        () => fetchJson('create_bus', {
+          method: 'POST',
+          json: {
+            csrf,
+            placa,
+            nombre,
+          },
+        }),
+        {
+          title: 'Creando placa',
+          detail: 'Registrando la unidad para esta tanqueada...',
+          button: el.plateSave,
+        }
+      );
 
       syncBuses(data.buses || []);
       setBus(data.bus || {});
@@ -731,7 +758,7 @@
     if (el.salidaBusSearch) el.salidaBusSearch.value = '';
     if (el.salidaConductorSearch) el.salidaConductorSearch.value = '';
     if (el.salidaCantidad) el.salidaCantidad.value = '';
-    if (el.salidaPuExtra) el.salidaPuExtra.value = '';
+    setSalidaPrecioExtra(state.puExtra);
     if (el.salidaObs) el.salidaObs.value = '';
     clearLookup('bus');
     clearLookup('conductor');
@@ -940,13 +967,17 @@
   async function refreshRecent(button = null) {
     if (!isAdmin || !el.recentBody) return;
     try {
-      setButtonBusy(button, true);
-      const data = await fetchJson('recent');
+      const data = await withLoader(
+        () => fetchJson('recent'),
+        {
+          title: 'Cargando movimientos',
+          detail: 'Consultando los ultimos registros de combustible...',
+          button,
+        }
+      );
       renderRecent(data.rows || []);
     } catch (error) {
       await alertBox(error.message, 'error');
-    } finally {
-      setButtonBusy(button, false);
     }
   }
 
@@ -1051,8 +1082,16 @@
     }).join('');
   }
 
-  el.producto?.addEventListener('change', () => refreshState(true, { label: 'Actualizando combustible...' }));
-  el.grifo?.addEventListener('change', () => refreshState(true, { label: 'Actualizando grifo...' }));
+  el.producto?.addEventListener('change', () => refreshState(true, {
+    label: 'Actualizando combustible...',
+    title: 'Cargando combustible',
+    detail: 'Actualizando stock, saldo y precio del producto seleccionado...',
+  }));
+  el.grifo?.addEventListener('change', () => refreshState(true, {
+    label: 'Actualizando grifo...',
+    title: 'Cargando grifo',
+    detail: 'Actualizando saldos del punto operativo seleccionado...',
+  }));
   el.entradaCantidad?.addEventListener('input', recalcEntrada);
   el.entradaPrecio?.addEventListener('input', recalcEntrada);
   el.salidaCantidad?.addEventListener('input', recalcSalida);
@@ -1062,7 +1101,12 @@
     button.addEventListener('click', () => {
       if (el.producto) el.producto.value = button.dataset.productId || '';
       setActiveProductButton(button.dataset.productId || 0);
-      refreshState(true, { button, label: 'Actualizando combustible...' });
+      refreshState(true, {
+        button,
+        label: 'Actualizando combustible...',
+        title: 'Cargando combustible',
+        detail: 'Consultando stock, saldo y precio del producto seleccionado...',
+      });
     });
   });
 
@@ -1070,7 +1114,12 @@
     button.addEventListener('click', () => {
       if (el.grifo) el.grifo.value = button.dataset.grifoId || '';
       setActiveGrifoButton(button.dataset.grifoId || 0);
-      refreshState(true, { button, label: 'Actualizando grifo...' });
+      refreshState(true, {
+        button,
+        label: 'Actualizando grifo...',
+        title: 'Cargando grifo',
+        detail: 'Consultando stock y precios del punto operativo...',
+      });
     });
   });
 
@@ -1234,5 +1283,8 @@
     pu_ref_salida: 0,
     fuel_stocks: bootstrap.fuelStocks || {},
   });
-  refreshState(false);
+  refreshState(false, {
+    title: 'Preparando registro',
+    detail: 'Sincronizando stock inicial del punto operativo...',
+  });
 })();

@@ -58,6 +58,11 @@ function comb_reg_api_state(mysqli $conn): void {
     $stockProduct = ($productId > 0 && $grifoId > 0) ? comb_reg_stock_producto_grifo($conn, $productId, $grifoId) : 0.0;
     $stockGrifo = $grifoId > 0 ? comb_reg_stock_grifo($conn, $grifoId) : 0.0;
     $puRef = ($productId > 0 && $grifoId > 0) ? comb_reg_pu_salida_ref($conn, $productId, $grifoId) : null;
+    $puExtra = $productId > 0 ? comb_reg_producto_precio_extra($conn, $productId) : 0.0;
+
+    if ($product) {
+        $product['precio_extra'] = $puExtra;
+    }
 
     comb_reg_json([
         'ok' => true,
@@ -65,6 +70,7 @@ function comb_reg_api_state(mysqli $conn): void {
         'stock_producto_grifo' => $stockProduct,
         'stock_grifo' => $stockGrifo,
         'pu_ref_salida' => $puRef,
+        'pu_extra_salida' => $puExtra,
         'fuel_stocks' => $grifoId > 0 ? comb_reg_stocks_by_grifo($conn, $grifoId) : [],
         'grifo_label' => $grifoId > 0 ? comb_reg_grifo_label($conn, $grifoId) : '',
     ]);

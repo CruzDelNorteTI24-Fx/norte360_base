@@ -199,6 +199,7 @@ $firstGrifo = $grifos[0] ?? null;
                                 data-name="<?= comb_reg_h($producto['nombre']) ?>"
                                 data-unit="<?= comb_reg_h($producto['unidad']) ?>"
                                 data-price="<?= comb_reg_h((string)$producto['precio_unitario']) ?>"
+                                data-extra="<?= comb_reg_h((string)($producto['precio_extra'] ?? 0)) ?>"
                                 <?= $firstProduct && (int)$producto['id'] === (int)$firstProduct['id'] ? 'selected' : '' ?>>
                             <?= comb_reg_h('(' . $producto['codigo'] . ') ' . $producto['nombre'] . ' - ' . $producto['unidad']) ?>
                         </option>
@@ -222,7 +223,8 @@ $firstGrifo = $grifos[0] ?? null;
                                     data-code="<?= comb_reg_h($producto['codigo']) ?>"
                                     data-name="<?= comb_reg_h($producto['nombre']) ?>"
                                     data-unit="<?= comb_reg_h($producto['unidad']) ?>"
-                                    data-price="<?= comb_reg_h((string)$producto['precio_unitario']) ?>">
+                                    data-price="<?= comb_reg_h((string)$producto['precio_unitario']) ?>"
+                                    data-extra="<?= comb_reg_h((string)($producto['precio_extra'] ?? 0)) ?>">
                                 <span><?= comb_reg_h($producto['codigo']) ?></span>
                                 <strong><?= comb_reg_h($producto['nombre']) ?></strong>
                                 <small><?= comb_reg_h($producto['unidad']) ?></small>
