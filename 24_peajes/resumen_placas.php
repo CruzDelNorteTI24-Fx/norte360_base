@@ -94,13 +94,9 @@ try {
     <div class="n360-main__inner n360-stock-page pje-page">
         <section class="stock-hero pje-hero pje-hero--summary">
             <div class="pje-hero__main">
-                <span class="pje-hero__icon" aria-hidden="true">
-                    <i class="bi bi-bus-front-fill"></i>
-                </span>
                 <div>
                     <span class="stock-eyebrow"><i class="bi bi-signpost-split-fill"></i> Peajes - control por unidad</span>
                     <h1>Resumen por placa</h1>
-                    <p>Consolida facturas, totales y detracciones por unidad; ademas marca placas que no cruzan con el maestro de flota.</p>
                 </div>
             </div>
             <div class="stock-hero-actions pje-hero__actions">

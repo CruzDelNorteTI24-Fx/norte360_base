@@ -76,6 +76,7 @@
       if (saved) {
         saved.textContent = json.data?.actualizado || '';
       }
+      syncStateButtons(row, json.data?.estado || estado);
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
       showNotice(err.message || 'No se pudo guardar.', false);
@@ -112,14 +113,21 @@
     updateVisibleCount();
   }
 
+  function syncStateButtons(row, estado) {
+    const value = String(estado || 'PENDIENTE').toUpperCase();
+    const hidden = row.querySelector('[data-csb-field="estado"]');
+    if (hidden) {
+      hidden.value = value;
+    }
+    row.querySelectorAll('[data-csb-state-option]').forEach((button) => {
+      button.classList.toggle('is-active', String(button.dataset.csbStateOption || '').toUpperCase() === value);
+    });
+  }
+
   function cellText(td) {
     const drivers = td.querySelector('.csb-drivers');
     if (drivers) {
       return Array.from(drivers.querySelectorAll('span')).map((span) => compact(span.textContent)).filter(Boolean).join('\n');
-    }
-    const select = td.querySelector('select');
-    if (select) {
-      return select.value || compact(td.textContent);
     }
     const textareas = td.querySelectorAll('textarea');
     if (textareas.length) {
@@ -311,6 +319,14 @@
   document.querySelectorAll('[data-csb-save]').forEach((button) => {
     button.addEventListener('click', () => saveRow(button));
   });
+  document.querySelectorAll('[data-csb-state-option]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const row = button.closest('[data-csb-row]');
+      if (!row) return;
+      syncStateButtons(row, button.dataset.csbStateOption || 'PENDIENTE');
+    });
+  });
+  rows.forEach((row) => syncStateButtons(row, row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE'));
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   setupGroupFilter();
   setupCalendar();

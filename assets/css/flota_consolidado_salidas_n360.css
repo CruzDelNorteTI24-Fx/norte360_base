@@ -389,6 +389,76 @@
     gap: 8px;
 }
 
+.csb-revision-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    min-width: 150px;
+}
+
+.csb-revision-cell .csb-status {
+    margin-top: 0;
+}
+
+.csb-action-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 220px;
+}
+
+.csb-state-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.csb-state-btn {
+    min-height: 32px;
+    padding: 0 8px;
+    color: #17344f;
+    background: #f8fbfe;
+    border: 1px solid #c8d9ea;
+    border-radius: 8px;
+    font-size: .72rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.csb-state-btn:hover {
+    color: #0874b9;
+    background: #eaf6ff;
+    border-color: #258ed1;
+}
+
+.csb-state-btn.is-active {
+    color: #fff;
+    background: #258ed1;
+    border-color: #258ed1;
+    box-shadow: 0 8px 18px rgba(37, 142, 209, .18);
+}
+
+.csb-state-btn--validado.is-active {
+    background: #15845e;
+    border-color: #15845e;
+}
+
+.csb-state-btn--observado.is-active {
+    background: #c43b34;
+    border-color: #c43b34;
+}
+
+.csb-state-btn--corregido.is-active {
+    background: #0e7490;
+    border-color: #0e7490;
+}
+
+.csb-state-btn--pendiente.is-active {
+    background: #9a5a00;
+    border-color: #9a5a00;
+}
+
 .csb-icon-btn {
     display: inline-flex;
     align-items: center;
@@ -411,6 +481,10 @@
 
 .csb-icon-btn:hover {
     background: #1f7fbc;
+}
+
+.csb-icon-btn--save {
+    width: 100%;
 }
 
 .csb-empty {

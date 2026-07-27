@@ -38,26 +38,39 @@ $filters = pje_control_filters($defaultRange['desde'], $defaultRange['hasta']);
 $pageError = '';
 $nombres = [];
 $estados = [];
+$controlRows = [];
+$controlRowsTotal = 0;
+$perPageOptions = [100, 250, 500, 1000];
+$perPage = (int)($_GET['per_page'] ?? 250);
+if (!in_array($perPage, $perPageOptions, true)) {
+    $perPage = 250;
+}
+$page = max(1, (int)($_GET['page'] ?? 1));
 $controlSummary = [
     'available' => false,
     'message' => '',
     'totals' => ['registros' => 0, 'cantidad' => 0, 'al_dia' => 0, 'atrasados' => 0, 'actualiza' => 0],
     'by_name' => [],
-    'groups' => [],
 ];
 
 try {
     $nombres = pje_fetch_control_options($conn, 'nombre');
     $estados = pje_fetch_control_options($conn, 'estado');
     $controlSummary = pje_fetch_control_summary($conn, $filters);
+    if (!empty($controlSummary['available'])) {
+        $controlRowsTotal = pje_count_control_rows($conn, $filters);
+        $totalPages = max(1, (int)ceil($controlRowsTotal / $perPage));
+        $page = min($page, $totalPages);
+        $controlRows = pje_fetch_control_rows($conn, $filters, $perPage, ($page - 1) * $perPage);
+    }
 } catch (Throwable $e) {
     $pageError = $e->getMessage();
 }
 
 $totals = $controlSummary['totals'] ?? [];
 $byName = $controlSummary['by_name'] ?? [];
-$groups = $controlSummary['groups'] ?? [];
 $isAvailable = (bool)($controlSummary['available'] ?? false);
+$totalPages = max(1, (int)ceil($controlRowsTotal / $perPage));
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -88,13 +101,9 @@ $isAvailable = (bool)($controlSummary['available'] ?? false);
     <div class="n360-main__inner n360-stock-page pje-page">
         <section class="stock-hero pje-hero pje-hero--control">
             <div class="pje-hero__main">
-                <span class="pje-hero__icon" aria-hidden="true">
-                    <i class="bi bi-clipboard2-check-fill"></i>
-                </span>
                 <div>
                     <span class="stock-eyebrow"><i class="bi bi-signpost-split-fill"></i> Peajes - control fisico</span>
                     <h1>Control por grupos</h1>
-                    <p>Visualiza los grupos cargados en tb_control, sus estados, cantidades, codigos y concesionarias.</p>
                 </div>
             </div>
             <div class="stock-hero-actions pje-hero__actions">
@@ -183,6 +192,14 @@ $isAvailable = (bool)($controlSummary['available'] ?? false);
                     <i class="bi bi-search"></i>
                     <input type="text" name="buscar" value="<?= pje_h($filters['buscar']) ?>" placeholder="Grupo, codigo, placa, detalle...">
                 </label>
+                <label class="stock-field pje-per-page">
+                    <span>Ver</span>
+                    <select name="per_page">
+                        <?php foreach ($perPageOptions as $option): ?>
+                            <option value="<?= (int)$option ?>" <?= $perPage === $option ? 'selected' : '' ?>><?= (int)$option ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
                 <div class="stock-filter-actions pje-filter-actions">
                     <button class="stock-btn stock-btn--primary" type="submit">
                         <i class="bi bi-funnel"></i> Filtrar
@@ -230,55 +247,68 @@ $isAvailable = (bool)($controlSummary['available'] ?? false);
             <section class="stock-table-card pje-table-card">
                 <div class="pje-table-card__head">
                     <div>
-                        <h2>Grupos de control</h2>
-                        <p>Lectura agrupada por grupo, concesionaria y estado. Se muestran hasta 160 agrupaciones por filtro.</p>
+                        <h2>Historial de registro</h2>
+                        <p>Lectura plana de tb_control, sin agrupar, respetando el orden operativo del registro fisico.</p>
                     </div>
-                    <span class="stock-table-count"><?= pje_h(pje_num(count($groups))) ?> filas</span>
+                    <span class="stock-table-count">
+                        <?= pje_h(pje_num(count($controlRows))) ?> de <?= pje_h(pje_num($controlRowsTotal)) ?> filas
+                    </span>
                 </div>
 
                 <div class="stock-table-wrap">
-                    <table class="stock-table pje-table pje-control-table--groups">
+                    <table class="stock-table pje-table pje-control-table--raw">
                         <thead>
                         <tr>
-                            <th>Grupo / codigos</th>
+                            <th>Fecha</th>
+                            <th>Mes / anio</th>
                             <th>Concesionaria</th>
+                            <th>Grupo</th>
+                            <th>Codigo</th>
                             <th>Estado</th>
                             <th>Cantidad</th>
-                            <th>Placas</th>
-                            <th>Rango fechas</th>
+                            <th>Placa</th>
                             <th>Detalle</th>
                         </tr>
                         </thead>
                         <tbody>
-                        <?php if (!$groups): ?>
+                        <?php if (!$controlRows): ?>
                             <tr>
-                                <td colspan="7" class="text-center py-4">No hay grupos para los filtros actuales.</td>
+                                <td colspan="9" class="text-center py-4">No hay registros para los filtros actuales.</td>
                             </tr>
                         <?php endif; ?>
-                        <?php foreach ($groups as $row): ?>
+                        <?php foreach ($controlRows as $row): ?>
                             <?php $stateClass = pje_control_state_class($row['estado'] ?? ''); ?>
                             <tr>
+                                <td><?= pje_h(pje_date($row['fecha'] ?? null)) ?></td>
                                 <td>
-                                    <strong><?= pje_h(pje_text($row['grupo'] ?? '')) ?></strong>
-                                    <small><?= pje_h(pje_text($row['codigos'] ?? 'Sin codigos')) ?></small>
+                                    <strong><?= pje_h(pje_text($row['mes'] ?? '')) ?></strong>
+                                    <small><?= pje_h(pje_text($row['anio'] ?? '')) ?></small>
                                 </td>
                                 <td><?= pje_h(pje_text($row['nombre'] ?? '')) ?></td>
+                                <td><?= pje_h(pje_text($row['grupo'] ?? '')) ?></td>
+                                <td><span class="pje-id"><?= pje_h(pje_text($row['codigo'] ?? '')) ?></span></td>
                                 <td>
                                     <span class="pje-control-pill pje-control-pill--<?= pje_h($stateClass) ?>">
                                         <?= pje_h(pje_text($row['estado'] ?? '')) ?>
                                     </span>
                                 </td>
                                 <td><strong><?= pje_h(pje_num($row['cantidad'] ?? 0)) ?></strong></td>
-                                <td><?= pje_h(pje_num($row['placas'] ?? 0)) ?></td>
-                                <td>
-                                    <?= pje_h(pje_date($row['primera_fecha'] ?? null)) ?>
-                                    <small>hasta <?= pje_h(pje_date($row['ultima_fecha'] ?? null)) ?></small>
-                                </td>
-                                <td><?= pje_h(pje_text($row['detalle'] ?? '')) ?></td>
+                                <td><?= pje_h(pje_text($row['placa'] ?? '')) ?></td>
+                                <td class="pje-control-detail"><?= pje_h(pje_text($row['detalle'] ?? '')) ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
                     </table>
+                </div>
+
+                <div class="pje-pagination">
+                    <span>Pagina <?= pje_h(pje_num($page)) ?> de <?= pje_h(pje_num($totalPages)) ?></span>
+                    <a class="stock-btn stock-btn--soft <?= $page <= 1 ? 'disabled' : '' ?>" href="control_fisico.php?<?= pje_h(pje_query(['page' => $page - 1, 'per_page' => $perPage])) ?>">
+                        <i class="bi bi-chevron-left"></i> Anterior
+                    </a>
+                    <a class="stock-btn stock-btn--soft <?= $page >= $totalPages ? 'disabled' : '' ?>" href="control_fisico.php?<?= pje_h(pje_query(['page' => $page + 1, 'per_page' => $perPage])) ?>">
+                        Siguiente <i class="bi bi-chevron-right"></i>
+                    </a>
                 </div>
             </section>
         <?php endif; ?>

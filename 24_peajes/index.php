@@ -111,13 +111,9 @@ $toRow = min($offset + $perPage, $totalRows);
     <div class="n360-main__inner n360-stock-page pje-page">
         <section class="stock-hero pje-hero">
             <div class="pje-hero__main">
-                <span class="pje-hero__icon" aria-hidden="true">
-                    <i class="bi bi-signpost-2-fill"></i>
-                </span>
                 <div>
                     <span class="stock-eyebrow"><i class="bi bi-receipt-cutoff"></i> Modulo peajes</span>
                     <h1>Peajes - vista general</h1>
-                    <p>Lectura filtrada de comprobantes, detracciones, placas y procesos de peaje sin cargar todo el historico a la vez.</p>
                 </div>
             </div>
             <div class="stock-hero-actions pje-hero__actions">

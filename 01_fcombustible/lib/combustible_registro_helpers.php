@@ -447,10 +447,10 @@ function comb_reg_create_bus(mysqli $conn, string $placa, string $nombre = ''): 
     }
 
     $defaults = [
-        'clm_placas_servicio' => 'REGULAR',
-        'servicio' => 'REGULAR',
-        'clm_placas_TIPO_VEHÍCULO' => 'BUS',
-        'clm_placas_tipo_vehiculo' => 'BUS',
+        'clm_placas_servicio' => 'COMBUSTIBLE',
+        'servicio' => 'COMBUSTIBLE',
+        'clm_placas_TIPO_VEHÍCULO' => 'EXTERNO',
+        'clm_placas_tipo_vehiculo' => 'EXTERNO',
         'clm_placas_KILOMETRAJE' => 0,
         'clm_placas_kilometraje' => 0,
         'clm_placas_fecha_inicio' => date('Y-m-d'),

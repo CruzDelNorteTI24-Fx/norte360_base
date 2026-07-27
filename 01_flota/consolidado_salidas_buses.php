@@ -639,25 +639,35 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     <small>Asignacion capturada del modulo Conductores</small>
                                 </td>
                                 <td>
-                                    <select data-csb-field="estado" aria-label="Estado revision">
-                                        <?php foreach (['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO'] as $opcion): ?>
-                                            <option value="<?= $opcion ?>" <?= $estado === $opcion ? 'selected' : '' ?>><?= $opcion ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <span class="csb-status <?= csb_h(csb_estado_class($estado)) ?>" data-csb-status><?= csb_h($estado) ?></span>
+                                    <div class="csb-revision-cell">
+                                        <input type="hidden" data-csb-field="estado" value="<?= csb_h($estado) ?>">
+                                        <span class="csb-status <?= csb_h(csb_estado_class($estado)) ?>" data-csb-status><?= csb_h($estado) ?></span>
+                                        <small data-csb-saved>
+                                            <?= !empty($row['clm_salprog_datetime_revision']) ? csb_h(csb_date_label($row['clm_salprog_datetime_revision'], 'd/m/Y H:i')) : 'Sin revision registrada' ?>
+                                        </small>
+                                    </div>
                                 </td>
                                 <td>
                                     <textarea data-csb-field="comentario" rows="2" placeholder="Comentario de revision"><?= csb_h($row['clm_salprog_comentario_revision'] ?? '') ?></textarea>
                                     <textarea data-csb-field="correccion" rows="2" placeholder="Correccion aplicada o pendiente"><?= csb_h($row['clm_salprog_correccion'] ?? '') ?></textarea>
                                 </td>
                                 <td>
-                                    <div class="csb-row-actions">
-                                        <button type="button" class="csb-icon-btn" data-csb-save="<?= $id ?>" title="Guardar revision" aria-label="Guardar revision">
+                                    <div class="csb-action-panel">
+                                        <div class="csb-state-buttons" aria-label="Cambiar revision">
+                                            <?php foreach (['VALIDADO' => 'Validar', 'OBSERVADO' => 'Observar', 'CORREGIDO' => 'Corregir', 'PENDIENTE' => 'Pend.'] as $opcion => $label): ?>
+                                                <button
+                                                    type="button"
+                                                    class="csb-state-btn csb-state-btn--<?= strtolower($opcion) ?> <?= $estado === $opcion ? 'is-active' : '' ?>"
+                                                    data-csb-state-option="<?= $opcion ?>"
+                                                    title="Marcar como <?= csb_h($opcion) ?>"
+                                                >
+                                                    <?= csb_h($label) ?>
+                                                </button>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <button type="button" class="csb-icon-btn csb-icon-btn--save" data-csb-save="<?= $id ?>" title="Guardar revision" aria-label="Guardar revision">
                                             <i class="bi bi-check2"></i>
                                         </button>
-                                        <small data-csb-saved>
-                                            <?= !empty($row['clm_salprog_datetime_revision']) ? csb_h(csb_date_label($row['clm_salprog_datetime_revision'], 'd/m/Y H:i')) : '' ?>
-                                        </small>
                                     </div>
                                 </td>
                             </tr>

@@ -615,6 +615,139 @@ function pje_fetch_control_summary(mysqli $conn, array $filters): array {
     ];
 }
 
+function pje_control_column_map(mysqli $conn): array {
+    $columns = pje_table_columns($conn, 'tb_control');
+
+    return [
+        'fecha' => pje_pick_column($columns, ['clm_ctrl_FECHA_RECEPCION', 'clm_ctrl_FECHA']),
+        'nombre' => pje_pick_column($columns, ['clm_ctrl_NOMBRE']),
+        'cantidad' => pje_pick_column($columns, ['clm_ctrl_CANTIDAD']),
+        'placa' => pje_pick_column($columns, ['clm_ctrl_PLACA']),
+        'detalle' => pje_pick_column($columns, ['clm_ctrl_DETALLE']),
+        'grupo' => pje_pick_column($columns, ['clm_ctrl_GRUPO']),
+        'codigo' => pje_pick_column($columns, ['clm_ctrl_CODIGO']),
+        'estado' => pje_pick_column($columns, ['clm_ctrl_ESTADO']),
+        'mes' => pje_pick_column($columns, ['clm_ctrl_MES']),
+        'anio' => pje_pick_column($columns, ['clm_ctrl_AÑO', 'clm_ctrl_AÃ‘O']),
+    ];
+}
+
+function pje_control_where_sql(array $map, array $filters): array {
+    if (empty($map['fecha']) || empty($map['nombre']) || empty($map['grupo']) || empty($map['codigo']) || empty($map['estado'])) {
+        return ['sql' => '1 = 0', 'types' => '', 'params' => []];
+    }
+
+    $fecha = pje_sql_col($map['fecha']);
+    $nombre = pje_sql_col($map['nombre']);
+    $grupo = pje_sql_col($map['grupo']);
+    $codigo = pje_sql_col($map['codigo']);
+    $estado = pje_sql_col($map['estado']);
+    $placa = !empty($map['placa']) ? pje_sql_col($map['placa']) : "''";
+    $detalle = !empty($map['detalle']) ? pje_sql_col($map['detalle']) : "''";
+
+    $where = ["DATE($fecha) >= ?", "DATE($fecha) <= ?"];
+    $types = 'ss';
+    $params = [
+        $filters['desde'] ?? date('Y-m-01'),
+        $filters['hasta'] ?? date('Y-m-d'),
+    ];
+
+    if (($filters['nombre'] ?? 'TODOS') !== '' && ($filters['nombre'] ?? 'TODOS') !== 'TODOS') {
+        $where[] = "CAST($nombre AS CHAR) = ?";
+        $types .= 's';
+        $params[] = $filters['nombre'];
+    }
+
+    if (($filters['estado'] ?? 'TODOS') !== '' && ($filters['estado'] ?? 'TODOS') !== 'TODOS') {
+        $where[] = "CAST($estado AS CHAR) = ?";
+        $types .= 's';
+        $params[] = $filters['estado'];
+    }
+
+    if (($filters['buscar'] ?? '') !== '') {
+        $where[] = "(
+            CAST($nombre AS CHAR) LIKE CONCAT('%', ?, '%')
+            OR CAST($grupo AS CHAR) LIKE CONCAT('%', ?, '%')
+            OR CAST($codigo AS CHAR) LIKE CONCAT('%', ?, '%')
+            OR CAST($estado AS CHAR) LIKE CONCAT('%', ?, '%')
+            OR CAST($placa AS CHAR) LIKE CONCAT('%', ?, '%')
+            OR CAST($detalle AS CHAR) LIKE CONCAT('%', ?, '%')
+        )";
+        $types .= 'ssssss';
+        array_push($params, $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar']);
+    }
+
+    return [
+        'sql' => implode(' AND ', $where),
+        'types' => $types,
+        'params' => $params,
+    ];
+}
+
+function pje_count_control_rows(mysqli $conn, array $filters): int {
+    try {
+        $map = pje_control_column_map($conn);
+    } catch (Throwable $e) {
+        return 0;
+    }
+
+    $where = pje_control_where_sql($map, $filters);
+    $row = pje_fetch_one($conn, "
+        SELECT COUNT(*) AS total
+        FROM tb_control
+        WHERE {$where['sql']}
+    ", $where['types'], $where['params']);
+
+    return (int)($row['total'] ?? 0);
+}
+
+function pje_fetch_control_rows(mysqli $conn, array $filters, int $limit, int $offset): array {
+    try {
+        $map = pje_control_column_map($conn);
+    } catch (Throwable $e) {
+        return [];
+    }
+
+    if (empty($map['fecha']) || empty($map['nombre']) || empty($map['grupo']) || empty($map['codigo']) || empty($map['estado']) || empty($map['cantidad'])) {
+        return [];
+    }
+
+    $where = pje_control_where_sql($map, $filters);
+    $params = $where['params'];
+    $types = $where['types'] . 'ii';
+    $params[] = $limit;
+    $params[] = $offset;
+
+    $fecha = pje_sql_col($map['fecha']);
+    $nombre = pje_sql_col($map['nombre']);
+    $cantidad = pje_sql_col($map['cantidad']);
+    $grupo = pje_sql_col($map['grupo']);
+    $codigo = pje_sql_col($map['codigo']);
+    $estado = pje_sql_col($map['estado']);
+    $placa = !empty($map['placa']) ? pje_sql_col($map['placa']) : "''";
+    $detalle = !empty($map['detalle']) ? pje_sql_col($map['detalle']) : "''";
+    $mes = !empty($map['mes']) ? pje_sql_col($map['mes']) : "''";
+    $anio = !empty($map['anio']) ? pje_sql_col($map['anio']) : "''";
+
+    return pje_fetch_all($conn, "
+        SELECT
+            DATE($fecha) AS fecha,
+            CAST($anio AS CHAR) AS anio,
+            CAST($mes AS CHAR) AS mes,
+            COALESCE(NULLIF(TRIM(CAST($nombre AS CHAR)), ''), 'SIN NOMBRE') AS nombre,
+            COALESCE(NULLIF(TRIM(CAST($grupo AS CHAR)), ''), 'SIN GRUPO') AS grupo,
+            COALESCE(NULLIF(TRIM(CAST($codigo AS CHAR)), ''), 'SIN CODIGO') AS codigo,
+            COALESCE(NULLIF(TRIM(CAST($estado AS CHAR)), ''), 'SIN ESTADO') AS estado,
+            COALESCE(CAST($cantidad AS DECIMAL(18,4)), 0) AS cantidad,
+            NULLIF(TRIM(CAST($placa AS CHAR)), '') AS placa,
+            NULLIF(TRIM(CAST($detalle AS CHAR)), '') AS detalle
+        FROM tb_control
+        WHERE {$where['sql']}
+        ORDER BY DATE($fecha) DESC, $nombre ASC, $grupo ASC, $codigo ASC
+        LIMIT ? OFFSET ?
+    ", $types, $params);
+}
+
 function pje_money($value): string {
     return 'S/ ' . number_format((float)($value ?? 0), 2, '.', ',');
 }
