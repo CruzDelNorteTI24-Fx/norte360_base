@@ -41,6 +41,22 @@ function pje_bind_params(mysqli_stmt $stmt, string $types, array &$params): void
     call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
+function pje_sql_text_expr(string $expr): string {
+    return "CONVERT($expr USING utf8mb4) COLLATE utf8mb4_unicode_ci";
+}
+
+function pje_sql_text_param(): string {
+    return "CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci";
+}
+
+function pje_sql_text_eq(string $expr): string {
+    return pje_sql_text_expr($expr) . ' = ' . pje_sql_text_param();
+}
+
+function pje_sql_text_like(string $expr): string {
+    return pje_sql_text_expr($expr) . " LIKE CONCAT('%', " . pje_sql_text_param() . ", '%')";
+}
+
 function pje_fetch_all(mysqli $conn, string $sql, string $types = '', array $params = []): array {
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
@@ -119,42 +135,42 @@ function pje_where(array $filters): array {
     $params = [$filters['desde'], $filters['hasta']];
 
     if (($filters['estacion'] ?? 'TODOS') !== '' && ($filters['estacion'] ?? 'TODOS') !== 'TODOS') {
-        $where[] = 'CAST(p.clm_pje_ESTACION_PEAJE AS CHAR) = ?';
+        $where[] = pje_sql_text_eq('p.clm_pje_ESTACION_PEAJE');
         $types .= 's';
         $params[] = $filters['estacion'];
     }
 
     if (($filters['usuario'] ?? 'TODOS') !== '' && ($filters['usuario'] ?? 'TODOS') !== 'TODOS') {
-        $where[] = 'CAST(p.clm_pje_USUARIO AS CHAR) = ?';
+        $where[] = pje_sql_text_eq('p.clm_pje_USUARIO');
         $types .= 's';
         $params[] = $filters['usuario'];
     }
 
     if (($filters['importacion'] ?? 'TODOS') !== '' && ($filters['importacion'] ?? 'TODOS') !== 'TODOS') {
-        $where[] = 'CAST(p.clm_pje_codimportacion AS CHAR) = ?';
+        $where[] = pje_sql_text_eq('p.clm_pje_codimportacion');
         $types .= 's';
         $params[] = $filters['importacion'];
     }
 
     if (($filters['placa'] ?? '') !== '') {
-        $where[] = 'CAST(p.clm_pje_NRO_PLACA AS CHAR) LIKE CONCAT("%", ?, "%")';
+        $where[] = pje_sql_text_like('p.clm_pje_NRO_PLACA');
         $types .= 's';
         $params[] = $filters['placa'];
     }
 
     if (($filters['factura'] ?? '') !== '') {
-        $where[] = 'CAST(p.clm_pje_NFACTURA AS CHAR) LIKE CONCAT("%", ?, "%")';
+        $where[] = pje_sql_text_like('p.clm_pje_NFACTURA');
         $types .= 's';
         $params[] = $filters['factura'];
     }
 
     if (($filters['buscar'] ?? '') !== '') {
         $where[] = "(
-            CAST(p.clm_pje_NFACTURA AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST(p.clm_pje_NRO_PLACA AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST(p.clm_pje_GLOSA AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST(p.clm_pje_ESTACION_PEAJE AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST(p.clm_pje_RUTADOC AS CHAR) LIKE CONCAT('%', ?, '%')
+            " . pje_sql_text_like('p.clm_pje_NFACTURA') . "
+            OR " . pje_sql_text_like('p.clm_pje_NRO_PLACA') . "
+            OR " . pje_sql_text_like('p.clm_pje_GLOSA') . "
+            OR " . pje_sql_text_like('p.clm_pje_ESTACION_PEAJE') . "
+            OR " . pje_sql_text_like('p.clm_pje_RUTADOC') . "
         )";
         $types .= 'sssss';
         array_push($params, $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar']);
@@ -170,8 +186,8 @@ function pje_where(array $filters): array {
 function pje_join_placas_sql(): string {
     return "
         LEFT JOIN tb_placas pl
-            ON TRIM(CAST(p.clm_pje_NRO_PLACA AS CHAR)) COLLATE utf8mb4_unicode_ci
-             = TRIM(CAST(pl.clm_placas_PLACA AS CHAR)) COLLATE utf8mb4_unicode_ci
+            ON TRIM(" . pje_sql_text_expr('p.clm_pje_NRO_PLACA') . ")
+             = TRIM(" . pje_sql_text_expr('pl.clm_placas_PLACA') . ")
     ";
 }
 
@@ -499,25 +515,25 @@ function pje_fetch_control_summary(mysqli $conn, array $filters): array {
     $params = [$desde, $hasta];
 
     if (($filters['nombre'] ?? 'TODOS') !== '' && ($filters['nombre'] ?? 'TODOS') !== 'TODOS') {
-        $where[] = "CAST($nombre AS CHAR) = ?";
+        $where[] = pje_sql_text_eq($nombre);
         $types .= 's';
         $params[] = $filters['nombre'];
     }
 
     if (($filters['estado'] ?? 'TODOS') !== '' && ($filters['estado'] ?? 'TODOS') !== 'TODOS') {
-        $where[] = "CAST($estado AS CHAR) = ?";
+        $where[] = pje_sql_text_eq($estado);
         $types .= 's';
         $params[] = $filters['estado'];
     }
 
     if (($filters['buscar'] ?? '') !== '') {
         $where[] = "(
-            CAST($nombre AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($grupo AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($codigo AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($estado AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($placa AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($detalle AS CHAR) LIKE CONCAT('%', ?, '%')
+            " . pje_sql_text_like($nombre) . "
+            OR " . pje_sql_text_like($grupo) . "
+            OR " . pje_sql_text_like($codigo) . "
+            OR " . pje_sql_text_like($estado) . "
+            OR " . pje_sql_text_like($placa) . "
+            OR " . pje_sql_text_like($detalle) . "
         )";
         $types .= 'ssssss';
         array_push($params, $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar']);
@@ -653,25 +669,25 @@ function pje_control_where_sql(array $map, array $filters): array {
     ];
 
     if (($filters['nombre'] ?? 'TODOS') !== '' && ($filters['nombre'] ?? 'TODOS') !== 'TODOS') {
-        $where[] = "CAST($nombre AS CHAR) = ?";
+        $where[] = pje_sql_text_eq($nombre);
         $types .= 's';
         $params[] = $filters['nombre'];
     }
 
     if (($filters['estado'] ?? 'TODOS') !== '' && ($filters['estado'] ?? 'TODOS') !== 'TODOS') {
-        $where[] = "CAST($estado AS CHAR) = ?";
+        $where[] = pje_sql_text_eq($estado);
         $types .= 's';
         $params[] = $filters['estado'];
     }
 
     if (($filters['buscar'] ?? '') !== '') {
         $where[] = "(
-            CAST($nombre AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($grupo AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($codigo AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($estado AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($placa AS CHAR) LIKE CONCAT('%', ?, '%')
-            OR CAST($detalle AS CHAR) LIKE CONCAT('%', ?, '%')
+            " . pje_sql_text_like($nombre) . "
+            OR " . pje_sql_text_like($grupo) . "
+            OR " . pje_sql_text_like($codigo) . "
+            OR " . pje_sql_text_like($estado) . "
+            OR " . pje_sql_text_like($placa) . "
+            OR " . pje_sql_text_like($detalle) . "
         )";
         $types .= 'ssssss';
         array_push($params, $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar'], $filters['buscar']);

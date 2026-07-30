@@ -207,7 +207,6 @@ try {
             <div class="stock-table-card__head pje-table-card__head">
                 <div>
                     <h2>Facturas y detracciones por placa</h2>
-                    <p>Resumen equivalente al control de placas del sistema de escritorio, limitado a 800 placas para mantener la vista ligera.</p>
                 </div>
                 <span class="stock-table-count"><?= pje_h(pje_num(count($rows))) ?> placas</span>
             </div>

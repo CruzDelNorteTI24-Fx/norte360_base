@@ -253,9 +253,11 @@ $toRow = min($offset + $perPage, $totalRows);
                         <th>Proceso</th>
                         <th>Glosa</th>
                         <th>Base</th>
+                        <th>Importe</th>
                         <th>IGV</th>
-                        <th>Total</th>
+                        <th>TSD</th>
                         <th>Detraccion</th>
+                        <th>Total</th>
                         <th>Importacion</th>
                     </tr>
                     </thead>
@@ -281,9 +283,11 @@ $toRow = min($offset + $perPage, $totalRows);
                             <td><span class="pje-chip"><?= pje_h(pje_text($row['estacion'] ?? '')) ?></span></td>
                             <td class="pje-glosa"><?= pje_h(pje_text($row['glosa'] ?? '')) ?></td>
                             <td><?= pje_h(pje_money($row['base'] ?? 0)) ?></td>
+                            <td><?= pje_h(pje_money($row['importe'] ?? 0)) ?></td>
                             <td><?= pje_h(pje_money($row['igv'] ?? 0)) ?></td>
-                            <td><strong><?= pje_h(pje_money($row['total'] ?? 0)) ?></strong></td>
+                            <td><?= pje_h(pje_money($row['tsd'] ?? 0)) ?></td>
                             <td><?= pje_h(pje_money($row['detraccion'] ?? 0)) ?></td>
+                            <td><strong><?= pje_h(pje_money($row['total'] ?? 0)) ?></strong></td>
                             <td>
                                 <?= pje_h(pje_date($row['fecha_importacion'] ?? null)) ?>
                                 <small><?= pje_h(pje_text($row['cod_importacion'] ?? '')) ?></small>
