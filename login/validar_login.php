@@ -202,6 +202,9 @@ foreach ($permisos as $index => $modulo) {
             header('Location: ../01_amantenimiento/lista_cheklist.php');
             exit();
         }      
+    } elseif ($modulo == 4) {
+        header('Location: ../24_peajes/index.php');
+        exit();        
     } elseif ($modulo == 9) {
         header('Location: ../01_fcombustible/historial_combustible.php');
         exit();        
