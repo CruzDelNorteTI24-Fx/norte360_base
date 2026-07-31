@@ -494,6 +494,33 @@ function n360_menu_config(): array {
                 ],
             ],
             [
+                'id' => 'encomiendas',
+                'titulo' => 'Encomiendas',
+                'icono' => 'bi bi-box-seam-fill',
+                'modulo' => 13,
+                'grupos' => [
+                    [
+                        'titulo' => 'Operacion de encomiendas',
+                        'items' => [
+                            [
+                                'titulo' => 'Registro de guia',
+                                'icono' => 'bi bi-send-plus-fill',
+                                'url' => '13_3ncomiendas/registro.php',
+                                'modulo' => 13,
+                                'vista' => 'enc-register'
+                            ],
+                            [
+                                'titulo' => 'Tracking',
+                                'icono' => 'bi bi-signpost-split-fill',
+                                'url' => '13_3ncomiendas/tracking.php',
+                                'modulo' => 13,
+                                'vista' => 'enc-tracking'
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            [
                 'id' => 'flota',
                 'titulo' => 'Flota y Operaciones',
                 'icono' => 'bi bi-bus-front-fill',
