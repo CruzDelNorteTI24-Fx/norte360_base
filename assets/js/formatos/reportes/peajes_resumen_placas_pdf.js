@@ -117,25 +117,40 @@
         const noMatch = nonMatchingRows(rows).length;
         const left = 12.7;
 
-        doc.setFillColor(245, 248, 251);
-        doc.setDrawColor(214, 226, 239);
-        doc.roundedRect(left, y, width, 26, 2, 2, 'FD');
+        if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
+            return window.N360PDF.drawReportSummary(doc, {
+                x: left,
+                y,
+                width,
+                title: 'Filtros aplicados',
+                rows: [
+                    { label: 'Periodo / filtros', value: infoText().join(' | ') },
+                    { label: 'Registros', value: num(kpis.registros) },
+                    { label: 'Placas', value: num(rows.length) },
+                    { label: 'No coinciden', value: num(noMatch) },
+                    { label: 'Total', value: money(kpis.total) },
+                    { label: 'Detraccion', value: money(kpis.detraccion) }
+                ],
+                columns: 3,
+                bottomGap: 9
+            });
+        }
 
+        doc.setDrawColor(34, 147, 220);
+        doc.setLineWidth(0.55);
+        doc.line(left, y, left + width, y);
+        doc.setTextColor(88, 110, 135);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(18, 42, 64);
-        doc.text('Resumen del reporte', left + 5, y + 7);
-
-        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.6);
+        doc.text('RESUMEN DEL REPORTE', left, y + 7.2);
+        doc.setTextColor(8, 36, 61);
         doc.setFontSize(7.2);
-        doc.setTextColor(71, 85, 105);
-        const filtersLines = doc.splitTextToSize(infoText().join('  |  '), width - 10);
-        doc.text(filtersLines, left + 5, y + 12.3);
-
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        const kpiLines = doc.splitTextToSize(`Registros: ${num(kpis.registros)}  |  Placas: ${num(rows.length)}  |  No coinciden: ${num(noMatch)}  |  Total: ${money(kpis.total)}  |  Detraccion: ${money(kpis.detraccion)}`, width - 10);
-        doc.text(kpiLines, left + 5, y + 19.5);
+        doc.text(doc.splitTextToSize(infoText().join(' | '), width - 4), left, y + 13);
+        doc.text(doc.splitTextToSize(`Registros: ${num(kpis.registros)} | Placas: ${num(rows.length)} | No coinciden: ${num(noMatch)} | Total: ${money(kpis.total)} | Detraccion: ${money(kpis.detraccion)}`, width - 4), left, y + 22);
+        doc.setDrawColor(210, 226, 241);
+        doc.setLineWidth(0.12);
+        doc.line(left, y + 31, left + width, y + 31);
+        return y + 39;
     }
 
     function autoTable(doc, title, head, body, startY, options) {
@@ -219,8 +234,7 @@
                 content: function (pdf) {
                     const W = pdf.internal.pageSize.getWidth();
                     let y = 34;
-                    drawSummaryBox(pdf, y, W - 25.4);
-                    y += 36;
+                    y = drawSummaryBox(pdf, y, W - 25.4);
 
                     const mainBody = rows.map(row => ({
                         _owner: clean(row.dueno, 'No identificado'),

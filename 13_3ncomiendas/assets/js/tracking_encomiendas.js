@@ -67,29 +67,51 @@
     document.body.classList.remove('enc-drawer-open');
   };
 
-  const loadDetail = async (id, shouldOpen) => {
-    if (!id) return;
+  const loadDetail = async (id, shouldOpen, preferredPanel) => {
+    if (!id || !drawerBody) return;
     currentGuideId = id;
-    if (drawerBody) setDrawerLoading();
     if (shouldOpen) openDrawer();
+    setDrawerLoading();
 
     const task = async () => {
       const response = await fetch(`detalle.php?id=${encodeURIComponent(id)}&partial=1`, {
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
       });
-      if (!response.ok) throw new Error('No se pudo cargar el detalle de la Guia Norte.');
-      return response.text();
+      const html = await response.text();
+      if (!response.ok) throw new Error(html || 'No se pudo cargar el detalle de la Guia Norte.');
+      return html;
     };
 
     try {
+      const detailLabel = preferredPanel === 'timeline'
+        ? 'Abriendo linea de seguimiento...'
+        : preferredPanel === 'history'
+          ? 'Abriendo historial operativo...'
+          : 'Leyendo ruta, manifiestos e historial...';
       const html = window.N360Loader && window.N360Loader.during
-        ? await window.N360Loader.during(task(), { title: 'Cargando Guia Norte', detail: 'Leyendo ruta, manifiestos e historial...' })
+        ? await window.N360Loader.during(task(), { title: 'Cargando Guia Norte', detail: detailLabel })
         : await task();
-      if (drawerBody) drawerBody.innerHTML = html;
+      drawerBody.innerHTML = html;
+
+      if (preferredPanel) {
+        const detail = drawerBody.querySelector('.enc-detail');
+        const trigger = detail
+          ? Array.from(detail.querySelectorAll('[data-enc-detail-toggle]')).find((button) => button.dataset.encDetailToggle === preferredPanel)
+          : null;
+        if (trigger) {
+          toggleDetailPanel(trigger, { forceOpen: true, scroll: true });
+        } else if (detail) {
+          const panel = Array.from(detail.querySelectorAll('[data-enc-detail-panel]')).find((node) => node.dataset.encDetailPanel === preferredPanel);
+          if (panel) {
+            panel.hidden = false;
+            panel.classList.add('is-open');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+      }
     } catch (error) {
-      if (drawerBody) drawerBody.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(error.message)}</div>`;
-      else await showDialog(error.message, 'danger', 'No se pudo cargar');
+      drawerBody.innerHTML = `<div class="enc-form-alert enc-form-alert--error">${escapeHtml(error.message || 'No se pudo cargar el detalle.')}</div>`;
     }
   };
 
@@ -124,16 +146,19 @@
     annulModal.show();
   };
 
-  const toggleDetailPanel = (trigger) => {
-    const detail = trigger.closest('.enc-detail');
-    if (!detail) return;
-    const key = trigger.dataset.encDetailToggle || '';
+  const toggleDetailPanel = (trigger, options) => {
+    const opts = options || {};
+    const detail = trigger.closest('.enc-detail') || document;
+    const name = trigger.dataset.encDetailToggle || '';
     const buttons = Array.from(detail.querySelectorAll('[data-enc-detail-toggle]'));
     const panels = Array.from(detail.querySelectorAll('[data-enc-detail-panel]'));
-    const target = panels.find((panel) => panel.dataset.encDetailPanel === key);
+    const target = panels.find((panel) => panel.dataset.encDetailPanel === name);
     if (!target) return;
 
-    const shouldOpen = target.hidden || !trigger.classList.contains('is-active');
+    const shouldOpen = typeof opts.forceOpen === 'boolean'
+      ? opts.forceOpen
+      : (target.hidden || !trigger.classList.contains('is-active'));
+
     buttons.forEach((button) => {
       button.classList.remove('is-active');
       button.setAttribute('aria-expanded', 'false');
@@ -144,11 +169,13 @@
     });
 
     if (shouldOpen) {
-      target.hidden = false;
-      target.classList.add('is-open');
       trigger.classList.add('is-active');
       trigger.setAttribute('aria-expanded', 'true');
-      target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      target.hidden = false;
+      target.classList.add('is-open');
+      if (opts.scroll !== false) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
   };
   document.addEventListener('click', (event) => {
@@ -156,6 +183,13 @@
     if (detailPanelTrigger) {
       event.preventDefault();
       toggleDetailPanel(detailPanelTrigger);
+      return;
+    }
+
+    const sectionTrigger = event.target.closest('[data-enc-detail-section]');
+    if (sectionTrigger) {
+      event.preventDefault();
+      loadDetail(sectionTrigger.dataset.guideId, true, sectionTrigger.dataset.encDetailSection);
       return;
     }
 

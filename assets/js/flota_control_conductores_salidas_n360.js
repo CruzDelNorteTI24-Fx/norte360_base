@@ -122,17 +122,32 @@
   }
 
   function drawInfo(doc, left, y, width, unitsCount) {
-    doc.setDrawColor(210, 224, 238);
-    doc.setFillColor(247, 250, 253);
-    doc.roundedRect(left, y, width, 18, 2, 2, 'FD');
-    doc.setTextColor(15, 42, 64);
+    if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
+      return window.N360PDF.drawReportSummary(doc, {
+        x: left,
+        y,
+        width,
+        title: 'Resumen mensual',
+        rows: [
+          { label: 'Mes operativo', value: cfg.monthLabel || cfg.month || '-' },
+          { label: 'Unidades visibles', value: unitsCount }
+        ],
+        columns: 2,
+        bottomGap: 7
+      });
+    }
+
+
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.text('Resumen del reporte', left + 5, y + 7);
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.2);
-    doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || ''}`, left + 5, y + 12.5);
-    doc.text(`Unidades visibles: ${unitsCount}`, left + width - 5, y + 12.5, { align: 'right' });
+    doc.text('RESUMEN MENSUAL', left, y + 6.5);
+    doc.setTextColor(8, 36, 61);
+    doc.setFontSize(7.5);
+    doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y + 12);
+    doc.text(`Unidades visibles: ${unitsCount}`, left + width, y + 12, { align: 'right' });
+    doc.setDrawColor(210, 224, 238);
+    doc.line(left, y + 16, left + width, y + 16);
+    return y + 23;
   }
 
   function tableBody(unit) {
@@ -182,8 +197,7 @@
           const width = pageW - left - right;
           let y = 34;
 
-          drawInfo(doc, left, y, width, units.length);
-          y += 25;
+          y = drawInfo(doc, left, y, width, units.length);
 
           units.forEach((unit, index) => {
             if (index > 0 && y > pageH - 72) {

@@ -237,6 +237,80 @@
         }
     }
 
+    function drawReportSummary(doc, options) {
+        const opts = options || {};
+        const pageW = doc.internal.pageSize.getWidth();
+        const x = Number(opts.x ?? opts.left ?? 12.7);
+        const y = Number(opts.y ?? 36);
+        const width = Number(opts.width ?? (pageW - x * 2));
+        const title = String(opts.title || 'Filtros aplicados');
+        const rawRows = Array.isArray(opts.rows) ? opts.rows : [];
+        const rows = rawRows.map((item) => {
+            if (Array.isArray(item)) return { label: item[0], value: item[1] };
+            return item || {};
+        }).filter((item) => String(item.label ?? item.value ?? '').trim() !== '');
+        const columns = Math.max(1, Number(opts.columns || (width > 230 ? 4 : 3)));
+        const gap = Number(opts.gap || 4);
+        const colW = (width - gap * (columns - 1)) / columns;
+        const labelColor = opts.labelColor || [88, 110, 135];
+        const valueColor = opts.valueColor || [8, 36, 61];
+        const lineColor = opts.lineColor || [210, 226, 241];
+        const accentColor = opts.accentColor || [34, 147, 220];
+        const rowLine = 3.35;
+        const headerH = 10;
+        const bottomGap = Number(opts.bottomGap ?? 7);
+
+        const lineSets = rows.length
+            ? rows.map((item) => doc.splitTextToSize(String(item.value ?? '-'), Math.max(18, colW - 3)))
+            : [[String(opts.emptyText || 'Sin filtros aplicados')]];
+        const itemCount = Math.max(rows.length, 1);
+        const rowCount = Math.ceil(itemCount / columns);
+        const rowHeights = [];
+        for (let row = 0; row < rowCount; row += 1) {
+            let maxLines = 1;
+            for (let col = 0; col < columns; col += 1) {
+                const idx = row * columns + col;
+                if (idx < lineSets.length) maxLines = Math.max(maxLines, lineSets[idx].length);
+            }
+            rowHeights.push(6.8 + maxLines * rowLine);
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.6);
+        doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
+        doc.text(title.toUpperCase(), x, y + 7.2);
+
+        let cy = y + headerH;
+        for (let row = 0; row < rowCount; row += 1) {
+            const h = rowHeights[row];
+            for (let col = 0; col < columns; col += 1) {
+                const idx = row * columns + col;
+                if (idx >= itemCount) continue;
+                const item = rows[idx] || { label: '', value: opts.emptyText || 'Sin filtros aplicados' };
+                const cx = x + col * (colW + gap);
+
+                doc.setDrawColor(lineColor[0], lineColor[1], lineColor[2]);
+                doc.setLineWidth(0.12);
+                doc.line(cx, cy + 0.5, cx, cy + h - 1.8);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(6.2);
+                doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
+                doc.text(String(item.label || 'Detalle').toUpperCase(), cx + 2, cy + 3.8);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.2);
+                doc.setTextColor(valueColor[0], valueColor[1], valueColor[2]);
+                doc.text(lineSets[idx].slice(0, 3), cx + 2, cy + 7.5);
+            }
+            cy += h;
+        }
+
+        doc.setDrawColor(lineColor[0], lineColor[1], lineColor[2]);
+        doc.setLineWidth(0.12);
+        doc.line(x, cy, x + width, cy);
+        return cy + bottomGap;
+    }
     function addDemoContent(doc, config) {
         const cfg = mergeConfig(config);
         const W = doc.internal.pageSize.getWidth();
@@ -245,19 +319,19 @@
         const top = 36;
         const contentW = W - left * 2;
 
-        doc.setFillColor(245, 248, 251);
-        doc.roundedRect(left, top, contentW, 22, 2, 2, 'F');
-        doc.setTextColor(18, 42, 64);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
-        text(doc, cfg.secondTitle || 'Resumen del documento', left + 5, top + 8);
-
-        doc.setTextColor(71, 85, 105);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        doc.text(fitText(doc, cfg.description, contentW - 10), left + 5, top + 14);
-
-        const tableY = top + 33;
+        const tableY = drawReportSummary(doc, {
+            x: left,
+            y: top,
+            width: contentW,
+            title: cfg.secondTitle || 'Resumen del documento',
+            rows: [
+                { label: 'Descripcion', value: cfg.description || 'Formato A4 estandar Norte 360' },
+                { label: 'Orientacion', value: cfg.orientation === 'landscape' ? 'Horizontal' : 'Vertical' },
+                { label: 'Codigo', value: cfg.docCode || 'N360-DOC' }
+            ],
+            columns: cfg.orientation === 'landscape' ? 3 : 2,
+            bottomGap: 8
+        });
         const cols = cfg.orientation === 'landscape'
             ? [24, 58, 74, 40, 54]
             : [20, 42, 50, 32, 38];
@@ -367,6 +441,7 @@
         addCover,
         addHeaderFooter,
         addDemoContent,
+        drawReportSummary,
         loadImage
     };
 })(window, document);

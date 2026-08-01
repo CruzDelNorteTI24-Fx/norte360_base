@@ -210,7 +210,8 @@
     justify-content: space-between;
     gap: 16px;
     padding: 14px 16px;
-    border-top: 4px solid #14263d;
+    background: linear-gradient(135deg, #243447, #30475e);
+    color: #ffffff;
 }
 
 .fcc-unit-toggle {
@@ -220,7 +221,7 @@
     min-width: 0;
     border: 0;
     background: transparent;
-    color: #0b2740;
+    color: #ffffff;
     text-align: left;
 }
 
@@ -287,7 +288,7 @@
     top: 0;
     z-index: 1;
     padding: 11px 10px;
-    background: #14263d;
+    background: #243447;
     color: #fff;
     text-align: left;
     white-space: nowrap;

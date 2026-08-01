@@ -1908,3 +1908,521 @@ body.enc-drawer-open {
     justify-content: flex-start;
   }
 }
+/* Encomiendas 1.6 - acciones separadas y detalle compacto */
+.enc-row-actions--expanded {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 270px;
+}
+
+.enc-row-actions--expanded .stock-btn--sm {
+  min-height: 32px;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.enc-drawer__body .enc-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.enc-drawer__body .enc-detail-hero {
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+
+.enc-drawer__body .enc-detail-hero h2 {
+  margin-bottom: 3px;
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.enc-drawer__body .enc-detail-hero p {
+  margin: 0;
+  color: #344a60;
+  font-size: .86rem;
+  line-height: 1.35;
+}
+
+.enc-drawer__body .enc-detail-grid {
+  grid-template-columns: repeat(3, minmax(118px, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.enc-drawer__body .enc-detail-stat {
+  min-height: 0;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.enc-drawer__body .enc-detail-stat span {
+  gap: 5px;
+  font-size: .62rem;
+}
+
+.enc-drawer__body .enc-detail-stat strong {
+  margin-top: 3px;
+  font-size: .78rem;
+  line-height: 1.18;
+}
+
+.enc-drawer__body .enc-detail-hero__states {
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.enc-drawer__body .enc-detail-actions {
+  display: none !important;
+}
+
+.enc-drawer__body .enc-detail-columns {
+  gap: 10px;
+}
+
+.enc-drawer__body .enc-section {
+  padding: 12px;
+  border: 1px solid #d7e5f2;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.enc-drawer__body .enc-section__head {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #d7e5f2;
+}
+
+.enc-drawer__body .enc-section__head h3 {
+  font-size: 1rem;
+}
+
+.enc-drawer__body .enc-section__head span {
+  text-align: right;
+}
+
+.enc-drawer__body .enc-definition-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.enc-drawer__body .enc-definition-list div {
+  display: block;
+  padding: 7px 8px;
+  border: 1px solid #e1edf7;
+  border-radius: 7px;
+  background: #f7fbff;
+}
+
+.enc-drawer__body .enc-definition-list dt {
+  font-size: .62rem;
+}
+
+.enc-drawer__body .enc-definition-list dd {
+  margin: 2px 0 0;
+  font-size: .84rem;
+}
+
+.enc-drawer__body .enc-inline-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #d7e5f2;
+}
+
+.enc-drawer__body .enc-route-doc-grid {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.enc-drawer__body .enc-point-card {
+  padding: 12px;
+  border-color: #dbe7f3;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.enc-drawer__body .enc-point-card.has-doc {
+  border-color: #9ed6b1;
+  background: #f8fff9;
+}
+
+.enc-drawer__body .enc-point-card h4 {
+  margin-bottom: 4px;
+  font-size: .94rem;
+}
+
+.enc-drawer__body .enc-point-card p {
+  margin-bottom: 8px;
+  font-size: .8rem;
+}
+
+.enc-drawer__body .enc-doc-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.enc-drawer__body .enc-transport-docs .stock-table {
+  min-width: 760px;
+}
+
+.enc-drawer__body .enc-detail-panel.is-open {
+  border-color: #a9d7f5;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+}
+
+@media (max-width: 980px) {
+  .enc-row-actions--expanded {
+    min-width: 210px;
+  }
+
+  .enc-drawer__body .enc-detail-grid,
+  .enc-drawer__body .enc-definition-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Encomiendas 1.7 - detalle gerencial compacto */
+.enc-drawer {
+  width: min(1320px, calc(100vw - 300px));
+  max-width: calc(100vw - 16px);
+}
+
+.enc-drawer__body {
+  padding: 14px 16px 16px;
+  background: #f2f7fb;
+}
+
+.enc-drawer__body .enc-detail {
+  gap: 10px;
+}
+
+.enc-drawer__body .enc-detail-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid #cfe1f1;
+  background: #eef7ff;
+  border-radius: 8px;
+}
+
+.enc-drawer__body .enc-detail-hero h2 {
+  font-size: 1.18rem;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+.enc-drawer__body .enc-detail-hero p {
+  margin-bottom: 8px;
+  font-size: .86rem;
+}
+
+.enc-drawer__body .enc-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.enc-drawer__body .enc-detail-stat {
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid #d8e6f2;
+  background: rgba(255, 255, 255, .82);
+}
+
+.enc-drawer__body .enc-detail-stat span {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: .58rem;
+  line-height: 1.1;
+  color: #60738a;
+}
+
+.enc-drawer__body .enc-detail-stat strong {
+  display: block;
+  margin-top: 3px;
+  font-size: .76rem;
+  line-height: 1.2;
+  color: #09233c;
+}
+
+.enc-drawer__body .enc-detail-hero__states {
+  min-width: 230px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.enc-drawer__body .enc-detail-hero__states .enc-state,
+.enc-drawer__body .enc-detail-hero__states .stock-btn {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: .68rem;
+  border-radius: 8px;
+}
+
+.enc-drawer__body .enc-panel-launchers {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.enc-drawer__body .enc-panel-launch {
+  min-height: 58px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d9e7f3;
+  background: #fff;
+}
+
+.enc-drawer__body .enc-panel-launch__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+.enc-drawer__body .enc-panel-launch strong {
+  font-size: .88rem;
+}
+
+.enc-drawer__body .enc-panel-launch span {
+  font-size: .72rem;
+}
+
+.enc-drawer__body .enc-detail-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.enc-drawer__body .enc-section {
+  padding: 12px 14px;
+  border: 1px solid #d7e5f1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.enc-drawer__body .enc-detail-columns .enc-section {
+  border-top: 3px solid #2293dc;
+}
+
+.enc-drawer__body .enc-section__head {
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #d6e5f2;
+}
+
+.enc-drawer__body .enc-section__head h3 {
+  font-size: .98rem;
+  margin: 0;
+}
+
+.enc-drawer__body .enc-definition-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.enc-drawer__body .enc-definition-list div {
+  min-width: 0;
+  padding: 6px 7px;
+  border-radius: 7px;
+  background: #f6f9fc;
+  border: 1px solid #e1ebf4;
+}
+
+.enc-drawer__body .enc-definition-list dt {
+  margin-bottom: 2px;
+  font-size: .57rem;
+  line-height: 1.1;
+  color: #657891;
+}
+
+.enc-drawer__body .enc-definition-list dd {
+  margin: 0;
+  font-size: .78rem;
+  line-height: 1.2;
+}
+
+.enc-drawer__body .enc-inline-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 210px) minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #d6e5f2;
+}
+
+.enc-drawer__body .enc-inline-form label {
+  margin: 0;
+}
+
+.enc-drawer__body .enc-inline-form input,
+.enc-drawer__body .enc-inline-form select,
+.enc-drawer__body .enc-inline-form textarea {
+  min-height: 36px;
+  font-size: .82rem;
+}
+
+.enc-drawer__body .enc-inline-form .stock-btn {
+  height: 38px;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.enc-drawer__body .enc-route-doc-grid {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+.enc-drawer__body .enc-point-card {
+  padding: 10px 12px;
+  border: 1px solid #d9e8f5;
+  border-left: 3px solid #9fc4e6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.enc-drawer__body .enc-point-card.has-doc {
+  border-left-color: #24a565;
+  background: #fbfffd;
+}
+
+.enc-drawer__body .enc-point-card__head {
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.enc-drawer__body .enc-point-card h4 {
+  margin: 6px 0 2px;
+  font-size: .88rem;
+}
+
+.enc-drawer__body .enc-point-card p {
+  margin-bottom: 6px;
+  font-size: .78rem;
+}
+
+.enc-drawer__body .enc-doc-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 8px;
+  margin: 6px 0;
+}
+
+.enc-drawer__body .enc-doc-actions {
+  gap: 6px;
+}
+
+.enc-drawer__body .enc-doc-actions .stock-btn {
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: 7px;
+}
+
+.enc-drawer__body .enc-upload-form {
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.enc-drawer__body .enc-upload-form input[type="file"] {
+  padding: 6px;
+  font-size: .82rem;
+}
+
+.enc-drawer__body .enc-upload-form .stock-btn {
+  width: 100%;
+  min-height: 34px;
+}
+
+.enc-drawer__body .enc-doc-guidance {
+  margin: -2px 0 10px;
+  padding: 8px 10px;
+  font-size: .82rem;
+  border-radius: 7px;
+}
+
+.enc-drawer__body .enc-transport-docs {
+  overflow: auto;
+  border: 1px solid #e1edf7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.enc-drawer__body .enc-doc-table th {
+  padding: 8px 10px;
+  font-size: .68rem;
+}
+
+.enc-drawer__body .enc-doc-table td {
+  padding: 8px 10px;
+  font-size: .78rem;
+}
+
+.enc-drawer__body .enc-panel-content {
+  margin-top: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.enc-drawer__body .enc-timeline {
+  gap: 8px;
+}
+
+.enc-drawer__body .enc-timeline-item {
+  padding: 8px 10px;
+}
+
+.enc-drawer__body .enc-history-table th,
+.enc-drawer__body .enc-history-table td {
+  padding: 8px 10px;
+  font-size: .78rem;
+}
+
+@media (max-width: 1180px) {
+  .enc-drawer {
+    width: calc(100vw - 20px);
+  }
+
+  .enc-drawer__body .enc-detail-hero,
+  .enc-drawer__body .enc-detail-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .enc-drawer__body .enc-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .enc-drawer__body .enc-detail-hero__states {
+    min-width: 0;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .enc-drawer__body {
+    padding: 10px;
+  }
+
+  .enc-drawer__body .enc-detail-grid,
+  .enc-drawer__body .enc-panel-launchers,
+  .enc-drawer__body .enc-definition-list,
+  .enc-drawer__body .enc-inline-form {
+    grid-template-columns: 1fr;
+  }
+
+  .enc-row-actions--expanded {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

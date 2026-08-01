@@ -334,17 +334,7 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
             </div>
         </section>
 
-        <?php if (!$isAnulada && $canAnular): ?>
-            <section class="enc-section enc-section--danger">
-                <div class="enc-section__head"><h3>Anulacion logica</h3><span>Conserva historial y documentos</span></div>
-                <form class="enc-inline-form enc-ajax-form" action="actions/anular_guia.php" method="post" data-confirm="La Guia Norte sera anulada de forma logica.">
-                    <input type="hidden" name="csrf_token" value="<?= enc_h($csrf) ?>">
-                    <input type="hidden" name="id" value="<?= enc_h($guia['clm_enc_id']) ?>">
-                    <label class="enc-form-grow"><span>Motivo obligatorio</span><input type="text" name="motivo" maxlength="1000" required autocomplete="off" placeholder="Motivo de anulacion"></label>
-                    <button class="stock-btn stock-btn--danger" type="submit"><i class="bi bi-x-octagon"></i> Anular Guia Norte</button>
-                </form>
-            </section>
-        <?php endif; ?>
+
     </div>
     <?php
 }
@@ -379,7 +369,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/loader_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
-    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.5.0">
+    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.7.0">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -435,6 +425,6 @@ require_once __DIR__ . '/../layout/content_n360.php';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= enc_h(n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js')) ?>"></script>
 <script src="assets/js/encomiendas_pdf.js?v=1.0.0"></script>
-<script src="assets/js/tracking_encomiendas.js?v=1.5.0"></script>
+<script src="assets/js/tracking_encomiendas.js?v=1.6.0"></script>
 </body>
 </html>

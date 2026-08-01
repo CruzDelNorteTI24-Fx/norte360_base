@@ -112,25 +112,40 @@
   };
 
   const drawSummaryBox = (doc, x, y, w, rows) => {
+    if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
+      return window.N360PDF.drawReportSummary(doc, {
+        x,
+        y,
+        width: w,
+        title: 'Resumen operativo',
+        rows,
+        columns: w > 230 ? 4 : 3,
+        bottomGap: 8
+      });
+    }
+
     const rowH = 7.2;
     const h = 10 + rows.length * rowH;
-    doc.setFillColor(245, 249, 253);
-    doc.setDrawColor(210, 226, 241);
-    doc.roundedRect(x, y, w, h, 2, 2, 'FD');
-    doc.setTextColor(18, 42, 64);
+    doc.setDrawColor(34, 147, 220);
+    doc.setLineWidth(0.55);
+    doc.line(x, y, x + w, y);
+    doc.setTextColor(88, 110, 135);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.2);
-    doc.text('Resumen operativo', x + 5, y + 7);
     doc.setFontSize(7.6);
+    doc.text('RESUMEN OPERATIVO', x, y + 7.2);
+    doc.setFontSize(7.2);
     rows.forEach((row, idx) => {
       const yy = y + 13 + idx * rowH;
       doc.setTextColor(82, 103, 127);
       doc.setFont('helvetica', 'bold');
-      doc.text(row[0], x + 5, yy);
+      doc.text(row[0], x, yy);
       doc.setTextColor(8, 36, 61);
       doc.setFont('helvetica', 'normal');
       doc.text(String(row[1] || '-'), x + 42, yy);
     });
+    doc.setDrawColor(210, 226, 241);
+    doc.setLineWidth(0.12);
+    doc.line(x, y + h, x + w, y + h);
     return y + h + 8;
   };
 

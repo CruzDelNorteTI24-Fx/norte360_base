@@ -91,7 +91,7 @@ function enc_manifest_status(array $row): string {
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/loader_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
-    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.5.0">
+    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.7.0">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -155,9 +155,9 @@ function enc_manifest_status(array $row): string {
                         <div><strong>Fechas</strong><span>Dia de guia o periodo.</span></div>
                     </div>
                     <div class="enc-filter-group__fields">
-                        <label class="stock-field"><span>Fecha guia</span><input type="date" name="fecha_guia" value="<?= enc_h($filters['fecha_guia']) ?>"></label>
                         <label class="stock-field"><span>Desde</span><input type="date" name="desde" value="<?= enc_h($filters['desde']) ?>"></label>
                         <label class="stock-field"><span>Hasta</span><input type="date" name="hasta" value="<?= enc_h($filters['hasta']) ?>"></label>
+                        <label class="stock-field"><span>Fecha guia</span><input type="date" name="fecha_guia" value="<?= enc_h($filters['fecha_guia']) ?>"></label>
                     </div>
                 </section>
 
@@ -242,8 +242,10 @@ function enc_manifest_status(array $row): string {
                                     <td><?= enc_h(enc_fmt_datetime($row['clm_enc_datetimeupdated'] ?: $row['clm_enc_fechacreated'])) ?></td>
                                     <td>
                                         <?php $isAnulada = ((int)($row['clm_enc_activo'] ?? 1) === 0) || strtoupper((string)($row['clm_enc_estado_general'] ?? '')) === 'ANULADA'; ?>
-                                        <div class="enc-row-actions">
+                                        <div class="enc-row-actions enc-row-actions--expanded">
                                             <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-eye"></i> Ver</button>
+                                            <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail-section="timeline" data-guide-id="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-diagram-3"></i> Seguimiento</button>
+                                            <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail-section="history" data-guide-id="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-clock-history"></i> Historial</button>
                                             <button class="stock-btn stock-btn--primary stock-btn--sm" type="button" data-enc-pdf-guide="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-filetype-pdf"></i> PDF</button>
                                             <?php if ($canAnular && !$isAnulada): ?>
                                                 <button class="stock-btn stock-btn--danger stock-btn--sm" type="button" data-enc-annul-open data-guide-id="<?= enc_h($row['clm_enc_id']) ?>" data-guide-code="<?= enc_h($row['clm_enc_guia']) ?>"><i class="bi bi-x-octagon"></i> Anular</button>
@@ -345,6 +347,6 @@ function enc_manifest_status(array $row): string {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= enc_h(n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js')) ?>"></script>
 <script src="assets/js/encomiendas_pdf.js?v=1.4.0"></script>
-<script src="assets/js/tracking_encomiendas.js?v=1.5.0"></script>
+<script src="assets/js/tracking_encomiendas.js?v=1.6.0"></script>
 </body>
 </html>
