@@ -143,13 +143,13 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
                 <span class="stock-eyebrow"><i class="bi bi-receipt-cutoff"></i> Guia Norte</span>
                 <h2><?= enc_h($guia['clm_enc_guia']) ?></h2>
                 <p><?= enc_h($routeText) ?></p>
-                <section class="enc-detail-grid">
-                    <span>Fecha guia</span><strong><?= enc_h(enc_fmt_date($guia['clm_enc_fecha_guia'])) ?></strong>
-                    <span>Horario operativo</span><strong><?= enc_h($horarioDetalle) ?></strong>
-                    <span>Registra</span><strong><?= enc_h($guia['usuario_registra']) ?></strong>
-                    <span>Unidad</span><strong><?= enc_h($unit) ?></strong>
-                    <span>Manifiestos</span><strong><?= enc_h($readyManifests . ' de ' . $requiredManifests) ?></strong>
-                    <span>Guias transportista</span><strong><?= enc_h(count($transportDocs)) ?></strong>
+                <section class="enc-detail-grid" aria-label="Resumen operativo de la Guia Norte">
+                    <div class="enc-detail-stat"><span><i class="bi bi-calendar3"></i> Fecha guia</span><strong><?= enc_h(enc_fmt_date($guia['clm_enc_fecha_guia'])) ?></strong></div>
+                    <div class="enc-detail-stat"><span><i class="bi bi-clock-history"></i> Horario operativo</span><strong><?= enc_h($horarioDetalle) ?></strong></div>
+                    <div class="enc-detail-stat"><span><i class="bi bi-person-badge"></i> Registra</span><strong><?= enc_h($guia['usuario_registra']) ?></strong></div>
+                    <div class="enc-detail-stat"><span><i class="bi bi-bus-front"></i> Unidad</span><strong><?= enc_h($unit) ?></strong></div>
+                    <div class="enc-detail-stat"><span><i class="bi bi-file-earmark-check"></i> Manifiestos</span><strong><?= enc_h($readyManifests . ' de ' . $requiredManifests) ?></strong></div>
+                    <div class="enc-detail-stat"><span><i class="bi bi-files"></i> Guias transportista</span><strong><?= enc_h(count($transportDocs)) ?></strong></div>
                 </section>
             </div>
             <div class="enc-detail-hero__states">
@@ -160,6 +160,16 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
             </div>
         </section>
 
+        <section class="enc-detail-actions" aria-label="Acciones de trazabilidad">
+            <button class="enc-detail-action" type="button" data-enc-detail-toggle="timeline" aria-expanded="false">
+                <i class="bi bi-diagram-3"></i>
+                <span><strong>Linea de seguimiento</strong><small>Ver avance operativo por etapa</small></span>
+            </button>
+            <button class="enc-detail-action" type="button" data-enc-detail-toggle="history" aria-expanded="false">
+                <i class="bi bi-clock-history"></i>
+                <span><strong>Historial</strong><small>Eventos y cambios registrados</small></span>
+            </button>
+        </section>
 
         <section class="enc-detail-columns">
             <article class="enc-section">
@@ -289,7 +299,7 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
             </div>
         </section>
 
-        <section class="enc-section">
+        <section class="enc-section enc-detail-panel" data-enc-detail-panel="timeline" hidden>
             <div class="enc-section__head"><h3>Linea de seguimiento</h3><span>Proceso operativo</span></div>
             <div class="enc-timeline">
                 <?= enc_detail_stage('Guia Norte registrada', 'REGISTRADA', $guia['clm_enc_fechacreated'], $guia['usuario_registra'], $guia['sede_embarque'], $unit, $guia['clm_enc_observacion'], true) ?>
@@ -301,7 +311,7 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
             </div>
         </section>
 
-        <section class="enc-section">
+        <section class="enc-section enc-detail-panel" data-enc-detail-panel="history" hidden>
             <div class="enc-section__head"><h3>Historial</h3><span>Solo lectura</span></div>
             <div class="stock-table-wrap">
                 <table class="stock-table enc-history-table">
@@ -369,7 +379,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/loader_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
-    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.3.0">
+    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.5.0">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -425,6 +435,6 @@ require_once __DIR__ . '/../layout/content_n360.php';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= enc_h(n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js')) ?>"></script>
 <script src="assets/js/encomiendas_pdf.js?v=1.0.0"></script>
-<script src="assets/js/tracking_encomiendas.js?v=1.3.0"></script>
+<script src="assets/js/tracking_encomiendas.js?v=1.5.0"></script>
 </body>
 </html>

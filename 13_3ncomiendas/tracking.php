@@ -91,7 +91,7 @@ function enc_manifest_status(array $row): string {
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/loader_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
-    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.4.0">
+    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.5.0">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -136,22 +136,58 @@ function enc_manifest_status(array $row): string {
                 <article class="stock-kpi stock-kpi--red"><span>Anuladas</span><strong><?= enc_h($kpis['anuladas'] ?? 0) ?></strong></article>
             </section> -->
 
-            <form class="stock-filters enc-filters" method="get" action="tracking.php">
-                <label class="stock-field"><span>Guia Norte</span><input type="text" name="guia" value="<?= enc_h($filters['guia']) ?>" placeholder="GN-000001" autocomplete="off"></label>
-                <label class="stock-field"><span>Documento legal</span><input type="text" name="documento" value="<?= enc_h($filters['documento']) ?>" placeholder="Factura, boleta, recibo o PDF" autocomplete="off"></label>
-                <label class="stock-field"><span>Fecha guia</span><input type="date" name="fecha_guia" value="<?= enc_h($filters['fecha_guia']) ?>"></label>
-                <label class="stock-field"><span>Desde</span><input type="date" name="desde" value="<?= enc_h($filters['desde']) ?>"></label>
-                <label class="stock-field"><span>Hasta</span><input type="date" name="hasta" value="<?= enc_h($filters['hasta']) ?>"></label>
-                <label class="stock-field"><span>Origen</span><select name="idsede_embarque"><option value="0">Todas</option><?php foreach ($sedes as $sede): ?><option value="<?= enc_h($sede['id']) ?>" <?= $filters['idsede_embarque']==$sede['id']?'selected':'' ?>><?= enc_h($sede['nombre']) ?></option><?php endforeach; ?></select></label>
-                <label class="stock-field"><span>Destino</span><select name="idsede_desembarque"><option value="0">Todas</option><?php foreach ($sedes as $sede): ?><option value="<?= enc_h($sede['id']) ?>" <?= $filters['idsede_desembarque']==$sede['id']?'selected':'' ?>><?= enc_h($sede['nombre']) ?></option><?php endforeach; ?></select></label>
-                <label class="stock-field"><span>Unidad</span><select name="idplaca"><option value="0">Todas</option><?php foreach ($placas as $placa): ?><option value="<?= enc_h($placa['id']) ?>" <?= $filters['idplaca']==$placa['id']?'selected':'' ?>><?= enc_h(enc_unit_label($placa)) ?></option><?php endforeach; ?></select></label>
-                <label class="stock-field"><span>Estado embarque</span><select name="estado_embarque"><option value="TODOS">Todos</option><?php foreach (['PENDIENTE','EMBARCADO','OBSERVADO'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_embarque']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
-                <label class="stock-field"><span>Estado desembarque</span><select name="estado_desembarque"><option value="TODOS">Todos</option><?php foreach (['PENDIENTE','RECIBIDO','INCOMPLETO','OBSERVADO'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_desembarque']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
-                <label class="stock-field"><span>Estado general</span><select name="estado_general"><option value="TODOS">Todos</option><?php foreach (['REGISTRADA','EN_TRANSITO','FINALIZADA','OBSERVADA','ANULADA'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_general']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
-                <label class="stock-field"><span>Vista</span><select name="estado_vida"><option value="TODOS">Todos</option><?php foreach (['ACTIVO'=>'Activas','FINALIZADO'=>'Finalizadas','OBSERVADO'=>'Observadas','ANULADO'=>'Anuladas'] as $value=>$label): ?><option value="<?= enc_h($value) ?>" <?= $filters['estado_vida']===$value?'selected':'' ?>><?= enc_h($label) ?></option><?php endforeach; ?></select></label>
-                <label class="stock-field stock-field--search"><span>Buscar</span><i class="bi bi-search"></i><input type="text" name="buscar" value="<?= enc_h($filters['buscar']) ?>" placeholder="Guia, ruta, unidad u observacion..." autocomplete="off"></label>
-                <label class="stock-field"><span>Filas</span><select name="per_page"><?php foreach ([15,25,50,100] as $n): ?><option value="<?= $n ?>" <?= $filters['per_page']===$n?'selected':'' ?>><?= $n ?></option><?php endforeach; ?></select></label>
-                <div class="stock-filter-actions enc-filter-actions">
+                        <form class="stock-filters enc-filters enc-filters--segmented" method="get" action="tracking.php">
+                <section class="enc-filter-group enc-filter-group--lookup">
+                    <div class="enc-filter-group__head">
+                        <i class="bi bi-search"></i>
+                        <div><strong>Busqueda principal</strong><span>Guia Norte, documento o texto libre.</span></div>
+                    </div>
+                    <div class="enc-filter-group__fields">
+                        <label class="stock-field"><span>Guia Norte</span><input type="text" name="guia" value="<?= enc_h($filters['guia']) ?>" placeholder="GN-000001" autocomplete="off"></label>
+                        <label class="stock-field"><span>Documento legal</span><input type="text" name="documento" value="<?= enc_h($filters['documento']) ?>" placeholder="Factura, boleta, recibo o PDF" autocomplete="off"></label>
+                        <label class="stock-field stock-field--search"><span>Buscar</span><i class="bi bi-search"></i><input type="text" name="buscar" value="<?= enc_h($filters['buscar']) ?>" placeholder="Guia, ruta, unidad u observacion..." autocomplete="off"></label>
+                    </div>
+                </section>
+
+                <section class="enc-filter-group enc-filter-group--dates">
+                    <div class="enc-filter-group__head">
+                        <i class="bi bi-calendar-range"></i>
+                        <div><strong>Fechas</strong><span>Dia de guia o periodo.</span></div>
+                    </div>
+                    <div class="enc-filter-group__fields">
+                        <label class="stock-field"><span>Fecha guia</span><input type="date" name="fecha_guia" value="<?= enc_h($filters['fecha_guia']) ?>"></label>
+                        <label class="stock-field"><span>Desde</span><input type="date" name="desde" value="<?= enc_h($filters['desde']) ?>"></label>
+                        <label class="stock-field"><span>Hasta</span><input type="date" name="hasta" value="<?= enc_h($filters['hasta']) ?>"></label>
+                    </div>
+                </section>
+
+                <section class="enc-filter-group enc-filter-group--route">
+                    <div class="enc-filter-group__head">
+                        <i class="bi bi-signpost-2"></i>
+                        <div><strong>Ruta y unidad</strong><span>Origen, destino y bus asignado.</span></div>
+                    </div>
+                    <div class="enc-filter-group__fields">
+                        <label class="stock-field"><span>Origen</span><select name="idsede_embarque"><option value="0">Todas</option><?php foreach ($sedes as $sede): ?><option value="<?= enc_h($sede['id']) ?>" <?= $filters['idsede_embarque']==$sede['id']?'selected':'' ?>><?= enc_h($sede['nombre']) ?></option><?php endforeach; ?></select></label>
+                        <label class="stock-field"><span>Destino</span><select name="idsede_desembarque"><option value="0">Todas</option><?php foreach ($sedes as $sede): ?><option value="<?= enc_h($sede['id']) ?>" <?= $filters['idsede_desembarque']==$sede['id']?'selected':'' ?>><?= enc_h($sede['nombre']) ?></option><?php endforeach; ?></select></label>
+                        <label class="stock-field"><span>Unidad</span><select name="idplaca"><option value="0">Todas</option><?php foreach ($placas as $placa): ?><option value="<?= enc_h($placa['id']) ?>" <?= $filters['idplaca']==$placa['id']?'selected':'' ?>><?= enc_h(enc_unit_label($placa)) ?></option><?php endforeach; ?></select></label>
+                    </div>
+                </section>
+
+                <section class="enc-filter-group enc-filter-group--states">
+                    <div class="enc-filter-group__head">
+                        <i class="bi bi-toggles2"></i>
+                        <div><strong>Estados</strong><span>Control operativo y cantidad de filas.</span></div>
+                    </div>
+                    <div class="enc-filter-group__fields">
+                        <label class="stock-field"><span>Estado embarque</span><select name="estado_embarque"><option value="TODOS">Todos</option><?php foreach (['PENDIENTE','EMBARCADO','OBSERVADO'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_embarque']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
+                        <label class="stock-field"><span>Estado desembarque</span><select name="estado_desembarque"><option value="TODOS">Todos</option><?php foreach (['PENDIENTE','RECIBIDO','INCOMPLETO','OBSERVADO'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_desembarque']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
+                        <label class="stock-field"><span>Estado general</span><select name="estado_general"><option value="TODOS">Todos</option><?php foreach (['REGISTRADA','EN_TRANSITO','FINALIZADA','OBSERVADA','ANULADA'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_general']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
+                        <label class="stock-field"><span>Vista</span><select name="estado_vida"><option value="TODOS">Todos</option><?php foreach (['ACTIVO'=>'Activas','FINALIZADO'=>'Finalizadas','OBSERVADO'=>'Observadas','ANULADO'=>'Anuladas'] as $value=>$label): ?><option value="<?= enc_h($value) ?>" <?= $filters['estado_vida']===$value?'selected':'' ?>><?= enc_h($label) ?></option><?php endforeach; ?></select></label>
+                        <label class="stock-field"><span>Filas</span><select name="per_page"><?php foreach ([15,25,50,100] as $n): ?><option value="<?= $n ?>" <?= $filters['per_page']===$n?'selected':'' ?>><?= $n ?></option><?php endforeach; ?></select></label>
+                    </div>
+                </section>
+
+                <div class="stock-filter-actions enc-filter-actions enc-filter-actions--panel">
                     <button class="stock-btn stock-btn--primary" type="submit"><i class="bi bi-funnel"></i> Buscar</button>
                     <a class="stock-btn stock-btn--soft" href="tracking.php"><i class="bi bi-x-circle"></i> Limpiar</a>
                 </div>
@@ -309,6 +345,6 @@ function enc_manifest_status(array $row): string {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= enc_h(n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js')) ?>"></script>
 <script src="assets/js/encomiendas_pdf.js?v=1.4.0"></script>
-<script src="assets/js/tracking_encomiendas.js?v=1.4.0"></script>
+<script src="assets/js/tracking_encomiendas.js?v=1.5.0"></script>
 </body>
 </html>

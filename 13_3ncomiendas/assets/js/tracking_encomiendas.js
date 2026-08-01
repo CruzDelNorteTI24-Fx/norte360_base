@@ -124,7 +124,41 @@
     annulModal.show();
   };
 
+  const toggleDetailPanel = (trigger) => {
+    const detail = trigger.closest('.enc-detail');
+    if (!detail) return;
+    const key = trigger.dataset.encDetailToggle || '';
+    const buttons = Array.from(detail.querySelectorAll('[data-enc-detail-toggle]'));
+    const panels = Array.from(detail.querySelectorAll('[data-enc-detail-panel]'));
+    const target = panels.find((panel) => panel.dataset.encDetailPanel === key);
+    if (!target) return;
+
+    const shouldOpen = target.hidden || !trigger.classList.contains('is-active');
+    buttons.forEach((button) => {
+      button.classList.remove('is-active');
+      button.setAttribute('aria-expanded', 'false');
+    });
+    panels.forEach((panel) => {
+      panel.hidden = true;
+      panel.classList.remove('is-open');
+    });
+
+    if (shouldOpen) {
+      target.hidden = false;
+      target.classList.add('is-open');
+      trigger.classList.add('is-active');
+      trigger.setAttribute('aria-expanded', 'true');
+      target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
   document.addEventListener('click', (event) => {
+    const detailPanelTrigger = event.target.closest('[data-enc-detail-toggle]');
+    if (detailPanelTrigger) {
+      event.preventDefault();
+      toggleDetailPanel(detailPanelTrigger);
+      return;
+    }
+
     const annulTrigger = event.target.closest('[data-enc-annul-open]');
     if (annulTrigger) {
       event.preventDefault();
