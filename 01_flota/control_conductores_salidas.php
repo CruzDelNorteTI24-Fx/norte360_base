@@ -573,6 +573,7 @@ $monthLabel = fcc_month_label($monthStart);
                 <h1>Control mensual de salidas</h1>
             </div>
             <div class="fcc-hero-actions">
+                <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-driver-summary><i class="bi bi-people-fill"></i> Resumen conductores</button>
                 <button type="button" class="fcc-btn fcc-btn--primary" data-fcc-export-all><i class="bi bi-file-earmark-pdf"></i> PDF consolidado</button>
                 <a class="fcc-btn fcc-btn--soft" href="consolidado_salidas_buses.php"><i class="bi bi-arrow-left"></i> Consolidado</a>
             </div>
@@ -712,6 +713,55 @@ $monthLabel = fcc_month_label($monthStart);
     </main>
 
     <?php n360_render_content_separator('bottom'); ?>
+</div>
+
+<div class="modal fade fcc-driver-modal" id="fccDriverSummaryModal" tabindex="-1" aria-labelledby="fccDriverSummaryTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="fcc-modal-eyebrow"><i class="bi bi-people-fill"></i> Conductores filtrados</span>
+                    <h2 class="modal-title" id="fccDriverSummaryTitle">Resumen mensual de conductores</h2>
+                    <p><?= fcc_h($monthLabel) ?> segun las unidades visibles en pantalla.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="fcc-driver-kpis">
+                    <article><span>Conductores</span><strong data-fcc-driver-kpi="drivers">0</strong></article>
+                    <article><span>Viajes</span><strong data-fcc-driver-kpi="trips">0</strong></article>
+                    <article><span>Buses usados</span><strong data-fcc-driver-kpi="buses">0</strong></article>
+                    <article><span>Pendientes</span><strong data-fcc-driver-kpi="pending">0</strong></article>
+                    <article><span>Pagados</span><strong data-fcc-driver-kpi="paid">0</strong></article>
+                </div>
+
+                <label class="fcc-driver-search">
+                    <span>Buscar conductor</span>
+                    <input type="search" data-fcc-driver-search placeholder="Nombre, DNI o bus...">
+                </label>
+
+                <div class="fcc-driver-table-wrap">
+                    <table class="fcc-driver-table">
+                        <thead>
+                            <tr>
+                                <th>Conductor</th>
+                                <th>Viajes</th>
+                                <th>Buses</th>
+                                <th>Pendientes</th>
+                                <th>Pagados</th>
+                                <th>Obs.</th>
+                            </tr>
+                        </thead>
+                        <tbody data-fcc-driver-summary-body>
+                            <tr>
+                                <td colspan="6" class="fcc-driver-empty">Abre el resumen para calcular los conductores visibles.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>

@@ -6,7 +6,15 @@
 
   const clean = (value) => String(value || '').replace(/[ \t]+/g, ' ').replace(/\n\s+/g, '\n').trim();
   const compact = (value) => clean(value).replace(/\s+/g, ' ');
+  const keyText = (value) => compact(value).toLowerCase();
   const stamp = () => new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+  const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  }[char]));
 
   function showNotice(message, ok) {
     let box = document.querySelector('[data-fcc-notice]');
@@ -121,16 +129,154 @@
       .map(collectUnitFromCard);
   }
 
-  function drawInfo(doc, left, y, width, unitsCount) {
+  function summarizeDrivers(units) {
+    const map = new Map();
+
+    units.forEach((unit) => {
+      const unitName = compact(unit.title || 'Unidad');
+      (unit.rows || []).forEach((row) => {
+        [
+          { name: row.cond1, estado: row.cond1Estado, obs: row.cond1Obs },
+          { name: row.cond2, estado: row.cond2Estado, obs: row.cond2Obs }
+        ].forEach((driver) => {
+          const name = compact(driver.name);
+          if (!name || name === '-') return;
+
+          const key = keyText(name);
+          if (!map.has(key)) {
+            map.set(key, {
+              conductor: name,
+              trips: 0,
+              pending: 0,
+              paid: 0,
+              observations: 0,
+              buses: new Map()
+            });
+          }
+
+          const item = map.get(key);
+          const estado = compact(driver.estado).toUpperCase();
+          item.trips += 1;
+          item.buses.set(unitName, unitName);
+          if (estado === 'PAGADO') {
+            item.paid += 1;
+          } else {
+            item.pending += 1;
+          }
+          if (compact(driver.obs)) {
+            item.observations += 1;
+          }
+        });
+      });
+    });
+
+    return Array.from(map.values()).map((item) => {
+      const buses = Array.from(item.buses.values()).filter(Boolean).sort((a, b) => a.localeCompare(b));
+      return {
+        conductor: item.conductor,
+        trips: item.trips,
+        pending: item.pending,
+        paid: item.paid,
+        observations: item.observations,
+        busesTotal: buses.length,
+        busesText: buses.join(', ')
+      };
+    }).sort((a, b) => {
+      if (b.trips !== a.trips) return b.trips - a.trips;
+      return a.conductor.localeCompare(b.conductor);
+    });
+  }
+
+  function driverSummaryTotals(summary) {
+    const busSet = new Set();
+    summary.forEach((item) => {
+      String(item.busesText || '').split(',').forEach((bus) => {
+        const value = compact(bus);
+        if (value) busSet.add(value);
+      });
+    });
+    return summary.reduce((acc, item) => {
+      acc.drivers += 1;
+      acc.trips += Number(item.trips || 0);
+      acc.pending += Number(item.pending || 0);
+      acc.paid += Number(item.paid || 0);
+      return acc;
+    }, { drivers: 0, trips: 0, buses: busSet.size, pending: 0, paid: 0 });
+  }
+
+  function renderDriverSummary(summary) {
+    const body = document.querySelector('[data-fcc-driver-summary-body]');
+    if (!body) return;
+
+    const totals = driverSummaryTotals(summary);
+    Object.entries(totals).forEach(([key, value]) => {
+      const el = document.querySelector(`[data-fcc-driver-kpi="${key}"]`);
+      if (el) el.textContent = Number(value || 0).toLocaleString('es-PE');
+    });
+
+    if (!summary.length) {
+      body.innerHTML = '<tr><td colspan="6" class="fcc-driver-empty">No hay conductores en las unidades visibles.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = summary.map((item) => `
+      <tr data-driver-summary-row data-driver-search="${escapeHtml(`${item.conductor} ${item.busesText}`.toLowerCase())}">
+        <td><strong>${escapeHtml(item.conductor)}</strong></td>
+        <td>${Number(item.trips || 0).toLocaleString('es-PE')}</td>
+        <td><span>${Number(item.busesTotal || 0).toLocaleString('es-PE')}</span><small>${escapeHtml(item.busesText || '-')}</small></td>
+        <td><span class="fcc-mini fcc-mini--pending">${Number(item.pending || 0).toLocaleString('es-PE')}</span></td>
+        <td><span class="fcc-mini fcc-mini--paid">${Number(item.paid || 0).toLocaleString('es-PE')}</span></td>
+        <td>${Number(item.observations || 0).toLocaleString('es-PE')}</td>
+      </tr>
+    `).join('');
+  }
+
+  function setupDriverSummaryModal() {
+    const button = document.querySelector('[data-fcc-driver-summary]');
+    const modalEl = document.getElementById('fccDriverSummaryModal');
+    const search = document.querySelector('[data-fcc-driver-search]');
+    if (!button || !modalEl) return;
+
+    const modal = window.bootstrap && window.bootstrap.Modal
+      ? window.bootstrap.Modal.getOrCreateInstance(modalEl)
+      : null;
+
+    button.addEventListener('click', () => {
+      if (search) search.value = '';
+      renderDriverSummary(summarizeDrivers(visibleUnits()));
+      if (modal) {
+        modal.show();
+      } else {
+        modalEl.classList.add('show');
+        modalEl.style.display = 'block';
+      }
+    });
+
+    if (search) {
+      search.addEventListener('input', () => {
+        const q = keyText(search.value);
+        document.querySelectorAll('[data-driver-summary-row]').forEach((row) => {
+          const haystack = String(row.dataset.driverSearch || '');
+          row.classList.toggle('is-hidden', q !== '' && !haystack.includes(q));
+        });
+      });
+    }
+  }
+
+  function drawInfo(doc, left, y, width, unit, unitIndex, unitsCount) {
+    const summary = summarizeDrivers([unit]);
+    const totals = driverSummaryTotals(summary);
     if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
       return window.N360PDF.drawReportSummary(doc, {
         x: left,
         y,
         width,
-        title: 'Resumen mensual',
+        title: 'Unidad del reporte',
         rows: [
           { label: 'Mes operativo', value: cfg.monthLabel || cfg.month || '-' },
-          { label: 'Unidades visibles', value: unitsCount }
+          { label: 'Unidad', value: unit.title || '-' },
+          { label: 'Pagina de unidad', value: `${unitIndex + 1} de ${unitsCount}` },
+          { label: 'Conductores / viajes', value: `${totals.drivers} / ${totals.trips}` }
         ],
         columns: 2,
         bottomGap: 7
@@ -140,11 +286,11 @@
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.2);
-    doc.text('RESUMEN MENSUAL', left, y + 6.5);
+    doc.text('UNIDAD DEL REPORTE', left, y + 6.5);
     doc.setTextColor(8, 36, 61);
     doc.setFontSize(7.5);
     doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y + 12);
-    doc.text(`Unidades visibles: ${unitsCount}`, left + width, y + 12, { align: 'right' });
+    doc.text(`Unidad: ${unit.title || '-'}`, left + width, y + 12, { align: 'right' });
     doc.setDrawColor(210, 224, 238);
     doc.line(left, y + 16, left + width, y + 16);
     return y + 23;
@@ -163,6 +309,80 @@
     ]);
   }
 
+  function driverSummaryBody(summary) {
+    return summary.map((item) => [
+      item.conductor || '-',
+      Number(item.trips || 0).toLocaleString('es-PE'),
+      item.busesText || '-',
+      Number(item.pending || 0).toLocaleString('es-PE'),
+      Number(item.paid || 0).toLocaleString('es-PE'),
+      Number(item.observations || 0).toLocaleString('es-PE')
+    ]);
+  }
+
+  function drawDriverSummaryPage(doc, left, y, width, summary) {
+    const totals = driverSummaryTotals(summary);
+
+    doc.setTextColor(15, 42, 64);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Resumen de conductores', left, y);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(82, 105, 130);
+    doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y + 6);
+    doc.text(`Conductores: ${totals.drivers} | Viajes: ${totals.trips} | Buses: ${totals.buses}`, left, y + 11);
+
+    if (!summary.length) {
+      doc.setTextColor(82, 105, 130);
+      doc.text('No hay conductores para las unidades visibles.', left, y + 24);
+      return;
+    }
+
+    doc.autoTable({
+      head: [['Conductor', 'Viajes', 'Buses', 'Pend.', 'Pag.', 'Obs.']],
+      body: driverSummaryBody(summary),
+      startY: y + 18,
+      margin: { left, right: left, top: 32, bottom: 22 },
+      rowPageBreak: 'avoid',
+      styles: {
+        fontSize: 7,
+        cellPadding: 1.5,
+        overflow: 'linebreak',
+        valign: 'middle',
+        lineColor: [226, 232, 240],
+        lineWidth: 0.08
+      },
+      headStyles: {
+        fillColor: [20, 38, 61],
+        textColor: 255,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      alternateRowStyles: { fillColor: [249, 251, 253] },
+      columnStyles: {
+        0: { cellWidth: 48 },
+        1: { cellWidth: 16, halign: 'center' },
+        2: { cellWidth: width - 118 },
+        3: { cellWidth: 18, halign: 'center' },
+        4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 18, halign: 'center' }
+      },
+      didParseCell: function (data) {
+        if (data.section !== 'body') return;
+        if (data.column.index === 3) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = [146, 86, 0];
+        }
+        if (data.column.index === 4) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = [5, 112, 68];
+        }
+      }
+    });
+  }
+
   async function exportPdf(units, fileSuffix) {
     if (!units.length) {
       showNotice('No hay unidades visibles para exportar.', false);
@@ -174,6 +394,7 @@
     }
 
     try {
+      const driverSummary = summarizeDrivers(units);
       const doc = await window.N360PDF.createDocument({
         orientation: 'portrait',
         title: report.title || 'CONTROL MENSUAL DE CONDUCTORES',
@@ -193,17 +414,15 @@
           const left = 12.7;
           const right = 12.7;
           const pageW = doc.internal.pageSize.getWidth();
-          const pageH = doc.internal.pageSize.getHeight();
           const width = pageW - left - right;
-          let y = 34;
-
-          y = drawInfo(doc, left, y, width, units.length);
 
           units.forEach((unit, index) => {
-            if (index > 0 && y > pageH - 72) {
+            if (index > 0) {
               doc.addPage();
-              y = 34;
             }
+
+            let y = 34;
+            y = drawInfo(doc, left, y, width, unit, index, units.length);
 
             doc.setTextColor(15, 42, 64);
             doc.setFont('helvetica', 'bold');
@@ -261,6 +480,9 @@
 
             y = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : y) + 10;
           });
+
+          doc.addPage();
+          drawDriverSummaryPage(doc, left, 34, width, driverSummary);
         }
       });
 
@@ -298,4 +520,5 @@
   });
   setupSearch();
   setupPdfButtons();
+  setupDriverSummaryModal();
 })();

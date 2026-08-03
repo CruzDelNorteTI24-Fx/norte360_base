@@ -24,8 +24,8 @@
     blue: '#2d75a6',
     blueSoft: '#dcecf7',
     bluePale: '#eef6fb',
-    yellow: '#f5c400',
-    red: '#cf2736',
+    yellow: '#FFF212',
+    red: '#ED3237',
     ink: '#10283c',
     muted: '#5f7283',
     line: '#b8cfdf',
@@ -156,12 +156,9 @@
   }
 
   function drawPlaceholder(ctx, x, y, w, h, label, options = {}) {
-    fillRound(ctx, x, y, w, h, options.radius || 14, options.bg || 'rgba(255,255,255,.12)');
-    strokeRound(ctx, x, y, w, h, options.radius || 14, options.border || 'rgba(255,255,255,.42)', 2);
 
     ctx.save();
     ctx.setLineDash([10, 8]);
-    strokeRound(ctx, x + 10, y + 10, w - 20, h - 20, Math.max(6, (options.radius || 14) - 4), options.dash || 'rgba(255,255,255,.30)', 2);
     ctx.restore();
 
     drawCenteredText(ctx, label, x, y + (h / 2) - 13, w, {
@@ -328,10 +325,9 @@
     drawDiagonalBrand(ctx, x, y, 196);
 
     const logoX = x + 82;
-    const logoY = y + 22;
-    const logoW = 150;
-    const logoH = 150;
-    fillRound(ctx, logoX, logoY, logoW, logoH, 16, 'rgba(255,255,255,.12)');
+    const logoY = y - 50;
+    const logoW = 300;
+    const logoH = 300;
 
     if (!drawImageContain(ctx, assets.logo, logoX, logoY, logoW, logoH, 14)) {
       drawPlaceholder(ctx, logoX, logoY, logoW, logoH, 'LOGO', {
@@ -357,7 +353,7 @@
     const titleX = busX + busW + 36;
     const titleW = w - (titleX - x) - 38;
 
-    ctx.fillStyle = '#e9f5ff';
+    ctx.fillStyle = '#FFFFFF';
     ctx.font = `800 28px ${FONT}`;
     ctx.fillText('EMPRESA DE TRANSPORTE', titleX, y + 30);
 

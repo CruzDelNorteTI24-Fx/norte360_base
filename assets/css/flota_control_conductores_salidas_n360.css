@@ -451,9 +451,190 @@
 .fcc-notice--ok { background: #13794d; }
 .fcc-notice--bad { background: #b42318; }
 
+.fcc-driver-modal .modal-content {
+    overflow: hidden;
+    border: 0;
+    border-radius: 10px;
+    box-shadow: 0 24px 60px rgba(15, 42, 64, 0.28);
+}
+
+.fcc-driver-modal .modal-header {
+    align-items: flex-start;
+    padding: 22px 24px;
+    border: 0;
+    background: linear-gradient(120deg, #132b42 0%, #1f577d 100%);
+    color: #fff;
+}
+
+.fcc-driver-modal .modal-header .btn-close {
+    filter: invert(1) grayscale(1);
+    opacity: .86;
+}
+
+.fcc-driver-modal .modal-title {
+    margin: 5px 0 0;
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1.05;
+}
+
+.fcc-driver-modal .modal-header p {
+    margin: 7px 0 0;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.fcc-driver-modal .modal-body {
+    padding: 18px 20px 20px;
+    background: #f6f9fc;
+}
+
+.fcc-modal-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    color: #dff1ff;
+}
+
+.fcc-driver-kpis {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.fcc-driver-kpis article {
+    min-height: 76px;
+    padding: 14px 16px;
+    border: 1px solid #d7e4f2;
+    border-left: 5px solid #248ed2;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 42, 64, 0.06);
+}
+
+.fcc-driver-kpis article:nth-child(4) {
+    border-left-color: #f59e0b;
+}
+
+.fcc-driver-kpis article:nth-child(5) {
+    border-left-color: #22a164;
+}
+
+.fcc-driver-kpis span {
+    display: block;
+    color: #5c718a;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.fcc-driver-kpis strong {
+    display: block;
+    margin-top: 6px;
+    color: #001d36;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 900;
+}
+
+.fcc-driver-search {
+    display: block;
+    margin-bottom: 14px;
+}
+
+.fcc-driver-search span {
+    display: block;
+    margin-bottom: 6px;
+    color: #5c718a;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.fcc-driver-search input {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid #c7d9eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #0b2740;
+    font: inherit;
+    outline: none;
+}
+
+.fcc-driver-search input:focus {
+    border-color: #248ed2;
+    box-shadow: 0 0 0 3px rgba(36, 142, 210, 0.14);
+}
+
+.fcc-driver-table-wrap {
+    overflow: auto;
+    border: 1px solid #d7e4f2;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.fcc-driver-table {
+    width: 100%;
+    min-width: 860px;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.fcc-driver-table th {
+    padding: 11px 12px;
+    background: #14263d;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.fcc-driver-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid #e8f0f8;
+    color: #0b2740;
+    vertical-align: top;
+}
+
+.fcc-driver-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.fcc-driver-table tbody tr:hover {
+    background: #f8fbff;
+}
+
+.fcc-driver-table small {
+    display: block;
+    margin-top: 4px;
+    color: #526982;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.fcc-driver-table tr.is-hidden {
+    display: none;
+}
+
+.fcc-driver-empty {
+    padding: 24px !important;
+    color: #6d8097 !important;
+    font-weight: 800;
+    text-align: center;
+}
+
 @media (max-width: 1180px) {
     .fcc-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .fcc-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .fcc-driver-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
@@ -473,5 +654,14 @@
     }
     .fcc-btn {
         flex: 1 1 auto;
+    }
+    .fcc-driver-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .fcc-driver-modal .modal-header {
+        padding: 18px;
+    }
+    .fcc-driver-modal .modal-title {
+        font-size: 22px;
     }
 }
