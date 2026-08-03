@@ -32,6 +32,12 @@
     return clean || fallback;
   };
 
+  const routeInfo = {
+    paraderos: ['Plaza Norte', 'La Victoria', 'Bre\u00f1a', 'Chimbore', 'Trujillo'],
+    precioPrimerNivel: 'S/. 80.00',
+    precioSegundoNivel: 'S/. 60.00',
+  };
+
   const setStatus = (message, type = '') => {
     statusEl.textContent = message;
     statusEl.classList.toggle('is-error', type === 'error');
@@ -100,7 +106,7 @@
     const bus = data.bus || {};
     const resumen = data.resumen || {};
     const patrimonio = data.patrimonio || {};
-    const paraderos = Array.isArray(patrimonio.paraderos_autorizados) ? patrimonio.paraderos_autorizados : [];
+    const paraderos = routeInfo.paraderos;
     const conductores = (data.programacion && data.programacion.conductores) || [];
     const horarios = (data.programacion && data.programacion.horarios) || [];
     const checklists = (data.programacion && data.programacion.checklists) || [];
@@ -186,13 +192,13 @@
           </div>
           <div class="n360-bus-mini">
             <small>Precios referenciales</small>
-            <strong>${esc(text(patrimonio.precios_1er_nivel, '1er nivel pendiente'))}</strong>
-            <span>${esc(text(patrimonio.precios_2do_nivel, '2do nivel pendiente'))}</span>
+            <strong>${esc(routeInfo.precioPrimerNivel)}</strong>
+            <span>${esc(routeInfo.precioSegundoNivel)}</span>
           </div>
         </div>
-        <div class="n360-bus-chips" aria-label="Paraderos autorizados">
+        <div class="n360-bus-chips n360-bus-chips--route-grid" aria-label="Paraderos autorizados">
           ${(paraderos.length ? paraderos.map((item) => `
-            <span class="n360-bus-chip"><i class="bi bi-geo-alt-fill"></i>${esc(text(item.nombre, 'Sede ' + item.id))}</span>
+            <span class="n360-bus-chip"><i class="bi bi-geo-alt-fill"></i>${esc(text(item))}</span>
           `).join('') : '<span class="n360-bus-chip is-muted"><i class="bi bi-info-circle"></i>Paraderos autorizados sin registrar</span>')}
         </div>
       </section>
@@ -332,4 +338,3 @@
     },
   };
 })();
-

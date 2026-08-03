@@ -13,8 +13,20 @@
    * el navegador bloquee la descarga del canvas por CORS.
    */
   const DEFAULT_ASSETS = {
-    logoUrl: '../img/IMG_3004.png', // Ejemplo: '/img/logo_cruz_del_norte.png'
+    logoUrl: '../img/infologo2.png', // Ejemplo: '/img/logo_cruz_del_norte.png'
     busUrl: '../img/IMG_3004.png',  // Ejemplo: '/img/buses/bus_referencia.png'
+  };
+
+  // Se usan cuando la respuesta del API no envía teléfonos en data.empresa.telefonos.
+  const DEFAULT_CONTACTS = [
+    '+51 967 747 285',
+    '+51 950 260 600',
+  ];
+
+  const ROUTE_INFO = {
+    paraderos: ['Plaza Norte', 'La Victoria', 'Bre\u00f1a', 'Chimbore', 'Trujillo'],
+    precioPrimerNivel: 'S/. 80.00',
+    precioSegundoNivel: 'S/. 60.00',
   };
 
   const COLORS = {
@@ -29,11 +41,15 @@
     ink: '#10283c',
     muted: '#5f7283',
     line: '#b8cfdf',
-    paper: '#fffdf8',
+    paper: '#FFFFFF',
     white: '#ffffff',
   };
 
   const FONT = 'Segoe UI, Arial, sans-serif';
+  const A4_LANDSCAPE = {
+    width: 1754,
+    height: 1240,
+  };
 
   const text = (value, fallback = '-') => {
     if (value === null || value === undefined) return fallback;
@@ -269,24 +285,11 @@
     const conductores = Array.isArray(data.programacion?.conductores)
       ? data.programacion.conductores
       : [];
-    const patrimonio = data.patrimonio || {};
-    const paraderos = Array.isArray(patrimonio.paraderos_autorizados)
-      ? patrimonio.paraderos_autorizados
-      : [];
-
-    const conductoresVisibles = Math.min(Math.max(conductores.length, 2), 3);
-    const paraderoFilas = Math.max(1, Math.ceil(Math.min(paraderos.length, 10) / 2));
-    const driversH = (conductoresVisibles * 108) + (conductores.length > 3 ? 34 : 0);
-    const paraderosH = 58 + (paraderoFilas * 48) + 18;
-    const mainContentH = 196 + 55 + driversH + 104 + paraderosH + 86;
-
-    const width = 1600;
-    // Reserva espacio real para el contenido y mantiene el pie separado.
-    const height = 205 + mainContentH;
+    const paraderos = ROUTE_INFO.paraderos;
 
     return {
-      width,
-      height: Math.min(Math.max(height, 980), 1400),
+      width: A4_LANDSCAPE.width,
+      height: A4_LANDSCAPE.height,
       conductores,
       paraderos,
     };
@@ -341,21 +344,12 @@
     const busW = 238;
     const busH = 138;
 
-    if (!drawImageCover(ctx, assets.bus, busX, busY, busW, busH, 14)) {
-      drawPlaceholder(ctx, busX, busY, busW, busH, 'IMAGEN DEL BUS', {
-        radius: 14,
-        size: 17,
-      });
-    } else {
-      strokeRound(ctx, busX, busY, busW, busH, 14, 'rgba(255,255,255,.55)', 2);
-    }
-
-    const titleX = busX + busW + 36;
+    const titleX = busX + busW - 300;
     const titleW = w - (titleX - x) - 38;
 
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `800 28px ${FONT}`;
-    ctx.fillText('EMPRESA DE TRANSPORTE', titleX, y + 30);
+    ctx.fillText('EMPRESA DE TRANSPORTE', titleX, y + 60);
 
     ctx.fillStyle = COLORS.yellow;
     ctx.shadowColor = 'rgba(0,0,0,.20)';
@@ -363,9 +357,9 @@
     ctx.shadowOffsetY = 2;
     drawTextFit(
       ctx,
-      text(empresa.nombre || patrimonio.compania, 'CRUZ DEL NORTE S.A.C.'),
+      text('CRUZ DEL NORTE S.A.C.'),
       titleX,
-      y + 69,
+      y + 90,
       titleW,
       50,
       30,
@@ -518,10 +512,11 @@
 
   function drawParaderos(ctx, paraderos, x, y, w) {
     const safe = paraderos.slice(0, 10).map(normalizeParadero);
-    const colGap = 36;
-    const colW = (w - colGap - 44) / 2;
-    const rows = Math.max(1, Math.ceil(Math.max(safe.length, 1) / 2));
-    const areaH = 58 + (rows * 48) + 18;
+    const cols = 3;
+    const colGap = 28;
+    const colW = (w - (colGap * (cols - 1)) - 60) / cols;
+    const rows = Math.max(1, Math.ceil(Math.max(safe.length, 1) / cols));
+    const areaH = 58 + (rows * 50) + 18;
 
     ctx.fillStyle = COLORS.paper;
     ctx.fillRect(x, y, w, areaH);
@@ -539,10 +534,10 @@
     }
 
     safe.forEach((label, index) => {
-      const col = index % 2;
-      const row = Math.floor(index / 2);
+      const col = index % cols;
+      const row = Math.floor(index / cols);
       const itemX = x + 30 + (col * (colW + colGap));
-      const itemY = y + 62 + (row * 48);
+      const itemY = y + 62 + (row * 50);
 
       ctx.fillStyle = COLORS.blue;
       ctx.beginPath();
@@ -564,16 +559,56 @@
   }
 
   function drawTechnicalStrip(ctx, data, x, y, w) {
-    const bus = data.bus || {};
-    const patrimonio = data.patrimonio || {};
+    const empresa = data.empresa || {};
+    const h = 128;
+    const splitX = x + Math.round(w * 0.58);
+    const leftW = splitX - x;
+    const rightW = (x + w) - splitX;
 
+    const price1 = ROUTE_INFO.precioPrimerNivel;
+    const price2 = ROUTE_INFO.precioSegundoNivel;
 
-    ctx.fillStyle = '#e6f0f7';
-    ctx.fillRect(x, y, w, 86);
+    const configuredPhones = Array.isArray(empresa.telefonos)
+      ? empresa.telefonos
+      : [empresa.telefono1, empresa.telefono2].filter(Boolean);
+    const phones = [...configuredPhones, ...DEFAULT_CONTACTS]
+      .map((item) => text(item, ''))
+      .filter(Boolean)
+      .slice(0, 2);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, 86);
+    ctx.strokeRect(x, y, w, h);
 
+    // Separación central entre precios y teléfonos.
+    ctx.beginPath();
+    ctx.moveTo(splitX, y);
+    ctx.lineTo(splitX, y + h);
+    ctx.stroke();
+
+    drawSectionLabel(ctx, 'PRECIOS', x, y, 190, 44);
+    drawSectionLabel(ctx, 'QUEJAS Y RECLAMOS', splitX, y, rightW, 44);
+
+    ctx.font = `900 21px ${FONT}`;
+    ctx.fillStyle = COLORS.ink;
+    ctx.fillText('1.er NIVEL', x + 30, y + 58);
+    ctx.fillText('2.do NIVEL', x + 30, y + 91);
+
+    ctx.font = `950 28px ${FONT}`;
+    ctx.fillStyle = COLORS.navyDeep;
+    drawTextFit(ctx, price1, x + 205, y + 53, leftW - 235, 28, 20, 950);
+    drawTextFit(ctx, price2, x + 205, y + 86, leftW - 235, 28, 20, 950);
+
+    ctx.textAlign = 'center';
+    ctx.font = `950 25px ${FONT}`;
+    ctx.fillStyle = COLORS.navyDeep;
+    ctx.fillText(phones[0] || 'S/R', splitX + (rightW / 2), y + 55);
+    ctx.fillText(phones[1] || 'S/R', splitX + (rightW / 2), y + 87);
+    ctx.textAlign = 'left';
+
+    return h;
   }
 
   function drawFooter(ctx, x, y, w) {
@@ -604,7 +639,7 @@
     const innerW = cardW - 44;
 
     const bg = ctx.createLinearGradient(0, 0, 0, height);
-    bg.addColorStop(0, '#dceaf3');
+    bg.addColorStop(0, '#FFFFFF');
     bg.addColorStop(1, '#edf4f8');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);

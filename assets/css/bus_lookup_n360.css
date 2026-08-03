@@ -660,6 +660,11 @@
     padding: 0 15px 15px;
 }
 
+.n360-bus-chips--route-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .n360-bus-chip {
     display: inline-flex;
     align-items: center;
@@ -673,10 +678,23 @@
     font-weight: 900;
 }
 
+.n360-bus-chips--route-grid .n360-bus-chip {
+    justify-content: center;
+    min-width: 0;
+    border-radius: 10px;
+    text-align: center;
+}
+
 .n360-bus-chip.is-muted {
     color: #6b7f90;
     background: #f5f8fa;
     border-color: #dfe8ef;
+}
+
+@media (max-width: 560px) {
+    .n360-bus-chips--route-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .n360-bus-list {
@@ -834,4 +852,3 @@
         font-size: 1.48rem;
     }
 }
-
