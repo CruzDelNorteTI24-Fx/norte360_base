@@ -16,6 +16,29 @@
     "'": '&#039;'
   }[char]));
 
+  function monthParts() {
+    const match = String(cfg.month || '').match(/^(\d{4})-(\d{2})$/);
+    return match ? { year: match[1], month: match[2] } : null;
+  }
+
+  function driverDateFromRow(row) {
+    const rawDate = compact(row.date || '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+      const [year, month, day] = rawDate.split('-');
+      return { key: rawDate, label: `${day}/${month}/${year}` };
+    }
+
+    const dayMatch = String(row.dayNumber || row.dia || '').match(/\d{1,2}/);
+    const parts = monthParts();
+    if (!dayMatch || !parts) {
+      const fallback = compact(row.dia || '-');
+      return { key: fallback, label: fallback };
+    }
+
+    const day = dayMatch[0].padStart(2, '0');
+    return { key: `${parts.year}-${parts.month}-${day}`, label: `${day}/${parts.month}/${parts.year}` };
+  }
+
   function showNotice(message, ok) {
     let box = document.querySelector('[data-fcc-notice]');
     if (!box) {
@@ -110,16 +133,26 @@
 
   function collectUnitFromCard(card) {
     const title = clean(card.querySelector('.fcc-unit-toggle strong')?.textContent || 'Unidad');
-    const rows = Array.from(card.querySelectorAll('tbody tr')).map((row) => ({
-      dia: cellText(row, '[data-fcc-col="dia"]'),
-      revision: cellText(row, '[data-fcc-col="revision"]'),
-      cond1: cellText(row, '[data-fcc-col="cond1"]'),
-      cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
-      cond1Obs: cellText(row, '[data-fcc-field="cond1_observacion"]'),
-      cond2: cellText(row, '[data-fcc-col="cond2"]'),
-      cond2Estado: cellText(row, '[data-fcc-field="cond2_estado"]'),
-      cond2Obs: cellText(row, '[data-fcc-field="cond2_observacion"]')
-    }));
+    const rows = Array.from(card.querySelectorAll('tbody tr')).map((row) => {
+      const dayCell = row.querySelector('[data-fcc-col="dia"]');
+      const dayNumber = clean(dayCell?.querySelector('strong')?.textContent || '');
+      const weekday = clean(dayCell?.querySelector('span')?.textContent || '');
+      const date = cfg.month && dayNumber ? `${cfg.month}-${dayNumber.padStart(2, '0')}` : '';
+
+      return {
+        dia: cellText(row, '[data-fcc-col="dia"]'),
+        date,
+        dayNumber,
+        weekday,
+        revision: cellText(row, '[data-fcc-col="revision"]'),
+        cond1: cellText(row, '[data-fcc-col="cond1"]'),
+        cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
+        cond1Obs: cellText(row, '[data-fcc-field="cond1_observacion"]'),
+        cond2: cellText(row, '[data-fcc-col="cond2"]'),
+        cond2Estado: cellText(row, '[data-fcc-field="cond2_estado"]'),
+        cond2Obs: cellText(row, '[data-fcc-field="cond2_observacion"]')
+      };
+    });
     return { title, rows };
   }
 
@@ -157,12 +190,17 @@
           const item = map.get(key);
           const estado = compact(driver.estado).toUpperCase();
           const busKey = keyText(unitName);
+          const workDate = driverDateFromRow(row);
           const busItem = item.buses.get(busKey) || {
             bus: unitName,
-            trips: 0
+            trips: 0,
+            dates: new Map()
           };
           item.trips += 1;
           busItem.trips += 1;
+          if (workDate.label && workDate.label !== '-') {
+            busItem.dates.set(workDate.key || workDate.label, workDate);
+          }
           item.buses.set(busKey, busItem);
           if (estado === 'PAGADO') {
             item.paid += 1;
@@ -179,6 +217,16 @@
     return Array.from(map.values()).map((item) => {
       const buses = Array.from(item.buses.values())
         .filter((bus) => bus && bus.bus)
+        .map((bus) => {
+          const datesDetail = Array.from(bus.dates?.values?.() || [])
+            .sort((a, b) => String(a.key || '').localeCompare(String(b.key || '')));
+          return {
+            bus: bus.bus,
+            trips: bus.trips,
+            datesDetail,
+            datesText: datesDetail.map((date) => date.label).join(', ')
+          };
+        })
         .sort((a, b) => {
           if (b.trips !== a.trips) return b.trips - a.trips;
           return a.bus.localeCompare(b.bus);
@@ -232,12 +280,16 @@
     }
 
     body.innerHTML = summary.map((item) => {
-      const haystack = escapeHtml(`${item.conductor} ${item.busesText}`.toLowerCase());
+      const detailText = (item.busesDetail || []).map((bus) => `${bus.bus} ${bus.datesText || ''}`).join(' ');
+      const haystack = escapeHtml(`${item.conductor} ${item.busesText} ${detailText}`.toLowerCase());
       const detailRows = (item.busesDetail || []).map((bus) => `
         <tr class="fcc-driver-bus-row" data-driver-summary-row data-driver-search="${haystack}">
           <td></td>
           <td colspan="5">
-            <span class="fcc-driver-bus-line"><i class="bi bi-bus-front"></i> ${escapeHtml(bus.bus)} <strong>${Number(bus.trips || 0).toLocaleString('es-PE')} viaje${Number(bus.trips || 0) === 1 ? '' : 's'}</strong></span>
+            <div class="fcc-driver-bus-detail">
+              <span class="fcc-driver-bus-line"><i class="bi bi-bus-front"></i> ${escapeHtml(bus.bus)} <strong>${Number(bus.trips || 0).toLocaleString('es-PE')} viaje${Number(bus.trips || 0) === 1 ? '' : 's'}</strong></span>
+              <small class="fcc-driver-bus-dates"><i class="bi bi-calendar2-week"></i> Fechas: ${escapeHtml(bus.datesText || '-')}</small>
+            </div>
           </td>
         </tr>
       `).join('');
@@ -350,7 +402,7 @@
           '',
           '',
           {
-            content: `${bus.bus} - ${Number(bus.trips || 0).toLocaleString('es-PE')} viaje${Number(bus.trips || 0) === 1 ? '' : 's'}`,
+            content: `${bus.bus} - ${Number(bus.trips || 0).toLocaleString('es-PE')} viaje${Number(bus.trips || 0) === 1 ? '' : 's'} | Fechas: ${bus.datesText || '-'}`,
             colSpan: 4,
             styles: { fontSize: 6.5, textColor: [82, 105, 130], fillColor: [248, 251, 255] }
           }

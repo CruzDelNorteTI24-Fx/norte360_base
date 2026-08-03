@@ -627,6 +627,13 @@
     background: #f3f8fe;
 }
 
+.fcc-driver-bus-detail {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px 10px;
+}
+
 .fcc-driver-bus-line {
     display: inline-flex;
     align-items: center;
@@ -647,6 +654,21 @@
 
 .fcc-driver-bus-line strong {
     color: #0b2740;
+}
+
+.fcc-driver-bus-dates {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    margin-top: 0 !important;
+    color: #526982;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.fcc-driver-bus-dates i {
+    color: #f59e0b;
 }
 
 .fcc-driver-table small {
