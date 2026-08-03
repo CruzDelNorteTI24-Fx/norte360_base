@@ -13,7 +13,7 @@
    * el navegador bloquee la descarga del canvas por CORS.
    */
   const DEFAULT_ASSETS = {
-    logoUrl: '../../img/infologo2.png', // Ejemplo: '/img/logo_cruz_del_norte.png'
+    logoUrl: '/ht/img/infologo2.png',
     busUrl: '../img/IMG_3004.png',  // Ejemplo: '/img/buses/bus_referencia.png'
   };
 
