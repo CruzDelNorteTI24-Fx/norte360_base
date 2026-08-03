@@ -629,3 +629,668 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* Patrimonio vehicular */
+.patr-modal-open {
+  overflow: hidden;
+}
+
+.patr-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.patr-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 28px 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #132940 0%, #1f5d85 100%);
+  color: #fff;
+  box-shadow: 0 18px 45px rgba(15, 40, 64, .18);
+}
+
+.patr-hero h1 {
+  margin: 8px 0 8px;
+  font-size: clamp(2rem, 3.6vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.patr-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: rgba(255, 255, 255, .88);
+}
+
+.patr-primary-btn,
+.patr-mini-btn,
+.patr-modal__close {
+  border: 0;
+  cursor: pointer;
+}
+
+.patr-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 7px;
+  background: #2b96d8;
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 12px 24px rgba(43, 150, 216, .22);
+}
+
+.patr-primary-btn:hover {
+  background: #1685ca;
+}
+
+.patr-primary-btn:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+
+.patr-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid #b9d7f0;
+  background: #eef7ff;
+  color: #0d4e7e;
+  font-weight: 700;
+}
+
+.patr-alert--error {
+  border-color: #ffc5c5;
+  background: #fff2f2;
+  color: #a11d1d;
+}
+
+.patr-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #cfe0ef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.patr-toolbar label {
+  flex: 1 1 420px;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: #536b82;
+  font-size: .76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.patr-toolbar input,
+.patr-toolbar select,
+.patr-form input,
+.patr-form select,
+.patr-form textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #c8d9e8;
+  border-radius: 7px;
+  background: #fff;
+  color: #09223a;
+  font: inherit;
+  padding: 9px 12px;
+}
+
+.patr-form textarea {
+  resize: vertical;
+}
+
+.patr-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.patr-result {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #ecf6ff;
+  color: #0874bd;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.patr-table .admin-cat-table-wrap {
+  max-height: 68vh;
+}
+
+.patr-unit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.patr-unit__icon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 8px;
+  background: #e8f5ff;
+  color: #1587d0;
+  flex: 0 0 auto;
+}
+
+.patr-unit strong,
+.patr-main strong {
+  display: block;
+  color: #061b31;
+  font-weight: 900;
+}
+
+.patr-unit small {
+  color: #1c8bd4;
+  font-size: .78rem;
+}
+
+.patr-unit em,
+.patr-main span {
+  display: block;
+  margin-top: 3px;
+  color: #5b7085;
+  font-style: normal;
+}
+
+.patr-chip,
+.patr-eq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: .76rem;
+  font-weight: 900;
+}
+
+.patr-chip--ok,
+.patr-eq--yes {
+  background: #e8f8ef;
+  color: #087142;
+}
+
+.patr-chip--danger,
+.patr-eq--no {
+  background: #fff0f0;
+  color: #a92222;
+}
+
+.patr-chip--warn {
+  background: #fff6df;
+  color: #946100;
+}
+
+.patr-chip--muted,
+.patr-eq--empty {
+  background: #eef3f7;
+  color: #5c7186;
+}
+
+.patr-date {
+  display: block;
+  margin-top: 7px;
+  color: #61778b;
+  font-weight: 700;
+}
+
+.patr-capacity,
+.patr-equipment-list {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.patr-capacity span {
+  min-width: 92px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #f5f9fc;
+  color: #51677c;
+  font-weight: 800;
+}
+
+.patr-capacity b {
+  display: block;
+  color: #071f38;
+  font-size: 1.05rem;
+}
+
+.patr-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 176px;
+}
+
+.patr-inline-form {
+  margin: 0;
+}
+
+.patr-mini-btn {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.patr-mini-btn--danger {
+  background: #fff3f3 !important;
+  color: #a82020 !important;
+  border-color: #ffd0d0 !important;
+}
+
+.patr-mini-btn--ok {
+  background: #e9f8ef !important;
+  color: #087142 !important;
+  border-color: #bce7cf !important;
+}
+
+.patr-modal[hidden] {
+  display: none;
+}
+
+.patr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+}
+
+.patr-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 27, 45, .58);
+  backdrop-filter: blur(7px);
+}
+
+.patr-modal__dialog {
+  position: relative;
+  width: min(1120px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  margin: 14px auto;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .36);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(2, 15, 28, .38);
+}
+
+.patr-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  background: #173e5b;
+  color: #fff;
+}
+
+.patr-modal__head h2 {
+  margin: 6px 0 6px;
+  font-size: 1.8rem;
+  letter-spacing: 0;
+}
+
+.patr-modal__head p {
+  margin: 0;
+  color: rgba(255, 255, 255, .84);
+}
+
+.patr-modal__close {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+}
+
+.patr-form__body {
+  display: grid;
+  gap: 14px;
+  max-height: calc(100vh - 190px);
+  overflow: auto;
+  padding: 18px 20px 22px;
+}
+
+.patr-form__section {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #d4e3f0;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.patr-form__section legend {
+  float: none;
+  width: auto;
+  margin: 0 0 12px;
+  color: #15344f;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.patr-form-grid,
+.patr-equipment-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.patr-form-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.patr-form-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.patr-form-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.patr-equipment-grid {
+  grid-template-columns: repeat(7, minmax(120px, 1fr));
+}
+
+.patr-form label {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: #5b7085;
+  font-size: .76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.patr-form__wide {
+  grid-column: 1 / -1;
+}
+
+.patr-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #d9e6f1;
+  background: #f7fbfe;
+}
+
+@media (max-width: 980px) {
+  .patr-hero,
+  .patr-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .patr-form-grid--4,
+  .patr-form-grid--3,
+  .patr-form-grid--2,
+  .patr-equipment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .patr-hero {
+    padding: 24px 18px;
+  }
+
+  .patr-form-grid--4,
+  .patr-form-grid--3,
+  .patr-form-grid--2,
+  .patr-equipment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .patr-modal__dialog {
+    width: 100vw;
+    max-height: 100vh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .patr-modal__head,
+  .patr-modal__foot {
+    padding-inline: 16px;
+  }
+}
+
+/* Patrimonio: matriz y acabado visual */
+.patr-hero__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.patr-primary-btn,
+.patr-secondary-btn,
+.patr-mini-btn {
+  appearance: none !important;
+  border: 1px solid transparent !important;
+  font-family: inherit !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+}
+
+.patr-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .96);
+  color: #0d2a43;
+  font-weight: 800;
+  box-shadow: 0 12px 24px rgba(2, 15, 28, .13);
+  cursor: pointer;
+}
+
+.patr-secondary-btn:hover {
+  background: #eef7ff;
+  color: #0b75bc;
+}
+
+.patr-panel .admin-cat-table-wrap {
+  max-height: 68vh;
+}
+
+.patr-table th,
+.patr-table td {
+  vertical-align: middle;
+}
+
+.patr-unit--compact {
+  min-width: 260px;
+}
+
+.patr-unit--compact .patr-unit__icon {
+  width: 34px;
+  height: 34px;
+  font-size: .95rem;
+}
+
+.patr-modal--matrix .patr-matrix-dialog {
+  width: min(1280px, calc(100vw - 28px));
+}
+
+.patr-matrix-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  background: #f4f8fb;
+}
+
+.patr-matrix-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.patr-matrix-summary article {
+  min-height: 70px;
+  padding: 12px 14px;
+  border: 1px solid #d7e6f2;
+  border-left: 4px solid #2b96d8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.patr-matrix-summary span {
+  display: block;
+  color: #58708a;
+  font-size: .72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.patr-matrix-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: #061d33;
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.patr-matrix-wrap {
+  max-height: calc(100vh - 295px);
+  overflow: auto;
+  border: 1px solid #d7e6f2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.patr-matrix-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.patr-matrix-table th,
+.patr-matrix-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5edf4;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.patr-matrix-table th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #12243b;
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.patr-matrix-table th:first-child,
+.patr-matrix-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #fff;
+  box-shadow: 10px 0 18px rgba(15, 34, 54, .08);
+}
+
+.patr-matrix-table th:first-child {
+  z-index: 4;
+  background: #12243b;
+}
+
+.patr-matrix-table tbody tr:hover td {
+  background: #f6fbff;
+}
+
+.patr-matrix-table tbody tr:hover td:first-child {
+  background: #f6fbff;
+}
+
+.patr-matrix-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 96px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid #dce8f2;
+  background: #f3f7fb;
+  color: #465d75;
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+.patr-matrix-cell.patr-eq--yes {
+  border-color: #b9ead2;
+  background: #edfdf5;
+  color: #087542;
+}
+
+.patr-matrix-cell.patr-eq--no {
+  border-color: #ffc7c7;
+  background: #fff1f1;
+  color: #a02121;
+}
+
+.patr-matrix-cell.patr-eq--empty,
+.patr-matrix-cell.patr-eq--pending {
+  border-color: #ffe1a3;
+  background: #fff8e8;
+  color: #93630c;
+}
+
+@media (max-width: 980px) {
+  .patr-hero__actions {
+    justify-content: stretch;
+  }
+
+  .patr-hero__actions > button {
+    flex: 1 1 220px;
+  }
+
+  .patr-matrix-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .patr-matrix-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .patr-matrix-body {
+    padding: 12px;
+  }
+}

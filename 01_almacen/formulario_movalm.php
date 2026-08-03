@@ -415,7 +415,6 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
                             <i class="bi bi-upc-scan"></i>
                             <div>
                                 <strong>Trazabilidad activa</strong>
-                                <span>Se usara tb_alm_etiquetado, tb_alm_etiquetadoofi y tb_alm_etq_seq.</span>
                             </div>
                         </div>
                     </div>

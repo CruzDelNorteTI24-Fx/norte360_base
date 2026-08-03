@@ -169,7 +169,7 @@ function n360_admin_render_head(string $title): void {
         <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
         <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
         <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-        <link rel="stylesheet" href="<?= n360_asset('assets/css/admin_catalogos_n360.css') ?>">
+        <link rel="stylesheet" href="<?= n360_asset('assets/css/admin_catalogos_n360.css') ?>?v=20260803-patr">
     </head>
     <body>
     <?php
