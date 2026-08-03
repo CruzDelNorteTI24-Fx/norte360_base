@@ -640,7 +640,7 @@
 
     const bg = ctx.createLinearGradient(0, 0, 0, height);
     bg.addColorStop(0, '#FFFFFF');
-    bg.addColorStop(1, '#edf4f8');
+    bg.addColorStop(1, '#FFFFFF');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
 
