@@ -515,6 +515,39 @@
     font-weight: 950;
 }
 
+.n360-bus-card__side {
+    display: grid;
+    gap: 10px;
+    min-width: 178px;
+    align-content: stretch;
+}
+
+.n360-bus-image-btn {
+    border: 1px solid rgba(255, 255, 255, .35);
+    border-radius: 12px;
+    padding: 11px 12px;
+    color: #07304d;
+    background: #ffffff;
+    font-weight: 950;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 12px 22px rgba(4, 21, 35, .15);
+    cursor: pointer;
+}
+
+.n360-bus-image-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(4, 21, 35, .2);
+}
+
+.n360-bus-image-btn:disabled {
+    cursor: wait;
+    opacity: .68;
+    transform: none;
+}
+
 .n360-bus-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -555,6 +588,10 @@
     overflow: hidden;
 }
 
+.n360-bus-section--soft {
+    background: #f9fcff;
+}
+
 .n360-bus-section__head {
     display: flex;
     align-items: center;
@@ -578,6 +615,68 @@
     background: #edf7ff;
     font-size: .72rem;
     font-weight: 900;
+}
+
+.n360-bus-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 15px 12px;
+}
+
+.n360-bus-mini {
+    min-width: 0;
+    border: 1px solid #dbe9f3;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+}
+
+.n360-bus-mini small,
+.n360-bus-mini span {
+    display: block;
+    color: #64788b;
+    font-weight: 800;
+}
+
+.n360-bus-mini small {
+    font-size: .72rem;
+    text-transform: uppercase;
+}
+
+.n360-bus-mini strong {
+    display: block;
+    margin: 6px 0 2px;
+    color: #0b243b;
+    font-size: 1rem;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+}
+
+.n360-bus-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 15px 15px;
+}
+
+.n360-bus-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #cce5f7;
+    border-radius: 999px;
+    padding: 7px 10px;
+    color: #0b6da9;
+    background: #eef8ff;
+    font-size: .78rem;
+    font-weight: 900;
+}
+
+.n360-bus-chip.is-muted {
+    color: #6b7f90;
+    background: #f5f8fa;
+    border-color: #dfe8ef;
 }
 
 .n360-bus-list {
@@ -700,7 +799,15 @@
         min-width: 0;
     }
 
+    .n360-bus-card__side {
+        min-width: 0;
+    }
+
     .n360-bus-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .n360-bus-profile-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -714,6 +821,10 @@
         grid-template-columns: 1fr;
     }
 
+    .n360-bus-profile-grid {
+        grid-template-columns: 1fr;
+    }
+
     .n360-bus-lookup-fab {
         width: 66px;
         height: 66px;
@@ -723,3 +834,4 @@
         font-size: 1.48rem;
     }
 }
+

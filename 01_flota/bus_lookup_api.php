@@ -116,6 +116,59 @@ function bl_route_names(?string $ruta, array $sedeMap): string {
     return implode(' -> ', $names);
 }
 
+function bl_collect_ints($value, array &$out): void {
+    if (is_array($value)) {
+        foreach ($value as $item) {
+            bl_collect_ints($item, $out);
+        }
+        return;
+    }
+
+    preg_match_all('/\d+/', (string)$value, $matches);
+    foreach ($matches[0] ?? [] as $match) {
+        $id = (int)$match;
+        if ($id > 0) {
+            $out[$id] = $id;
+        }
+    }
+}
+
+function bl_parse_sede_ids($raw): array {
+    $raw = bl_text($raw);
+    if ($raw === '') {
+        return [];
+    }
+
+    $ids = [];
+    $decoded = json_decode($raw, true);
+    if (json_last_error() === JSON_ERROR_NONE) {
+        bl_collect_ints($decoded, $ids);
+    } else {
+        bl_collect_ints($raw, $ids);
+    }
+
+    return array_values($ids);
+}
+
+function bl_resolve_sedes(mysqli $conn, array $ids): array {
+    if (!$ids) {
+        return [];
+    }
+
+    $sedeMap = bl_sede_map($conn);
+    $items = [];
+    foreach ($ids as $id) {
+        $id = (int)$id;
+        if ($id > 0) {
+            $items[] = [
+                'id' => $id,
+                'nombre' => $sedeMap[$id] ?? ('Sede ' . $id),
+            ];
+        }
+    }
+    return $items;
+}
+
 function bl_format_bus(array $row): array {
     return [
         'id' => (int)($row['id_bus'] ?? $row['id'] ?? 0),
@@ -319,6 +372,64 @@ function bl_fetch_ultima_fumigacion(mysqli $conn, int $busId): ?array {
     return $row;
 }
 
+function bl_fetch_patrimonio(mysqli $conn, int $busId): array {
+    $hasParaderos = bl_column_exists($conn, 'tb_patrimonio_vehicular', 'clm_patr_paraderos_autorizados');
+    $hasPrecio1 = bl_column_exists($conn, 'tb_patrimonio_vehicular', 'clm_patr_precios1ernivel');
+    $hasPrecio2 = bl_column_exists($conn, 'tb_patrimonio_vehicular', 'clm_patr_precios2donivel');
+
+    $paraderosExpr = $hasParaderos ? "IFNULL(p.clm_patr_paraderos_autorizados, '')" : "''";
+    $precio1Expr = $hasPrecio1 ? "IFNULL(p.clm_patr_precios1ernivel, '')" : "''";
+    $precio2Expr = $hasPrecio2 ? "IFNULL(p.clm_patr_precios2donivel, '')" : "''";
+
+    $stmt = $conn->prepare("
+        SELECT p.clm_patr_id AS id,
+               IFNULL(p.clm_patr_estado, '') AS estado,
+               DATE_FORMAT(p.clm_patr_fecha_alta, '%d/%m/%Y') AS fecha_alta,
+               IF(p.clm_patr_fecha_baja IS NULL, '', DATE_FORMAT(p.clm_patr_fecha_baja, '%d/%m/%Y')) AS fecha_baja,
+               IFNULL(p.clm_patr_compania, '') AS compania,
+               IFNULL(p.clm_patr_marca, '') AS marca,
+               IFNULL(p.clm_patr_modelo, '') AS modelo,
+               IFNULL(p.clm_patr_capacidad_pasajeros, '') AS capacidad_pasajeros,
+               IFNULL(p.clm_patr_capacidad_asientos_terr, '') AS capacidad_asientos_terr,
+               IFNULL(p.clm_patr_capacidad_total, '') AS capacidad_total,
+               {$paraderosExpr} AS paraderos_raw,
+               {$precio1Expr} AS precios_1er_nivel,
+               {$precio2Expr} AS precios_2do_nivel
+        FROM tb_patrimonio_vehicular p
+        WHERE p.clm_patr_id_placa = ?
+        ORDER BY FIELD(p.clm_patr_estado, 'Activo', 'Mantenimiento', 'Inactivo', 'Baja', 'Venta'),
+                 p.clm_patr_id DESC
+        LIMIT 1
+    ");
+    if (!$stmt) {
+        throw new RuntimeException(bl_db_error($conn));
+    }
+
+    $stmt->bind_param('i', $busId);
+    $row = bl_fetch_one($stmt) ?: [];
+    $ids = bl_parse_sede_ids($row['paraderos_raw'] ?? '');
+    $paraderos = bl_resolve_sedes($conn, $ids);
+
+    return [
+        'id' => (int)($row['id'] ?? 0),
+        'estado' => bl_text($row['estado'] ?? ''),
+        'fecha_alta' => bl_text($row['fecha_alta'] ?? ''),
+        'fecha_baja' => bl_text($row['fecha_baja'] ?? ''),
+        'compania' => bl_text($row['compania'] ?? ''),
+        'marca' => bl_text($row['marca'] ?? ''),
+        'modelo' => bl_text($row['modelo'] ?? ''),
+        'capacidad_pasajeros' => bl_text($row['capacidad_pasajeros'] ?? ''),
+        'capacidad_asientos_terr' => bl_text($row['capacidad_asientos_terr'] ?? ''),
+        'capacidad_total' => bl_text($row['capacidad_total'] ?? ''),
+        'paraderos_raw' => bl_text($row['paraderos_raw'] ?? ''),
+        'paraderos_ids' => $ids,
+        'paraderos_autorizados' => $paraderos,
+        'paraderos_texto' => implode(' -> ', array_column($paraderos, 'nombre')),
+        'precios_1er_nivel' => bl_text($row['precios_1er_nivel'] ?? ''),
+        'precios_2do_nivel' => bl_text($row['precios_2do_nivel'] ?? ''),
+    ];
+}
+
 function bl_detail(mysqli $conn, int $busId): array {
     $bus = bl_fetch_bus($conn, $busId);
     if (!$bus) {
@@ -328,10 +439,12 @@ function bl_detail(mysqli $conn, int $busId): array {
     $conductores = bl_fetch_conductores($conn, $busId);
     $horarios = bl_fetch_horarios($conn, $busId);
     $checklists = bl_fetch_checklists($conn, $busId);
+    $patrimonio = bl_fetch_patrimonio($conn, $busId);
 
     return [
         'mode' => 'detail',
         'bus' => $bus,
+        'patrimonio' => $patrimonio,
         'programacion' => [
             'conductores' => $conductores,
             'horarios' => $horarios,
@@ -342,6 +455,7 @@ function bl_detail(mysqli $conn, int $busId): array {
             'conductores' => count($conductores),
             'horarios' => count($horarios),
             'checklists' => count($checklists),
+            'capacidad_total' => $patrimonio['capacidad_total'] ?? '',
         ],
     ];
 }
@@ -377,3 +491,4 @@ try {
 } catch (Throwable $e) {
     bl_json(false, [], $e->getMessage(), 500);
 }
+

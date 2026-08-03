@@ -80,7 +80,9 @@ if (!function_exists('n360_render_bus_lookup')) {
                 </section>
             </div>
 
+            <script src="' . n360_asset('assets/js/bus_lookup_image_n360.js') . '"></script>
             <script src="' . n360_asset('assets/js/bus_lookup_n360.js') . '"></script>
         ';
     }
 }
+

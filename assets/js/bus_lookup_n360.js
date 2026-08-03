@@ -12,6 +12,7 @@
   const openers = document.querySelectorAll('[data-n360-bus-open]');
   const closers = modal.querySelectorAll('[data-n360-bus-close]');
   let currentController = null;
+  let currentDetail = null;
 
   document.querySelectorAll('a.btn-flotante[href*="wa.me"]').forEach((legacy) => {
     legacy.hidden = true;
@@ -71,6 +72,7 @@
 
   const renderSuggestions = (data) => {
     const items = data.sugerencias || data.suggestions || [];
+    currentDetail = null;
     if (!items.length) {
       resultEl.innerHTML = '';
       setStatus('No encontre unidades con ese dato.', 'error');
@@ -97,10 +99,13 @@
   const renderDetail = (data) => {
     const bus = data.bus || {};
     const resumen = data.resumen || {};
+    const patrimonio = data.patrimonio || {};
+    const paraderos = Array.isArray(patrimonio.paraderos_autorizados) ? patrimonio.paraderos_autorizados : [];
     const conductores = (data.programacion && data.programacion.conductores) || [];
     const horarios = (data.programacion && data.programacion.horarios) || [];
     const checklists = (data.programacion && data.programacion.checklists) || [];
     const fumigacion = data.programacion && data.programacion.ultima_fumigacion;
+    currentDetail = data;
 
     const conductoresHtml = conductores.length ? `
       <div class="n360-bus-list">
@@ -161,6 +166,38 @@
       </div>
     `;
 
+    const capacidadTotal = text(patrimonio.capacidad_total || resumen.capacidad_total, 'Sin registrar');
+    const patrimonioHtml = `
+      <section class="n360-bus-section n360-bus-section--soft">
+        <div class="n360-bus-section__head">
+          <h3>Perfil de unidad</h3>
+          <span>${esc(text(patrimonio.estado, 'Patrimonio'))}</span>
+        </div>
+        <div class="n360-bus-profile-grid">
+          <div class="n360-bus-mini">
+            <small>Marca / modelo</small>
+            <strong>${esc(text(patrimonio.marca || bus.tipo, '-'))}</strong>
+            <span>${esc(text(patrimonio.modelo || patrimonio.compania, 'Sin detalle'))}</span>
+          </div>
+          <div class="n360-bus-mini">
+            <small>Capacidad total</small>
+            <strong>${esc(capacidadTotal)}</strong>
+            <span>${esc(text(patrimonio.capacidad_pasajeros, '-'))} pasajeros | ${esc(text(patrimonio.capacidad_asientos_terr, '-'))} terr.</span>
+          </div>
+          <div class="n360-bus-mini">
+            <small>Precios referenciales</small>
+            <strong>${esc(text(patrimonio.precios_1er_nivel, '1er nivel pendiente'))}</strong>
+            <span>${esc(text(patrimonio.precios_2do_nivel, '2do nivel pendiente'))}</span>
+          </div>
+        </div>
+        <div class="n360-bus-chips" aria-label="Paraderos autorizados">
+          ${(paraderos.length ? paraderos.map((item) => `
+            <span class="n360-bus-chip"><i class="bi bi-geo-alt-fill"></i>${esc(text(item.nombre, 'Sede ' + item.id))}</span>
+          `).join('') : '<span class="n360-bus-chip is-muted"><i class="bi bi-info-circle"></i>Paraderos autorizados sin registrar</span>')}
+        </div>
+      </section>
+    `;
+
     setStatus('Unidad encontrada. Informacion operativa actualizada.', 'ok');
     resultEl.innerHTML = `
       <article class="n360-bus-card">
@@ -168,12 +205,18 @@
           <div>
             <h3 class="n360-bus-card__title" style="color: #ffffff;">${esc(text(bus.nombre || bus.bus, 'Unidad'))}</h3>
             <p class="n360-bus-card__subtitle">
-              ${esc(text(bus.servicio, 'Servicio sin registrar'))} | ${esc(text(bus.tipo, 'Tipo sin registrar'))} | ${esc(text(bus.dueno, 'Dueno sin registrar'))}
+              ${esc(text(bus.servicio, 'Servicio sin registrar'))} | ${esc(text(bus.tipo, 'Tipo sin registrar'))}
             </p>
           </div>
-          <div class="n360-bus-card__plate">
-            <small>Placa</small>
-            <strong>${esc(text(bus.placa))}</strong>
+          <div class="n360-bus-card__side">
+            <div class="n360-bus-card__plate">
+              <small>Placa</small>
+              <strong>${esc(text(bus.placa))}</strong>
+            </div>
+            <button class="n360-bus-image-btn" type="button" data-n360-bus-download-image>
+              <i class="bi bi-image"></i>
+              <span>Descargar imagen</span>
+            </button>
           </div>
         </div>
 
@@ -184,6 +227,7 @@
           ${fumigacionHtml}
         </div>
 
+        ${patrimonioHtml}
         ${section('Conductores actuales', `${conductores.length} asignado(s)`, conductoresHtml)}
         ${section('Pizarra actual de horarios', `${horarios.length} horario(s)`, horariosHtml)}
         ${section('Checklist mas actuales', `${checklists.length} registro(s)`, checklistsHtml)}
@@ -224,6 +268,7 @@
     }
 
     resultEl.innerHTML = '';
+    currentDetail = null;
 
     try {
       const data = await fetchData({ q });
@@ -252,6 +297,28 @@
     search();
   });
 
+  resultEl?.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-n360-bus-download-image]');
+    if (!button) return;
+
+    if (!currentDetail || !window.N360BusLookupImage) {
+      setStatus('No hay datos listos para generar la imagen.', 'error');
+      return;
+    }
+
+    button.disabled = true;
+    setStatus('Generando imagen de la unidad...');
+    try {
+      await window.N360BusLookupImage.download(currentDetail, {
+        onInfo: (message, type = 'ok') => setStatus(message, type),
+      });
+    } catch (error) {
+      setStatus(error.message || 'No se pudo generar la imagen.', 'error');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && modal.classList.contains('is-open')) close();
   });
@@ -265,3 +332,4 @@
     },
   };
 })();
+
