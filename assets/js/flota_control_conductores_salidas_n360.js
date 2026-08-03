@@ -156,8 +156,14 @@
 
           const item = map.get(key);
           const estado = compact(driver.estado).toUpperCase();
+          const busKey = keyText(unitName);
+          const busItem = item.buses.get(busKey) || {
+            bus: unitName,
+            trips: 0
+          };
           item.trips += 1;
-          item.buses.set(unitName, unitName);
+          busItem.trips += 1;
+          item.buses.set(busKey, busItem);
           if (estado === 'PAGADO') {
             item.paid += 1;
           } else {
@@ -171,7 +177,12 @@
     });
 
     return Array.from(map.values()).map((item) => {
-      const buses = Array.from(item.buses.values()).filter(Boolean).sort((a, b) => a.localeCompare(b));
+      const buses = Array.from(item.buses.values())
+        .filter((bus) => bus && bus.bus)
+        .sort((a, b) => {
+          if (b.trips !== a.trips) return b.trips - a.trips;
+          return a.bus.localeCompare(b.bus);
+        });
       return {
         conductor: item.conductor,
         trips: item.trips,
@@ -179,7 +190,8 @@
         paid: item.paid,
         observations: item.observations,
         busesTotal: buses.length,
-        busesText: buses.join(', ')
+        busesText: buses.map((bus) => bus.bus).join(', '),
+        busesDetail: buses
       };
     }).sort((a, b) => {
       if (b.trips !== a.trips) return b.trips - a.trips;
@@ -219,16 +231,29 @@
       return;
     }
 
-    body.innerHTML = summary.map((item) => `
-      <tr data-driver-summary-row data-driver-search="${escapeHtml(`${item.conductor} ${item.busesText}`.toLowerCase())}">
-        <td><strong>${escapeHtml(item.conductor)}</strong></td>
-        <td>${Number(item.trips || 0).toLocaleString('es-PE')}</td>
-        <td><span>${Number(item.busesTotal || 0).toLocaleString('es-PE')}</span><small>${escapeHtml(item.busesText || '-')}</small></td>
-        <td><span class="fcc-mini fcc-mini--pending">${Number(item.pending || 0).toLocaleString('es-PE')}</span></td>
-        <td><span class="fcc-mini fcc-mini--paid">${Number(item.paid || 0).toLocaleString('es-PE')}</span></td>
-        <td>${Number(item.observations || 0).toLocaleString('es-PE')}</td>
-      </tr>
-    `).join('');
+    body.innerHTML = summary.map((item) => {
+      const haystack = escapeHtml(`${item.conductor} ${item.busesText}`.toLowerCase());
+      const detailRows = (item.busesDetail || []).map((bus) => `
+        <tr class="fcc-driver-bus-row" data-driver-summary-row data-driver-search="${haystack}">
+          <td></td>
+          <td colspan="5">
+            <span class="fcc-driver-bus-line"><i class="bi bi-bus-front"></i> ${escapeHtml(bus.bus)} <strong>${Number(bus.trips || 0).toLocaleString('es-PE')} viaje${Number(bus.trips || 0) === 1 ? '' : 's'}</strong></span>
+          </td>
+        </tr>
+      `).join('');
+
+      return `
+        <tr class="fcc-driver-main-row" data-driver-summary-row data-driver-search="${haystack}">
+          <td><strong>${escapeHtml(item.conductor)}</strong></td>
+          <td>${Number(item.trips || 0).toLocaleString('es-PE')}</td>
+          <td><span>${Number(item.busesTotal || 0).toLocaleString('es-PE')}</span><small>${escapeHtml(item.busesText || '-')}</small></td>
+          <td><span class="fcc-mini fcc-mini--pending">${Number(item.pending || 0).toLocaleString('es-PE')}</span></td>
+          <td><span class="fcc-mini fcc-mini--paid">${Number(item.paid || 0).toLocaleString('es-PE')}</span></td>
+          <td>${Number(item.observations || 0).toLocaleString('es-PE')}</td>
+        </tr>
+        ${detailRows}
+      `;
+    }).join('');
   }
 
   function setupDriverSummaryModal() {
@@ -310,14 +335,29 @@
   }
 
   function driverSummaryBody(summary) {
-    return summary.map((item) => [
-      item.conductor || '-',
-      Number(item.trips || 0).toLocaleString('es-PE'),
-      item.busesText || '-',
-      Number(item.pending || 0).toLocaleString('es-PE'),
-      Number(item.paid || 0).toLocaleString('es-PE'),
-      Number(item.observations || 0).toLocaleString('es-PE')
-    ]);
+    const rows = [];
+    summary.forEach((item) => {
+      rows.push([
+        item.conductor || '-',
+        Number(item.trips || 0).toLocaleString('es-PE'),
+        `${Number(item.busesTotal || 0).toLocaleString('es-PE')} bus(es)`,
+        Number(item.pending || 0).toLocaleString('es-PE'),
+        Number(item.paid || 0).toLocaleString('es-PE'),
+        Number(item.observations || 0).toLocaleString('es-PE')
+      ]);
+      (item.busesDetail || []).forEach((bus) => {
+        rows.push([
+          '',
+          '',
+          {
+            content: `${bus.bus} - ${Number(bus.trips || 0).toLocaleString('es-PE')} viaje${Number(bus.trips || 0) === 1 ? '' : 's'}`,
+            colSpan: 4,
+            styles: { fontSize: 6.5, textColor: [82, 105, 130], fillColor: [248, 251, 255] }
+          }
+        ]);
+      });
+    });
+    return rows;
   }
 
   function drawDriverSummaryPage(doc, left, y, width, summary) {

@@ -14,7 +14,7 @@
    */
   const DEFAULT_ASSETS = {
     logoUrl: '../img/IMG_3004.png', // Ejemplo: '/img/logo_cruz_del_norte.png'
-    busUrl: '',  // Ejemplo: '/img/buses/bus_referencia.png'
+    busUrl: '../img/IMG_3004.png',  // Ejemplo: '/img/buses/bus_referencia.png'
   };
 
   const COLORS = {
