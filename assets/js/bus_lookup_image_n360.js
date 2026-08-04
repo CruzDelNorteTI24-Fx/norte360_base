@@ -25,8 +25,8 @@
 
   const ROUTE_INFO = {
     paraderos: ['Plaza Norte', 'La Victoria', 'Bre\u00f1a', 'Chimbore', 'Trujillo'],
-    precioPrimerNivel: 'S/. 80.00',
-    precioSegundoNivel: 'S/. 60.00',
+    precioPrimerNivel: 'S/. 60.00',
+    precioSegundoNivel: 'S/. 40.00',
   };
 
   const COLORS = {
