@@ -255,7 +255,7 @@
     let ok = true;
 
     if (!form.elements.fecha_guia?.value) {
-      setError('fecha_guia', 'Selecciona la fecha de la Guia Norte.');
+      setError('fecha_guia', 'Selecciona la fecha de la Control Encomienda.');
       ok = false;
     }
     if (scheduleToggle?.checked && !scheduleIdInput?.value) {
@@ -322,11 +322,11 @@
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (form.dataset.disabled === '1') {
-      await showDialog('Primero ejecuta la migracion de Guias Norte en la base de datos.', 'warning', 'Migracion pendiente');
+      await showDialog('Primero ejecuta la migracion de Control Encomiendas en la base de datos.', 'warning', 'Migracion pendiente');
       return;
     }
     if (!validate()) {
-      await showDialog('Revisa los campos marcados antes de registrar la Guia Norte.', 'warning', 'Datos pendientes');
+      await showDialog('Revisa los campos marcados antes de registrar la Control Encomienda.', 'warning', 'Datos pendientes');
       return;
     }
 
@@ -346,29 +346,29 @@
         if (data.errors && typeof data.errors === 'object') {
           Object.entries(data.errors).forEach(([name, message]) => setError(name, message));
         }
-        throw new Error(data.message || 'No se pudo registrar la Guia Norte.');
+        throw new Error(data.message || 'No se pudo registrar la Control Encomienda.');
       }
       return data;
     };
 
     try {
       const data = window.N360Loader && window.N360Loader.during
-        ? await window.N360Loader.during(task(), { button: submitButton, title: 'Registrando Guia Norte', detail: 'Generando correlativo y ruta documentaria...' })
+        ? await window.N360Loader.during(task(), { button: submitButton, title: 'Registrando Control Encomienda', detail: 'Generando correlativo y ruta documentaria...' })
         : await task();
 
       if (resultBox) {
         resultBox.hidden = false;
         resultBox.classList.add('is-visible');
         resultBox.innerHTML = `
-          <h3><i class="bi bi-check2-circle"></i> Guia Norte registrada</h3>
+          <h3><i class="bi bi-check2-circle"></i> Control Encomienda registrada</h3>
           <p class="mb-3">Se inicio el seguimiento para <strong>${escapeHtml(data.guia)}</strong>.</p>
           <div class="enc-action-row">
             <a class="stock-btn stock-btn--primary" href="${escapeHtml(data.tracking_url || 'tracking.php')}"><i class="bi bi-signpost-split-fill"></i> Ir al tracking</a>
             <a class="stock-btn stock-btn--soft" href="${escapeHtml(data.detail_url || 'tracking.php')}"><i class="bi bi-eye"></i> Ver detalle</a>
-            <button class="stock-btn stock-btn--soft" type="button" data-enc-new><i class="bi bi-plus-circle"></i> Nueva Guia Norte</button>
+            <button class="stock-btn stock-btn--soft" type="button" data-enc-new><i class="bi bi-plus-circle"></i> Nueva Control Encomienda</button>
           </div>`;
       }
-      await showDialog(data.message || 'Guia Norte registrada correctamente.', 'success', 'Registro listo');
+      await showDialog(data.message || 'Control Encomienda registrada correctamente.', 'success', 'Registro listo');
     } catch (error) {
       await showDialog(error.message || 'No se pudo completar el registro.', 'danger', 'No se pudo registrar');
     }

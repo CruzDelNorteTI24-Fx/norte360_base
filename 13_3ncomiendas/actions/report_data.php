@@ -7,7 +7,7 @@ $conn = enc_start_read_json('enc-tracking');
 
 try {
     if (!enc_schema_has_guias_norte($conn)) {
-        enc_json(false, 'La estructura unificada de Guias Norte aun no esta aplicada.', [], 409);
+        enc_json(false, 'La estructura unificada de Control Encomiendas aun no esta aplicada.', [], 409);
     }
 
     $type = strtolower(trim((string)($_GET['type'] ?? '')));
@@ -15,12 +15,12 @@ try {
     if ($type === 'guia') {
         $id = (int)($_GET['id'] ?? 0);
         if ($id <= 0) {
-            enc_json(false, 'Guia Norte no identificada.', [], 422);
+            enc_json(false, 'Control Encomienda no identificada.', [], 422);
         }
 
         $guia = enc_fetch_guia($conn, $id);
         if (!$guia) {
-            enc_json(false, 'No se encontro la Guia Norte solicitada.', [], 404);
+            enc_json(false, 'No se encontro la Control Encomienda solicitada.', [], 404);
         }
 
         enc_json(true, 'Datos listos.', [

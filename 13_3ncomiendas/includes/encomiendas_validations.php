@@ -9,7 +9,7 @@ function enc_validate_new_guia(array $data): array {
     $errors = [];
 
     if (enc_valid_date_required($data['fecha_guia'] ?? '') === null) {
-        $errors['fecha_guia'] = 'La fecha de la Guia Norte es obligatoria.';
+        $errors['fecha_guia'] = 'La fecha de la Control Encomienda es obligatoria.';
     }
 
     $horario = enc_nullable_string($data['horario_operativo'] ?? '');

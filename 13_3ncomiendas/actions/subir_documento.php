@@ -8,7 +8,7 @@ $conn = enc_start_action('enc-docs');
 enc_verify_action_csrf();
 
 if (!enc_schema_has_guias_norte($conn)) {
-    enc_json(false, 'Falta ejecutar la migracion SQL de Guias Norte antes de cargar documentos.', [], 409);
+    enc_json(false, 'Falta ejecutar la migracion SQL de Control Encomiendas antes de cargar documentos.', [], 409);
 }
 
 $id = max(0, (int)($_POST['id'] ?? 0));
@@ -58,8 +58,8 @@ if (!$valid || !$pdf) {
 
 try {
     $guia = enc_fetch_guia($conn, $id);
-    if (!$guia) enc_json(false, 'La Guia Norte no existe.', [], 404);
-    if ((int)$guia['clm_enc_activo'] === 0) enc_json(false, 'La Guia Norte esta anulada.', [], 409);
+    if (!$guia) enc_json(false, 'La Control Encomienda no existe.', [], 404);
+    if ((int)$guia['clm_enc_activo'] === 0) enc_json(false, 'La Control Encomienda esta anulada.', [], 409);
 
     if ($tipo === 'MANIFIESTO_ENCOMIENDAS') {
         $point = enc_fetch_one($conn, "
@@ -71,7 +71,7 @@ try {
             LIMIT 1
         ", 'ii', [$pointId, $id]);
         if (!$point) {
-            enc_json(false, 'El punto de ruta no pertenece a esta Guia Norte.', [], 422);
+            enc_json(false, 'El punto de ruta no pertenece a esta Control Encomienda.', [], 422);
         }
         $existing = enc_fetch_one($conn, "
             SELECT clm_encdoc_id
@@ -96,7 +96,7 @@ try {
                 LIMIT 1
             ", 'ii', [$docId, $id]);
             if (!$existing) {
-                enc_json(false, 'El documento a reemplazar no pertenece a esta Guia Norte.', [], 422);
+                enc_json(false, 'El documento a reemplazar no pertenece a esta Control Encomienda.', [], 422);
             }
         }
     }

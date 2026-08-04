@@ -345,10 +345,10 @@ function enc_log(Throwable $e): void {
 function enc_db_message(Throwable $e): string {
     $message = $e->getMessage();
     if (stripos($message, 'uq_enc_guia') !== false || stripos($message, 'uq_enc_serie_correlativo') !== false || stripos($message, 'Duplicate') !== false) {
-        return 'Ya existe una Guia Norte con ese correlativo.';
+        return 'Ya existe una Control Encomienda con ese correlativo.';
     }
     if (stripos($message, 'unknown column') !== false || stripos($message, 'doesn\'t exist') !== false || stripos($message, 'Base table or view not found') !== false) {
-        return 'Falta ejecutar la migracion SQL de Guias Norte antes de usar esta vista.';
+        return 'Falta ejecutar la migracion SQL de Control Encomiendas antes de usar esta vista.';
     }
     if (stripos($message, 'foreign key') !== false) {
         return 'Uno de los datos seleccionados ya no existe o no esta disponible.';
@@ -356,10 +356,10 @@ function enc_db_message(Throwable $e): string {
 
     $knownBusinessMessages = [
         'La oficina de embarque no puede ser igual a la oficina de desembarque',
-        'Primero debes registrar la Guia Norte y posteriormente procesar el desembarque',
-        'No puedes procesar el desembarque si la Guia Norte no fue embarcada',
+        'Primero debes registrar la Control Encomienda y posteriormente procesar el desembarque',
+        'No puedes procesar el desembarque si la Control Encomienda no fue embarcada',
         'Para finalizar el desembarque debes adjuntar los manifiestos PDF de todos los puntos obligatorios',
-        'El manifiesto debe estar asociado a un punto de la Guia Norte',
+        'El manifiesto debe estar asociado a un punto de la Control Encomienda',
         'Tipo de documento de encomienda no valido',
         'El documento de encomienda debe tener extension PDF',
         'El archivo adjuntado no contiene una firma PDF valida',

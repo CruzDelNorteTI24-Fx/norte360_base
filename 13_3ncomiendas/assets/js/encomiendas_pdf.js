@@ -167,7 +167,7 @@
       orientation: 'portrait',
       useCover: false,
       title: 'GUIA NORTE DE ENCOMIENDAS',
-      secondTitle: safe(guide.clm_enc_guia, 'Guia Norte'),
+      secondTitle: safe(guide.clm_enc_guia, 'Control Encomienda'),
       docCode: safe(guide.clm_enc_guia, 'ENC-GN'),
       userName: safe(user.name || root.dataset.reportUser, 'Usuario'),
       dni: safe(user.dni || root.dataset.reportDni, 'No registrado'),
@@ -180,7 +180,7 @@
         let y = 36;
 
         y = drawSummaryBox(document, left, y, contentW, [
-          ['Guia Norte', safe(guide.clm_enc_guia)],
+          ['Control Encomienda', safe(guide.clm_enc_guia)],
           ['Fecha guia', formatDate(guide.clm_enc_fecha_guia)],
           ['Ruta', routeLabel(guide)],
           ['Unidad', unitLabel(guide)],
@@ -267,7 +267,7 @@
     const doc = await window.N360PDF.createDocument({
       orientation: 'portrait',
       useCover: false,
-      title: 'CONSOLIDADO DE GUIAS NORTE',
+      title: 'CONSOLIDADO DE CONTROL ENCOMIENDAS',
       secondTitle: 'Tracking de encomiendas',
       docCode: 'ENC-CONS',
       userName: safe(user.name || root.dataset.reportUser, 'Usuario'),
@@ -336,7 +336,7 @@
       try {
         assertPdfDeps();
         const id = guideButton.dataset.encPdfGuide;
-        const payload = await withButton(guideButton, () => fetchReport({ type: 'guia', id }), 'Generando PDF', 'Preparando Guia Norte...');
+        const payload = await withButton(guideButton, () => fetchReport({ type: 'guia', id }), 'Generando PDF', 'Preparando Control Encomienda...');
         await buildGuidePdf(payload);
       } catch (error) {
         await showDialog(error.message || 'No se pudo generar el PDF.', 'danger', 'PDF no generado');
@@ -352,7 +352,7 @@
       const params = Object.fromEntries(new URLSearchParams(window.location.search).entries());
       params.type = 'tracking';
       params.limit = 1500;
-      const payload = await withButton(trackingButton, () => fetchReport(params), 'Generando consolidado', 'Leyendo Guias Norte filtradas...');
+      const payload = await withButton(trackingButton, () => fetchReport(params), 'Generando consolidado', 'Leyendo Control Encomiendas filtradas...');
       await buildTrackingPdf(payload);
     } catch (error) {
       await showDialog(error.message || 'No se pudo generar el consolidado.', 'danger', 'PDF no generado');

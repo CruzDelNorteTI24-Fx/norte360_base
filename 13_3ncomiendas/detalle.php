@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/encomiendas_helpers.php';
 require_once __DIR__ . '/includes/encomiendas_queries.php';
 
 $partial = isset($_GET['partial']) && $_GET['partial'] === '1';
-$conn = enc_start_page('enc-tracking', 'Detalle de Guia Norte');
+$conn = enc_start_page('enc-tracking', 'Detalle de Control Encomienda');
 $guideId = max(0, (int)($_GET['id'] ?? 0));
 
 $guia = null;
@@ -18,14 +18,14 @@ $schemaReady = false;
 try {
     $schemaReady = enc_schema_has_guias_norte($conn);
     if (!$schemaReady) {
-        throw new RuntimeException('Pendiente ejecutar la migracion de Guias Norte antes de abrir el detalle.');
+        throw new RuntimeException('Pendiente ejecutar la migracion de Control Encomiendas antes de abrir el detalle.');
     }
     if ($guideId <= 0) {
-        throw new RuntimeException('Guia Norte no identificada.');
+        throw new RuntimeException('Control Encomienda no identificada.');
     }
     $guia = enc_fetch_guia($conn, $guideId);
     if (!$guia) {
-        throw new RuntimeException('No se encontro la Guia Norte solicitada.');
+        throw new RuntimeException('No se encontro la Control Encomienda solicitada.');
     }
     $points = enc_fetch_route_points($conn, $guideId);
     $documents = enc_fetch_documents($conn, $guideId);
@@ -140,10 +140,10 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
     <div class="enc-detail" data-guide-id="<?= enc_h($guia['clm_enc_id']) ?>">
         <section class="enc-detail-hero">
             <div>
-                <span class="stock-eyebrow"><i class="bi bi-receipt-cutoff"></i> Guia Norte</span>
+                <span class="stock-eyebrow"><i class="bi bi-receipt-cutoff"></i> Control Encomienda</span>
                 <h2><?= enc_h($guia['clm_enc_guia']) ?></h2>
                 <p><?= enc_h($routeText) ?></p>
-                <section class="enc-detail-grid" aria-label="Resumen operativo de la Guia Norte">
+                <section class="enc-detail-grid" aria-label="Resumen operativo de la Control Encomienda">
                     <div class="enc-detail-stat"><span><i class="bi bi-calendar3"></i> Fecha guia</span><strong><?= enc_h(enc_fmt_date($guia['clm_enc_fecha_guia'])) ?></strong></div>
                     <div class="enc-detail-stat"><span><i class="bi bi-clock-history"></i> Horario operativo</span><strong><?= enc_h($horarioDetalle) ?></strong></div>
                     <div class="enc-detail-stat"><span><i class="bi bi-person-badge"></i> Registra</span><strong><?= enc_h($guia['usuario_registra']) ?></strong></div>
@@ -156,7 +156,7 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
                 <?= enc_state_badge($guia['clm_enc_estado_general']) ?>
                 <?= enc_state_badge($guia['clm_enc_estado_embarque']) ?>
                 <?= enc_state_badge($guia['clm_enc_estado_desembarque']) ?>
-                <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-pdf-guide="<?= enc_h($guia['clm_enc_id']) ?>"><i class="bi bi-filetype-pdf"></i> PDF Guia Norte</button>
+                <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-pdf-guide="<?= enc_h($guia['clm_enc_id']) ?>"><i class="bi bi-filetype-pdf"></i> PDF Control Encomienda</button>
             </div>
         </section>
 
@@ -224,7 +224,7 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
                                 <?= $doc ? '<span class="enc-manifest-pill enc-manifest-pill--ok"><i class="bi bi-check2-circle"></i>PDF listo</span>' : '<span class="enc-manifest-pill enc-manifest-pill--pending"><i class="bi bi-hourglass-split"></i>Pendiente</span>' ?>
                             </div>
                             <h4><?= enc_h($point['sede_nombre']) ?></h4>
-                            <p>Orden <?= enc_h((int)$point['clm_encpunto_orden']) ?> dentro de la Guia Norte.</p>
+                            <p>Orden <?= enc_h((int)$point['clm_encpunto_orden']) ?> dentro de la Control Encomienda.</p>
                             <?php if ($doc): ?>
                                 <dl class="enc-doc-meta-grid">
                                     <div><dt>Archivo</dt><dd><?= enc_h($doc['clm_encdoc_nombre']) ?></dd></div>
@@ -302,7 +302,7 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
         <section class="enc-section enc-detail-panel" data-enc-detail-panel="timeline" hidden>
             <div class="enc-section__head"><h3>Linea de seguimiento</h3><span>Proceso operativo</span></div>
             <div class="enc-timeline">
-                <?= enc_detail_stage('Guia Norte registrada', 'REGISTRADA', $guia['clm_enc_fechacreated'], $guia['usuario_registra'], $guia['sede_embarque'], $unit, $guia['clm_enc_observacion'], true) ?>
+                <?= enc_detail_stage('Control Encomienda registrada', 'REGISTRADA', $guia['clm_enc_fechacreated'], $guia['usuario_registra'], $guia['sede_embarque'], $unit, $guia['clm_enc_observacion'], true) ?>
                 <?= enc_detail_stage('Embarque pendiente', 'PENDIENTE', null, null, $guia['sede_embarque'], $unit, '', $guia['clm_enc_estado_embarque'] === 'PENDIENTE') ?>
                 <?= enc_detail_stage('Guia embarcada', $guia['clm_enc_estado_embarque'], $guia['clm_enc_fecha_embarque'], $guia['usuario_embarque'], $guia['sede_embarque'], $unit, '', in_array($guia['clm_enc_estado_embarque'], ['EMBARCADO','OBSERVADO'], true)) ?>
                 <?= enc_detail_stage('Manifiestos por ruta', $manifestDone ? 'RECIBIDO' : 'PENDIENTE', null, null, $guia['sede_desembarque'], $unit, $manifestDone ? 'Manifiestos cargados por cada punto obligatorio.' : 'Faltan manifiestos obligatorios de la ruta.', $manifestDone) ?>
@@ -355,7 +355,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Detalle de Guia Norte | Norte360</title>
+    <title>Detalle de Control Encomienda | Norte360</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="<?= enc_h(n360_asset('img/norte360.png')) ?>" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -373,7 +373,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
-<?php n360_render_header(['title' => 'Encomiendas', 'subtitle' => 'Detalle Guia Norte']); ?>
+<?php n360_render_header(['title' => 'Encomiendas', 'subtitle' => 'Detalle Control Encomienda']); ?>
 
 <div class="n360-main">
     <?php n360_render_content_separator('top'); ?>

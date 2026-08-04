@@ -8,7 +8,7 @@ $conn = enc_start_action('enc-register');
 enc_verify_action_csrf();
 
 if (!enc_schema_has_guias_norte($conn)) {
-    enc_json(false, 'Falta ejecutar la migracion SQL de Guias Norte antes de registrar encomiendas.', [], 409);
+    enc_json(false, 'Falta ejecutar la migracion SQL de Control Encomiendas antes de registrar encomiendas.', [], 409);
 }
 
 $errors = enc_validate_new_guia($_POST);
@@ -117,7 +117,7 @@ try {
     $conn->commit();
 
     $guideCode = (string)($created['clm_enc_guia'] ?? ('GN-' . str_pad((string)$id, 6, '0', STR_PAD_LEFT)));
-    enc_json(true, 'Guia Norte registrada correctamente.', [
+    enc_json(true, 'Control Encomienda registrada correctamente.', [
         'id' => $id,
         'guia' => $guideCode,
         'detail_url' => 'detalle.php?id=' . $id,

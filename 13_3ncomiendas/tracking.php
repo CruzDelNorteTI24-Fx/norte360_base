@@ -4,7 +4,7 @@ define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/includes/encomiendas_helpers.php';
 require_once __DIR__ . '/includes/encomiendas_queries.php';
 
-$conn = enc_start_page('enc-tracking', 'Tracking de Guias Norte');
+$conn = enc_start_page('enc-tracking', 'Tracking de Control Encomiendas');
 $filters = enc_current_filters();
 $pageError = '';
 $schemaReady = false;
@@ -77,7 +77,7 @@ function enc_manifest_status(array $row): string {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tracking de Guias Norte | Norte360</title>
+    <title>Tracking de Control Encomiendas | Norte360</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="<?= enc_h(n360_asset('img/norte360.png')) ?>" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -95,7 +95,7 @@ function enc_manifest_status(array $row): string {
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
-<?php n360_render_header(['title' => 'Encomiendas', 'subtitle' => 'Guias Norte']); ?>
+<?php n360_render_header(['title' => 'Encomiendas', 'subtitle' => 'Control Encomiendas']); ?>
 
 <div class="n360-main">
     <?php n360_render_content_separator('top'); ?>
@@ -105,12 +105,12 @@ function enc_manifest_status(array $row): string {
             <section class="stock-hero enc-hero enc-hero--tracking">
                 <div class="enc-hero__icon"><i class="bi bi-signpost-split-fill"></i></div>
                 <div class="enc-hero__text">
-                    <span class="stock-eyebrow"><i class="bi bi-radar"></i> Encomiendas - Guias Norte</span>
-                    <h1>Tracking de Guias Norte</h1>
+                    <span class="stock-eyebrow"><i class="bi bi-radar"></i> Encomiendas - Control Encomiendas</span>
+                    <h1>Tracking de Control Encomiendas</h1>
                 </div>
                 <div class="stock-hero-actions enc-hero__actions">
                     <?php if (enc_can_view('enc-register')): ?>
-                        <a class="stock-btn stock-btn--primary" href="registro.php"><i class="bi bi-plus-circle"></i> Nueva Guia Norte</a>
+                        <a class="stock-btn stock-btn--primary" href="registro.php"><i class="bi bi-plus-circle"></i> Nueva Control Encomienda</a>
                     <?php endif; ?>
                     <button class="stock-btn stock-btn--soft" type="button" data-enc-pdf-tracking><i class="bi bi-filetype-pdf"></i> PDF consolidado</button>
                 </div>
@@ -119,7 +119,7 @@ function enc_manifest_status(array $row): string {
             <?php if (!$schemaReady): ?>
                 <div class="stock-alert stock-alert--warning enc-schema-warning">
                     <i class="bi bi-database-exclamation"></i>
-                    Esta vista ya esta preparada para Guias Norte. Ejecuta manualmente el SQL complementario <strong>querysnuevas_encomiendas_unificado.sql</strong> para activar correlativos, puntos de ruta y documentos por punto.
+                    Esta vista ya esta preparada para Control Encomiendas. Ejecuta manualmente el SQL complementario <strong>querysnuevas_encomiendas_unificado.sql</strong> para activar correlativos, puntos de ruta y documentos por punto.
                 </div>
             <?php endif; ?>
 
@@ -140,10 +140,10 @@ function enc_manifest_status(array $row): string {
                 <section class="enc-filter-group enc-filter-group--lookup">
                     <div class="enc-filter-group__head">
                         <i class="bi bi-search"></i>
-                        <div><strong>Busqueda principal</strong><span>Guia Norte, documento o texto libre.</span></div>
+                        <div><strong>Busqueda principal</strong><span>Control Encomienda, documento o texto libre.</span></div>
                     </div>
                     <div class="enc-filter-group__fields">
-                        <label class="stock-field"><span>Guia Norte</span><input type="text" name="guia" value="<?= enc_h($filters['guia']) ?>" placeholder="GN-000001" autocomplete="off"></label>
+                        <label class="stock-field"><span>Control Encomienda</span><input type="text" name="guia" value="<?= enc_h($filters['guia']) ?>" placeholder="GN-000001" autocomplete="off"></label>
                         <label class="stock-field"><span>Documento legal</span><input type="text" name="documento" value="<?= enc_h($filters['documento']) ?>" placeholder="Factura, boleta, recibo o PDF" autocomplete="off"></label>
                         <label class="stock-field stock-field--search"><span>Buscar</span><i class="bi bi-search"></i><input type="text" name="buscar" value="<?= enc_h($filters['buscar']) ?>" placeholder="Guia, ruta, unidad u observacion..." autocomplete="off"></label>
                     </div>
@@ -196,7 +196,7 @@ function enc_manifest_status(array $row): string {
             <section class="stock-table-card enc-table-card">
                 <div class="stock-table-card__head">
                     <div>
-                        <h2>Guias Norte registradas</h2>
+                        <h2>Control Encomiendas registradas</h2>
                     </div>
                     <span class="stock-table-count"><?= enc_h($totalRows) ?> registros</span>
                 </div>
@@ -204,7 +204,7 @@ function enc_manifest_status(array $row): string {
                     <table class="stock-table enc-table enc-table--tracking">
                         <thead>
                             <tr>
-                                <th>Guia Norte</th>
+                                <th>Control Encomienda</th>
                                 <th>Fecha / horario</th>
                                 <th>Ruta</th>
                                 <th>Unidad</th>
@@ -219,7 +219,7 @@ function enc_manifest_status(array $row): string {
                         </thead>
                         <tbody>
                         <?php if (!$rows): ?>
-                            <tr><td colspan="11" class="stock-empty"><?= $schemaReady ? 'No existen Guias Norte para los filtros actuales.' : 'Pendiente ejecutar la migracion de Guias Norte.' ?></td></tr>
+                            <tr><td colspan="11" class="stock-empty"><?= $schemaReady ? 'No existen Control Encomiendas para los filtros actuales.' : 'Pendiente ejecutar la migracion de Control Encomiendas.' ?></td></tr>
                         <?php else: ?>
                             <?php foreach ($rows as $row): ?>
                                 <?php
@@ -273,11 +273,11 @@ function enc_manifest_status(array $row): string {
 <?php n360_render_footer(); ?>
 
 <div class="enc-drawer-backdrop" data-enc-drawer-backdrop hidden></div>
-<aside class="enc-drawer" data-enc-detail-drawer aria-hidden="true" aria-label="Detalle de Guia Norte">
+<aside class="enc-drawer" data-enc-detail-drawer aria-hidden="true" aria-label="Detalle de Control Encomienda">
     <div class="enc-drawer__head">
         <div>
             <span class="stock-eyebrow"><i class="bi bi-box-seam-fill"></i> Encomiendas</span>
-            <h2>Detalle de Guia Norte</h2>
+            <h2>Detalle de Control Encomienda</h2>
         </div>
         <button class="enc-drawer__close" type="button" data-enc-drawer-close aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
     </div>
@@ -316,11 +316,11 @@ function enc_manifest_status(array $row): string {
 </div>
 <div class="modal fade enc-transport-modal" id="encAnnulModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form class="modal-content enc-ajax-form" action="actions/anular_guia.php" method="post" data-confirm="La Guia Norte sera anulada logicamente. Se conservara historial y documentos." data-confirm-title="Anular Guia Norte">
+        <form class="modal-content enc-ajax-form" action="actions/anular_guia.php" method="post" data-confirm="La Control Encomienda sera anulada logicamente. Se conservara historial y documentos." data-confirm-title="Anular Control Encomienda">
             <div class="modal-header">
                 <div>
                     <span class="stock-eyebrow"><i class="bi bi-x-octagon"></i> Control operativo</span>
-                    <h5 class="modal-title">Anular Guia Norte</h5>
+                    <h5 class="modal-title">Anular Control Encomienda</h5>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
@@ -329,7 +329,7 @@ function enc_manifest_status(array $row): string {
                 <input type="hidden" name="id" value="" data-enc-annul-guide-id>
                 <div class="enc-annul-note stock-field--wide">
                     <i class="bi bi-shield-exclamation"></i>
-                    <span>Se anulara <strong data-enc-annul-guide-code>Guia Norte</strong>. La accion es logica y conservara la trazabilidad.</span>
+                    <span>Se anulara <strong data-enc-annul-guide-code>Control Encomienda</strong>. La accion es logica y conservara la trazabilidad.</span>
                 </div>
                 <label class="stock-field stock-field--wide"><span>Motivo obligatorio</span><textarea name="motivo" rows="4" maxlength="1000" required placeholder="Detalle el motivo de anulacion"></textarea></label>
             </div>

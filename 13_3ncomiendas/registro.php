@@ -4,7 +4,7 @@ define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/includes/encomiendas_helpers.php';
 require_once __DIR__ . '/includes/encomiendas_queries.php';
 
-$conn = enc_start_page('enc-register', 'Registro de Guia Norte');
+$conn = enc_start_page('enc-register', 'Registro de Control Encomienda');
 
 $sedes = [];
 $placas = [];
@@ -34,7 +34,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Registro de Guia Norte | Norte360</title>
+    <title>Registro de Control Encomienda | Norte360</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="<?= enc_h(n360_asset('img/norte360.png')) ?>" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -52,7 +52,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
-<?php n360_render_header(['title' => 'Encomiendas', 'subtitle' => 'Registro de Guia Norte']); ?>
+<?php n360_render_header(['title' => 'Encomiendas', 'subtitle' => 'Registro de Control Encomienda']); ?>
 
 <div class="n360-main">
     <?php n360_render_content_separator('top'); ?>
@@ -62,8 +62,8 @@ require_once __DIR__ . '/../layout/content_n360.php';
         <section class="stock-hero enc-hero enc-hero--registro">
             <div class="enc-hero__icon"><i class="bi bi-signpost-2-fill"></i></div>
             <div class="enc-hero__text">
-                <span class="stock-eyebrow"><i class="bi bi-send-check-fill"></i> Encomiendas - Guia Norte</span>
-                <h1>Registrar Guia Norte</h1>
+                <span class="stock-eyebrow"><i class="bi bi-send-check-fill"></i> Encomiendas - Control Encomienda</span>
+                <h1>Registrar Control Encomienda</h1>
             </div>
             <div class="stock-hero-actions enc-hero__actions">
                 <a class="stock-btn stock-btn--soft" href="tracking.php"><i class="bi bi-search"></i> Ir a tracking</a>
@@ -92,7 +92,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                     <section class="enc-panel enc-guide-panel">
                         <div class="enc-panel__head">
                             <div>
-                                <span>Guia Norte</span>
+                                <span>Control Encomienda</span>
                                 <h2>Datos base del viaje</h2>
                             </div>
                             <span class="enc-auto-guide"><i class="bi bi-magic"></i> Correlativo automatico GN-000001</span>
@@ -100,7 +100,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 
                         <div class="enc-form-grid enc-form-grid--guide">
                             <label class="stock-field">
-                                <span>Fecha de Guia Norte *</span>
+                                <span>Fecha de Control Encomienda *</span>
                                 <input type="date" name="fecha_guia" value="<?= enc_h(enc_now_date()) ?>" required <?= !$schemaReady ? 'disabled' : '' ?>>
                                 <small data-error-for="fecha_guia"></small>
                             </label>
@@ -246,7 +246,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 
             <div class="enc-form-actions">
                 <button class="stock-btn stock-btn--soft" type="reset" <?= !$schemaReady ? 'disabled' : '' ?>><i class="bi bi-eraser"></i> Limpiar</button>
-                <button class="stock-btn stock-btn--primary" type="submit" <?= !$schemaReady ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Registrar Guia Norte</button>
+                <button class="stock-btn stock-btn--primary" type="submit" <?= !$schemaReady ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Registrar Control Encomienda</button>
             </div>
         </form>
     </div>

@@ -47,7 +47,7 @@
 
   const setDrawerLoading = () => {
     if (!drawerBody) return;
-    drawerBody.innerHTML = '<div class="enc-loading-inline"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Cargando Guia Norte...</div>';
+    drawerBody.innerHTML = '<div class="enc-loading-inline"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Cargando Control Encomienda...</div>';
   };
 
   const openDrawer = () => {
@@ -79,7 +79,7 @@
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
       });
       const html = await response.text();
-      if (!response.ok) throw new Error(html || 'No se pudo cargar el detalle de la Guia Norte.');
+      if (!response.ok) throw new Error(html || 'No se pudo cargar el detalle de la Control Encomienda.');
       return html;
     };
 
@@ -90,7 +90,7 @@
           ? 'Abriendo historial operativo...'
           : 'Leyendo ruta, manifiestos e historial...';
       const html = window.N360Loader && window.N360Loader.during
-        ? await window.N360Loader.during(task(), { title: 'Cargando Guia Norte', detail: detailLabel })
+        ? await window.N360Loader.during(task(), { title: 'Cargando Control Encomienda', detail: detailLabel })
         : await task();
       drawerBody.innerHTML = html;
 
@@ -135,14 +135,14 @@
     const form = annulModalEl.querySelector('form');
     form?.reset();
     if (annulGuideInput) annulGuideInput.value = '';
-    if (annulGuideCode) annulGuideCode.textContent = 'Guia Norte';
+    if (annulGuideCode) annulGuideCode.textContent = 'Control Encomienda';
   };
 
   const openAnnulModal = (trigger) => {
     if (!annulModalEl || !annulModal) return;
     resetAnnulModal();
     if (annulGuideInput) annulGuideInput.value = trigger.dataset.guideId || '';
-    if (annulGuideCode) annulGuideCode.textContent = trigger.dataset.guideCode || 'Guia Norte';
+    if (annulGuideCode) annulGuideCode.textContent = trigger.dataset.guideCode || 'Control Encomienda';
     annulModal.show();
   };
 
@@ -253,7 +253,7 @@
 
     try {
       const data = window.N360Loader && window.N360Loader.during
-        ? await window.N360Loader.during(task(), { button, title: 'Procesando Guia Norte', detail: 'Actualizando trazabilidad...' })
+        ? await window.N360Loader.during(task(), { button, title: 'Procesando Control Encomienda', detail: 'Actualizando trazabilidad...' })
         : await task();
       await showDialog(data.message || 'Operacion completada.', 'success', 'Listo');
 
