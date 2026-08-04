@@ -544,10 +544,10 @@
               columnStyles: {
                 0: { cellWidth: 11, halign: 'center' },
                 1: { cellWidth: 21, halign: 'center' },
-                2: { cellWidth: 47 },
-                3: { cellWidth: 31 },
-                4: { cellWidth: 47 },
-                5: { cellWidth: 27 }
+                2: { cellWidth: 55 },
+                3: { cellWidth: 24 },
+                4: { cellWidth: 55 },
+                5: { cellWidth: 24 }
               },
               didParseCell: function (data) {
                 if (data.section !== 'body') return;
