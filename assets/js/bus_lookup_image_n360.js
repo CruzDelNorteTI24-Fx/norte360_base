@@ -51,6 +51,14 @@
     height: 1240,
   };
 
+  const BUS_IMAGE_LAYOUT = {
+    headerH: 220,
+    rucH: 64,
+    driverRowH: 126,
+    vehicleH: 126,
+    techH: 156,
+  };
+
   const text = (value, fallback = '-') => {
     if (value === null || value === undefined) return fallback;
     const clean = String(value).trim();
@@ -323,19 +331,19 @@
     gradient.addColorStop(0, '#19547b');
     gradient.addColorStop(0.62, '#2d78aa');
     gradient.addColorStop(1, '#18557d');
-    fillRound(ctx, x, y, w, 196, 20, gradient);
+    fillRound(ctx, x, y, w, BUS_IMAGE_LAYOUT.headerH, 20, gradient);
 
-    drawDiagonalBrand(ctx, x, y, 196);
+    drawDiagonalBrand(ctx, x, y, BUS_IMAGE_LAYOUT.headerH);
 
     const logoX = x + 82;
-    const logoY = y - 50;
-    const logoW = 300;
-    const logoH = 300;
+    const logoY = y - 56;
+    const logoW = 330;
+    const logoH = 330;
 
     if (!drawImageContain(ctx, assets.logo, logoX, logoY, logoW, logoH, 14)) {
       drawPlaceholder(ctx, logoX, logoY, logoW, logoH, 'LOGO', {
         radius: 16,
-        size: 19,
+        size: 22,
       });
     }
 
@@ -348,8 +356,8 @@
     const titleW = w - (titleX - x) - 38;
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = `800 28px ${FONT}`;
-    ctx.fillText('EMPRESA DE TRANSPORTE', titleX, y + 60);
+    ctx.font = `800 34px ${FONT}`;
+    ctx.fillText('EMPRESA DE TRANSPORTE', titleX, y + 62);
 
     ctx.fillStyle = COLORS.yellow;
     ctx.shadowColor = 'rgba(0,0,0,.20)';
@@ -359,10 +367,10 @@
       ctx,
       text('CRUZ DEL NORTE S.A.C.'),
       titleX,
-      y + 90,
+      y + 102,
       titleW,
-      50,
-      30,
+      60,
+      38,
       950
     );
     ctx.shadowColor = 'transparent';
@@ -378,18 +386,18 @@
     const modelo = text(patrimonio.modelo, 'Modelo no registrado');
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(x, y, w, 55);
+    ctx.fillRect(x, y, w, BUS_IMAGE_LAYOUT.rucH);
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, 55);
+    ctx.strokeRect(x, y, w, BUS_IMAGE_LAYOUT.rucH);
 
     drawCenteredText(
       ctx,
       'R.U.C. N° 20403002101',
       x,
-      y + 13,
+      y + 15,
       w,
-      { size: 24, weight: 900, color: '#000000' }
+      { size: 30, weight: 900, color: '#000000' }
     );
 
     ctx.font = `800 16px ${FONT}`;
@@ -398,19 +406,19 @@
     ctx.textAlign = 'left';
   }
 
-  function drawSectionLabel(ctx, label, x, y, w, h = 44) {
+  function drawSectionLabel(ctx, label, x, y, w, h = 50) {
     ctx.fillStyle = COLORS.blue;
     ctx.fillRect(x, y, w, h);
-    ctx.font = `900 23px ${FONT}`;
+    ctx.font = `900 27px ${FONT}`;
     ctx.fillStyle = COLORS.white;
-    ctx.fillText(label, x + 18, y + 9);
+    ctx.fillText(label, x + 18, y + 11);
   }
 
   function drawDrivers(ctx, conductores, x, y, w) {
     const visible = conductores.slice(0, 3);
     const rows = Math.max(visible.length, 2);
-    const rowH = 108;
-    const labelW = 270;
+    const rowH = BUS_IMAGE_LAYOUT.driverRowH;
+    const labelW = 310;
 
     for (let index = 0; index < rows; index += 1) {
       const item = visible[index] || {};
@@ -428,7 +436,7 @@
         x,
         rowY,
         labelW,
-        42
+        50
       );
 
       ctx.fillStyle = COLORS.ink;
@@ -436,27 +444,27 @@
         ctx,
         text(item.conductor, 'SIN CONDUCTOR ASIGNADO'),
         x + 34,
-        rowY + 55,
-        w - 520,
-        32,
-        22,
+        rowY + 66,
+        w - 560,
+        40,
+        28,
         900
       );
 
-      ctx.font = `900 22px ${FONT}`;
+      ctx.font = `900 26px ${FONT}`;
       ctx.fillStyle = COLORS.ink;
-      ctx.fillText('LIC. CONDUCIR:', x + w - 405, rowY + 61);
+      ctx.fillText('LIC. CONDUCIR:', x - 10 + w - 430, rowY + 72);
 
-      ctx.font = `950 28px ${FONT}`;
+      ctx.font = `950 34px ${FONT}`;
       ctx.fillStyle = COLORS.navyDeep;
       drawTextFit(
         ctx,
         text(item.licencia, 'S/R'),
-        x + w - 220,
-        rowY + 57,
-        190,
-        28,
-        20,
+        x + w - 230,
+        rowY + 67,
+        205,
+        34,
+        24,
         950
       );
     }
@@ -480,10 +488,10 @@
     const values = [text(bus.nombre), text(bus.placa), numberText(capacity)];
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(x, y, w, 104);
+    ctx.fillRect(x, y, w, BUS_IMAGE_LAYOUT.vehicleH);
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, 104);
+    ctx.strokeRect(x, y, w, BUS_IMAGE_LAYOUT.vehicleH);
 
     let cursorX = x;
     cols.forEach((ratio, index) => {
@@ -494,13 +502,13 @@
         ctx.stroke();
       }
 
-      ctx.font = `900 22px ${FONT}`;
+      ctx.font = `900 26px ${FONT}`;
       ctx.fillStyle = COLORS.blue;
-      ctx.fillText(labels[index], cursorX + 24, y + 18);
+      ctx.fillText(labels[index], cursorX + 24, y + 24);
 
-      ctx.font = `950 36px ${FONT}`;
+      ctx.font = `950 44px ${FONT}`;
       ctx.fillStyle = COLORS.ink;
-      drawTextFit(ctx, values[index], cursorX + 24, y + 48, colW - 46, 36, 24, 950);
+      drawTextFit(ctx, values[index], cursorX + 24, y + 64, colW - 46, 44, 30, 950);
       cursorX += colW;
     });
   }
@@ -516,7 +524,7 @@
     const colGap = 28;
     const colW = (w - (colGap * (cols - 1)) - 60) / cols;
     const rows = Math.max(1, Math.ceil(Math.max(safe.length, 1) / cols));
-    const areaH = 58 + (rows * 50) + 18;
+    const areaH = 72 + (rows * 66) + 24;
 
     ctx.fillStyle = COLORS.paper;
     ctx.fillRect(x, y, w, areaH);
@@ -524,12 +532,12 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, areaH);
 
-    drawSectionLabel(ctx, 'PARADEROS AUTORIZADOS', x, y, 430, 46);
+    drawSectionLabel(ctx, 'PARADEROS AUTORIZADOS', x, y, 475, 52);
 
     if (!safe.length) {
-      ctx.font = `850 23px ${FONT}`;
+      ctx.font = `850 28px ${FONT}`;
       ctx.fillStyle = COLORS.muted;
-      ctx.fillText('SIN PARADEROS AUTORIZADOS REGISTRADOS', x + 30, y + 70);
+      ctx.fillText('SIN PARADEROS AUTORIZADOS REGISTRADOS', x + 30, y + 84);
       return areaH;
     }
 
@@ -537,16 +545,16 @@
       const col = index % cols;
       const row = Math.floor(index / cols);
       const itemX = x + 30 + (col * (colW + colGap));
-      const itemY = y + 62 + (row * 50);
+      const itemY = y + 78 + (row * 66);
 
       ctx.fillStyle = COLORS.blue;
       ctx.beginPath();
-      ctx.arc(itemX + 8, itemY + 14, 7, 0, Math.PI * 2);
+      ctx.arc(itemX + 8, itemY + 17, 9, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.font = `850 23px ${FONT}`;
+      ctx.font = `850 29px ${FONT}`;
       ctx.fillStyle = COLORS.ink;
-      drawWrappedText(ctx, label, itemX + 28, itemY, colW - 24, 27, 1);
+      drawWrappedText(ctx, label, itemX + 28, itemY, colW - 24, 34, 1);
     });
 
     if (paraderos.length > 10) {
@@ -560,7 +568,7 @@
 
   function drawTechnicalStrip(ctx, data, x, y, w) {
     const empresa = data.empresa || {};
-    const h = 128;
+    const h = BUS_IMAGE_LAYOUT.techH;
     const splitX = x + Math.round(w * 0.58);
     const leftW = splitX - x;
     const rightW = (x + w) - splitX;
@@ -588,24 +596,24 @@
     ctx.lineTo(splitX, y + h);
     ctx.stroke();
 
-    drawSectionLabel(ctx, 'PRECIOS', x, y, 190, 44);
-    drawSectionLabel(ctx, 'QUEJAS Y RECLAMOS', splitX, y, rightW, 44);
+    drawSectionLabel(ctx, 'PRECIOS', x, y, 205, 52);
+    drawSectionLabel(ctx, 'QUEJAS Y RECLAMOS', splitX, y, rightW, 52);
 
-    ctx.font = `900 21px ${FONT}`;
+    ctx.font = `900 26px ${FONT}`;
     ctx.fillStyle = COLORS.ink;
-    ctx.fillText('1.er NIVEL', x + 30, y + 58);
-    ctx.fillText('2.do NIVEL', x + 30, y + 91);
+    ctx.fillText('1.er NIVEL', x + 30, y + 72);
+    ctx.fillText('2.do NIVEL', x + 30, y + 115);
 
-    ctx.font = `950 28px ${FONT}`;
+    ctx.font = `950 36px ${FONT}`;
     ctx.fillStyle = COLORS.navyDeep;
-    drawTextFit(ctx, price1, x + 205, y + 53, leftW - 235, 28, 20, 950);
-    drawTextFit(ctx, price2, x + 205, y + 86, leftW - 235, 28, 20, 950);
+    drawTextFit(ctx, price1, x + 230, y + 64, leftW - 260, 36, 26, 950);
+    drawTextFit(ctx, price2, x + 230, y + 107, leftW - 260, 36, 26, 950);
 
     ctx.textAlign = 'center';
-    ctx.font = `950 25px ${FONT}`;
+    ctx.font = `950 32px ${FONT}`;
     ctx.fillStyle = COLORS.navyDeep;
-    ctx.fillText(phones[0] || 'S/R', splitX + (rightW / 2), y + 55);
-    ctx.fillText(phones[1] || 'S/R', splitX + (rightW / 2), y + 87);
+    ctx.fillText(phones[0] || 'S/R', splitX + (rightW / 2), y + 71);
+    ctx.fillText(phones[1] || 'S/R', splitX + (rightW / 2), y + 113);
     ctx.textAlign = 'left';
 
     return h;
@@ -619,12 +627,12 @@
     ctx.lineTo(x + w, y);
     ctx.stroke();
 
-    ctx.font = `800 16px ${FONT}`;
+    ctx.font = `800 18px ${FONT}`;
     ctx.fillStyle = COLORS.muted;
-    ctx.fillText(`Generado: ${new Date().toLocaleString('es-PE')}`, x, y + 18);
+    ctx.fillText(`Generado: ${new Date().toLocaleString('es-PE')}`, x, y + 22);
 
     ctx.textAlign = 'right';
-    ctx.fillText('Norte 360 · ERP Operativo de Transporte', x + w, y + 18);
+    ctx.fillText('Norte 360 · ERP Operativo de Transporte', x + w, y + 22);
     ctx.textAlign = 'left';
   }
 
@@ -654,16 +662,16 @@
 
     let y = cardY + outer;
     drawCompanyHeader(ctx, data, assets, innerX, y, innerW);
-    y += 196;
+    y += BUS_IMAGE_LAYOUT.headerH;
 
     drawRucStrip(ctx, data, innerX, y, innerW);
-    y += 55;
+    y += BUS_IMAGE_LAYOUT.rucH;
 
     const driversH = drawDrivers(ctx, conductores, innerX, y, innerW);
     y += driversH;
 
     drawVehicleSummary(ctx, data, innerX, y, innerW);
-    y += 104;
+    y += BUS_IMAGE_LAYOUT.vehicleH;
 
     const paraderosH = drawParaderos(ctx, paraderos, innerX, y, innerW);
     y += paraderosH;

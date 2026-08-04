@@ -378,10 +378,8 @@
       row.dia || '-',
       row.revision || '-',
       row.cond1 || '-',
-      row.cond1Estado || '-',
       row.cond1Obs || '-',
       row.cond2 || '-',
-      row.cond2Estado || '-',
       row.cond2Obs || '-'
     ]);
   }
@@ -523,7 +521,7 @@
             y += 4;
 
             doc.autoTable({
-              head: [['Dia', 'Trabajo', 'Cond. 1', 'Estado 1', 'Obs. 1', 'Cond. 2', 'Estado 2', 'Obs. 2']],
+              head: [['Dia', 'Trabajo', 'Cond. 1', 'Obs. 1', 'Cond. 2', 'Obs. 2']],
               body: tableBody(unit),
               startY: y,
               margin: { left, right, top: 32, bottom: 22 },
@@ -545,22 +543,15 @@
               alternateRowStyles: { fillColor: [249, 251, 253] },
               columnStyles: {
                 0: { cellWidth: 11, halign: 'center' },
-                1: { cellWidth: 20, halign: 'center' },
-                2: { cellWidth: 32 },
-                3: { cellWidth: 15, halign: 'center' },
-                4: { cellWidth: 25 },
-                5: { cellWidth: 32 },
-                6: { cellWidth: 15, halign: 'center' },
-                7: { cellWidth: 24 }
+                1: { cellWidth: 21, halign: 'center' },
+                2: { cellWidth: 47 },
+                3: { cellWidth: 31 },
+                4: { cellWidth: 47 },
+                5: { cellWidth: 27 }
               },
               didParseCell: function (data) {
                 if (data.section !== 'body') return;
                 const raw = String(data.cell.raw || '').toUpperCase();
-                if (data.column.index === 3 || data.column.index === 6) {
-                  data.cell.styles.fontStyle = 'bold';
-                  if (raw.includes('PAGADO')) data.cell.styles.textColor = [5, 112, 68];
-                  if (raw.includes('PENDIENTE')) data.cell.styles.textColor = [146, 86, 0];
-                }
                 if (data.column.index === 1) {
                   data.cell.styles.fontStyle = 'bold';
                   if (raw.includes('VALIDADO')) data.cell.styles.textColor = [5, 112, 68];

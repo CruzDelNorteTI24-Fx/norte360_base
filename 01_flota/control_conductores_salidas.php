@@ -660,10 +660,10 @@ $monthLabel = fcc_month_label($monthStart);
                                         <th>Dia</th>
                                         <th>Estado trabajo</th>
                                         <th>Cond. 1</th>
-                                        <th>Estado cond. 1</th>
+                                        <th style="display:none;">Estado cond. 1</th>
                                         <th>Obs. cond. 1</th>
                                         <th>Cond. 2</th>
-                                        <th>Estado cond. 2</th>
+                                        <th style="display:none;">Estado cond. 2</th>
                                         <th>Obs. cond. 2</th>
                                         <th>Accion</th>
                                     </tr>
@@ -679,7 +679,7 @@ $monthLabel = fcc_month_label($monthStart);
                                             <td data-fcc-col="dia"><strong><?= fcc_h($unitRow['day']) ?></strong><span><?= fcc_h($unitRow['weekday']) ?></span></td>
                                             <td data-fcc-col="revision"><span class="fcc-status <?= fcc_estado_revision_class($unitRow['revision']) ?>"><?= fcc_h($unitRow['revision']) ?></span><?php if ($unitRow['extra'] !== ''): ?><small><?= fcc_h($unitRow['extra']) ?> salida</small><?php endif; ?></td>
                                             <td data-fcc-col="cond1"><?= $unitRow['cond1'] !== '' ? fcc_h($unitRow['cond1']) : '<span class="fcc-muted">-</span>' ?></td>
-                                            <td data-fcc-col="cond1_estado">
+                                            <td data-fcc-col="cond1_estado" style="display:none;">
                                                 <select data-fcc-field="cond1_estado" class="<?= fcc_conductor_class($unitRow['cond1_estado']) ?>" <?= $cond1Enabled ? '' : 'disabled' ?>>
                                                     <option value="PENDIENTE" <?= $unitRow['cond1_estado'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
                                                     <option value="PAGADO" <?= $unitRow['cond1_estado'] === 'PAGADO' ? 'selected' : '' ?>>PAGADO</option>
@@ -687,7 +687,7 @@ $monthLabel = fcc_month_label($monthStart);
                                             </td>
                                             <td data-fcc-col="cond1_obs"><textarea data-fcc-field="cond1_observacion" rows="1" <?= $cond1Enabled ? '' : 'disabled' ?>><?= fcc_h($unitRow['cond1_observacion']) ?></textarea></td>
                                             <td data-fcc-col="cond2"><?= $unitRow['cond2'] !== '' ? fcc_h($unitRow['cond2']) : '<span class="fcc-muted">-</span>' ?></td>
-                                            <td data-fcc-col="cond2_estado">
+                                            <td data-fcc-col="cond2_estado" style="display:none;">
                                                 <select data-fcc-field="cond2_estado" class="<?= fcc_conductor_class($unitRow['cond2_estado']) ?>" <?= $cond2Enabled ? '' : 'disabled' ?>>
                                                     <option value="PENDIENTE" <?= $unitRow['cond2_estado'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
                                                     <option value="PAGADO" <?= $unitRow['cond2_estado'] === 'PAGADO' ? 'selected' : '' ?>>PAGADO</option>
