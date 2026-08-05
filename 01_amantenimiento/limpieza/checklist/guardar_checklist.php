@@ -28,6 +28,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $corrtipocheck = 'FMG';
       break;
     }
+    case 5:
+      $corrtipocheck = 'OPR';
+      break;
+    }
 
 
   $hoy = date('Y-m-d');

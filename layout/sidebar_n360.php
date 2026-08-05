@@ -291,6 +291,13 @@ function n360_menu_config(): array {
                                 'vistas' => ['c-sab'],
                                 'modulo' => 5
                             ],
+                            [
+                                'titulo' => 'Nueva operación',
+                                'icono' => 'bi bi-box-arrow-in-right',
+                                'url' => '01_amantenimiento/limpieza/mantcdn.php?id_tipo=5',
+                                'vistas' => ['c-lalu'],
+                                'modulo' => 5
+                            ],
                         ]
                     ],
                     [

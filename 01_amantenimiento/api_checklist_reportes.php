@@ -45,6 +45,7 @@ function cr_can_view_tipo(int $tipo): bool {
         2 => ['c-sab'],
         3 => ['c-lalu'],
         4 => ['c-lalu'],
+        5 => ['c-lalu'],
     ];
 
     foreach (($map[$tipo] ?? []) as $vista) {
@@ -226,11 +227,11 @@ function cr_kpi_for_checklist(mysqli $conn, int $checklistId, int $tipoId, ?int 
         }
     }
 
-    if ($tipoId === 1 || $tipoId === 2) {
+    if ($tipoId === 1 || $tipoId === 2 || $tipoId === 5) {
         $porcentaje = $totalItems > 0 ? round(($totalConforme / $totalItems) * 100, 2) : 0;
         $texto = $porcentaje > 70 ? 'EXCELENTE' : ($porcentaje >= 50 ? 'ACEPTABLE' : 'DEFICIENTE');
         return [
-            'titulo' => $tipoId === 1 ? 'Estado de Limpieza de la Unidad' : 'Estado de Servicio a Bordo / Embarque',
+            'titulo' => $tipoId === 1 ? 'Estado de Limpieza de la Unidad' : ($tipoId === 5 ? 'Estado de Operación' : 'Estado de Servicio a Bordo / Embarque'),
             'texto' => $texto,
             'valor' => number_format($porcentaje, 2) . '%',
             'porcentaje' => $porcentaje,
