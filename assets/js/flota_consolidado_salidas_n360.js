@@ -3,12 +3,20 @@
   const endpoint = cfg.endpoint || 'consolidado_salidas_buses.php';
   const csrf = cfg.csrf || '';
   const report = cfg.report || {};
+  const conductores = Array.isArray(cfg.conductores) ? cfg.conductores : [];
   const rows = Array.from(document.querySelectorAll('[data-csb-row]'));
   const visiblePill = document.querySelector('[data-csb-visible-pill]');
 
   const clean = (value) => String(value || '').replace(/[ \t]+/g, ' ').replace(/\n\s+/g, '\n').trim();
   const compact = (value) => clean(value).replace(/\s+/g, ' ');
   const moneyDate = () => new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+  const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  })[char]);
 
   function showNotice(message, ok) {
     let box = document.querySelector('[data-csb-notice]');
@@ -76,7 +84,8 @@
       if (saved) {
         saved.textContent = json.data?.actualizado || '';
       }
-      syncStateButtons(row, json.data?.estado || estado);
+      row.dataset.csbDbRevision = String(json.data?.estado || estado || 'PENDIENTE').toUpperCase();
+      syncStateButtons(row, row.dataset.csbDbRevision);
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
       showNotice(err.message || 'No se pudo guardar.', false);
@@ -115,6 +124,7 @@
 
   function syncStateButtons(row, estado) {
     const value = String(estado || 'PENDIENTE').toUpperCase();
+    const dbValue = String(row.dataset.csbDbRevision || value).toUpperCase();
     const hidden = row.querySelector('[data-csb-field="estado"]');
     if (hidden) {
       hidden.value = value;
@@ -122,12 +132,20 @@
     row.querySelectorAll('[data-csb-state-option]').forEach((button) => {
       button.classList.toggle('is-active', String(button.dataset.csbStateOption || '').toUpperCase() === value);
     });
+    row.querySelectorAll('[data-csb-driver-edit]').forEach((button) => {
+      const canEdit = dbValue === 'OBSERVADO';
+      button.hidden = !canEdit;
+      button.disabled = !canEdit;
+    });
   }
 
   function cellText(td) {
     const drivers = td.querySelector('.csb-drivers');
     if (drivers) {
-      return Array.from(drivers.querySelectorAll('span')).map((span) => compact(span.textContent)).filter(Boolean).join('\n');
+      const lines = Array.from(drivers.querySelectorAll('[data-csb-driver-text]'))
+        .map((span) => compact(span.textContent))
+        .filter(Boolean);
+      return lines.length ? lines.join('\n') : compact(drivers.textContent);
     }
     const textareas = td.querySelectorAll('textarea');
     if (textareas.length) {
@@ -252,6 +270,153 @@
     }
   }
 
+  function driverDisplay(driver) {
+    const dni = compact(driver.dni || '');
+    const licencia = compact(driver.licencia || '');
+    return {
+      title: compact(driver.label || driver.conductor || ''),
+      meta: [
+        dni ? `DNI ${dni}` : '',
+        licencia ? `Lic. ${licencia}` : ''
+      ].filter(Boolean).join(' · ')
+    };
+  }
+
+  function setupDriverEditor() {
+    const modalEl = document.getElementById('csbDriverModal');
+    if (!modalEl || !window.bootstrap) return;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    const currentEl = modalEl.querySelector('[data-csb-driver-current]');
+    const searchInput = modalEl.querySelector('[data-csb-driver-search]');
+    const listEl = modalEl.querySelector('[data-csb-driver-list]');
+    const saveButton = modalEl.querySelector('[data-csb-driver-save]');
+    if (!currentEl || !searchInput || !listEl || !saveButton) return;
+
+    let state = {
+      row: null,
+      line: null,
+      index: -1,
+      selected: null
+    };
+
+    const renderList = () => {
+      const term = compact(searchInput.value).toLowerCase();
+      const matches = conductores
+        .filter((driver) => {
+          if (!term) return true;
+          return [
+            driver.label,
+            driver.conductor,
+            driver.dni,
+            driver.licencia
+          ].map(compact).join(' ').toLowerCase().includes(term);
+        })
+        .slice(0, 80);
+
+      if (!matches.length) {
+        listEl.innerHTML = '<div class="csb-driver-empty">No se encontraron conductores activos.</div>';
+        return;
+      }
+
+      listEl.innerHTML = matches.map((driver) => {
+        const display = driverDisplay(driver);
+        const selected = state.selected && Number(state.selected.id) === Number(driver.id);
+        return `<button type="button" class="csb-driver-choice ${selected ? 'is-selected' : ''}" data-csb-driver-choice="${Number(driver.id)}">
+          <strong>${escapeHtml(display.title || 'Conductor sin nombre')}</strong>
+          <span>${escapeHtml(display.meta || 'Sin DNI ni licencia registrada')}</span>
+        </button>`;
+      }).join('');
+    };
+
+    listEl.addEventListener('click', (event) => {
+      const choice = event.target.closest('[data-csb-driver-choice]');
+      if (!choice) return;
+      const id = Number(choice.dataset.csbDriverChoice || 0);
+      state.selected = conductores.find((driver) => Number(driver.id) === id) || null;
+      saveButton.disabled = !state.selected;
+      renderList();
+    });
+
+    searchInput.addEventListener('input', renderList);
+
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-csb-driver-edit]');
+      if (!button) return;
+
+      const row = button.closest('[data-csb-row]');
+      const line = button.closest('[data-csb-driver-line]');
+      const index = Number(button.dataset.csbDriverIndex ?? line?.dataset.csbDriverIndex ?? -1);
+      const estadoDb = String(row?.dataset.csbDbRevision || row?.querySelector('[data-csb-field="estado"]')?.value || '').toUpperCase();
+
+      if (!row || !line || index < 0) return;
+      if (estadoDb !== 'OBSERVADO') {
+        showNotice('Guarda la revision como OBSERVADO antes de editar conductores.', false);
+        return;
+      }
+      if (!conductores.length) {
+        showNotice('No hay conductores activos disponibles.', false);
+        return;
+      }
+
+      state = { row, line, index, selected: null };
+      currentEl.textContent = compact(line.querySelector('[data-csb-driver-text]')?.textContent || 'Sin conductor asignado');
+      searchInput.value = '';
+      saveButton.disabled = true;
+      renderList();
+      modal.show();
+      setTimeout(() => searchInput.focus(), 180);
+    });
+
+    saveButton.addEventListener('click', async () => {
+      if (!state.row || !state.line || !state.selected) return;
+
+      const originalHtml = saveButton.innerHTML;
+      const fd = new FormData();
+      fd.append('csrf', csrf);
+      fd.append('action', 'update_driver');
+      fd.append('id', state.row.dataset.csbRow || '');
+      fd.append('driver_index', String(state.index));
+      fd.append('driver_id', String(state.selected.id));
+
+      saveButton.disabled = true;
+      saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Guardando';
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          body: fd,
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const json = await res.json();
+        if (!json.ok) {
+          throw new Error(json.message || 'No se pudo actualizar el conductor.');
+        }
+
+        const target = state.line.querySelector('[data-csb-driver-text]');
+        if (target) {
+          target.textContent = json.data?.driver_label || state.selected.label || state.selected.conductor || '';
+        }
+        showNotice(json.message || 'Conductor actualizado.', true);
+        modal.hide();
+      } catch (error) {
+        showNotice(error.message || 'No se pudo actualizar el conductor.', false);
+        saveButton.disabled = false;
+      } finally {
+        saveButton.innerHTML = originalHtml;
+      }
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      state = { row: null, line: null, index: -1, selected: null };
+      currentEl.textContent = 'Sin seleccionar';
+      searchInput.value = '';
+      listEl.innerHTML = '';
+      saveButton.disabled = true;
+    });
+  }
+
   function setupCalendar() {
     const open = document.querySelector('[data-csb-calendar-open]');
     const modalEl = document.getElementById('csbCalendarModal');
@@ -329,5 +494,6 @@
   rows.forEach((row) => syncStateButtons(row, row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE'));
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   setupGroupFilter();
+  setupDriverEditor();
   setupCalendar();
 })();

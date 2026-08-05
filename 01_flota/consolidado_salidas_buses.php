@@ -172,6 +172,130 @@ function csb_conductores_lineas(?string $value): array {
     }));
 }
 
+function csb_array_is_list_compat(array $array): bool {
+    $expected = 0;
+    foreach (array_keys($array) as $key) {
+        if ($key !== $expected) {
+            return false;
+        }
+        $expected++;
+    }
+    return true;
+}
+
+function csb_active_driver_where(mysqli $conn, string $alias = 't'): string {
+    $prefix = $alias !== '' ? $alias . '.' : '';
+    $where = [
+        "UPPER(TRIM(IFNULL({$prefix}clm_tra_tipo_trabajador, ''))) = 'CONDUCTOR'",
+    ];
+
+    if (csb_column_exists($conn, 'tb_trabajador', 'clm_tra_contrato')) {
+        $where[] = "UPPER(TRIM(IFNULL({$prefix}clm_tra_contrato, ''))) = 'ACTIVO'";
+    }
+
+    return implode(' AND ', $where);
+}
+
+function csb_driver_label(array $row): string {
+    $nombre = trim((string)($row['conductor'] ?? $row['clm_tra_nombres'] ?? ''));
+    $dni = trim((string)($row['dni'] ?? $row['clm_tra_dni'] ?? ''));
+    if ($nombre === '') {
+        $nombre = 'Conductor sin nombre';
+    }
+    return $dni !== '' ? $nombre . ' (' . $dni . ')' : $nombre;
+}
+
+function csb_fetch_conductores_activos(mysqli $conn): array {
+    if (!csb_table_exists($conn, 'tb_trabajador')) {
+        return [];
+    }
+
+    $licenseSelect = csb_column_exists($conn, 'tb_trabajador', 'clm_tra_nlicenciaconducir')
+        ? "IFNULL(t.clm_tra_nlicenciaconducir, '') AS licencia"
+        : "'' AS licencia";
+
+    $rows = csb_fetch_all($conn, "
+        SELECT
+            t.clm_tra_id AS id,
+            IFNULL(t.clm_tra_nombres, '') AS conductor,
+            IFNULL(t.clm_tra_dni, '') AS dni,
+            {$licenseSelect}
+        FROM tb_trabajador t
+        WHERE " . csb_active_driver_where($conn, 't') . "
+        ORDER BY t.clm_tra_nombres ASC
+    ");
+
+    foreach ($rows as &$row) {
+        $row['id'] = (int)($row['id'] ?? 0);
+        $row['label'] = csb_driver_label($row);
+    }
+    unset($row);
+
+    return $rows;
+}
+
+function csb_fetch_conductor_activo(mysqli $conn, int $id): ?array {
+    if ($id <= 0 || !csb_table_exists($conn, 'tb_trabajador')) {
+        return null;
+    }
+
+    $licenseSelect = csb_column_exists($conn, 'tb_trabajador', 'clm_tra_nlicenciaconducir')
+        ? "IFNULL(t.clm_tra_nlicenciaconducir, '') AS licencia"
+        : "'' AS licencia";
+
+    $rows = csb_fetch_all($conn, "
+        SELECT
+            t.clm_tra_id AS id,
+            IFNULL(t.clm_tra_nombres, '') AS conductor,
+            IFNULL(t.clm_tra_dni, '') AS dni,
+            {$licenseSelect}
+        FROM tb_trabajador t
+        WHERE t.clm_tra_id = ?
+          AND " . csb_active_driver_where($conn, 't') . "
+        LIMIT 1
+    ", 'i', [$id]);
+
+    if (!$rows) {
+        return null;
+    }
+    $rows[0]['id'] = (int)($rows[0]['id'] ?? 0);
+    $rows[0]['label'] = csb_driver_label($rows[0]);
+    return $rows[0];
+}
+
+function csb_build_driver_history(?string $rawJson, string $oldText, string $newText, int $driverIndex, array $driver): string {
+    $decoded = json_decode((string)$rawJson, true);
+    if (!is_array($decoded)) {
+        $decoded = [];
+    }
+
+    if (csb_array_is_list_compat($decoded)) {
+        $payload = [
+            'captura_original' => $decoded,
+            'historial_ediciones' => [],
+        ];
+    } else {
+        $payload = $decoded;
+        if (!isset($payload['historial_ediciones']) || !is_array($payload['historial_ediciones'])) {
+            $payload['historial_ediciones'] = [];
+        }
+    }
+
+    $payload['historial_ediciones'][] = [
+        'fecha' => date('Y-m-d H:i:s'),
+        'usuario_id' => csb_uid(),
+        'usuario' => (string)($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? ''),
+        'conductor_index' => $driverIndex,
+        'conductor_id' => (int)($driver['id'] ?? 0),
+        'conductor_label' => (string)($driver['label'] ?? ''),
+        'texto_anterior' => $oldText,
+        'texto_nuevo' => $newText,
+        'accion' => 'edicion_conductor_consolidado',
+    ];
+
+    return json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
 function csb_row_groups(array $row, array $sedeGroups): array {
     if (!$sedeGroups) {
         return [];
@@ -244,6 +368,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
     }
 
+    if ($action === 'update_driver') {
+        $id = (int)($_POST['id'] ?? 0);
+        $driverIndex = (int)($_POST['driver_index'] ?? -1);
+        $driverId = (int)($_POST['driver_id'] ?? 0);
+
+        if ($id <= 0 || $driverIndex < 0 || $driverId <= 0) {
+            csb_json(false, [], 'Selecciona un conductor valido.', 422);
+        }
+
+        $driver = csb_fetch_conductor_activo($conn, $driverId);
+        if (!$driver) {
+            csb_json(false, [], 'El conductor seleccionado no esta activo o no existe.', 422);
+        }
+
+        $conn->begin_transaction();
+        try {
+            $currentRows = csb_fetch_all($conn, "
+                SELECT
+                    clm_salprog_revision_estado,
+                    clm_salprog_conductores_texto,
+                    clm_salprog_conductores_json
+                FROM tb_progbuses_salida_consolidado
+                WHERE clm_salprog_id = ?
+                LIMIT 1
+                FOR UPDATE
+            ", 'i', [$id]);
+
+            if (!$currentRows) {
+                throw new RuntimeException('No se encontro el registro del consolidado.');
+            }
+
+            $current = $currentRows[0];
+            $estadoActual = strtoupper(trim((string)($current['clm_salprog_revision_estado'] ?? 'PENDIENTE')));
+            if ($estadoActual !== 'OBSERVADO') {
+                throw new RuntimeException('Solo puedes editar conductores cuando el registro esta OBSERVADO.');
+            }
+
+            $oldText = trim((string)($current['clm_salprog_conductores_texto'] ?? ''));
+            $driverLines = csb_conductores_lineas($oldText);
+            if (!isset($driverLines[$driverIndex])) {
+                throw new RuntimeException('No se encontro ese conductor dentro de la fila.');
+            }
+
+            $driverLines[$driverIndex] = (string)$driver['label'];
+            $newText = implode(' | ', $driverLines);
+            $newJson = csb_build_driver_history($current['clm_salprog_conductores_json'] ?? '', $oldText, $newText, $driverIndex, $driver);
+
+            $stmt = $conn->prepare("
+                UPDATE tb_progbuses_salida_consolidado
+                   SET clm_salprog_conductores_texto = ?,
+                       clm_salprog_conductores_json = ?
+                 WHERE clm_salprog_id = ?
+                 LIMIT 1
+            ");
+            if (!$stmt) {
+                throw new RuntimeException($conn->error ?: 'No se pudo preparar el guardado.');
+            }
+            $stmt->bind_param('ssi', $newText, $newJson, $id);
+            if (!$stmt->execute()) {
+                $error = $stmt->error;
+                $stmt->close();
+                throw new RuntimeException($error ?: 'No se pudo guardar el conductor.');
+            }
+            $stmt->close();
+            $conn->commit();
+
+            csb_json(true, [
+                'id' => $id,
+                'driver_index' => $driverIndex,
+                'driver_id' => $driverId,
+                'driver_label' => $driver['label'],
+                'conductores_texto' => $newText,
+                'conductores_lineas' => $driverLines,
+            ], 'Conductor actualizado y guardado en historial.');
+        } catch (Throwable $e) {
+            $conn->rollback();
+            csb_json(false, [], $e->getMessage() ?: 'No se pudo actualizar el conductor.', 400);
+        }
+    }
+
     if ($action !== 'update_revision') {
         csb_json(false, [], 'Accion no reconocida.', 400);
     }
@@ -304,6 +508,7 @@ $rowsForDateTotal = 0;
 $sedeGroups = [];
 $rowGroupsById = [];
 $groupCounters = [];
+$conductoresActivos = [];
 $kpis = [
     'registros' => 0,
     'unidades' => 0,
@@ -316,6 +521,8 @@ $kpis = [
 
 if ($tableReady) {
     try {
+        $conductoresActivos = csb_fetch_conductores_activos($conn);
+
         if (csb_column_exists($conn, 'tb_sedes', 'clm_sedes_grupo_pizarra')) {
             $estadoWhere = csb_column_exists($conn, 'tb_sedes', 'clm_sedes_estado')
                 ? "WHERE IFNULL(clm_sedes_estado, 1) = 1"
@@ -611,7 +818,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 $rowGroups = $rowGroupsById[$id] ?? [];
                                 $conductoresLineas = csb_conductores_lineas($row['clm_salprog_conductores_texto'] ?? '');
                             ?>
-                            <tr data-csb-row="<?= $id ?>" data-csb-groups="<?= csb_h(implode('|', $rowGroups)) ?>">
+                            <tr data-csb-row="<?= $id ?>" data-csb-groups="<?= csb_h(implode('|', $rowGroups)) ?>" data-csb-db-revision="<?= csb_h($estado) ?>">
                                 <td>
                                     <strong><?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?></strong>
                                     <small>#<?= (int)($row['clm_salprog_progid'] ?? 0) ?></small>
@@ -628,12 +835,27 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="csb-drivers">
+                                    <div class="csb-drivers" data-csb-drivers>
                                         <?php if (!$conductoresLineas): ?>
-                                            <span>Sin conductor asignado</span>
+                                            <span class="csb-driver-line csb-driver-line--empty">
+                                                <span data-csb-driver-text>Sin conductor asignado</span>
+                                            </span>
                                         <?php endif; ?>
-                                        <?php foreach ($conductoresLineas as $conductor): ?>
-                                            <span><?= csb_h($conductor) ?></span>
+                                        <?php foreach ($conductoresLineas as $indexConductor => $conductor): ?>
+                                            <span class="csb-driver-line" data-csb-driver-line data-csb-driver-index="<?= (int)$indexConductor ?>">
+                                                <span data-csb-driver-text><?= csb_h($conductor) ?></span>
+                                                <button
+                                                    type="button"
+                                                    class="csb-driver-edit"
+                                                    data-csb-driver-edit
+                                                    data-csb-driver-index="<?= (int)$indexConductor ?>"
+                                                    title="Editar conductor"
+                                                    aria-label="Editar conductor"
+                                                    <?= $estado === 'OBSERVADO' ? '' : 'hidden' ?>
+                                                >
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+                                            </span>
                                         <?php endforeach; ?>
                                     </div>
                                     <small>Asignacion capturada del modulo Conductores</small>
@@ -681,6 +903,40 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <?php n360_render_content_separator('bottom'); ?>
 </div>
 
+<div class="modal fade csb-driver-modal" id="csbDriverModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="csb-modal-head">
+                <div>
+                    <span><i class="bi bi-pencil-square"></i> Registro observado</span>
+                    <h2>Editar conductor del consolidado</h2>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="csb-driver-current">
+                    <span>Conductor actual</span>
+                    <strong data-csb-driver-current>Sin seleccionar</strong>
+                </div>
+                <label class="csb-driver-search">
+                    <span>Buscar conductor activo</span>
+                    <input type="search" data-csb-driver-search placeholder="Nombre, DNI o licencia..." autocomplete="off">
+                </label>
+                <div class="csb-driver-list" data-csb-driver-list></div>
+                <p class="csb-driver-help">
+                    El texto del consolidado se actualizara y el JSON conservara el historial de cambios.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="csb-btn csb-btn--primary" data-csb-driver-save disabled>
+                    <i class="bi bi-check2"></i> Guardar conductor
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php if ($isAdmin): ?>
 <div class="modal fade csb-calendar-modal" id="csbCalendarModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -713,6 +969,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 window.N360_CSB = {
     csrf: <?= json_encode($csrfToken) ?>,
     endpoint: 'consolidado_salidas_buses.php',
+    conductores: <?= json_encode($conductoresActivos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     report: {
         title: 'CONSOLIDADO DE SALIDAS DE BUSES',
         subtitle: 'Buses con programacion cerrada',
