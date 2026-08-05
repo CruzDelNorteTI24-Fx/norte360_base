@@ -412,10 +412,8 @@
       row.dia || '-',
       row.revision || '-',
       row.cond1 || '-',
-      moneyText(row.cond1Importe),
       row.cond1Obs || '-',
       row.cond2 || '-',
-      moneyText(row.cond2Importe),
       row.cond2Obs || '-'
     ]);
   }
@@ -507,7 +505,7 @@
         orientation: 'portrait',
         title: report.title || 'CONTROL MENSUAL DE CONDUCTORES',
         secondTitle: report.subtitle || 'Consolidado de salidas por unidad',
-        description: 'Estado de trabajo y pago por conductor segun el consolidado de salidas.',
+        description: 'Estado de trabajo y observaciones por conductor segun el consolidado de salidas.',
         docCode: report.docCode || 'FLOTA_CONDUCTORES_MES',
         userName: report.generatedBy || '',
         dni: report.dni || '',
@@ -539,7 +537,7 @@
             y += 4;
 
             doc.autoTable({
-              head: [['Dia', 'Trabajo', 'Cond. 1', 'Pago 1', 'Obs. 1', 'Cond. 2', 'Pago 2', 'Obs. 2']],
+              head: [['Dia', 'Trabajo', 'Cond. 1', 'Obs. 1', 'Cond. 2', 'Obs. 2']],
               body: tableBody(unit),
               startY: y,
               margin: { left, right, top: 32, bottom: 22 },
@@ -562,12 +560,10 @@
               columnStyles: {
                 0: { cellWidth: 9, halign: 'center' },
                 1: { cellWidth: 18, halign: 'center' },
-                2: { cellWidth: 31 },
-                3: { cellWidth: 17, halign: 'right' },
-                4: { cellWidth: 26 },
-                5: { cellWidth: 31 },
-                6: { cellWidth: 17, halign: 'right' },
-                7: { cellWidth: 26 }
+                2: { cellWidth: 39 },
+                3: { cellWidth: 39.3 },
+                4: { cellWidth: 39 },
+                5: { cellWidth: 39.3 }
               },
               didParseCell: function (data) {
                 if (data.section !== 'body') return;
