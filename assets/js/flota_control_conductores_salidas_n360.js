@@ -16,6 +16,21 @@
     "'": '&#039;'
   }[char]));
 
+  function normalizeMoneyValue(value) {
+    const raw = String(value ?? '').trim().replace(',', '.');
+    if (!raw) return '';
+    const match = raw.match(/^(\d{1,16})(?:\.(\d{0,4}))?$/);
+    if (!match) return raw;
+    const integer = (match[1].replace(/^0+(?=\d)/, '') || '0');
+    const decimal = String(match[2] || '').padEnd(4, '0').slice(0, 4);
+    return `${integer}.${decimal}`;
+  }
+
+  function moneyText(value) {
+    const normalized = normalizeMoneyValue(value);
+    return normalized ? `S/ ${normalized}` : '-';
+  }
+
   function monthParts() {
     const match = String(cfg.month || '').match(/^(\d{4})-(\d{2})$/);
     return match ? { year: match[1], month: match[2] } : null;
@@ -77,13 +92,26 @@
       return;
     }
 
+    const amountInputs = Array.from(row.querySelectorAll('[data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]'));
+    const invalidAmount = amountInputs.find((input) => !input.disabled && !input.checkValidity());
+    if (invalidAmount) {
+      invalidAmount.reportValidity();
+      return;
+    }
+
+    amountInputs.forEach((input) => {
+      if (!input.disabled && input.value !== '') input.value = normalizeMoneyValue(input.value);
+    });
+
     const fd = new FormData();
     fd.append('csrf', csrf);
     fd.append('action', 'update_driver_status');
     fd.append('id', id);
     fd.append('cond1_estado', row.querySelector('[data-fcc-field="cond1_estado"]')?.value || 'PENDIENTE');
+    fd.append('cond1_importe', row.querySelector('[data-fcc-field="cond1_importe"]')?.value || '');
     fd.append('cond1_observacion', row.querySelector('[data-fcc-field="cond1_observacion"]')?.value || '');
     fd.append('cond2_estado', row.querySelector('[data-fcc-field="cond2_estado"]')?.value || 'PENDIENTE');
+    fd.append('cond2_importe', row.querySelector('[data-fcc-field="cond2_importe"]')?.value || '');
     fd.append('cond2_observacion', row.querySelector('[data-fcc-field="cond2_observacion"]')?.value || '');
 
     const original = button.innerHTML;
@@ -102,6 +130,10 @@
         throw new Error(json.message || 'No se pudo guardar.');
       }
       row.querySelectorAll('select').forEach(syncSelectClass);
+      const cond1Amount = row.querySelector('[data-fcc-field="cond1_importe"]');
+      const cond2Amount = row.querySelector('[data-fcc-field="cond2_importe"]');
+      if (cond1Amount) cond1Amount.value = normalizeMoneyValue(json.data?.cond1_importe || cond1Amount.value);
+      if (cond2Amount) cond2Amount.value = normalizeMoneyValue(json.data?.cond2_importe || cond2Amount.value);
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
       showNotice(err.message || 'No se pudo guardar.', false);
@@ -147,9 +179,11 @@
         revision: cellText(row, '[data-fcc-col="revision"]'),
         cond1: cellText(row, '[data-fcc-col="cond1"]'),
         cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
+        cond1Importe: cellText(row, '[data-fcc-field="cond1_importe"]'),
         cond1Obs: cellText(row, '[data-fcc-field="cond1_observacion"]'),
         cond2: cellText(row, '[data-fcc-col="cond2"]'),
         cond2Estado: cellText(row, '[data-fcc-field="cond2_estado"]'),
+        cond2Importe: cellText(row, '[data-fcc-field="cond2_importe"]'),
         cond2Obs: cellText(row, '[data-fcc-field="cond2_observacion"]')
       };
     });
@@ -378,8 +412,10 @@
       row.dia || '-',
       row.revision || '-',
       row.cond1 || '-',
+      moneyText(row.cond1Importe),
       row.cond1Obs || '-',
       row.cond2 || '-',
+      moneyText(row.cond2Importe),
       row.cond2Obs || '-'
     ]);
   }
@@ -503,7 +539,7 @@
             y += 4;
 
             doc.autoTable({
-              head: [['Dia', 'Trabajo', 'Cond. 1', 'Obs. 1', 'Cond. 2', 'Obs. 2']],
+              head: [['Dia', 'Trabajo', 'Cond. 1', 'Pago 1', 'Obs. 1', 'Cond. 2', 'Pago 2', 'Obs. 2']],
               body: tableBody(unit),
               startY: y,
               margin: { left, right, top: 32, bottom: 22 },
@@ -524,12 +560,14 @@
               },
               alternateRowStyles: { fillColor: [249, 251, 253] },
               columnStyles: {
-                0: { cellWidth: 11, halign: 'center' },
-                1: { cellWidth: 21, halign: 'center' },
-                2: { cellWidth: 55 },
-                3: { cellWidth: 24 },
-                4: { cellWidth: 55 },
-                5: { cellWidth: 24 }
+                0: { cellWidth: 9, halign: 'center' },
+                1: { cellWidth: 18, halign: 'center' },
+                2: { cellWidth: 31 },
+                3: { cellWidth: 17, halign: 'right' },
+                4: { cellWidth: 26 },
+                5: { cellWidth: 31 },
+                6: { cellWidth: 17, halign: 'right' },
+                7: { cellWidth: 26 }
               },
               didParseCell: function (data) {
                 if (data.section !== 'body') return;
@@ -582,6 +620,12 @@
   document.querySelectorAll('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]').forEach((select) => {
     syncSelectClass(select);
     select.addEventListener('change', () => syncSelectClass(select));
+  });
+  document.querySelectorAll('[data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]').forEach((input) => {
+    if (input.value !== '') input.value = normalizeMoneyValue(input.value);
+    input.addEventListener('blur', () => {
+      if (input.value !== '' && input.checkValidity()) input.value = normalizeMoneyValue(input.value);
+    });
   });
   setupSearch();
   setupPdfButtons();

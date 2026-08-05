@@ -326,6 +326,35 @@ function fcc_conductor_class(string $estado): string {
     return $estado === 'PAGADO' ? 'fcc-pay--ok' : ($estado === 'PENDIENTE' ? 'fcc-pay--pending' : 'fcc-pay--empty');
 }
 
+function fcc_importe_nullable($value, string $label): string {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+
+    $value = str_replace(',', '.', $value);
+    if (!preg_match('/^\d{1,16}(?:\.\d{1,4})?$/', $value)) {
+        throw new InvalidArgumentException($label . ' debe ser un importe positivo con hasta 4 decimales.');
+    }
+
+    $parts = array_pad(explode('.', $value, 2), 2, '');
+    $entero = ltrim($parts[0], '0');
+    $decimal = $parts[1];
+    if ($entero === '') {
+        $entero = '0';
+    }
+
+    return $decimal !== '' ? $entero . '.' . $decimal : $entero;
+}
+
+function fcc_importe_input($value): string {
+    if ($value === null || $value === '') {
+        return '';
+    }
+    $value = trim((string)$value);
+    return preg_match('/^\d{1,16}(?:\.\d{1,4})?$/', $value) ? $value : '';
+}
+
 function fcc_conductores($texto): array {
     $texto = trim((string)$texto);
     if ($texto === '') {
@@ -351,8 +380,10 @@ $tableReady = isset($conn) && $conn instanceof mysqli && fcc_table_exists($conn,
 $driverColumns = [
     'clm_salprog_cond1_estado',
     'clm_salprog_cond1_observacion',
+    'clm_salprog_imtotalcond1',
     'clm_salprog_cond2_estado',
     'clm_salprog_cond2_observacion',
+    'clm_salprog_imtotalcond2',
 ];
 $driverColumnsReady = $tableReady && isset($conn) && $conn instanceof mysqli;
 if ($driverColumnsReady) {
@@ -366,7 +397,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fcc_json(false, [], 'La tabla del consolidado todavia no esta disponible.', 500);
     }
     if (!$driverColumnsReady) {
-        fcc_json(false, [], 'Faltan las columnas de estado y observacion de conductores. Ejecuta la query ALTER.', 500);
+        fcc_json(false, [], 'Faltan columnas de estado, observacion o importe de conductores. Ejecuta la query ALTER.', 500);
     }
     if (!hash_equals($csrfToken, (string)($_POST['csrf'] ?? ''))) {
         fcc_json(false, [], 'Sesion invalida. Actualiza la pagina.', 419);
@@ -380,6 +411,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['id'] ?? 0);
     $cond1Estado = fcc_conductor_estado($_POST['cond1_estado'] ?? '', true);
     $cond2Estado = fcc_conductor_estado($_POST['cond2_estado'] ?? '', true);
+    try {
+        $cond1Importe = fcc_importe_nullable($_POST['cond1_importe'] ?? '', 'Pago del conductor 1');
+        $cond2Importe = fcc_importe_nullable($_POST['cond2_importe'] ?? '', 'Pago del conductor 2');
+    } catch (InvalidArgumentException $e) {
+        fcc_json(false, [], $e->getMessage(), 422);
+    }
     $cond1Obs = trim((string)($_POST['cond1_observacion'] ?? ''));
     $cond2Obs = trim((string)($_POST['cond2_observacion'] ?? ''));
     $cond1Obs = function_exists('mb_substr') ? mb_substr($cond1Obs, 0, 1000, 'UTF-8') : substr($cond1Obs, 0, 1000);
@@ -392,8 +429,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $conn->prepare('
         UPDATE tb_progbuses_salida_consolidado
            SET clm_salprog_cond1_estado = ?,
+               clm_salprog_imtotalcond1 = NULLIF(?, \'\'),
                clm_salprog_cond1_observacion = NULLIF(?, \'\'),
                clm_salprog_cond2_estado = ?,
+               clm_salprog_imtotalcond2 = NULLIF(?, \'\'),
                clm_salprog_cond2_observacion = NULLIF(?, \'\')
          WHERE clm_salprog_id = ?
          LIMIT 1
@@ -401,9 +440,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$stmt) {
         fcc_json(false, [], $conn->error ?: 'No se pudo preparar la actualizacion.', 500);
     }
-    $stmt->bind_param('ssssi', $cond1Estado, $cond1Obs, $cond2Estado, $cond2Obs, $id);
+    $stmt->bind_param('ssssssi', $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
     if (!$stmt->execute()) {
-        $error = $stmt->error ?: 'No se pudo guardar el estado del conductor.';
+        $error = $stmt->error ?: 'No se pudo guardar la gestion del conductor.';
         $stmt->close();
         fcc_json(false, [], $error, 500);
     }
@@ -411,9 +450,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     fcc_json(true, [
         'cond1_estado' => $cond1Estado,
+        'cond1_importe' => $cond1Importe,
         'cond2_estado' => $cond2Estado,
+        'cond2_importe' => $cond2Importe,
         'actualizado' => date('d/m/Y H:i'),
-    ], 'Estado de conductores actualizado.');
+    ], 'Estado, pago y observaciones de conductores actualizados.');
 }
 
 $month = fcc_valid_month($_GET['mes'] ?? date('Y-m'));
@@ -522,9 +563,11 @@ foreach ($plates as $plateId => $plate) {
             'extra' => $extra,
             'cond1' => $cond1,
             'cond1_estado' => $cond1Estado,
+            'cond1_importe' => $row ? fcc_importe_input($row['clm_salprog_imtotalcond1'] ?? null) : '',
             'cond1_observacion' => $row ? (string)($row['clm_salprog_cond1_observacion'] ?? '') : '',
             'cond2' => $cond2,
             'cond2_estado' => $cond2Estado,
+            'cond2_importe' => $row ? fcc_importe_input($row['clm_salprog_imtotalcond2'] ?? null) : '',
             'cond2_observacion' => $row ? (string)($row['clm_salprog_cond2_observacion'] ?? '') : '',
         ];
     }
@@ -660,10 +703,12 @@ $monthLabel = fcc_month_label($monthStart);
                                         <th>Dia</th>
                                         <th>Estado trabajo</th>
                                         <th>Cond. 1</th>
-                                        <th style="display:none;">Estado cond. 1</th>
+                                        <th>Estado cond. 1</th>
+                                        <th>Pago cond. 1</th>
                                         <th>Obs. cond. 1</th>
                                         <th>Cond. 2</th>
-                                        <th style="display:none;">Estado cond. 2</th>
+                                        <th>Estado cond. 2</th>
+                                        <th>Pago cond. 2</th>
                                         <th>Obs. cond. 2</th>
                                         <th>Accion</th>
                                     </tr>
@@ -679,24 +724,36 @@ $monthLabel = fcc_month_label($monthStart);
                                             <td data-fcc-col="dia"><strong><?= fcc_h($unitRow['day']) ?></strong><span><?= fcc_h($unitRow['weekday']) ?></span></td>
                                             <td data-fcc-col="revision"><span class="fcc-status <?= fcc_estado_revision_class($unitRow['revision']) ?>"><?= fcc_h($unitRow['revision']) ?></span><?php if ($unitRow['extra'] !== ''): ?><small><?= fcc_h($unitRow['extra']) ?> salida</small><?php endif; ?></td>
                                             <td data-fcc-col="cond1"><?= $unitRow['cond1'] !== '' ? fcc_h($unitRow['cond1']) : '<span class="fcc-muted">-</span>' ?></td>
-                                            <td data-fcc-col="cond1_estado" style="display:none;">
+                                            <td data-fcc-col="cond1_estado">
                                                 <select data-fcc-field="cond1_estado" class="<?= fcc_conductor_class($unitRow['cond1_estado']) ?>" <?= $cond1Enabled ? '' : 'disabled' ?>>
                                                     <option value="PENDIENTE" <?= $unitRow['cond1_estado'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
                                                     <option value="PAGADO" <?= $unitRow['cond1_estado'] === 'PAGADO' ? 'selected' : '' ?>>PAGADO</option>
                                                 </select>
                                             </td>
+                                            <td data-fcc-col="cond1_pago">
+                                                <label class="fcc-money-field">
+                                                    <span>S/</span>
+                                                    <input type="number" min="0" max="9999999999999999.9999" step="0.0001" inputmode="decimal" aria-label="Pago conductor 1" data-fcc-field="cond1_importe" value="<?= fcc_h($unitRow['cond1_importe']) ?>" placeholder="0.0000" <?= $cond1Enabled ? '' : 'disabled' ?>>
+                                                </label>
+                                            </td>
                                             <td data-fcc-col="cond1_obs"><textarea data-fcc-field="cond1_observacion" rows="1" <?= $cond1Enabled ? '' : 'disabled' ?>><?= fcc_h($unitRow['cond1_observacion']) ?></textarea></td>
                                             <td data-fcc-col="cond2"><?= $unitRow['cond2'] !== '' ? fcc_h($unitRow['cond2']) : '<span class="fcc-muted">-</span>' ?></td>
-                                            <td data-fcc-col="cond2_estado" style="display:none;">
+                                            <td data-fcc-col="cond2_estado">
                                                 <select data-fcc-field="cond2_estado" class="<?= fcc_conductor_class($unitRow['cond2_estado']) ?>" <?= $cond2Enabled ? '' : 'disabled' ?>>
                                                     <option value="PENDIENTE" <?= $unitRow['cond2_estado'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
                                                     <option value="PAGADO" <?= $unitRow['cond2_estado'] === 'PAGADO' ? 'selected' : '' ?>>PAGADO</option>
                                                 </select>
                                             </td>
+                                            <td data-fcc-col="cond2_pago">
+                                                <label class="fcc-money-field">
+                                                    <span>S/</span>
+                                                    <input type="number" min="0" max="9999999999999999.9999" step="0.0001" inputmode="decimal" aria-label="Pago conductor 2" data-fcc-field="cond2_importe" value="<?= fcc_h($unitRow['cond2_importe']) ?>" placeholder="0.0000" <?= $cond2Enabled ? '' : 'disabled' ?>>
+                                                </label>
+                                            </td>                                            
                                             <td data-fcc-col="cond2_obs"><textarea data-fcc-field="cond2_observacion" rows="1" <?= $cond2Enabled ? '' : 'disabled' ?>><?= fcc_h($unitRow['cond2_observacion']) ?></textarea></td>
                                             <td class="fcc-actions">
                                                 <?php if ($hasSchedule): ?>
-                                                    <button type="button" class="fcc-icon-save" data-fcc-save <?= $driverColumnsReady ? '' : 'disabled' ?> title="Guardar estados"><i class="bi bi-save2"></i></button>
+                                                    <button type="button" class="fcc-icon-save" data-fcc-save <?= $driverColumnsReady ? '' : 'disabled' ?> title="Guardar estados, pagos y observaciones"><i class="bi bi-save2"></i></button>
                                                 <?php else: ?>
                                                     <span class="fcc-muted">-</span>
                                                 <?php endif; ?>
