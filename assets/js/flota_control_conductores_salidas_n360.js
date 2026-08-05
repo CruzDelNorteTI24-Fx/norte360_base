@@ -390,10 +390,7 @@
       rows.push([
         item.conductor || '-',
         Number(item.trips || 0).toLocaleString('es-PE'),
-        `${Number(item.busesTotal || 0).toLocaleString('es-PE')} bus(es)`,
-        Number(item.pending || 0).toLocaleString('es-PE'),
-        Number(item.paid || 0).toLocaleString('es-PE'),
-        Number(item.observations || 0).toLocaleString('es-PE')
+        `${Number(item.busesTotal || 0).toLocaleString('es-PE')} bus(es)`
       ]);
       (item.busesDetail || []).forEach((bus) => {
         rows.push([
@@ -401,7 +398,6 @@
           '',
           {
             content: `${bus.bus} - ${Number(bus.trips || 0).toLocaleString('es-PE')} viaje${Number(bus.trips || 0) === 1 ? '' : 's'} | Fechas: ${bus.datesText || '-'}`,
-            colSpan: 4,
             styles: { fontSize: 6.5, textColor: [82, 105, 130], fillColor: [248, 251, 255] }
           }
         ]);
@@ -431,7 +427,7 @@
     }
 
     doc.autoTable({
-      head: [['Conductor', 'Viajes', 'Buses', 'Pend.', 'Pag.', 'Obs.']],
+      head: [['Conductor', 'Viajes', 'Buses']],
       body: driverSummaryBody(summary),
       startY: y + 18,
       margin: { left, right: left, top: 32, bottom: 22 },
@@ -452,23 +448,9 @@
       },
       alternateRowStyles: { fillColor: [249, 251, 253] },
       columnStyles: {
-        0: { cellWidth: 48 },
-        1: { cellWidth: 16, halign: 'center' },
-        2: { cellWidth: width - 118 },
-        3: { cellWidth: 18, halign: 'center' },
-        4: { cellWidth: 18, halign: 'center' },
-        5: { cellWidth: 18, halign: 'center' }
-      },
-      didParseCell: function (data) {
-        if (data.section !== 'body') return;
-        if (data.column.index === 3) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.textColor = [146, 86, 0];
-        }
-        if (data.column.index === 4) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.textColor = [5, 112, 68];
-        }
+        0: { cellWidth: 62 },
+        1: { cellWidth: 20, halign: 'center' },
+        2: { cellWidth: width - 82 }
       }
     });
   }
