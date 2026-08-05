@@ -276,6 +276,31 @@ function fcc_time_label($value): string {
     return $time ? date('H:i', $time) : $value;
 }
 
+function fcc_real_departure_datetime($operationalDate, $departureTime, string $cutoff = '05:00:00'): string {
+    $operationalDate = trim((string)$operationalDate);
+    $departureTime = trim((string)$departureTime);
+
+    if ($operationalDate === '' || $departureTime === '') {
+        return '';
+    }
+
+    $normalizedTime = fcc_time_label($departureTime);
+    if (!preg_match('/^\d{2}:\d{2}$/', $normalizedTime)) {
+        return '';
+    }
+
+    try {
+        $realDate = new DateTimeImmutable($operationalDate);
+        $compareTime = $normalizedTime . ':00';
+        if ($compareTime < $cutoff) {
+            $realDate = $realDate->modify('+1 day');
+        }
+        return $realDate->format('Y-m-d') . ' ' . $normalizedTime . ':00';
+    } catch (Throwable $e) {
+        return '';
+    }
+}
+
 function fcc_month_days(string $month): array {
     $start = new DateTimeImmutable($month . '-01');
     $days = [];
@@ -493,7 +518,7 @@ try {
         SELECT *
         FROM tb_progbuses_salida_consolidado
         WHERE clm_salprog_fecha_operativa BETWEEN ? AND ?
-        ORDER BY clm_salprog_fecha_operativa ASC, clm_salprog_bus ASC, clm_salprog_horasalida ASC, clm_salprog_id ASC
+        ORDER BY clm_salprog_fecha_operativa ASC, clm_salprog_bus ASC, clm_salprog_hora_orden ASC, clm_salprog_horasalida ASC, clm_salprog_id ASC
     ', 'ss', [$monthStart, $monthEnd]);
 
     foreach ($rows as $row) {
@@ -549,6 +574,31 @@ foreach ($plates as $plateId => $plate) {
                 'trip_index' => 0,
                 'trips_day' => 0,
                 'hora' => '',
+                'fecha_salida_real' => '',
+                'hora_orden' => null,
+                'cierre_id' => null,
+                'fecha_ejecucion' => '',
+                'run_id' => '',
+                'progid' => null,
+                'idplaca' => (int)$plateId,
+                'bus' => (string)($plate['bus'] ?? ''),
+                'placa' => (string)($plate['placa'] ?? ''),
+                'servicio' => '',
+                'idorigen' => null,
+                'origen' => '',
+                'iddestino' => null,
+                'destino' => '',
+                'ruta_ids' => '',
+                'ruta_texto' => '',
+                'fecha_programacion' => '',
+                'comentario_horario' => '',
+                'conductores_texto' => '',
+                'comentario_revision' => '',
+                'correccion' => '',
+                'usuario_revision' => null,
+                'datetime_revision' => '',
+                'usuario_creacion' => null,
+                'fecha_creacion' => '',
                 'cond1' => '',
                 'cond1_estado' => '',
                 'cond1_importe' => '',
@@ -601,6 +651,31 @@ foreach ($plates as $plateId => $plate) {
                 'trip_index' => $tripIndex + 1,
                 'trips_day' => $totalTripsDay,
                 'hora' => fcc_time_label($row['clm_salprog_horasalida'] ?? ''),
+                'fecha_salida_real' => fcc_real_departure_datetime($date, $row['clm_salprog_horasalida'] ?? ''),
+                'hora_orden' => isset($row['clm_salprog_hora_orden']) ? (int)$row['clm_salprog_hora_orden'] : null,
+                'cierre_id' => isset($row['clm_salprog_cierre_id']) ? (int)$row['clm_salprog_cierre_id'] : null,
+                'fecha_ejecucion' => (string)($row['clm_salprog_fecha_ejecucion'] ?? ''),
+                'run_id' => (string)($row['clm_salprog_run_id'] ?? ''),
+                'progid' => isset($row['clm_salprog_progid']) ? (int)$row['clm_salprog_progid'] : null,
+                'idplaca' => isset($row['clm_salprog_idplaca']) ? (int)$row['clm_salprog_idplaca'] : (int)$plateId,
+                'bus' => (string)($row['clm_salprog_bus'] ?? $plate['bus'] ?? ''),
+                'placa' => (string)($row['clm_salprog_placa'] ?? $plate['placa'] ?? ''),
+                'servicio' => (string)($row['clm_salprog_servicio'] ?? ''),
+                'idorigen' => isset($row['clm_salprog_idorigen']) ? (int)$row['clm_salprog_idorigen'] : null,
+                'origen' => (string)($row['clm_salprog_origen'] ?? ''),
+                'iddestino' => isset($row['clm_salprog_iddestino']) ? (int)$row['clm_salprog_iddestino'] : null,
+                'destino' => (string)($row['clm_salprog_destino'] ?? ''),
+                'ruta_ids' => (string)($row['clm_salprog_ruta_ids'] ?? ''),
+                'ruta_texto' => (string)($row['clm_salprog_ruta_texto'] ?? ''),
+                'fecha_programacion' => (string)($row['clm_salprog_fecha_programacion'] ?? ''),
+                'comentario_horario' => (string)($row['clm_salprog_comentario_horario'] ?? ''),
+                'conductores_texto' => (string)($row['clm_salprog_conductores_texto'] ?? ''),
+                'comentario_revision' => (string)($row['clm_salprog_comentario_revision'] ?? ''),
+                'correccion' => (string)($row['clm_salprog_correccion'] ?? ''),
+                'usuario_revision' => isset($row['clm_salprog_usuario_revision']) ? (int)$row['clm_salprog_usuario_revision'] : null,
+                'datetime_revision' => (string)($row['clm_salprog_datetime_revision'] ?? ''),
+                'usuario_creacion' => isset($row['clm_salprog_usuario_creacion']) ? (int)$row['clm_salprog_usuario_creacion'] : null,
+                'fecha_creacion' => (string)($row['clm_salprog_fecha_creacion'] ?? ''),
                 'cond1' => $cond1,
                 'cond1_estado' => $cond1Estado,
                 'cond1_importe' => fcc_importe_input($row['clm_salprog_imtotalcond1'] ?? null),
@@ -855,7 +930,10 @@ $monthLabel = fcc_month_label($monthStart);
                                             <td data-fcc-col="cond2_obs"><textarea data-fcc-field="cond2_observacion" rows="1" <?= $cond2Enabled ? '' : 'disabled' ?>><?= fcc_h($unitRow['cond2_observacion']) ?></textarea></td>
                                             <td class="fcc-actions">
                                                 <?php if ($hasSchedule): ?>
-                                                    <button type="button" class="fcc-icon-save" data-fcc-save <?= $driverColumnsReady ? '' : 'disabled' ?> title="Guardar estados, pagos y observaciones"><i class="bi bi-save2"></i></button>
+                                                    <div class="fcc-action-buttons">
+                                                        <button type="button" class="fcc-icon-detail" data-fcc-view-trip data-fcc-trip-id="<?= (int)$unitRow['id'] ?>" title="Ver detalle del viaje" aria-label="Ver detalle del viaje"><i class="bi bi-eye-fill"></i></button>
+                                                        <button type="button" class="fcc-icon-save" data-fcc-save <?= $driverColumnsReady ? '' : 'disabled' ?> title="Guardar estados, pagos y observaciones" aria-label="Guardar estados, pagos y observaciones"><i class="bi bi-save2"></i></button>
+                                                    </div>
                                                 <?php else: ?>
                                                     <span class="fcc-muted">-</span>
                                                 <?php endif; ?>
@@ -918,6 +996,115 @@ $monthLabel = fcc_month_label($monthStart);
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade fcc-trip-modal" id="fccTripDetailModal" tabindex="-1" aria-labelledby="fccTripDetailTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="fcc-modal-eyebrow"><i class="bi bi-signpost-split-fill"></i> Detalle operativo</span>
+                    <h2 class="modal-title" id="fccTripDetailTitle" data-fcc-trip-title>Detalle del viaje</h2>
+                    <p data-fcc-trip-subtitle>Consulta completa del registro consolidado.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="fcc-trip-highlight">
+                    <div>
+                        <span>Día operativo</span>
+                        <strong data-fcc-trip-field="fecha_operativa">-</strong>
+                    </div>
+                    <div>
+                        <span>Salida real</span>
+                        <strong data-fcc-trip-field="fecha_salida_real">-</strong>
+                    </div>
+                    <div>
+                        <span>Hora mostrada</span>
+                        <strong data-fcc-trip-field="horasalida">-</strong>
+                    </div>
+                    <div>
+                        <span>Estado de revisión</span>
+                        <strong><span class="fcc-status fcc-status--pending" data-fcc-trip-status>PENDIENTE</span></strong>
+                    </div>
+                </div>
+
+                <section class="fcc-trip-section">
+                    <div class="fcc-trip-section-title">
+                        <i class="bi bi-fingerprint"></i>
+                        <div><strong>Identificación operativa</strong><small>Claves y trazabilidad del consolidado.</small></div>
+                    </div>
+                    <div class="fcc-trip-detail-grid">
+                        <article><span>ID consolidado</span><strong data-fcc-trip-field="id">-</strong></article>
+                        <article><span>ID cierre</span><strong data-fcc-trip-field="cierre_id">-</strong></article>
+                        <article><span>ID programación</span><strong data-fcc-trip-field="progid">-</strong></article>
+                        <article><span>Run ID</span><strong data-fcc-trip-field="run_id">-</strong></article>
+                        <article><span>Fecha de ejecución</span><strong data-fcc-trip-field="fecha_ejecucion">-</strong></article>
+                        <article><span>Orden operativo</span><strong data-fcc-trip-field="hora_orden">-</strong></article>
+                    </div>
+                </section>
+
+                <section class="fcc-trip-section">
+                    <div class="fcc-trip-section-title">
+                        <i class="bi bi-bus-front-fill"></i>
+                        <div><strong>Unidad, ruta y horario</strong><small>La hora visible corresponde a <code>clm_salprog_horasalida</code>; el orden usa <code>clm_salprog_hora_orden</code>.</small></div>
+                    </div>
+                    <div class="fcc-trip-detail-grid">
+                        <article><span>Bus</span><strong data-fcc-trip-field="bus">-</strong></article>
+                        <article><span>Placa</span><strong data-fcc-trip-field="placa">-</strong></article>
+                        <article><span>Servicio</span><strong data-fcc-trip-field="servicio">-</strong></article>
+                        <article><span>Origen</span><strong data-fcc-trip-field="origen">-</strong></article>
+                        <article><span>Destino</span><strong data-fcc-trip-field="destino">-</strong></article>
+                        <article><span>Programado en pizarra</span><strong data-fcc-trip-field="fecha_programacion">-</strong></article>
+                        <article class="fcc-trip-detail-wide"><span>Ruta consolidada</span><strong data-fcc-trip-field="ruta_texto">-</strong></article>
+                        <article class="fcc-trip-detail-wide"><span>Comentario del horario</span><strong data-fcc-trip-field="comentario_horario">-</strong></article>
+                    </div>
+                </section>
+
+                <section class="fcc-trip-section">
+                    <div class="fcc-trip-section-title">
+                        <i class="bi bi-people-fill"></i>
+                        <div><strong>Conductores y pagos</strong><small>Gestión independiente correspondiente a este viaje.</small></div>
+                    </div>
+                    <div class="fcc-trip-drivers">
+                        <article>
+                            <div class="fcc-trip-driver-head"><span>Conductor 1</span><strong data-fcc-trip-field="cond1">-</strong></div>
+                            <div class="fcc-trip-driver-meta">
+                                <span>Estado: <strong data-fcc-trip-field="cond1_estado">-</strong></span>
+                                <span>Pago: <strong data-fcc-trip-field="cond1_importe">-</strong></span>
+                            </div>
+                            <p data-fcc-trip-field="cond1_observacion">-</p>
+                        </article>
+                        <article>
+                            <div class="fcc-trip-driver-head"><span>Conductor 2</span><strong data-fcc-trip-field="cond2">-</strong></div>
+                            <div class="fcc-trip-driver-meta">
+                                <span>Estado: <strong data-fcc-trip-field="cond2_estado">-</strong></span>
+                                <span>Pago: <strong data-fcc-trip-field="cond2_importe">-</strong></span>
+                            </div>
+                            <p data-fcc-trip-field="cond2_observacion">-</p>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="fcc-trip-section">
+                    <div class="fcc-trip-section-title">
+                        <i class="bi bi-clipboard2-check-fill"></i>
+                        <div><strong>Revisión y auditoría</strong><small>Observaciones, correcciones y usuarios relacionados.</small></div>
+                    </div>
+                    <div class="fcc-trip-detail-grid">
+                        <article class="fcc-trip-detail-wide"><span>Comentario de revisión</span><strong data-fcc-trip-field="comentario_revision">-</strong></article>
+                        <article class="fcc-trip-detail-wide"><span>Corrección</span><strong data-fcc-trip-field="correccion">-</strong></article>
+                        <article><span>Usuario de revisión</span><strong data-fcc-trip-field="usuario_revision">-</strong></article>
+                        <article><span>Fecha de revisión</span><strong data-fcc-trip-field="datetime_revision">-</strong></article>
+                        <article><span>Usuario de creación</span><strong data-fcc-trip-field="usuario_creacion">-</strong></article>
+                        <article><span>Fecha de creación</span><strong data-fcc-trip-field="fecha_creacion">-</strong></article>
+                    </div>
+                </section>
             </div>
         </div>
     </div>

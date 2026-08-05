@@ -3,6 +3,7 @@
   const endpoint = cfg.endpoint || 'control_conductores_salidas.php';
   const csrf = cfg.csrf || '';
   const report = cfg.report || {};
+  const tripMap = new Map();
 
   const clean = (value) => String(value || '').replace(/[ \t]+/g, ' ').replace(/\n\s+/g, '\n').trim();
   const compact = (value) => clean(value).replace(/\s+/g, ' ');
@@ -52,6 +53,55 @@
 
     const day = dayMatch[0].padStart(2, '0');
     return { key: `${parts.year}-${parts.month}-${day}`, label: `${day}/${parts.month}/${parts.year}` };
+  }
+
+  function formatDateValue(value) {
+    const raw = compact(value);
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? `${match[3]}/${match[2]}/${match[1]}` : (raw || '-');
+  }
+
+  function formatDateTimeValue(value) {
+    const raw = compact(value);
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    return match ? `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}` : (raw || '-');
+  }
+
+  function nullableText(value) {
+    const text = compact(value);
+    return text && text.toUpperCase() !== 'NULL' ? text : '-';
+  }
+
+  function buildTripMap() {
+    tripMap.clear();
+    (Array.isArray(cfg.units) ? cfg.units : []).forEach((unit) => {
+      (Array.isArray(unit.rows) ? unit.rows : []).forEach((trip) => {
+        const id = String(trip.id || '');
+        if (!id || id === '0') return;
+        tripMap.set(id, {
+          ...trip,
+          unitLabel: unit.label || '',
+          unitBus: unit.bus || '',
+          unitPlaca: unit.placa || ''
+        });
+      });
+    });
+  }
+
+  function setTripField(name, value) {
+    const target = document.querySelector(`[data-fcc-trip-field="${name}"]`);
+    if (target) target.textContent = nullableText(value);
+  }
+
+  function syncTripFromRow(trip, row) {
+    if (!trip || !row) return trip;
+    trip.cond1_estado = row.querySelector('[data-fcc-field="cond1_estado"]')?.value || trip.cond1_estado || '';
+    trip.cond1_importe = row.querySelector('[data-fcc-field="cond1_importe"]')?.value || trip.cond1_importe || '';
+    trip.cond1_observacion = row.querySelector('[data-fcc-field="cond1_observacion"]')?.value || trip.cond1_observacion || '';
+    trip.cond2_estado = row.querySelector('[data-fcc-field="cond2_estado"]')?.value || trip.cond2_estado || '';
+    trip.cond2_importe = row.querySelector('[data-fcc-field="cond2_importe"]')?.value || trip.cond2_importe || '';
+    trip.cond2_observacion = row.querySelector('[data-fcc-field="cond2_observacion"]')?.value || trip.cond2_observacion || '';
+    return trip;
   }
 
   function showNotice(message, ok) {
@@ -134,6 +184,14 @@
       const cond2Amount = row.querySelector('[data-fcc-field="cond2_importe"]');
       if (cond1Amount) cond1Amount.value = normalizeMoneyValue(json.data?.cond1_importe || cond1Amount.value);
       if (cond2Amount) cond2Amount.value = normalizeMoneyValue(json.data?.cond2_importe || cond2Amount.value);
+      const savedTrip = tripMap.get(String(id));
+      if (savedTrip) {
+        syncTripFromRow(savedTrip, row);
+        savedTrip.cond1_estado = json.data?.cond1_estado || savedTrip.cond1_estado;
+        savedTrip.cond1_importe = json.data?.cond1_importe || savedTrip.cond1_importe;
+        savedTrip.cond2_estado = json.data?.cond2_estado || savedTrip.cond2_estado;
+        savedTrip.cond2_importe = json.data?.cond2_importe || savedTrip.cond2_importe;
+      }
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
       showNotice(err.message || 'No se pudo guardar.', false);
@@ -390,6 +448,89 @@
     }
   }
 
+  function setupTripDetailModal() {
+    buildTripMap();
+
+    const modalEl = document.getElementById('fccTripDetailModal');
+    if (!modalEl) return;
+
+    const modal = window.bootstrap && window.bootstrap.Modal
+      ? window.bootstrap.Modal.getOrCreateInstance(modalEl)
+      : null;
+
+    document.querySelectorAll('[data-fcc-view-trip]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const id = String(button.dataset.fccTripId || '');
+        const trip = tripMap.get(id);
+        if (!trip) {
+          showNotice('No se encontró el detalle del viaje.', false);
+          return;
+        }
+
+        syncTripFromRow(trip, button.closest('[data-fcc-row]'));
+
+        const bus = nullableText(trip.bus || trip.unitBus);
+        const placa = nullableText(trip.placa || trip.unitPlaca);
+        const title = document.querySelector('[data-fcc-trip-title]');
+        const subtitle = document.querySelector('[data-fcc-trip-subtitle]');
+        if (title) title.textContent = `${bus} (${placa})`;
+        if (subtitle) {
+          subtitle.textContent = `Viaje ${Number(trip.trip_index || 1)} de ${Number(trip.trips_day || 1)} · día operativo ${formatDateValue(trip.date)}`;
+        }
+
+        setTripField('id', trip.id);
+        setTripField('cierre_id', trip.cierre_id);
+        setTripField('progid', trip.progid);
+        setTripField('run_id', trip.run_id);
+        setTripField('fecha_operativa', formatDateValue(trip.date));
+        setTripField('fecha_salida_real', formatDateTimeValue(trip.fecha_salida_real));
+        setTripField('horasalida', trip.hora || '-');
+        setTripField('fecha_ejecucion', formatDateTimeValue(trip.fecha_ejecucion));
+        setTripField('hora_orden', trip.hora_orden);
+        setTripField('bus', bus);
+        setTripField('placa', placa);
+        setTripField('servicio', trip.servicio);
+        setTripField('origen', trip.origen);
+        setTripField('destino', trip.destino);
+        setTripField('fecha_programacion', formatDateTimeValue(trip.fecha_programacion));
+        setTripField('ruta_texto', trip.ruta_texto);
+        setTripField('comentario_horario', trip.comentario_horario);
+        setTripField('cond1', trip.cond1);
+        setTripField('cond1_estado', trip.cond1_estado);
+        setTripField('cond1_importe', moneyText(trip.cond1_importe));
+        setTripField('cond1_observacion', trip.cond1_observacion);
+        setTripField('cond2', trip.cond2);
+        setTripField('cond2_estado', trip.cond2_estado);
+        setTripField('cond2_importe', moneyText(trip.cond2_importe));
+        setTripField('cond2_observacion', trip.cond2_observacion);
+        setTripField('comentario_revision', trip.comentario_revision);
+        setTripField('correccion', trip.correccion);
+        setTripField('usuario_revision', trip.usuario_revision);
+        setTripField('datetime_revision', formatDateTimeValue(trip.datetime_revision));
+        setTripField('usuario_creacion', trip.usuario_creacion);
+        setTripField('fecha_creacion', formatDateTimeValue(trip.fecha_creacion));
+
+        const status = document.querySelector('[data-fcc-trip-status]');
+        if (status) {
+          const value = compact(trip.revision || '').toUpperCase() || 'PENDIENTE';
+          status.textContent = value;
+          status.className = 'fcc-status';
+          if (value === 'VALIDADO') status.classList.add('fcc-status--ok');
+          else if (value === 'OBSERVADO') status.classList.add('fcc-status--warn');
+          else if (value === 'CORREGIDO') status.classList.add('fcc-status--info');
+          else status.classList.add('fcc-status--pending');
+        }
+
+        if (modal) {
+          modal.show();
+        } else {
+          modalEl.classList.add('show');
+          modalEl.style.display = 'block';
+        }
+      });
+    });
+  }
+
   function drawInfo(doc, left, y, width, unit, unitIndex, unitsCount) {
     const summary = summarizeDrivers([unit]);
     const totals = driverSummaryTotals(summary);
@@ -432,7 +573,7 @@
 
       return [
         showDate ? (row.dia || '-') : '',
-        row.revision || '-',
+        `${row.revision || '-'}${row.hora ? `` : ''}`,
         row.cond1 || '-',
         row.cond1Obs || '-',
         row.cond2 || '-',
@@ -649,4 +790,5 @@
   setupSearch();
   setupPdfButtons();
   setupDriverSummaryModal();
+  setupTripDetailModal();
 })();

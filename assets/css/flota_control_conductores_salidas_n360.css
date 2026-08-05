@@ -836,3 +836,298 @@
         font-size: 22px;
     }
 }
+
+/* =========================================================
+   Acciones y modal de detalle de viaje
+   ========================================================= */
+.fcc-actions {
+    width: 112px;
+}
+
+.fcc-action-buttons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.fcc-icon-detail,
+.fcc-icon-save {
+    flex: 0 0 auto;
+    transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+
+.fcc-icon-detail {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid #b9d8ed;
+    border-radius: 8px;
+    background: #eef8ff;
+    color: #0878b9;
+    font-size: 17px;
+}
+
+.fcc-icon-detail:hover,
+.fcc-icon-save:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 42, 64, 0.16);
+    filter: brightness(1.02);
+}
+
+.fcc-trip-modal .modal-content {
+    overflow: hidden;
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 26px 70px rgba(15, 42, 64, 0.30);
+}
+
+.fcc-trip-modal .modal-header {
+    align-items: flex-start;
+    padding: 22px 24px;
+    border: 0;
+    background: linear-gradient(120deg, #132b42 0%, #1f577d 100%);
+    color: #fff;
+}
+
+.fcc-trip-modal .modal-header .btn-close {
+    filter: invert(1) grayscale(1);
+    opacity: .88;
+}
+
+.fcc-trip-modal .modal-title {
+    margin: 5px 0 0;
+    font-size: 27px;
+    font-weight: 900;
+    line-height: 1.05;
+}
+
+.fcc-trip-modal .modal-header p {
+    margin: 7px 0 0;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.fcc-trip-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 18px 20px 22px;
+    background: #f4f8fc;
+}
+
+.fcc-trip-highlight {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.fcc-trip-highlight > div {
+    min-height: 78px;
+    padding: 13px 15px;
+    border: 1px solid #d7e4f2;
+    border-left: 4px solid #248ed2;
+    border-radius: 9px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(15, 42, 64, 0.06);
+}
+
+.fcc-trip-highlight > div:nth-child(2) {
+    border-left-color: #19a46b;
+}
+
+.fcc-trip-highlight > div:nth-child(3) {
+    border-left-color: #8b5cf6;
+}
+
+.fcc-trip-highlight > div:nth-child(4) {
+    border-left-color: #f59e0b;
+}
+
+.fcc-trip-highlight span,
+.fcc-trip-detail-grid article > span,
+.fcc-trip-driver-head > span {
+    display: block;
+    color: #5c718a;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.fcc-trip-highlight strong {
+    display: block;
+    margin-top: 7px;
+    color: #0b2740;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.fcc-trip-section {
+    overflow: hidden;
+    border: 1px solid #d7e4f2;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 9px 22px rgba(15, 42, 64, 0.05);
+}
+
+.fcc-trip-section-title {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 13px 16px;
+    border-bottom: 1px solid #e5edf6;
+    background: #f8fbfe;
+}
+
+.fcc-trip-section-title > i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: #e9f5ff;
+    color: #1988d2;
+    font-size: 17px;
+}
+
+.fcc-trip-section-title strong {
+    display: block;
+    color: #0b2740;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.fcc-trip-section-title small {
+    display: block;
+    margin-top: 2px;
+    color: #6d8097;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.fcc-trip-section-title code {
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: #eaf2f9;
+    color: #075985;
+    font-size: 10px;
+}
+
+.fcc-trip-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+}
+
+.fcc-trip-detail-grid article {
+    min-height: 78px;
+    padding: 14px 16px;
+    border-right: 1px solid #edf2f7;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.fcc-trip-detail-grid article:nth-child(3n) {
+    border-right: 0;
+}
+
+.fcc-trip-detail-grid article > strong {
+    display: block;
+    margin-top: 7px;
+    color: #0b2740;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.fcc-trip-detail-grid .fcc-trip-detail-wide {
+    grid-column: 1 / -1;
+    border-right: 0;
+}
+
+.fcc-trip-drivers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+}
+
+.fcc-trip-drivers > article {
+    padding: 15px;
+    border: 1px solid #d7e4f2;
+    border-radius: 9px;
+    background: #f9fbfd;
+}
+
+.fcc-trip-driver-head > strong {
+    display: block;
+    margin-top: 5px;
+    color: #0b2740;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.fcc-trip-driver-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 11px;
+    color: #526982;
+    font-size: 12px;
+}
+
+.fcc-trip-driver-meta strong {
+    color: #0b2740;
+}
+
+.fcc-trip-drivers p {
+    min-height: 44px;
+    margin: 12px 0 0;
+    padding: 10px 11px;
+    border-radius: 7px;
+    background: #fff;
+    color: #526982;
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 992px) {
+    .fcc-trip-highlight {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .fcc-trip-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .fcc-trip-detail-grid article:nth-child(3n) {
+        border-right: 1px solid #edf2f7;
+    }
+    .fcc-trip-detail-grid article:nth-child(2n) {
+        border-right: 0;
+    }
+}
+
+@media (max-width: 700px) {
+    .fcc-trip-highlight,
+    .fcc-trip-detail-grid,
+    .fcc-trip-drivers {
+        grid-template-columns: 1fr;
+    }
+    .fcc-trip-detail-grid article,
+    .fcc-trip-detail-grid article:nth-child(2n),
+    .fcc-trip-detail-grid article:nth-child(3n) {
+        border-right: 0;
+    }
+    .fcc-trip-modal .modal-header {
+        padding: 18px;
+    }
+    .fcc-trip-modal .modal-title {
+        font-size: 22px;
+    }
+}
+
