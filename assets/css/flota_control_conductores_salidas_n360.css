@@ -332,6 +332,67 @@
     font-weight: 800;
 }
 
+.fcc-table td[data-fcc-col="dia"][rowspan] {
+    vertical-align: middle;
+}
+
+.fcc-date-group-cell {
+    position: relative;
+    min-width: 74px;
+    background: linear-gradient(180deg, #f5faff 0%, #edf7ff 100%);
+    box-shadow: inset 4px 0 0 #248ed2;
+}
+
+.fcc-date-trip-count {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    margin: 7px auto 0 !important;
+    padding: 3px 7px;
+    border: 1px solid #c7e2f5;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #075985 !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    white-space: nowrap;
+}
+
+.fcc-trip-detail {
+    display: flex !important;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin-top: 6px !important;
+    color: #526982 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    line-height: 1.2;
+}
+
+.fcc-trip-detail > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.fcc-table tbody tr.has-multiple-trips:not(.fcc-date-group-start) td {
+    border-top: 1px dashed #c7d9eb;
+}
+
+.fcc-table tbody tr.fcc-date-group-start td {
+    border-top: 2px solid #d7e4f2;
+}
+
+.fcc-table tbody tr.fcc-date-group-start:first-child td {
+    border-top: 0;
+}
+
+.fcc-table tbody tr.fcc-date-group-end td {
+    border-bottom-color: #d7e4f2;
+}
+
 .fcc-status {
     display: inline-flex;
     align-items: center;

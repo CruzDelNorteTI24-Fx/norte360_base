@@ -262,6 +262,20 @@ function fcc_date_label(?string $value, string $format = 'd/m/Y'): string {
     return $time ? date($format, $time) : $value;
 }
 
+function fcc_time_label($value): string {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $value, $match)) {
+        return str_pad($match[1], 2, '0', STR_PAD_LEFT) . ':' . $match[2];
+    }
+
+    $time = strtotime($value);
+    return $time ? date('H:i', $time) : $value;
+}
+
 function fcc_month_days(string $month): array {
     $start = new DateTimeImmutable($month . '-01');
     $days = [];
@@ -479,7 +493,7 @@ try {
         SELECT *
         FROM tb_progbuses_salida_consolidado
         WHERE clm_salprog_fecha_operativa BETWEEN ? AND ?
-        ORDER BY clm_salprog_fecha_operativa ASC, clm_salprog_bus ASC, clm_salprog_hora_orden ASC, clm_salprog_id ASC
+        ORDER BY clm_salprog_fecha_operativa ASC, clm_salprog_bus ASC, clm_salprog_horasalida ASC, clm_salprog_id ASC
     ', 'ss', [$monthStart, $monthEnd]);
 
     foreach ($rows as $row) {
@@ -508,7 +522,7 @@ if ($selectedUnit !== 'TODOS' && ctype_digit($selectedUnit)) {
 $kpis = [
     'unidades' => count($plates),
     'dias' => count($days),
-    'programaciones' => count($rows),
+    'programaciones' => 0,
     'pagados' => 0,
     'pendientes' => 0,
 ];
@@ -523,17 +537,41 @@ foreach ($plates as $plateId => $plate) {
     foreach ($days as $day) {
         $date = $day['date'];
         $matches = $rowsByPlateDay[$plateId][$date] ?? [];
-        $row = $matches[0] ?? null;
-        $conductores = $row ? fcc_conductores($row['clm_salprog_conductores_texto'] ?? '') : [];
-        $cond1 = $conductores[0] ?? '';
-        $cond2 = $conductores[1] ?? '';
-        $cond1Estado = fcc_conductor_estado($row['clm_salprog_cond1_estado'] ?? '', $cond1 !== '');
-        $cond2Estado = fcc_conductor_estado($row['clm_salprog_cond2_estado'] ?? '', $cond2 !== '');
-        $revision = $row ? fcc_estado_revision_label($row['clm_salprog_revision_estado'] ?? '') : 'SIN SALIDA';
-        $extra = count($matches) > 1 ? '+' . (count($matches) - 1) : '';
+        $totalTripsDay = count($matches);
 
-        if ($row) {
+        if ($totalTripsDay === 0) {
+            $unitRows[] = [
+                'id' => 0,
+                'date' => $date,
+                'day' => $day['day'],
+                'weekday' => $day['weekday'],
+                'revision' => 'SIN SALIDA',
+                'trip_index' => 0,
+                'trips_day' => 0,
+                'hora' => '',
+                'cond1' => '',
+                'cond1_estado' => '',
+                'cond1_importe' => '',
+                'cond1_observacion' => '',
+                'cond2' => '',
+                'cond2_estado' => '',
+                'cond2_importe' => '',
+                'cond2_observacion' => '',
+            ];
+            continue;
+        }
+
+        foreach ($matches as $tripIndex => $row) {
+            $conductores = fcc_conductores($row['clm_salprog_conductores_texto'] ?? '');
+            $cond1 = $conductores[0] ?? '';
+            $cond2 = $conductores[1] ?? '';
+            $cond1Estado = fcc_conductor_estado($row['clm_salprog_cond1_estado'] ?? '', $cond1 !== '');
+            $cond2Estado = fcc_conductor_estado($row['clm_salprog_cond2_estado'] ?? '', $cond2 !== '');
+            $revision = fcc_estado_revision_label($row['clm_salprog_revision_estado'] ?? '');
+
             $unitProgrammed++;
+            $kpis['programaciones']++;
+
             if ($cond1 !== '') {
                 if ($cond1Estado === 'PAGADO') {
                     $unitPaid++;
@@ -543,6 +581,7 @@ foreach ($plates as $plateId => $plate) {
                     $kpis['pendientes']++;
                 }
             }
+
             if ($cond2 !== '') {
                 if ($cond2Estado === 'PAGADO') {
                     $unitPaid++;
@@ -552,24 +591,26 @@ foreach ($plates as $plateId => $plate) {
                     $kpis['pendientes']++;
                 }
             }
-        }
 
-        $unitRows[] = [
-            'id' => $row ? (int)($row['clm_salprog_id'] ?? 0) : 0,
-            'date' => $date,
-            'day' => $day['day'],
-            'weekday' => $day['weekday'],
-            'revision' => $revision,
-            'extra' => $extra,
-            'cond1' => $cond1,
-            'cond1_estado' => $cond1Estado,
-            'cond1_importe' => $row ? fcc_importe_input($row['clm_salprog_imtotalcond1'] ?? null) : '',
-            'cond1_observacion' => $row ? (string)($row['clm_salprog_cond1_observacion'] ?? '') : '',
-            'cond2' => $cond2,
-            'cond2_estado' => $cond2Estado,
-            'cond2_importe' => $row ? fcc_importe_input($row['clm_salprog_imtotalcond2'] ?? null) : '',
-            'cond2_observacion' => $row ? (string)($row['clm_salprog_cond2_observacion'] ?? '') : '',
-        ];
+            $unitRows[] = [
+                'id' => (int)($row['clm_salprog_id'] ?? 0),
+                'date' => $date,
+                'day' => $day['day'],
+                'weekday' => $day['weekday'],
+                'revision' => $revision,
+                'trip_index' => $tripIndex + 1,
+                'trips_day' => $totalTripsDay,
+                'hora' => fcc_time_label($row['clm_salprog_horasalida'] ?? ''),
+                'cond1' => $cond1,
+                'cond1_estado' => $cond1Estado,
+                'cond1_importe' => fcc_importe_input($row['clm_salprog_imtotalcond1'] ?? null),
+                'cond1_observacion' => (string)($row['clm_salprog_cond1_observacion'] ?? ''),
+                'cond2' => $cond2,
+                'cond2_estado' => $cond2Estado,
+                'cond2_importe' => fcc_importe_input($row['clm_salprog_imtotalcond2'] ?? null),
+                'cond2_observacion' => (string)($row['clm_salprog_cond2_observacion'] ?? ''),
+            ];
+        }
     }
 
     $reportUnits[] = [
@@ -639,6 +680,7 @@ $monthLabel = fcc_month_label($monthStart);
         <section class="fcc-summary">
             <article><span>Unidades</span><strong><?= number_format($kpis['unidades']) ?></strong></article>
             <article><span>Dias del mes</span><strong><?= number_format($kpis['dias']) ?></strong></article>
+            <article><span>Viajes</span><strong><?= number_format($kpis['programaciones']) ?></strong></article>
             <article><span>Pendientes</span><strong><?= number_format($kpis['pendientes']) ?></strong></article>
             <article><span>Pagados</span><strong><?= number_format($kpis['pagados']) ?></strong></article>
         </section>
@@ -685,7 +727,7 @@ $monthLabel = fcc_month_label($monthStart);
                             <span class="fcc-unit-icon"><i class="bi bi-bus-front-fill"></i></span>
                             <span>
                                 <strong><?= fcc_h($unit['label']) ?></strong>
-                                <small><?= number_format($unit['programmed']) ?> dias con salida en <?= fcc_h($monthLabel) ?></small>
+                                <small><?= number_format($unit['programmed']) ?> viajes registrados en <?= fcc_h($monthLabel) ?></small>
                             </span>
                         </button>
                         <div class="fcc-unit-stats">
@@ -714,15 +756,75 @@ $monthLabel = fcc_month_label($monthStart);
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    <?php
+                                        $fccDateRowCounts = [];
+                                        foreach ($unit['rows'] as $fccCountRow) {
+                                            $fccDateKey = (string)($fccCountRow['date'] ?? '');
+                                            if ($fccDateKey !== '') {
+                                                $fccDateRowCounts[$fccDateKey] = ($fccDateRowCounts[$fccDateKey] ?? 0) + 1;
+                                            }
+                                        }
+                                        $fccRenderedDates = [];
+                                    ?>
                                     <?php foreach ($unit['rows'] as $unitRow): ?>
                                         <?php
                                             $hasSchedule = (int)$unitRow['id'] > 0;
                                             $cond1Enabled = $hasSchedule && $unitRow['cond1'] !== '' && $driverColumnsReady;
                                             $cond2Enabled = $hasSchedule && $unitRow['cond2'] !== '' && $driverColumnsReady;
+
+                                            $fccDateKey = (string)($unitRow['date'] ?? '');
+                                            $fccShowDate = !isset($fccRenderedDates[$fccDateKey]);
+                                            $fccDateRowspan = max(1, (int)($fccDateRowCounts[$fccDateKey] ?? 1));
+                                            $fccIsGroupStart = $fccShowDate;
+                                            $fccIsGroupEnd = ((int)$unitRow['trip_index'] >= (int)$unitRow['trips_day']) || !$hasSchedule;
+
+                                            if ($fccShowDate) {
+                                                $fccRenderedDates[$fccDateKey] = true;
+                                            }
+
+                                            $fccRowClasses = [];
+                                            if (!$hasSchedule) {
+                                                $fccRowClasses[] = 'is-empty-day';
+                                            } elseif ((int)$unitRow['trips_day'] > 1) {
+                                                $fccRowClasses[] = 'has-multiple-trips';
+                                            }
+                                            if ($fccIsGroupStart) {
+                                                $fccRowClasses[] = 'fcc-date-group-start';
+                                            }
+                                            if ($fccIsGroupEnd) {
+                                                $fccRowClasses[] = 'fcc-date-group-end';
+                                            }
                                         ?>
-                                        <tr data-fcc-row="<?= (int)$unitRow['id'] ?>" class="<?= $hasSchedule ? '' : 'is-empty-day' ?>">
-                                            <td data-fcc-col="dia"><strong><?= fcc_h($unitRow['day']) ?></strong><span><?= fcc_h($unitRow['weekday']) ?></span></td>
-                                            <td data-fcc-col="revision"><span class="fcc-status <?= fcc_estado_revision_class($unitRow['revision']) ?>"><?= fcc_h($unitRow['revision']) ?></span><?php if ($unitRow['extra'] !== ''): ?><small><?= fcc_h($unitRow['extra']) ?> salida</small><?php endif; ?></td>
+                                        <tr
+                                            data-fcc-row="<?= (int)$unitRow['id'] ?>"
+                                            data-fcc-date="<?= fcc_h($unitRow['date']) ?>"
+                                            data-fcc-day="<?= fcc_h($unitRow['day']) ?>"
+                                            data-fcc-weekday="<?= fcc_h($unitRow['weekday']) ?>"
+                                            data-fcc-trip-index="<?= (int)$unitRow['trip_index'] ?>"
+                                            data-fcc-trips-day="<?= (int)$unitRow['trips_day'] ?>"
+                                            data-fcc-hora="<?= fcc_h($unitRow['hora']) ?>"
+                                            class="<?= fcc_h(implode(' ', $fccRowClasses)) ?>"
+                                        >
+                                            <?php if ($fccShowDate): ?>
+                                                <td data-fcc-col="dia" rowspan="<?= $fccDateRowspan ?>" class="<?= $fccDateRowspan > 1 ? 'fcc-date-group-cell' : '' ?>">
+                                                    <strong><?= fcc_h($unitRow['day']) ?></strong>
+                                                    <span><?= fcc_h($unitRow['weekday']) ?></span>
+                                                    <?php if ((int)$unitRow['trips_day'] > 1): ?>
+                                                        <small class="fcc-date-trip-count"><?= (int)$unitRow['trips_day'] ?> viajes</small>
+                                                    <?php endif; ?>
+                                                </td>
+                                            <?php endif; ?>
+                                            <td data-fcc-col="revision">
+                                                <span class="fcc-status <?= fcc_estado_revision_class($unitRow['revision']) ?>"><?= fcc_h($unitRow['revision']) ?></span>
+                                                <?php if ($hasSchedule): ?>
+                                                    <small class="fcc-trip-detail">
+                                                        <span>Viaje <?= (int)$unitRow['trip_index'] ?><?= (int)$unitRow['trips_day'] > 1 ? ' de ' . (int)$unitRow['trips_day'] : '' ?></span>
+                                                        <?php if ($unitRow['hora'] !== ''): ?>
+                                                            <span><i class="bi bi-clock"></i> <?= fcc_h($unitRow['hora']) ?></span>
+                                                        <?php endif; ?>
+                                                    </small>
+                                                <?php endif; ?>
+                                            </td>
                                             <td data-fcc-col="cond1"><?= $unitRow['cond1'] !== '' ? fcc_h($unitRow['cond1']) : '<span class="fcc-muted">-</span>' ?></td>
                                             <td data-fcc-col="cond1_estado">
                                                 <select data-fcc-field="cond1_estado" class="<?= fcc_conductor_class($unitRow['cond1_estado']) ?>" <?= $cond1Enabled ? '' : 'disabled' ?>>

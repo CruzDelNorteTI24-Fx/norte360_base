@@ -167,15 +167,21 @@
     const title = clean(card.querySelector('.fcc-unit-toggle strong')?.textContent || 'Unidad');
     const rows = Array.from(card.querySelectorAll('tbody tr')).map((row) => {
       const dayCell = row.querySelector('[data-fcc-col="dia"]');
-      const dayNumber = clean(dayCell?.querySelector('strong')?.textContent || '');
-      const weekday = clean(dayCell?.querySelector('span')?.textContent || '');
-      const date = cfg.month && dayNumber ? `${cfg.month}-${dayNumber.padStart(2, '0')}` : '';
+      const dayNumber = compact(row.dataset.fccDay || dayCell?.querySelector('strong')?.textContent || '');
+      const weekday = compact(row.dataset.fccWeekday || dayCell?.querySelector('span')?.textContent || '');
+      const date = compact(row.dataset.fccDate || (cfg.month && dayNumber ? `${cfg.month}-${dayNumber.padStart(2, '0')}` : ''));
+      const tripIndex = Number(row.dataset.fccTripIndex || 0);
+      const tripsDay = Number(row.dataset.fccTripsDay || 0);
+      const hora = compact(row.dataset.fccHora || '');
 
       return {
-        dia: cellText(row, '[data-fcc-col="dia"]'),
+        dia: [dayNumber, weekday].filter(Boolean).join(' '),
         date,
         dayNumber,
         weekday,
+        tripIndex,
+        tripsDay,
+        hora,
         revision: cellText(row, '[data-fcc-col="revision"]'),
         cond1: cellText(row, '[data-fcc-col="cond1"]'),
         cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
@@ -233,7 +239,14 @@
           item.trips += 1;
           busItem.trips += 1;
           if (workDate.label && workDate.label !== '-') {
-            busItem.dates.set(workDate.key || workDate.label, workDate);
+            const dateKey = workDate.key || workDate.label;
+            const dateItem = busItem.dates.get(dateKey) || {
+              key: dateKey,
+              label: workDate.label,
+              trips: 0
+            };
+            dateItem.trips += 1;
+            busItem.dates.set(dateKey, dateItem);
           }
           item.buses.set(busKey, busItem);
           if (estado === 'PAGADO') {
@@ -258,7 +271,10 @@
             bus: bus.bus,
             trips: bus.trips,
             datesDetail,
-            datesText: datesDetail.map((date) => date.label).join(', ')
+            datesText: datesDetail.map((date) => {
+              const trips = Number(date.trips || 0);
+              return `${date.label} (${trips.toLocaleString('es-PE')} viaje${trips === 1 ? '' : 's'})`;
+            }).join(', ')
           };
         })
         .sort((a, b) => {
@@ -408,14 +424,21 @@
   }
 
   function tableBody(unit) {
-    return (unit.rows || []).map((row) => [
-      row.dia || '-',
-      row.revision || '-',
-      row.cond1 || '-',
-      row.cond1Obs || '-',
-      row.cond2 || '-',
-      row.cond2Obs || '-'
-    ]);
+    let previousDate = '';
+    return (unit.rows || []).map((row) => {
+      const dateKey = compact(row.date || row.dia || '');
+      const showDate = dateKey !== previousDate;
+      previousDate = dateKey;
+
+      return [
+        showDate ? (row.dia || '-') : '',
+        row.revision || '-',
+        row.cond1 || '-',
+        row.cond1Obs || '-',
+        row.cond2 || '-',
+        row.cond2Obs || '-'
+      ];
+    });
   }
 
   function driverSummaryBody(summary) {
