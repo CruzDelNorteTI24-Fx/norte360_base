@@ -885,7 +885,19 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                     <h2>Consolidado de salidas de buses programados</h2>
                     <p>Datos capturados antes de limpiar la pizarra; los comentarios se guardan en esta tabla auxiliar.</p>
                 </div>
-                <span data-csb-visible-pill><?= number_format(count($rows)) ?> registros</span>
+                <div class="csb-card-head-actions">
+                    <button
+                        type="button"
+                        class="csb-btn csb-btn--sort-route"
+                        data-csb-sort-hojaruta
+                        aria-pressed="false"
+                        title="Ordenar visualmente por Hoja de Ruta"
+                    >
+                        <i class="bi bi-sort-numeric-down"></i>
+                        <span data-csb-sort-hojaruta-label>Ordenar por Hoja de Ruta</span>
+                    </button>
+                    <span class="csb-visible-pill" data-csb-visible-pill><?= number_format(count($rows)) ?> registros</span>
+                </div>
             </div>
 
             <div class="csb-table-wrap">

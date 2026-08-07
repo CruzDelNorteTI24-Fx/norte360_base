@@ -6,6 +6,9 @@
   const conductores = Array.isArray(cfg.conductores) ? cfg.conductores : [];
   const rows = Array.from(document.querySelectorAll('[data-csb-row]'));
   const visiblePill = document.querySelector('[data-csb-visible-pill]');
+  const sortHojaRutaButton = document.querySelector('[data-csb-sort-hojaruta]');
+  const originalRowOrder = new Map(rows.map((row, index) => [row, index]));
+  let hojaRutaSortActive = false;
 
   const clean = (value) => String(value || '').replace(/[ \t]+/g, ' ').replace(/\n\s+/g, '\n').trim();
   const compact = (value) => clean(value).replace(/\s+/g, ' ');
@@ -231,6 +234,9 @@
       syncStateButtons(row, row.dataset.csbDbRevision);
       syncHojaRutaState(row, json.data?.tiene_hojaruta ?? compact(hojaruta) !== '');
       setHojaRutaValidation(row, compact(hojaruta) !== '' ? 'unique' : 'empty');
+      if (hojaRutaSortActive) {
+        applyHojaRutaSort();
+      }
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
       showNotice(err.message || 'No se pudo guardar.', false);
@@ -238,6 +244,88 @@
       button.disabled = false;
       button.innerHTML = originalHtml;
     }
+  }
+
+  function hojaRutaSortValue(row) {
+    return compact(row.querySelector('[data-csb-field="hojaruta"]')?.value || '');
+  }
+
+  function applyHojaRutaSort() {
+    const tableBody = document.querySelector('[data-csb-table] tbody');
+    if (!tableBody || !rows.length) return;
+
+    const orderedRows = [...rows];
+
+    if (hojaRutaSortActive) {
+      orderedRows.sort((a, b) => {
+        const valueA = hojaRutaSortValue(a);
+        const valueB = hojaRutaSortValue(b);
+        const emptyA = valueA === '';
+        const emptyB = valueB === '';
+
+        if (emptyA !== emptyB) return emptyA ? 1 : -1;
+
+        if (!emptyA && !emptyB) {
+          const compared = valueA.localeCompare(valueB, 'es-PE', {
+            numeric: true,
+            sensitivity: 'base'
+          });
+          if (compared !== 0) return compared;
+        }
+
+        return (originalRowOrder.get(a) ?? 0) - (originalRowOrder.get(b) ?? 0);
+      });
+    } else {
+      orderedRows.sort((a, b) =>
+        (originalRowOrder.get(a) ?? 0) - (originalRowOrder.get(b) ?? 0)
+      );
+    }
+
+    orderedRows.forEach((row) => tableBody.appendChild(row));
+  }
+
+  function syncHojaRutaSortButton() {
+    if (!sortHojaRutaButton) return;
+
+    const label = sortHojaRutaButton.querySelector('[data-csb-sort-hojaruta-label]');
+    const icon = sortHojaRutaButton.querySelector('i');
+
+    sortHojaRutaButton.classList.toggle('is-active', hojaRutaSortActive);
+    sortHojaRutaButton.setAttribute('aria-pressed', hojaRutaSortActive ? 'true' : 'false');
+    sortHojaRutaButton.title = hojaRutaSortActive
+      ? 'Restaurar el orden operativo original'
+      : 'Ordenar visualmente por Hoja de Ruta';
+
+    if (label) {
+      label.textContent = hojaRutaSortActive
+        ? 'Restaurar orden horario'
+        : 'Ordenar por Hoja de Ruta';
+    }
+
+    if (icon) {
+      icon.className = hojaRutaSortActive
+        ? 'bi bi-arrow-counterclockwise'
+        : 'bi bi-sort-numeric-down';
+    }
+  }
+
+  function setupHojaRutaSort() {
+    if (!sortHojaRutaButton) return;
+
+    sortHojaRutaButton.addEventListener('click', () => {
+      hojaRutaSortActive = !hojaRutaSortActive;
+      applyHojaRutaSort();
+      syncHojaRutaSortButton();
+
+      showNotice(
+        hojaRutaSortActive
+          ? 'Orden visual aplicado por Hoja de Ruta. Las filas sin Hoja de Ruta quedan al final.'
+          : 'Se restauró el orden operativo original.',
+        true
+      );
+    });
+
+    syncHojaRutaSortButton();
   }
 
   function setupGroupFilter() {
@@ -680,6 +768,7 @@
   });
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   setupGroupFilter();
+  setupHojaRutaSort();
   setupDriverEditor();
   setupCalendar();
 })();
