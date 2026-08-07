@@ -367,6 +367,52 @@
     display: none !important;
 }
 
+
+
+/* Viaje revisado: ya cuenta con Hoja de Ruta digitada */
+.csb-table tbody tr[data-csb-row] td {
+    transition: background-color .18s ease, border-color .18s ease;
+}
+
+.csb-table tbody tr.csb-row--hojaruta td {
+    background: #edf9f3;
+    border-bottom-color: #c7e8d8;
+}
+
+.csb-table tbody tr.csb-row--hojaruta td:first-child {
+    box-shadow: inset 5px 0 0 #15845e;
+}
+
+.csb-table tbody tr.csb-row--hojaruta:hover td {
+    background: #e4f5ed;
+}
+
+.csb-table tbody tr.csb-row--hojaruta textarea {
+    background: #fbfffd;
+    border-color: #9fd3ba;
+}
+
+.csb-hojaruta-cell {
+    min-width: 245px;
+}
+
+.csb-hojaruta-cell textarea {
+    min-width: 220px;
+}
+
+.csb-hojaruta-state {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    margin-top: 7px !important;
+    color: #7a4a02 !important;
+    font-weight: 800;
+}
+
+.csb-row--hojaruta .csb-hojaruta-state {
+    color: #057044 !important;
+}
+
 .csb-table small,
 .csb-table em {
     display: block;

@@ -456,6 +456,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $estado = strtoupper(trim((string)($_POST['estado'] ?? 'PENDIENTE')));
     $comentario = trim((string)($_POST['comentario'] ?? ''));
     $correccion = trim((string)($_POST['correccion'] ?? ''));
+    $hojaRuta = trim((string)($_POST['hojaruta'] ?? ''));
     $permitidos = ['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO'];
 
     if ($id <= 0 || !in_array($estado, $permitidos, true)) {
@@ -468,6 +469,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
            SET clm_salprog_revision_estado = ?,
                clm_salprog_comentario_revision = ?,
                clm_salprog_correccion = ?,
+               clm_salprog_hojaruta = NULLIF(?, ''),
                clm_salprog_usuario_revision = ?,
                clm_salprog_datetime_revision = NOW()
          WHERE clm_salprog_id = ?
@@ -476,7 +478,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$stmt) {
         csb_json(false, [], $conn->error ?: 'No se pudo preparar la actualizacion.', 500);
     }
-    $stmt->bind_param('sssii', $estado, $comentario, $correccion, $uid, $id);
+    $stmt->bind_param('ssssii', $estado, $comentario, $correccion, $hojaRuta, $uid, $id);
     $ok = $stmt->execute();
     $error = $stmt->error;
     $stmt->close();
@@ -489,6 +491,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'estado' => $estado,
         'clase' => csb_estado_class($estado),
         'actualizado' => date('d/m/Y H:i'),
+        'hojaruta' => $hojaRuta,
+        'tiene_hojaruta' => $hojaRuta !== '',
     ], 'Cambios guardados.');
 }
 
@@ -577,9 +581,10 @@ if ($tableReady) {
                 OR clm_salprog_comentario_horario LIKE ?
                 OR clm_salprog_comentario_revision LIKE ?
                 OR clm_salprog_correccion LIKE ?
+                OR clm_salprog_hojaruta LIKE ?
             )";
-            $types .= 'ssssssssss';
-            array_push($params, $like, $like, $like, $like, $like, $like, $like, $like, $like, $like);
+            $types .= 'sssssssssss';
+            array_push($params, $like, $like, $like, $like, $like, $like, $like, $like, $like, $like, $like);
         }
 
         $rows = csb_fetch_all($conn, "
@@ -791,6 +796,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                             <th>Hora</th>
                             <th>Unidad</th>
                             <th>Programacion</th>
+                            <th>Hoja de ruta</th>
                             <th>Conductores</th>
                             <th>Revision</th>
                             <th>Comentario / Correccion</th>
@@ -805,7 +811,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     : 'No hay registros para los filtros seleccionados.';
                             ?>
                             <tr>
-                                <td colspan="7" class="csb-empty"><?= csb_h($emptyMessage) ?></td>
+                                <td colspan="8" class="csb-empty"><?= csb_h($emptyMessage) ?></td>
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($rows as $row): ?>
@@ -817,8 +823,16 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 $unidadLabel = $busLabel !== '' && $placaLabel !== '' ? "{$busLabel} ({$placaLabel})" : ($busLabel ?: ($placaLabel ?: '-'));
                                 $rowGroups = $rowGroupsById[$id] ?? [];
                                 $conductoresLineas = csb_conductores_lineas($row['clm_salprog_conductores_texto'] ?? '');
+                                $hojaRuta = trim((string)($row['clm_salprog_hojaruta'] ?? ''));
+                                $tieneHojaRuta = $hojaRuta !== '';
                             ?>
-                            <tr data-csb-row="<?= $id ?>" data-csb-groups="<?= csb_h(implode('|', $rowGroups)) ?>" data-csb-db-revision="<?= csb_h($estado) ?>">
+                            <tr
+                                class="<?= $tieneHojaRuta ? 'csb-row--hojaruta' : '' ?>"
+                                data-csb-row="<?= $id ?>"
+                                data-csb-groups="<?= csb_h(implode('|', $rowGroups)) ?>"
+                                data-csb-db-revision="<?= csb_h($estado) ?>"
+                                data-csb-has-hojaruta="<?= $tieneHojaRuta ? '1' : '0' ?>"
+                            >
                                 <td>
                                     <strong><?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?></strong>
                                     <small>#<?= (int)($row['clm_salprog_progid'] ?? 0) ?></small>
@@ -833,6 +847,18 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     <?php if (trim((string)($row['clm_salprog_comentario_horario'] ?? '')) !== ''): ?>
                                         <em><?= csb_h($row['clm_salprog_comentario_horario']) ?></em>
                                     <?php endif; ?>
+                                </td>
+                                <td class="csb-hojaruta-cell">
+                                    <textarea
+                                        data-csb-field="hojaruta"
+                                        rows="3"
+                                        placeholder="Digita la hoja de ruta anexa"
+                                        aria-label="Hoja de ruta anexa"
+                                    ><?= csb_h($hojaRuta) ?></textarea>
+                                    <small class="csb-hojaruta-state" data-csb-hojaruta-state>
+                                        <i class="bi <?= $tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle' ?>"></i>
+                                        <span><?= $tieneHojaRuta ? 'Hoja de ruta registrada' : 'Pendiente de revisión' ?></span>
+                                    </small>
                                 </td>
                                 <td>
                                     <div class="csb-drivers" data-csb-drivers>

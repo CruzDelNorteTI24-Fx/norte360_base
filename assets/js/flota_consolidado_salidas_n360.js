@@ -49,6 +49,7 @@
     const estado = row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE';
     const comentario = row.querySelector('[data-csb-field="comentario"]')?.value || '';
     const correccion = row.querySelector('[data-csb-field="correccion"]')?.value || '';
+    const hojaruta = row.querySelector('[data-csb-field="hojaruta"]')?.value || '';
     const originalHtml = button.innerHTML;
 
     const fd = new FormData();
@@ -58,6 +59,7 @@
     fd.append('estado', estado);
     fd.append('comentario', comentario);
     fd.append('correccion', correccion);
+    fd.append('hojaruta', hojaruta);
 
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
@@ -86,6 +88,7 @@
       }
       row.dataset.csbDbRevision = String(json.data?.estado || estado || 'PENDIENTE').toUpperCase();
       syncStateButtons(row, row.dataset.csbDbRevision);
+      syncHojaRutaState(row, json.data?.tiene_hojaruta ?? compact(hojaruta) !== '');
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
       showNotice(err.message || 'No se pudo guardar.', false);
@@ -137,6 +140,25 @@
       button.hidden = !canEdit;
       button.disabled = !canEdit;
     });
+  }
+
+
+  function syncHojaRutaState(row, hasHojaRuta) {
+    const active = Boolean(hasHojaRuta);
+    row.dataset.csbHasHojaruta = active ? '1' : '0';
+    row.classList.toggle('csb-row--hojaruta', active);
+
+    const state = row.querySelector('[data-csb-hojaruta-state]');
+    if (state) {
+      const icon = state.querySelector('i');
+      const text = state.querySelector('span');
+      if (icon) {
+        icon.className = `bi ${active ? 'bi-check-circle-fill' : 'bi-circle'}`;
+      }
+      if (text) {
+        text.textContent = active ? 'Hoja de ruta registrada' : 'Pendiente de revisión';
+      }
+    }
   }
 
   function cellText(td) {
@@ -242,16 +264,17 @@
             },
             alternateRowStyles: { fillColor: [249, 251, 253] },
             columnStyles: {
-              0: { cellWidth: 18, halign: 'center' },
-              1: { cellWidth: 34 },
-              2: { cellWidth: 82 },
-              3: { cellWidth: 62 },
-              4: { cellWidth: 28, halign: 'center' },
-              5: { cellWidth: 62 }
+              0: { cellWidth: 16, halign: 'center' },
+              1: { cellWidth: 30 },
+              2: { cellWidth: 50 },
+              3: { cellWidth: 40 },
+              4: { cellWidth: 55 },
+              5: { cellWidth: 26, halign: 'center' },
+              6: { cellWidth: 50 }
             },
             didParseCell: function (data) {
               if (data.section !== 'body') return;
-              if (data.column.index === 4) {
+              if (data.column.index === 5) {
                 data.cell.styles.fontStyle = 'bold';
                 const raw = String(data.cell.raw || '').toUpperCase();
                 if (raw.includes('VALIDADO')) data.cell.styles.textColor = [5, 112, 68];
@@ -491,7 +514,10 @@
       syncStateButtons(row, button.dataset.csbStateOption || 'PENDIENTE');
     });
   });
-  rows.forEach((row) => syncStateButtons(row, row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE'));
+  rows.forEach((row) => {
+    syncStateButtons(row, row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE');
+    syncHojaRutaState(row, row.dataset.csbHasHojaruta === '1');
+  });
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   setupGroupFilter();
   setupDriverEditor();
