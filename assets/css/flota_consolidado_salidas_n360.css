@@ -932,3 +932,46 @@
         display: none;
     }
 }
+
+/* Validación de Hoja de Ruta duplicada */
+.csb-table tbody tr.csb-row--hojaruta-duplicate td,
+.csb-table tbody tr.csb-row--hojaruta-duplicate:hover td {
+    background: #fff1f1;
+    border-bottom-color: #efc6c6;
+}
+
+.csb-table tbody tr.csb-row--hojaruta-duplicate td:first-child {
+    box-shadow: inset 5px 0 0 #c43b34;
+}
+
+.csb-table tbody tr.csb-row--hojaruta-duplicate textarea,
+.csb-table textarea.is-duplicate {
+    background: #fffafa;
+    border-color: #d8544f;
+    box-shadow: 0 0 0 3px rgba(196, 59, 52, .10);
+}
+
+.csb-hojaruta-state.is-duplicate,
+.csb-row--hojaruta-duplicate .csb-hojaruta-state {
+    color: #aa241f !important;
+}
+
+.csb-table tbody tr.csb-row--hojaruta-checking td {
+    background: #fffaf0;
+}
+
+.csb-table textarea.is-checking {
+    border-color: #d6a54b;
+}
+
+.csb-hojaruta-state.is-checking {
+    color: #8a5a06 !important;
+}
+
+.csb-hojaruta-state.is-checking i {
+    animation: csb-route-spin .8s linear infinite;
+}
+
+@keyframes csb-route-spin {
+    to { transform: rotate(360deg); }
+}

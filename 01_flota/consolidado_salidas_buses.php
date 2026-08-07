@@ -159,6 +159,43 @@ function csb_norm(?string $value): string {
     return preg_replace('/\s+/', ' ', $value) ?: '';
 }
 
+function csb_hojaruta_key(?string $value): string {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+    $value = preg_replace('/\s+/u', ' ', $value) ?: $value;
+    return function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
+}
+
+function csb_find_hojaruta_duplicate(mysqli $conn, string $hojaRuta, int $excludeId = 0): ?array {
+    $hojaRuta = trim($hojaRuta);
+    if ($hojaRuta === '') {
+        return null;
+    }
+
+    $rows = csb_fetch_all($conn, "
+        SELECT
+            clm_salprog_id,
+            clm_salprog_fecha_operativa,
+            clm_salprog_horasalida,
+            clm_salprog_bus,
+            clm_salprog_placa,
+            clm_salprog_origen,
+            clm_salprog_destino,
+            clm_salprog_hojaruta
+        FROM tb_progbuses_salida_consolidado
+        WHERE clm_salprog_id <> ?
+          AND clm_salprog_hojaruta IS NOT NULL
+          AND TRIM(clm_salprog_hojaruta) <> ''
+          AND LOWER(TRIM(clm_salprog_hojaruta)) = LOWER(TRIM(?))
+        ORDER BY clm_salprog_fecha_operativa DESC, clm_salprog_horasalida DESC, clm_salprog_id DESC
+        LIMIT 1
+    ", 'is', [$excludeId, $hojaRuta]);
+
+    return $rows[0] ?? null;
+}
+
 function csb_conductores_lineas(?string $value): array {
     $value = trim((string)$value);
     if ($value === '') {
@@ -448,6 +485,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'check_hojaruta') {
+        $id = (int)($_POST['id'] ?? 0);
+        $hojaRuta = trim((string)($_POST['hojaruta'] ?? ''));
+
+        if ($id <= 0) {
+            csb_json(false, [], 'Registro invalido para validar la hoja de ruta.', 422);
+        }
+
+        if ($hojaRuta === '') {
+            csb_json(true, [
+                'duplicada' => false,
+                'hojaruta' => '',
+            ]);
+        }
+
+        $duplicate = csb_find_hojaruta_duplicate($conn, $hojaRuta, $id);
+        csb_json(true, [
+            'duplicada' => $duplicate !== null,
+            'hojaruta' => $hojaRuta,
+            'duplicado' => $duplicate ? [
+                'id' => (int)($duplicate['clm_salprog_id'] ?? 0),
+                'fecha' => csb_date_label($duplicate['clm_salprog_fecha_operativa'] ?? ''),
+                'hora' => csb_hora_label($duplicate['clm_salprog_horasalida'] ?? ''),
+                'bus' => trim((string)($duplicate['clm_salprog_bus'] ?? '')),
+                'placa' => trim((string)($duplicate['clm_salprog_placa'] ?? '')),
+                'origen' => trim((string)($duplicate['clm_salprog_origen'] ?? '')),
+                'destino' => trim((string)($duplicate['clm_salprog_destino'] ?? '')),
+            ] : null,
+        ], $duplicate ? 'Hoja de ruta duplicada.' : 'Hoja de ruta disponible.');
+    }
+
     if ($action !== 'update_revision') {
         csb_json(false, [], 'Accion no reconocida.', 400);
     }
@@ -461,6 +529,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($id <= 0 || !in_array($estado, $permitidos, true)) {
         csb_json(false, [], 'Datos incompletos para guardar.', 422);
+    }
+
+    if ($hojaRuta !== '') {
+        $duplicate = csb_find_hojaruta_duplicate($conn, $hojaRuta, $id);
+        if ($duplicate) {
+            $refBus = trim((string)($duplicate['clm_salprog_bus'] ?? ''));
+            $refPlaca = trim((string)($duplicate['clm_salprog_placa'] ?? ''));
+            $refUnidad = $refBus !== '' && $refPlaca !== '' ? $refBus . ' (' . $refPlaca . ')' : ($refBus ?: ($refPlaca ?: 'otra unidad'));
+            $refFecha = csb_date_label($duplicate['clm_salprog_fecha_operativa'] ?? '');
+            $refHora = csb_hora_label($duplicate['clm_salprog_horasalida'] ?? '');
+            csb_json(false, [
+                'duplicada' => true,
+                'duplicado_id' => (int)($duplicate['clm_salprog_id'] ?? 0),
+            ], "La Hoja de Ruta ya esta registrada en {$refUnidad}, {$refFecha} {$refHora}. No se guardo el duplicado.", 409);
+        }
     }
 
     $uid = csb_uid();
@@ -506,6 +589,7 @@ if (!in_array($revision, $revisionPermitidas, true)) {
 }
 
 $rows = [];
+$duplicateHojaRutaKeys = [];
 $pageError = '';
 $ultimoCierre = null;
 $rowsForDateTotal = 0;
@@ -593,6 +677,21 @@ if ($tableReady) {
             WHERE " . implode(' AND ', $where) . "
             ORDER BY clm_salprog_hora_orden ASC, clm_salprog_horasalida ASC, clm_salprog_bus ASC, clm_salprog_id ASC
         ", $types, $params);
+
+        $duplicateRows = csb_fetch_all($conn, "
+            SELECT LOWER(TRIM(clm_salprog_hojaruta)) AS hoja_key, COUNT(*) AS total
+            FROM tb_progbuses_salida_consolidado
+            WHERE clm_salprog_hojaruta IS NOT NULL
+              AND TRIM(clm_salprog_hojaruta) <> ''
+            GROUP BY LOWER(TRIM(clm_salprog_hojaruta))
+            HAVING COUNT(*) > 1
+        ");
+        foreach ($duplicateRows as $duplicateRow) {
+            $key = csb_hojaruta_key($duplicateRow['hoja_key'] ?? '');
+            if ($key !== '') {
+                $duplicateHojaRutaKeys[$key] = true;
+            }
+        }
 
         if (csb_table_exists($conn, 'tb_progbuses_cierre_operativo')) {
             $cierreRows = csb_fetch_all($conn, "
@@ -825,13 +924,18 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 $conductoresLineas = csb_conductores_lineas($row['clm_salprog_conductores_texto'] ?? '');
                                 $hojaRuta = trim((string)($row['clm_salprog_hojaruta'] ?? ''));
                                 $tieneHojaRuta = $hojaRuta !== '';
+                                $hojaRutaDuplicada = $tieneHojaRuta && isset($duplicateHojaRutaKeys[csb_hojaruta_key($hojaRuta)]);
+                                $rowClasses = [];
+                                if ($tieneHojaRuta) $rowClasses[] = 'csb-row--hojaruta';
+                                if ($hojaRutaDuplicada) $rowClasses[] = 'csb-row--hojaruta-duplicate';
                             ?>
                             <tr
-                                class="<?= $tieneHojaRuta ? 'csb-row--hojaruta' : '' ?>"
+                                class="<?= csb_h(implode(' ', $rowClasses)) ?>"
                                 data-csb-row="<?= $id ?>"
                                 data-csb-groups="<?= csb_h(implode('|', $rowGroups)) ?>"
                                 data-csb-db-revision="<?= csb_h($estado) ?>"
                                 data-csb-has-hojaruta="<?= $tieneHojaRuta ? '1' : '0' ?>"
+                                data-csb-hojaruta-duplicate="<?= $hojaRutaDuplicada ? '1' : '0' ?>"
                             >
                                 <td>
                                     <strong><?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?></strong>
@@ -856,8 +960,8 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                         aria-label="Hoja de ruta anexa"
                                     ><?= csb_h($hojaRuta) ?></textarea>
                                     <small class="csb-hojaruta-state" data-csb-hojaruta-state>
-                                        <i class="bi <?= $tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle' ?>"></i>
-                                        <span><?= $tieneHojaRuta ? 'Hoja de ruta registrada' : 'Pendiente de revisión' ?></span>
+                                        <i class="bi <?= $hojaRutaDuplicada ? 'bi-exclamation-triangle-fill' : ($tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle') ?>"></i>
+                                        <span><?= $hojaRutaDuplicada ? 'Duplicada: revisar antes de continuar' : ($tieneHojaRuta ? 'Hoja de ruta registrada · sin duplicados' : 'Pendiente de revisión') ?></span>
                                     </small>
                                 </td>
                                 <td>

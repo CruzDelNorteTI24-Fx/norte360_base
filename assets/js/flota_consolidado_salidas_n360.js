@@ -41,6 +41,135 @@
     }
   }
 
+  const hojaRutaTimers = new WeakMap();
+
+  function hojaRutaKey(value) {
+    return compact(value).toLocaleLowerCase('es-PE');
+  }
+
+  function duplicateRefLabel(info) {
+    if (!info) return '';
+    const unidad = compact(info.bus || info.placa || '');
+    const fechaHora = [compact(info.fecha || ''), compact(info.hora || '')].filter(Boolean).join(' ');
+    const ruta = [compact(info.origen || ''), compact(info.destino || '')].filter(Boolean).join(' → ');
+    return [unidad, fechaHora, ruta].filter(Boolean).join(' · ');
+  }
+
+  function setHojaRutaValidation(row, mode, info = null) {
+    const state = row.querySelector('[data-csb-hojaruta-state]');
+    const input = row.querySelector('[data-csb-field="hojaruta"]');
+    const duplicate = mode === 'duplicate';
+    const checking = mode === 'checking';
+
+    row.dataset.csbHojarutaDuplicate = duplicate ? '1' : '0';
+    row.classList.toggle('csb-row--hojaruta-duplicate', duplicate);
+    row.classList.toggle('csb-row--hojaruta-checking', checking);
+    input?.classList.toggle('is-duplicate', duplicate);
+    input?.classList.toggle('is-checking', checking);
+
+    if (!state) return;
+    const icon = state.querySelector('i');
+    const text = state.querySelector('span');
+    state.classList.toggle('is-duplicate', duplicate);
+    state.classList.toggle('is-checking', checking);
+
+    if (mode === 'duplicate') {
+      if (icon) icon.className = 'bi bi-exclamation-triangle-fill';
+      if (text) {
+        const ref = duplicateRefLabel(info);
+        text.textContent = ref ? `Duplicada en ${ref}` : 'Hoja de ruta duplicada';
+      }
+      return;
+    }
+
+    if (mode === 'checking') {
+      if (icon) icon.className = 'bi bi-arrow-repeat';
+      if (text) text.textContent = 'Validando duplicados...';
+      return;
+    }
+
+    if (mode === 'unique') {
+      if (icon) icon.className = 'bi bi-check-circle-fill';
+      if (text) {
+        text.textContent = row.dataset.csbHasHojaruta === '1'
+          ? 'Hoja de ruta registrada · sin duplicados'
+          : 'Sin duplicados detectados';
+      }
+      return;
+    }
+
+    if (icon) icon.className = 'bi bi-circle';
+    if (text) text.textContent = 'Pendiente de revisión';
+  }
+
+  function findLocalHojaRutaDuplicate(row, value) {
+    const key = hojaRutaKey(value);
+    if (!key) return null;
+    return rows.find((otherRow) => {
+      if (otherRow === row) return false;
+      const otherValue = otherRow.querySelector('[data-csb-field="hojaruta"]')?.value || '';
+      return hojaRutaKey(otherValue) === key;
+    }) || null;
+  }
+
+  async function validateHojaRuta(row, remote = true) {
+    const input = row.querySelector('[data-csb-field="hojaruta"]');
+    if (!input) return true;
+
+    const value = input.value || '';
+    if (!hojaRutaKey(value)) {
+      setHojaRutaValidation(row, 'empty');
+      return true;
+    }
+
+    const localDuplicate = findLocalHojaRutaDuplicate(row, value);
+    if (localDuplicate) {
+      const localInfo = {
+        bus: compact(localDuplicate.children?.[1]?.querySelector('strong')?.textContent || ''),
+        fecha: report.period || '',
+        hora: compact(localDuplicate.children?.[0]?.querySelector('strong')?.textContent || '')
+      };
+      setHojaRutaValidation(row, 'duplicate', localInfo);
+      return false;
+    }
+
+    if (!remote) {
+      setHojaRutaValidation(row, 'unique');
+      return true;
+    }
+
+    setHojaRutaValidation(row, 'checking');
+    const fd = new FormData();
+    fd.append('csrf', csrf);
+    fd.append('action', 'check_hojaruta');
+    fd.append('id', row.dataset.csbRow || '');
+    fd.append('hojaruta', value);
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        throw new Error(json.message || 'No se pudo validar la Hoja de Ruta.');
+      }
+      if (json.data?.duplicada) {
+        setHojaRutaValidation(row, 'duplicate', json.data?.duplicado || null);
+        return false;
+      }
+      setHojaRutaValidation(row, 'unique');
+      return true;
+    } catch (error) {
+      row.classList.remove('csb-row--hojaruta-checking');
+      input.classList.remove('is-checking');
+      showNotice(error.message || 'No se pudo validar la Hoja de Ruta.', false);
+      return true; // El servidor vuelve a validar obligatoriamente al guardar.
+    }
+  }
+
   async function saveRow(button) {
     const row = button.closest('[data-csb-row]');
     if (!row) return;
@@ -49,8 +178,16 @@
     const estado = row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE';
     const comentario = row.querySelector('[data-csb-field="comentario"]')?.value || '';
     const correccion = row.querySelector('[data-csb-field="correccion"]')?.value || '';
-    const hojaruta = row.querySelector('[data-csb-field="hojaruta"]')?.value || '';
+    const hojarutaInput = row.querySelector('[data-csb-field="hojaruta"]');
+    const hojaruta = hojarutaInput?.value || '';
     const originalHtml = button.innerHTML;
+
+    const hojaRutaValida = await validateHojaRuta(row, true);
+    if (!hojaRutaValida) {
+      showNotice('Esa Hoja de Ruta ya está registrada en otro viaje.', false);
+      hojarutaInput?.focus();
+      return;
+    }
 
     const fd = new FormData();
     fd.append('csrf', csrf);
@@ -73,6 +210,10 @@
       });
       const json = await res.json();
       if (!json.ok) {
+        if (json.data?.duplicada) {
+          setHojaRutaValidation(row, 'duplicate');
+          hojarutaInput?.focus();
+        }
         throw new Error(json.message || 'No se pudo guardar.');
       }
 
@@ -89,6 +230,7 @@
       row.dataset.csbDbRevision = String(json.data?.estado || estado || 'PENDIENTE').toUpperCase();
       syncStateButtons(row, row.dataset.csbDbRevision);
       syncHojaRutaState(row, json.data?.tiene_hojaruta ?? compact(hojaruta) !== '');
+      setHojaRutaValidation(row, compact(hojaruta) !== '' ? 'unique' : 'empty');
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
       showNotice(err.message || 'No se pudo guardar.', false);
@@ -148,17 +290,10 @@
     row.dataset.csbHasHojaruta = active ? '1' : '0';
     row.classList.toggle('csb-row--hojaruta', active);
 
-    const state = row.querySelector('[data-csb-hojaruta-state]');
-    if (state) {
-      const icon = state.querySelector('i');
-      const text = state.querySelector('span');
-      if (icon) {
-        icon.className = `bi ${active ? 'bi-check-circle-fill' : 'bi-circle'}`;
-      }
-      if (text) {
-        text.textContent = active ? 'Hoja de ruta registrada' : 'Pendiente de revisión';
-      }
+    if (row.dataset.csbHojarutaDuplicate === '1') {
+      return;
     }
+    setHojaRutaValidation(row, active ? 'unique' : 'empty');
   }
 
   function cellText(td) {
@@ -516,7 +651,32 @@
   });
   rows.forEach((row) => {
     syncStateButtons(row, row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE');
+    const initialDuplicate = row.dataset.csbHojarutaDuplicate === '1';
     syncHojaRutaState(row, row.dataset.csbHasHojaruta === '1');
+    if (initialDuplicate) {
+      setHojaRutaValidation(row, 'duplicate');
+    }
+
+    const hojaRutaInput = row.querySelector('[data-csb-field="hojaruta"]');
+    if (hojaRutaInput) {
+      hojaRutaInput.addEventListener('input', () => {
+        const oldTimer = hojaRutaTimers.get(row);
+        if (oldTimer) window.clearTimeout(oldTimer);
+
+        const localOk = validateHojaRuta(row, false);
+        Promise.resolve(localOk).then((ok) => {
+          if (!ok || !hojaRutaKey(hojaRutaInput.value)) return;
+          const timer = window.setTimeout(() => validateHojaRuta(row, true), 550);
+          hojaRutaTimers.set(row, timer);
+        });
+      });
+
+      hojaRutaInput.addEventListener('blur', () => {
+        const oldTimer = hojaRutaTimers.get(row);
+        if (oldTimer) window.clearTimeout(oldTimer);
+        validateHojaRuta(row, true);
+      });
+    }
   });
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   setupGroupFilter();
