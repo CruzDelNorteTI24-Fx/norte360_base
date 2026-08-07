@@ -503,7 +503,6 @@
                 if (raw.includes('VALIDADO')) data.cell.styles.textColor = [5, 112, 68];
                 if (raw.includes('OBSERVADO')) data.cell.styles.textColor = [170, 36, 31];
                 if (raw.includes('CORREGIDO')) data.cell.styles.textColor = [7, 89, 133];
-                if (raw.includes('HOJARUTA')) data.cell.styles.textColor = [109, 40, 217];
               }
             }
           });

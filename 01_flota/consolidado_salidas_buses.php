@@ -146,9 +146,6 @@ function csb_estado_class(string $estado): string {
     if ($estado === 'CORREGIDO') {
         return 'csb-status--info';
     }
-    if ($estado === 'HOJARUTA') {
-        return 'csb-status--route';
-    }
     return 'csb-status--pending';
 }
 
@@ -528,7 +525,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comentario = trim((string)($_POST['comentario'] ?? ''));
     $correccion = trim((string)($_POST['correccion'] ?? ''));
     $hojaRuta = trim((string)($_POST['hojaruta'] ?? ''));
-    $permitidos = ['PENDIENTE', 'HOJARUTA', 'VALIDADO', 'OBSERVADO', 'CORREGIDO'];
+    $permitidos = ['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO'];
 
     if ($id <= 0 || !in_array($estado, $permitidos, true)) {
         csb_json(false, [], 'Datos incompletos para guardar.', 422);
@@ -547,25 +544,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'duplicado_id' => (int)($duplicate['clm_salprog_id'] ?? 0),
             ], "La Hoja de Ruta ya esta registrada en {$refUnidad}, {$refFecha} {$refHora}. No se guardo el duplicado.", 409);
         }
-    }
-
-    // Si la Hoja de Ruta se registra por primera vez, el estado pasa automaticamente a HOJARUTA.
-    // Si ya existia una Hoja de Ruta, respetamos el estado elegido por el usuario para permitir
-    // continuar el flujo hacia VALIDADO, OBSERVADO, CORREGIDO, etc.
-    $registroActual = csb_fetch_all($conn, "
-        SELECT clm_salprog_hojaruta
-        FROM tb_progbuses_salida_consolidado
-        WHERE clm_salprog_id = ?
-        LIMIT 1
-    ", 'i', [$id]);
-
-    if (!$registroActual) {
-        csb_json(false, [], 'No se encontro el registro del consolidado.', 404);
-    }
-
-    $hojaRutaAnterior = trim((string)($registroActual[0]['clm_salprog_hojaruta'] ?? ''));
-    if ($hojaRutaAnterior === '' && $hojaRuta !== '') {
-        $estado = 'HOJARUTA';
     }
 
     $uid = csb_uid();
@@ -605,7 +583,7 @@ $defaultDate = date('Y-m-d', strtotime('-1 day'));
 $fechaOperativa = csb_valid_date($_GET['fecha_operativa'] ?? '', $defaultDate);
 $revision = strtoupper(trim((string)($_GET['revision'] ?? 'TODOS')));
 $buscar = trim((string)($_GET['buscar'] ?? ''));
-$revisionPermitidas = ['TODOS', 'PENDIENTE', 'HOJARUTA', 'VALIDADO', 'OBSERVADO', 'CORREGIDO'];
+$revisionPermitidas = ['TODOS', 'PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO'];
 if (!in_array($revision, $revisionPermitidas, true)) {
     $revision = 'TODOS';
 }
@@ -753,9 +731,6 @@ foreach ($rows as $row) {
     if ($estadoRow === 'VALIDADO') $kpis['validados']++;
     elseif ($estadoRow === 'OBSERVADO') $kpis['observados']++;
     elseif ($estadoRow === 'CORREGIDO') $kpis['corregidos']++;
-    elseif ($estadoRow === 'HOJARUTA') {
-        // Hoja de ruta ya registrada: no debe contarse como pendiente.
-    }
     else $kpis['pendientes']++;
 
     $hasConductor = false;

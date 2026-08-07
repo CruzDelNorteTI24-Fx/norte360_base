@@ -510,11 +510,6 @@
     background: #e0f2fe;
 }
 
-.csb-status--route {
-    color: #6d28d9;
-    background: #ede9fe;
-}
-
 .csb-row-actions {
     display: flex;
     flex-direction: column;
