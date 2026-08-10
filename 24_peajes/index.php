@@ -250,7 +250,7 @@ $toRow = min($offset + $perPage, $totalRows);
                         <th>Factura</th>
                         <th>Placa / bus</th>
                         <th>Dueno</th>
-                        <th>Proceso</th>
+                        <th>Estación</th>
                         <th>Glosa</th>
                         <th>Base</th>
                         <th>Importe</th>

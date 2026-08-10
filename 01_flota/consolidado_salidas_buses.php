@@ -146,7 +146,101 @@ function csb_estado_class(string $estado): string {
     if ($estado === 'CORREGIDO') {
         return 'csb-status--info';
     }
+    if ($estado === 'ANULADO') {
+        return 'csb-status--danger';
+    }
+    if ($estado === 'MANUAL') {
+        return 'csb-status--manual';
+    }
     return 'csb-status--pending';
+}
+
+function csb_normalize_time(?string $value): ?string {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return null;
+    }
+    if (preg_match('/^([01]?\d|2[0-3]):([0-5]\d)$/', $value, $m)) {
+        return str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2] . ':00';
+    }
+    if (preg_match('/^([01]?\d|2[0-3]):([0-5]\d):([0-5]\d)$/', $value, $m)) {
+        return str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2] . ':' . $m[3];
+    }
+    return null;
+}
+
+function csb_hora_orden(?string $value): int {
+    $time = csb_normalize_time($value);
+    if ($time === null) {
+        return 9999;
+    }
+    [$h, $m] = array_map('intval', explode(':', $time));
+    return ($h * 60) + $m;
+}
+
+function csb_sede_label(array $row): string {
+    $abr = trim((string)($row['abr'] ?? ''));
+    $nombre = trim((string)($row['nombre'] ?? ''));
+    if ($abr !== '' && $nombre !== '' && strcasecmp($abr, $nombre) !== 0) {
+        return $abr . ' - ' . $nombre;
+    }
+    return $nombre !== '' ? $nombre : $abr;
+}
+
+function csb_fetch_sedes_by_ids(mysqli $conn, array $ids): array {
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn($id) => $id > 0)));
+    if (!$ids) {
+        return [];
+    }
+
+    $abrSelect = csb_column_exists($conn, 'tb_sedes', 'clm_sedes_abr') ? "IFNULL(s.clm_sedes_abr, '') AS abr" : "'' AS abr";
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $rows = csb_fetch_all(
+        $conn,
+        "SELECT s.clm_sedes_id AS id, {$abrSelect}, IFNULL(s.clm_sedes_name, '') AS nombre FROM tb_sedes s WHERE s.clm_sedes_id IN ({$placeholders})",
+        str_repeat('i', count($ids)),
+        $ids
+    );
+
+    $map = [];
+    foreach ($rows as $row) {
+        $id = (int)($row['id'] ?? 0);
+        if ($id > 0) {
+            $map[$id] = csb_sede_label($row);
+        }
+    }
+    return $map;
+}
+
+function csb_fetch_manual_catalog(mysqli $conn): array {
+    $servicioSelect = csb_column_exists($conn, 'tb_placas', 'clm_placas_servicio') ? "IFNULL(p.clm_placas_servicio, '') AS servicio" : "'' AS servicio";
+    $placas = csb_fetch_all(
+        $conn,
+        "SELECT p.clm_placas_id AS id,
+                IFNULL(p.clm_placas_BUS, '') AS bus,
+                IFNULL(p.clm_placas_PLACA, '') AS placa,
+                {$servicioSelect}
+           FROM tb_placas p
+          WHERE UPPER(TRIM(IFNULL(p.clm_placas_ESTADO, 'ACTIVO'))) = 'ACTIVO'
+          ORDER BY CAST(IFNULL(p.clm_placas_BUS, '999999') AS UNSIGNED), p.clm_placas_BUS, p.clm_placas_PLACA"
+    );
+
+    $abrSelect = csb_column_exists($conn, 'tb_sedes', 'clm_sedes_abr') ? "IFNULL(s.clm_sedes_abr, '') AS abr" : "'' AS abr";
+    $estadoWhere = csb_column_exists($conn, 'tb_sedes', 'clm_sedes_estado') ? "WHERE IFNULL(s.clm_sedes_estado, 1) = 1" : "";
+    $sedes = csb_fetch_all(
+        $conn,
+        "SELECT s.clm_sedes_id AS id, {$abrSelect}, IFNULL(s.clm_sedes_name, '') AS nombre FROM tb_sedes s {$estadoWhere} ORDER BY nombre ASC"
+    );
+
+    foreach ($sedes as &$sede) {
+        $sede['label'] = csb_sede_label($sede);
+    }
+    unset($sede);
+
+    return [
+        'placas' => $placas,
+        'sedes' => $sedes,
+    ];
 }
 
 function csb_norm(?string $value): string {
@@ -154,7 +248,7 @@ function csb_norm(?string $value): string {
     if ($value === '') {
         return '';
     }
-    $value = str_replace(['Á', 'É', 'Í', 'Ó', 'Ú', 'Ñ', 'á', 'é', 'í', 'ó', 'ú', 'ñ'], ['A', 'E', 'I', 'O', 'U', 'N', 'a', 'e', 'i', 'o', 'u', 'n'], $value);
+    $value = str_replace(['Ã', 'Ã‰', 'Ã', 'Ã“', 'Ãš', 'Ã‘', 'Ã¡', 'Ã©', 'Ã­', 'Ã³', 'Ãº', 'Ã±'], ['A', 'E', 'I', 'O', 'U', 'N', 'a', 'e', 'i', 'o', 'u', 'n'], $value);
     $value = strtolower($value);
     return preg_replace('/\s+/', ' ', $value) ?: '';
 }
@@ -516,6 +610,186 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ], $duplicate ? 'Hoja de ruta duplicada.' : 'Hoja de ruta disponible.');
     }
 
+    if ($action === 'create_manual_trip') {
+        if (!$isAdmin) {
+            csb_json(false, [], 'Solo administradores pueden agregar viajes manuales.', 403);
+        }
+
+        $fechaManual = csb_valid_date((string)($_POST['fecha_operativa'] ?? ''), $fechaOperativa);
+        $horaSalida = csb_normalize_time((string)($_POST['hora_salida'] ?? ''));
+        $idPlaca = (int)($_POST['idplaca'] ?? 0);
+        $idOrigen = (int)($_POST['idorigen'] ?? 0);
+        $idDestino = (int)($_POST['iddestino'] ?? 0);
+        $rutaIdsRaw = $_POST['ruta_ids'] ?? [];
+        $comentarioManual = trim((string)($_POST['comentario'] ?? ''));
+
+        if (!is_array($rutaIdsRaw)) {
+            $rutaIdsRaw = [$rutaIdsRaw];
+        }
+        $rutaIds = array_values(array_unique(array_filter(array_map('intval', $rutaIdsRaw), static fn($id) => $id > 0)));
+
+        if (!$fechaManual || !$horaSalida || $idPlaca <= 0 || $idOrigen <= 0 || $idDestino <= 0) {
+            csb_json(false, [], 'Completa fecha, hora, unidad, origen y destino para registrar el viaje manual.', 422);
+        }
+        if ($idOrigen === $idDestino) {
+            csb_json(false, [], 'El origen y destino no pueden ser la misma sede.', 422);
+        }
+        if (in_array($idOrigen, $rutaIds, true) || in_array($idDestino, $rutaIds, true)) {
+            csb_json(false, [], 'Las rutas intermedias no deben repetir el origen ni el destino.', 422);
+        }
+
+        $servicioSelect = csb_column_exists($conn, 'tb_placas', 'clm_placas_servicio') ? "IFNULL(p.clm_placas_servicio, '') AS servicio" : "'' AS servicio";
+        $placaRows = csb_fetch_all(
+            $conn,
+            "SELECT p.clm_placas_id AS id,
+                    IFNULL(p.clm_placas_BUS, '') AS bus,
+                    IFNULL(p.clm_placas_PLACA, '') AS placa,
+                    {$servicioSelect}
+               FROM tb_placas p
+              WHERE p.clm_placas_id = ?
+                AND UPPER(TRIM(IFNULL(p.clm_placas_ESTADO, 'ACTIVO'))) = 'ACTIVO'
+              LIMIT 1",
+            'i',
+            [$idPlaca]
+        );
+        if (!$placaRows) {
+            csb_json(false, [], 'La unidad seleccionada no existe o no esta activa.', 422);
+        }
+        $placa = $placaRows[0];
+
+        $sedeIds = array_merge([$idOrigen, $idDestino], $rutaIds);
+        $sedesMap = csb_fetch_sedes_by_ids($conn, $sedeIds);
+        if (!isset($sedesMap[$idOrigen], $sedesMap[$idDestino])) {
+            csb_json(false, [], 'No se encontro el origen o destino seleccionado.', 422);
+        }
+        foreach ($rutaIds as $rutaId) {
+            if (!isset($sedesMap[$rutaId])) {
+                csb_json(false, [], 'Una ruta intermedia seleccionada no existe.', 422);
+            }
+        }
+
+        $rutaLabels = [];
+        foreach ($rutaIds as $rutaId) {
+            $rutaLabels[] = $sedesMap[$rutaId];
+        }
+        $rutaIdsText = implode(',', $rutaIds);
+        $rutaTexto = implode(' -> ', $rutaLabels);
+        $horaOrden = csb_hora_orden($horaSalida);
+        $bus = trim((string)($placa['bus'] ?? ''));
+        $placaTexto = trim((string)($placa['placa'] ?? ''));
+        $servicio = trim((string)($placa['servicio'] ?? ''));
+
+        $duplicados = csb_fetch_all(
+            $conn,
+            "SELECT clm_salprog_id
+               FROM tb_progbuses_salida_consolidado
+              WHERE clm_salprog_fecha_operativa = ?
+                AND clm_salprog_idplaca = ?
+                AND clm_salprog_horasalida = ?
+              LIMIT 1",
+            'sis',
+            [$fechaManual, $idPlaca, $horaSalida]
+        );
+        if ($duplicados) {
+            csb_json(false, [], 'Ya existe un registro para esa unidad, fecha y hora de salida.', 409);
+        }
+
+        $uid = csb_uid();
+        $revisionComentario = 'Registro manual agregado desde consolidado.';
+        $conn->begin_transaction();
+        try {
+            $stmt = $conn->prepare("
+                INSERT INTO tb_progbuses_salida_consolidado (
+                    clm_salprog_cierre_id,
+                    clm_salprog_fecha_operativa,
+                    clm_salprog_fecha_ejecucion,
+                    clm_salprog_run_id,
+                    clm_salprog_progid,
+                    clm_salprog_idplaca,
+                    clm_salprog_bus,
+                    clm_salprog_placa,
+                    clm_salprog_servicio,
+                    clm_salprog_idorigen,
+                    clm_salprog_origen,
+                    clm_salprog_iddestino,
+                    clm_salprog_destino,
+                    clm_salprog_ruta_ids,
+                    clm_salprog_ruta_texto,
+                    clm_salprog_horasalida,
+                    clm_salprog_hora_orden,
+                    clm_salprog_conductores_texto,
+                    clm_salprog_conductores_json,
+                    clm_salprog_comentario_horario,
+                    clm_salprog_fecha_programacion,
+                    clm_salprog_revision_estado,
+                    clm_salprog_comentario_revision,
+                    clm_salprog_usuario_revision,
+                    clm_salprog_datetime_revision
+                ) VALUES (
+                    0,
+                    ?,
+                    CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00'),
+                    0,
+                    0,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    '',
+                    '[]',
+                    ?,
+                    CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00'),
+                    'MANUAL',
+                    ?,
+                    ?,
+                    CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')
+                )
+            ");
+            if (!$stmt) {
+                throw new RuntimeException('No se pudo preparar el registro manual.');
+            }
+            csb_bind($stmt, 'sisssisissssissi', [
+                $fechaManual,
+                $idPlaca,
+                $bus,
+                $placaTexto,
+                $servicio,
+                $idOrigen,
+                $sedesMap[$idOrigen],
+                $idDestino,
+                $sedesMap[$idDestino],
+                $rutaIdsText,
+                $rutaTexto,
+                $horaSalida,
+                $horaOrden,
+                $comentarioManual,
+                $revisionComentario,
+                $uid,
+            ]);
+            $stmt->execute();
+            $nuevoId = (int)$stmt->insert_id;
+            $stmt->close();
+            $conn->commit();
+
+            csb_json(true, [
+                'id' => $nuevoId,
+                'estado' => 'MANUAL',
+                'redirect' => 'consolidado_salidas_buses.php?fecha_operativa=' . rawurlencode($fechaManual) . '&revision=MANUAL',
+            ], 'Viaje manual registrado correctamente.');
+        } catch (Throwable $e) {
+            $conn->rollback();
+            csb_json(false, [], 'No se pudo registrar el viaje manual: ' . $e->getMessage(), 500);
+        }
+    }
+
     if ($action !== 'update_revision') {
         csb_json(false, [], 'Accion no reconocida.', 400);
     }
@@ -525,7 +799,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comentario = trim((string)($_POST['comentario'] ?? ''));
     $correccion = trim((string)($_POST['correccion'] ?? ''));
     $hojaRuta = trim((string)($_POST['hojaruta'] ?? ''));
-    $permitidos = ['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO'];
+    $permitidos = ['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL'];
 
     if ($id <= 0 || !in_array($estado, $permitidos, true)) {
         csb_json(false, [], 'Datos incompletos para guardar.', 422);
@@ -583,7 +857,7 @@ $defaultDate = date('Y-m-d', strtotime('-1 day'));
 $fechaOperativa = csb_valid_date($_GET['fecha_operativa'] ?? '', $defaultDate);
 $revision = strtoupper(trim((string)($_GET['revision'] ?? 'TODOS')));
 $buscar = trim((string)($_GET['buscar'] ?? ''));
-$revisionPermitidas = ['TODOS', 'PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO'];
+$revisionPermitidas = ['TODOS', 'PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL'];
 if (!in_array($revision, $revisionPermitidas, true)) {
     $revision = 'TODOS';
 }
@@ -597,6 +871,7 @@ $sedeGroups = [];
 $rowGroupsById = [];
 $groupCounters = [];
 $conductoresActivos = [];
+$manualCatalog = ['placas' => [], 'sedes' => []];
 $kpis = [
     'registros' => 0,
     'unidades' => 0,
@@ -605,11 +880,16 @@ $kpis = [
     'observados' => 0,
     'validados' => 0,
     'corregidos' => 0,
+    'anulados' => 0,
+    'manuales' => 0,
 ];
 
 if ($tableReady) {
     try {
         $conductoresActivos = csb_fetch_conductores_activos($conn);
+        if ($isAdmin) {
+            $manualCatalog = csb_fetch_manual_catalog($conn);
+        }
 
         if (csb_column_exists($conn, 'tb_sedes', 'clm_sedes_grupo_pizarra')) {
             $estadoWhere = csb_column_exists($conn, 'tb_sedes', 'clm_sedes_estado')
@@ -731,6 +1011,8 @@ foreach ($rows as $row) {
     if ($estadoRow === 'VALIDADO') $kpis['validados']++;
     elseif ($estadoRow === 'OBSERVADO') $kpis['observados']++;
     elseif ($estadoRow === 'CORREGIDO') $kpis['corregidos']++;
+    elseif ($estadoRow === 'ANULADO') $kpis['anulados']++;
+    elseif ($estadoRow === 'MANUAL') $kpis['manuales']++;
     else $kpis['pendientes']++;
 
     $hasConductor = false;
@@ -795,6 +1077,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <span><i class="bi bi-clock-history"></i> Cierre (Pe) 04:59am</span>
                 <button type="button" class="csb-btn csb-btn--hero" data-csb-export-pdf><i class="bi bi-file-earmark-pdf"></i> PDF</button>
                 <?php if ($isAdmin): ?>
+                    <button type="button" class="csb-btn csb-btn--hero-soft" data-csb-manual-open><i class="bi bi-plus-circle"></i> Viaje manual</button>
                     <button type="button" class="csb-btn csb-btn--hero-soft" data-csb-calendar-open><i class="bi bi-calendar3"></i> Calendario</button>
                 <?php endif; ?>
             </div>
@@ -815,12 +1098,16 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
         <?php endif; ?>
 
         <section class="csb-summary">
-            <article><span>Registros</span><strong><?= number_format($kpis['registros']) ?></strong></article>
-            <article><span>Unidades</span><strong><?= number_format($kpis['unidades']) ?></strong></article>
-            <article><span>Conductores</span><strong><?= number_format($kpis['conductores']) ?></strong></article>
-            <article><span>Pendientes</span><strong><?= number_format($kpis['pendientes']) ?></strong></article>
-            <article><span>Observados</span><strong><?= number_format($kpis['observados']) ?></strong></article>
-        </section>
+        <article><span>Registros</span><strong><?= number_format($kpis['registros']) ?></strong></article>
+        <article><span>Unidades</span><strong><?= number_format($kpis['unidades']) ?></strong></article>
+        <article><span>Conductores</span><strong><?= number_format($kpis['conductores']) ?></strong></article>
+        <article><span>Pendientes</span><strong><?= number_format($kpis['pendientes']) ?></strong></article>
+        <article><span>Observados</span><strong><?= number_format($kpis['observados']) ?></strong></article>
+        <article><span>Validados</span><strong><?= number_format($kpis['validados']) ?></strong></article>
+        <article><span>Corregidos</span><strong><?= number_format($kpis['corregidos']) ?></strong></article>
+        <article class="csb-kpi--manual"><span>Manuales</span><strong><?= number_format($kpis['manuales']) ?></strong></article>
+        <article class="csb-kpi--danger"><span>Anulados</span><strong><?= number_format($kpis['anulados']) ?></strong></article>
+    </section>
 
         <section class="csb-filter">
             <form method="get" class="csb-filter-grid" autocomplete="off">
@@ -973,7 +1260,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     ><?= csb_h($hojaRuta) ?></textarea>
                                     <small class="csb-hojaruta-state" data-csb-hojaruta-state>
                                         <i class="bi <?= $hojaRutaDuplicada ? 'bi-exclamation-triangle-fill' : ($tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle') ?>"></i>
-                                        <span><?= $hojaRutaDuplicada ? 'Duplicada: revisar antes de continuar' : ($tieneHojaRuta ? 'Hoja de ruta registrada · sin duplicados' : 'Pendiente de revisión') ?></span>
+                                        <span><?= $hojaRutaDuplicada ? 'Duplicada: revisar antes de continuar' : ($tieneHojaRuta ? 'Hoja de ruta registrada Â· sin duplicados' : 'Pendiente de revisión') ?></span>
                                     </small>
                                 </td>
                                 <td>
@@ -1018,7 +1305,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 <td>
                                     <div class="csb-action-panel">
                                         <div class="csb-state-buttons" aria-label="Cambiar revision">
-                                            <?php foreach (['VALIDADO' => 'Validar', 'OBSERVADO' => 'Observar', 'CORREGIDO' => 'Corregir', 'PENDIENTE' => 'Pend.'] as $opcion => $label): ?>
+                                            <?php foreach (['VALIDADO' => 'Validar', 'OBSERVADO' => 'Observar', 'CORREGIDO' => 'Corregir', 'ANULADO' => 'Anular', 'PENDIENTE' => 'Pend.'] as $opcion => $label): ?>
                                                 <button
                                                     type="button"
                                                     class="csb-state-btn csb-state-btn--<?= strtolower($opcion) ?> <?= $estado === $opcion ? 'is-active' : '' ?>"
@@ -1080,6 +1367,87 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 </div>
 
 <?php if ($isAdmin): ?>
+<div class="modal fade csb-manual-modal" id="csbManualTripModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form data-csb-manual-form autocomplete="off">
+                <div class="csb-modal-head">
+                    <div>
+                        <span><i class="bi bi-plus-circle"></i> Registro manual</span>
+                        <h2>Agregar viaje al consolidado</h2>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="csb-manual-grid">
+                        <label>
+                            <span>Fecha operativa</span>
+                            <input type="date" name="fecha_operativa" value="<?= csb_h($fechaOperativa) ?>" required>
+                        </label>
+                        <label>
+                            <span>Hora salida</span>
+                            <input type="time" name="hora_salida" required>
+                        </label>
+                        <label class="csb-manual-wide">
+                            <span>Unidad</span>
+                            <select name="idplaca" required>
+                                <option value="">Seleccionar unidad...</option>
+                                <?php foreach ($manualCatalog['placas'] as $placa): ?>
+                                    <?php
+                                    $busLabel = trim((string)($placa['bus'] ?? ''));
+                                    $placaLabel = trim((string)($placa['placa'] ?? ''));
+                                    $servicioLabel = trim((string)($placa['servicio'] ?? ''));
+                                    $optionText = trim($busLabel . ($placaLabel !== '' ? ' - ' . $placaLabel : '') . ($servicioLabel !== '' ? ' | ' . $servicioLabel : ''));
+                                    ?>
+                                    <option value="<?= (int)$placa['id'] ?>"><?= csb_h($optionText !== '' ? $optionText : ('Unidad #' . (int)$placa['id'])) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Origen</span>
+                            <select name="idorigen" required>
+                                <option value="">Seleccionar origen...</option>
+                                <?php foreach ($manualCatalog['sedes'] as $sede): ?>
+                                    <option value="<?= (int)$sede['id'] ?>"><?= csb_h($sede['label'] ?? $sede['nombre'] ?? ('Sede #' . (int)$sede['id'])) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Destino</span>
+                            <select name="iddestino" required>
+                                <option value="">Seleccionar destino...</option>
+                                <?php foreach ($manualCatalog['sedes'] as $sede): ?>
+                                    <option value="<?= (int)$sede['id'] ?>"><?= csb_h($sede['label'] ?? $sede['nombre'] ?? ('Sede #' . (int)$sede['id'])) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label class="csb-manual-wide">
+                            <span>Rutas intermedias</span>
+                            <select name="ruta_ids[]" multiple size="5" class="csb-manual-routes">
+                                <?php foreach ($manualCatalog['sedes'] as $sede): ?>
+                                    <option value="<?= (int)$sede['id'] ?>"><?= csb_h($sede['label'] ?? $sede['nombre'] ?? ('Sede #' . (int)$sede['id'])) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small>Selecciona solo paradas intermedias; no repitas origen ni destino.</small>
+                        </label>
+                        <label class="csb-manual-wide">
+                            <span>Comentario</span>
+                            <textarea name="comentario" rows="3" placeholder="Motivo o referencia del viaje manual"></textarea>
+                        </label>
+                    </div>
+                    <p class="csb-manual-help">El viaje se guardara con cierre 0, programacion 0 y estado MANUAL.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="csb-btn csb-btn--primary" data-csb-manual-save>
+                        <i class="bi bi-save"></i> Guardar viaje manual
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade csb-calendar-modal" id="csbCalendarModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -1111,6 +1479,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 window.N360_CSB = {
     csrf: <?= json_encode($csrfToken) ?>,
     endpoint: 'consolidado_salidas_buses.php',
+    fechaOperativa: <?= json_encode($fechaOperativa) ?>,
     conductores: <?= json_encode($conductoresActivos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     report: {
         title: 'CONSOLIDADO DE SALIDAS DE BUSES',
@@ -1137,3 +1506,5 @@ window.N360_CSB = {
 <?php n360_render_footer(); ?>
 </body>
 </html>
+
+

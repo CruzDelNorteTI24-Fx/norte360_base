@@ -662,7 +662,104 @@
       saveButton.disabled = true;
     });
   }
+  function setupManualTrip() {
+    const open = document.querySelector('[data-csb-manual-open]');
+    const modalEl = document.getElementById('csbManualTripModal');
+    const form = modalEl?.querySelector('[data-csb-manual-form]');
+    if (!open || !modalEl || !form || !window.bootstrap) return;
 
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    const saveButton = form.querySelector('[data-csb-manual-save]');
+    const origin = form.querySelector('[name="idorigen"]');
+    const destination = form.querySelector('[name="iddestino"]');
+    const routes = form.querySelector('[name="ruta_ids[]"]');
+
+    const selectedRoutes = () => Array.from(routes?.selectedOptions || [])
+      .map((option) => String(option.value || ''))
+      .filter(Boolean);
+
+    const validateManual = () => {
+      const origen = String(origin?.value || '');
+      const destino = String(destination?.value || '');
+      const rutaIds = selectedRoutes();
+      if (origen && destino && origen === destino) {
+        return 'El origen y destino no pueden ser iguales.';
+      }
+      if (origen && rutaIds.includes(origen)) {
+        return 'Las rutas intermedias no deben repetir el origen.';
+      }
+      if (destino && rutaIds.includes(destino)) {
+        return 'Las rutas intermedias no deben repetir el destino.';
+      }
+      return '';
+    };
+
+    const softValidate = () => {
+      const message = validateManual();
+      if (message) showNotice(message, false);
+    };
+
+    [origin, destination, routes].forEach((field) => field?.addEventListener('change', softValidate));
+
+    open.addEventListener('click', () => {
+      modal.show();
+      window.setTimeout(() => form.querySelector('[name="hora_salida"]')?.focus(), 180);
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const validation = validateManual();
+      if (validation) {
+        showNotice(validation, false);
+        return;
+      }
+
+      const originalHtml = saveButton?.innerHTML || '';
+      const fd = new FormData(form);
+      fd.append('csrf', csrf);
+      fd.append('action', 'create_manual_trip');
+
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Guardando...';
+      }
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          body: fd,
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const json = await res.json();
+        if (!json.ok) {
+          throw new Error(json.message || 'No se pudo registrar el viaje manual.');
+        }
+
+        modal.hide();
+        showNotice(json.message || 'Viaje manual registrado.', true);
+        const redirect = json.data?.redirect || '';
+        window.setTimeout(() => {
+          if (redirect) window.location.href = redirect;
+          else window.location.reload();
+        }, 700);
+      } catch (error) {
+        showNotice(error.message || 'No se pudo registrar el viaje manual.', false);
+      } finally {
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.innerHTML = originalHtml;
+        }
+      }
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      form.reset();
+      const fecha = form.querySelector('[name="fecha_operativa"]');
+      if (fecha && cfg.fechaOperativa) fecha.value = cfg.fechaOperativa;
+    });
+  }
   function setupCalendar() {
     const open = document.querySelector('[data-csb-calendar-open]');
     const modalEl = document.getElementById('csbCalendarModal');
@@ -770,5 +867,6 @@
   setupGroupFilter();
   setupHojaRutaSort();
   setupDriverEditor();
+  setupManualTrip();
   setupCalendar();
 })();

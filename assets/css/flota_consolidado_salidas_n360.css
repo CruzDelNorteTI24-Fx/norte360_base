@@ -65,7 +65,7 @@
 
 .csb-summary {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 12px;
 }
 
@@ -509,6 +509,15 @@
     color: #075985;
     background: #e0f2fe;
 }
+.csb-status--danger {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.csb-status--manual {
+    color: #4c1d95;
+    background: #ede9fe;
+}
 
 .csb-row-actions {
     display: flex;
@@ -700,11 +709,79 @@
 }
 
 .csb-driver-modal .modal-content,
+.csb-manual-modal .modal-content,
 .csb-calendar-modal .modal-content {
     border: 1px solid #c8d9ea;
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 26px 70px rgba(6, 27, 50, .28);
+}
+
+
+.csb-manual-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.csb-manual-wide {
+    grid-column: 1 / -1;
+}
+
+.csb-manual-modal label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+}
+
+.csb-manual-modal label span {
+    color: #536a83;
+    font-size: .75rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.csb-manual-modal input,
+.csb-manual-modal select,
+.csb-manual-modal textarea {
+    width: 100%;
+    border: 1px solid #c8d9ea;
+    border-radius: 8px;
+    background: #fff;
+    color: #08213a;
+    font: inherit;
+}
+
+.csb-manual-modal input,
+.csb-manual-modal select {
+    min-height: 42px;
+    padding: 0 12px;
+}
+
+.csb-manual-modal textarea {
+    padding: 10px 12px;
+    resize: vertical;
+}
+
+.csb-manual-routes {
+    min-height: 132px;
+    padding: 8px 12px;
+}
+
+.csb-manual-grid small,
+.csb-manual-help {
+    color: #536a83;
+    font-size: .82rem;
+    font-weight: 700;
+    margin: 4px 0 0;
+}
+
+.csb-manual-help {
+    padding: 10px 12px;
+    background: #f5f9fd;
+    border: 1px dashed #c8d9ea;
+    border-radius: 8px;
 }
 
 .csb-driver-current {
@@ -957,6 +1034,10 @@
 }
 
 @media (max-width: 700px) {
+    .csb-manual-grid {
+        grid-template-columns: 1fr;
+    }
+
     .csb-hero {
         flex-direction: column;
         align-items: flex-start;
