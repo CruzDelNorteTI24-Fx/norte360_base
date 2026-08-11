@@ -452,6 +452,17 @@ function n360_menu_config(): array {
                             ],
                         ],
                     ],
+                    [
+                        'titulo' => 'Requerimientos',
+                        'items' => [
+                            [
+                                'titulo' => 'Cotizaciones y requerimientos',
+                                'icono' => 'bi bi-receipt-cutoff',
+                                'url' => '01_contabilidad/requerimientos_cotizaciones.php',
+                                'modulo' => 12
+                            ],
+                        ],
+                    ],
                 ],
             ],
             [
@@ -507,10 +518,10 @@ function n360_menu_config(): array {
                 'modulo' => 13,
                 'grupos' => [
                     [
-                        'titulo' => 'Operacion de encomiendas',
+                        'titulo' => 'Operación de encomiendas',
                         'items' => [
                             [
-                                'titulo' => 'Registro de guia',
+                                'titulo' => 'Registro de guía',
                                 'icono' => 'bi bi-send-plus-fill',
                                 'url' => '13_3ncomiendas/registro.php',
                                 'modulo' => 13,

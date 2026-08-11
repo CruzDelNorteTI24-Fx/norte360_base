@@ -40,6 +40,10 @@ function csb_uid(): int {
 }
 
 function csb_json(bool $ok, array $data = [], string $message = '', int $status = 200): void {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
@@ -48,6 +52,19 @@ function csb_json(bool $ok, array $data = [], string $message = '', int $status 
         'data' => $data,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit();
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
+        if (!(error_reporting() & $severity)) {
+            return false;
+        }
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    });
+
+    set_exception_handler(static function (Throwable $e): void {
+        csb_json(false, [], 'No se pudo completar la accion: ' . $e->getMessage(), 500);
+    });
 }
 
 function csb_bind(mysqli_stmt $stmt, string $types, array &$params): void {
@@ -248,7 +265,7 @@ function csb_norm(?string $value): string {
     if ($value === '') {
         return '';
     }
-    $value = str_replace(['Ã', 'Ã‰', 'Ã', 'Ã“', 'Ãš', 'Ã‘', 'Ã¡', 'Ã©', 'Ã­', 'Ã³', 'Ãº', 'Ã±'], ['A', 'E', 'I', 'O', 'U', 'N', 'a', 'e', 'i', 'o', 'u', 'n'], $value);
+    $value = str_replace(['ÃƒÂ', 'Ãƒâ€°', 'ÃƒÂ', 'Ãƒâ€œ', 'ÃƒÅ¡', 'Ãƒâ€˜', 'ÃƒÂ¡', 'ÃƒÂ©', 'ÃƒÂ­', 'ÃƒÂ³', 'ÃƒÂº', 'ÃƒÂ±'], ['A', 'E', 'I', 'O', 'U', 'N', 'a', 'e', 'i', 'o', 'u', 'n'], $value);
     $value = strtolower($value);
     return preg_replace('/\s+/', ' ', $value) ?: '';
 }
@@ -1260,7 +1277,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     ><?= csb_h($hojaRuta) ?></textarea>
                                     <small class="csb-hojaruta-state" data-csb-hojaruta-state>
                                         <i class="bi <?= $hojaRutaDuplicada ? 'bi-exclamation-triangle-fill' : ($tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle') ?>"></i>
-                                        <span><?= $hojaRutaDuplicada ? 'Duplicada: revisar antes de continuar' : ($tieneHojaRuta ? 'Hoja de ruta registrada Â· sin duplicados' : 'Pendiente de revisión') ?></span>
+                                        <span><?= $hojaRutaDuplicada ? 'Duplicada: revisar antes de continuar' : ($tieneHojaRuta ? 'Hoja de ruta registrada Ã‚Â· sin duplicados' : 'Pendiente de revisión') ?></span>
                                     </small>
                                 </td>
                                 <td>

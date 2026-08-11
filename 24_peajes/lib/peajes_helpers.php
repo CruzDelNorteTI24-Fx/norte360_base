@@ -644,7 +644,7 @@ function pje_control_column_map(mysqli $conn): array {
         'codigo' => pje_pick_column($columns, ['clm_ctrl_CODIGO']),
         'estado' => pje_pick_column($columns, ['clm_ctrl_ESTADO']),
         'mes' => pje_pick_column($columns, ['clm_ctrl_MES']),
-        'anio' => pje_pick_column($columns, ['clm_ctrl_AÑO', 'clm_ctrl_AÃ‘O']),
+        'anio' => pje_pick_column($columns, ['clm_ctrl_AÑO', 'clm_ctrl_AÑO']),
     ];
 }
 
