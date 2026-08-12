@@ -15,6 +15,8 @@
     const detailModal = detailModalEl ? new bootstrap.Modal(detailModalEl) : null;
     const quoteForm = document.getElementById('req24QuoteForm');
     const requirementForm = document.getElementById('req24RequirementForm');
+    const detailPdfButton = document.getElementById('req24DetailPdf');
+    let currentDetailRow = null;
 
     const escapeHtml = (value) => String(value ?? '')
         .replaceAll('&', '&amp;')
@@ -63,6 +65,13 @@
         };
         return labels[String(value || '').toUpperCase()] || valueOrDash(value);
     };
+
+    const detailLabel = (icon, label) => `
+        <span class="req24-detail-label">
+            <i class="bi ${icon}"></i>
+            ${escapeHtml(label)}
+        </span>
+    `;
 
     const normalizeMessage = (message) => {
         if (typeof message === 'string') {
@@ -124,6 +133,20 @@
         }
     };
 
+    const cleanText = (value) => String(value ?? '').trim();
+    const valueOrPlainDash = (value) => cleanText(value) || '-';
+    const safeFilename = (value) => valueOrPlainDash(value)
+        .replace(/[^a-z0-9_-]+/gi, '_')
+        .replace(/^_+|_+$/g, '') || 'cotizacion';
+
+    const downloadDetailNotePdf = async (row) => {
+        if (window.N360Req24NotaPdf && typeof window.N360Req24NotaPdf.download === 'function') {
+            await window.N360Req24NotaPdf.download(row, { showDialog });
+            return;
+        }
+
+        await showDialog('PDF nota', 'No se encontro el formato de nota PDF. Actualiza la pagina e intenta nuevamente.', 'error');
+    };
     document.querySelectorAll('.req24-new-quote').forEach((button) => {
         button.addEventListener('click', () => {
             if (!quoteForm || !quoteModal) return;
@@ -171,74 +194,81 @@
     document.querySelectorAll('.req24-view').forEach((button) => {
         button.addEventListener('click', () => {
             const row = parseRow(button);
+            currentDetailRow = row;
             const body = document.getElementById('req24DetailBody');
             if (!body) {
                 return;
             }
 
             body.innerHTML = `
-                <section class="req24-detail-head">
+                <section class="req24-detail-head req24-detail-head--with-icons">
                     <div>
-                        <span>Codigo interno</span>
+                        ${detailLabel('bi-upc-scan', 'Codigo interno')}
                         <strong>${valueOrDash(row.codigo_interno)}</strong>
                     </div>
                     <div>
-                        <span>Estado</span>
+                        ${detailLabel('bi-shield-check', 'Estado')}
                         <strong>${valueOrDash(row.estado)}</strong>
                     </div>
                     <div>
-                        <span>Area</span>
+                        ${detailLabel('bi-diagram-3', 'Area')}
                         <strong>${areaLabel(row.area)}</strong>
                     </div>
                 </section>
                 <section class="req24-detail-grid">
                     <article>
-                        <span>Cotizacion</span>
+                        ${detailLabel('bi-receipt', 'Cotizacion')}
                         <strong>${valueOrDash(row.cotizacion)}</strong>
                     </article>
                     <article>
-                        <span>Solicitante</span>
+                        ${detailLabel('bi-person-badge', 'Solicitante')}
                         <strong>${valueOrDash(row.solicitante)}</strong>
                     </article>
                     <article>
-                        <span>Cargo</span>
+                        ${detailLabel('bi-briefcase', 'Cargo')}
                         <strong>${valueOrDash(row.cargo)}</strong>
                     </article>
                     <article>
-                        <span>Registro</span>
+                        ${detailLabel('bi-clock-history', 'Registro')}
                         <strong>${valueOrDash(row.fecha_registro)}</strong>
                         <small>${valueOrDash(row.usuario_registro)}</small>
                     </article>
-                    <article class="req24-detail-wide">
-                        <span>Comentario de cotizacion</span>
+                    <article class="req24-detail-wide req24-detail-note">
+                        ${detailLabel('bi-chat-left-text', 'Comentario de cotizacion')}
                         <p>${valueOrDash(row.comentario)}</p>
                     </article>
                 </section>
                 <section class="req24-detail-section">
                     <div class="req24-detail-title">
-                        <span>Requerimiento</span>
+                        <div class="req24-detail-title-main">
+                            <span class="req24-section-icon"><i class="bi bi-journal-check"></i></span>
+                            <div>
+                                <span>Requerimiento</span>
+                                <small>Datos completados posteriormente</small>
+                            </div>
+                        </div>
                         <strong>${valueOrDash(row.req_codigo || row.req_name)}</strong>
                     </div>
                     <div class="req24-detail-grid req24-detail-grid--compact">
                         <article>
-                            <span>Codigo req.</span>
+                            ${detailLabel('bi-hash', 'Codigo req.')}
                             <strong>${valueOrDash(row.req_codigo)}</strong>
                         </article>
                         <article>
-                            <span>Nombre</span>
+                            ${detailLabel('bi-card-text', 'Nombre')}
                             <strong>${valueOrDash(row.req_name)}</strong>
                         </article>
                         <article>
-                            <span>Monto</span>
+                            ${detailLabel('bi-cash-stack', 'Monto')}
                             <strong>${money(row.req_monto)}</strong>
                         </article>
                         <article>
-                            <span>Ultima actualizacion</span>
+                            ${detailLabel('bi-arrow-repeat', 'Ultima actualizacion')}
                             <strong>${valueOrDash(row.fecha_update)}</strong>
                             <small>${valueOrDash(row.usuario_update)}</small>
                         </article>
-                        <article class="req24-detail-wide">
-                            <span>Comentario del requerimiento</span>
+                        <article class="req24-detail-wide req24-detail-note">
+                            ${detailLabel('bi-chat-square-dots', 'Comentario del requerimiento')}
                             <p>${valueOrDash(row.req_comentario)}</p>
                         </article>
                     </div>
@@ -247,6 +277,11 @@
             detailModal?.show();
         });
     });
+    if (detailPdfButton) {
+        detailPdfButton.addEventListener('click', () => {
+            downloadDetailNotePdf(currentDetailRow);
+        });
+    }
     document.querySelectorAll('.req24-history').forEach((button) => {
         button.addEventListener('click', () => {
             if (!historyModal) return;

@@ -312,9 +312,17 @@
 .req24-code-preview span,
 .req24-state-preview span,
 .req24-detail-head span,
-.req24-detail-grid article span,
-.req24-detail-title span {
+.req24-detail-grid article span{
     color: #5b6f86;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+}
+
+
+.req24-detail-title span {
+    color: #FFFFFF;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: .02em;
@@ -408,7 +416,7 @@
 }
 
 .req24-detail-title strong {
-    color: #0b233d;
+    color: #FFFFFF;
     font-size: 16px;
 }
 
@@ -417,5 +425,189 @@
     .req24-detail-grid,
     .req24-detail-grid--compact {
         grid-template-columns: 1fr;
+    }
+}
+/* Refinamiento visual de cotizaciones y requerimientos */
+.req24-filters input::placeholder,
+.req24-form-grid input::placeholder,
+.req24-form-grid textarea::placeholder {
+    color: #8aa0b7;
+    font-weight: 700;
+}
+
+.req24-actions .req24-req-btn {
+    min-width: 138px;
+    justify-content: center;
+}
+
+.req24-actions .req24-req-btn--edit {
+    border-color: #dba43a;
+    color: #7c4d00;
+    background: #fff7e8;
+}
+
+.req24-actions .req24-req-btn--edit:hover {
+    background: #f2b544;
+    color: #061b33;
+    border-color: #f2b544;
+}
+
+.req24-detail-modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.req24-detail-modal-actions .btn {
+    border-radius: 8px;
+    font-weight: 900;
+}
+
+.req24-table tbody tr {
+    transition: background .16s ease, transform .16s ease;
+}
+
+.req24-table tbody tr:hover td {
+    background: #f7fbff;
+}
+
+.req24-detail-head {
+    background: linear-gradient(180deg, #f5fbff 0%, #eef7ff 100%);
+    border: 1px solid #cfe0ef;
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.req24-detail-grid article {
+    border: 1px solid #d5e4f1;
+    background: #f8fbfe;
+    border-radius: 9px;
+    padding: 14px;
+}
+
+.req24-detail-section {
+    margin-top: 14px;
+    border: 1px solid #d5e4f1;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.req24-detail-title {
+    border-radius: 10px;
+    border-bottom: 1px solid #dbe7f1;
+    background: radial-gradient(circle at top right, rgba(33, 139, 208, .24), transparent 32%),
+        linear-gradient(135deg, #122a40, #1f536f);
+    padding: 14px;
+}
+
+
+
+
+@media (max-width: 720px) {
+    .req24-detail-modal-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .req24-actions .req24-req-btn {
+        min-width: 100%;
+    }
+}
+/* Detalle de cotizacion: iconografia y descarga */
+.req24-detail-header {
+    align-items: center;
+    gap: 16px;
+}
+
+.req24-modal-titleblock span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.req24-detail-pdf-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, .46);
+    color: #0b233d;
+    background: #fff;
+    box-shadow: 0 10px 22px rgba(8, 34, 60, .16);
+}
+
+.req24-detail-pdf-btn:hover {
+    color: #071c33;
+    background: #e9f5ff;
+}
+
+.req24-detail-label {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 8px;
+}
+
+.req24-detail-label i {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e8f4ff;
+    color: #1d8bd1;
+    font-size: 14px;
+    flex: 0 0 28px;
+}
+
+.req24-detail-head > div,
+.req24-detail-grid article {
+    box-shadow: 0 8px 18px rgba(8, 34, 60, .05);
+}
+
+.req24-detail-head > div {
+    min-height: 92px;
+}
+
+.req24-detail-grid article {
+    min-height: 98px;
+}
+
+.req24-detail-note {
+    min-height: auto;
+}
+
+.req24-detail-title-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.req24-section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e8f4ff;
+    color: #1d8bd1;
+    flex: 0 0 36px;
+}
+
+.req24-detail-title-main small {
+    display: block;
+    color: #60758d;
+    font-weight: 800;
+    margin-top: 2px;
+}
+
+@media (max-width: 720px) {
+    .req24-detail-header {
+        align-items: flex-start;
+    }
+
+    .req24-detail-pdf-btn {
+        flex: 1 1 auto;
+        justify-content: center;
     }
 }

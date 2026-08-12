@@ -79,16 +79,21 @@ function req24_state(string $key = 'estado'): string
 function req24_allowed_areas(): array
 {
     return [
-        'ADMINISTRACION' => 'Administracion',
-        'ALMACEN' => 'Almacen',
-        'CONTABILIDAD' => 'Contabilidad',
-        'COMBUSTIBLE' => 'Combustible',
-        'FLOTA' => 'Flota',
-        'MANTENIMIENTO' => 'Mantenimiento',
-        'OPERACIONES' => 'Operaciones',
-        'PEAJES' => 'Peajes',
-        'RECURSOS HUMANOS' => 'Recursos Humanos',
-        'SISTEMAS' => 'Sistemas',
+        'ADMINISTRACION',
+        'CONTABILIDAD',
+        'FINANZAS',
+        'OPERACIONES',
+        'FLOTA',
+        'MANTENIMIENTO',
+        'ALMACEN',
+        'COMBUSTIBLE',
+        'RECURSOS_HUMANOS',
+        'RECURSOS HUMANOS',
+        'CALIDAD',
+        'PEAJES',
+        'ENCOMIENDAS',
+        'SISTEMAS',
+        'GERENCIA',
     ];
 }
 

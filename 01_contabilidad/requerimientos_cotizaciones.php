@@ -271,7 +271,7 @@ $areaOptions = [
             <span>Buscar</span>
             <div class="req24-input-icon">
                 <i class="bi bi-search"></i>
-                <input type="text" name="buscar" value="<?php echo req24_h($filters['buscar']); ?>" placeholder="Codigo, cotizacion, solicitante, requerimiento...">
+                <input type="text" name="buscar" value="<?php echo req24_h($filters['buscar']); ?>" placeholder="Codigo interno, cotizacion, solicitante o requerimiento...">
             </div>
         </label>
         <label>
@@ -344,6 +344,11 @@ $areaOptions = [
             'usuario_update' => (string)($row['usuario_update_nombre'] ?? ''),
                         'histor' => (string)($row['clm_requersen24_histor'] ?? ''),
                     ];
+                    $hasRequirement = trim((string)($row['clm_requersen24_requerimiento_codigo'] ?? '')) !== ''
+                        || trim((string)($row['clm_requersen24_requerimiento_name'] ?? '')) !== '';
+                    $reqButtonClass = $hasRequirement ? 'btn-outline-warning req24-req-btn req24-req-btn--edit' : 'btn-primary req24-req-btn';
+                    $reqButtonIcon = $hasRequirement ? 'bi-pencil-square' : 'bi-journal-plus';
+                    $reqButtonLabel = $hasRequirement ? 'Editar req.' : 'Requerimiento';
                     $rowJson = req24_h(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
                     ?>
                     <tr>
@@ -374,8 +379,8 @@ $areaOptions = [
                                 <button type="button" class="btn btn-sm btn-outline-primary req24-view" data-row="<?php echo $rowJson; ?>">
                                     <i class="bi bi-eye"></i> Ver
                                 </button>
-                                <button type="button" class="btn btn-sm btn-primary req24-edit-req" data-row="<?php echo $rowJson; ?>">
-                                    <i class="bi bi-journal-plus"></i> Requerimiento
+                                <button type="button" class="btn btn-sm <?php echo req24_h($reqButtonClass); ?> req24-edit-req" data-row="<?php echo $rowJson; ?>">
+                                    <i class="bi <?php echo req24_h($reqButtonIcon); ?>"></i> <?php echo req24_h($reqButtonLabel); ?>
                                 </button>
                                 <?php if ($isAdminReq24): ?>
                                     <button type="button" class="btn btn-sm btn-outline-primary req24-edit-quote" data-row="<?php echo $rowJson; ?>">
@@ -412,20 +417,11 @@ $areaOptions = [
             <div class="modal-body req24-form-grid">
                     <input type="hidden" name="codigo_interno">
                     <input type="hidden" name="estado" value="PENDIENTE">
-                    <div class="req24-code-preview">
-                        <span>Codigo interno</span>
-                        <strong data-req24-code-preview>Automatico al guardar</strong>
-                        <small>Este codigo es interno y no se edita manualmente.</small>
-                    </div>
-                    <div class="req24-state-preview">
-                        <span>Estado inicial</span>
-                        <strong>Pendiente</strong>
-                    </div>
-                    <label><span>Cotizacion</span><input name="cotizacion" maxlength="255"></label>
-                    <label><span>Solicitante</span><input name="solicitante" maxlength="255"></label>
-                    <label><span>Cargo</span><input name="cargo" maxlength="255"></label>
-                    <label><span>Area</span><select name="area"><option value="">Seleccionar area</option><?php foreach ($areaOptions as $value => $label): ?><option value="<?php echo req24_h($value); ?>"><?php echo req24_h($label); ?></option><?php endforeach; ?></select></label>
-                    <label class="req24-span-2"><span>Comentario</span><textarea name="comentario" rows="3"></textarea></label>
+                    <label><span>Cotizacion</span><input name="cotizacion" maxlength="255" placeholder="Ej. COT-034 / proveedor / servicio"></label>
+                    <label><span>Solicitante</span><input name="solicitante" maxlength="255" placeholder="Nombre del solicitante"></label>
+                    <label><span>Cargo</span><input name="cargo" maxlength="255" placeholder="Cargo o puesto"></label>
+                    <label><span>Area</span><select name="area"><option value="">Seleccionar area operativa</option><?php foreach ($areaOptions as $value => $label): ?><option value="<?php echo req24_h($value); ?>"><?php echo req24_h($label); ?></option><?php endforeach; ?></select></label>
+                    <label class="req24-span-2"><span>Comentario</span><textarea name="comentario" rows="3" placeholder="Contexto breve de la cotizacion o servicio solicitado"></textarea></label>
                 </div>
                 <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -447,11 +443,11 @@ $areaOptions = [
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body req24-form-grid">
-                <label><span>Codigo de requerimiento</span><input name="requerimiento_codigo" maxlength="255"></label>
-                <label><span>Nombre / detalle</span><input name="requerimiento_name" maxlength="255"></label>
-                <label><span>Monto</span><input name="requerimiento_monto" type="number" min="0" step="0.0001"></label>
+                <label><span>Codigo de requerimiento</span><input name="requerimiento_codigo" maxlength="255" placeholder="Ej. REQ-OC-001 / OC-2026-..."></label>
+                <label><span>Nombre / detalle</span><input name="requerimiento_name" maxlength="255" placeholder="Descripcion clara del requerimiento"></label>
+                <label><span>Monto</span><input name="requerimiento_monto" type="number" min="0" step="0.0001" placeholder="0.00"></label>
                 <label><span>Estado</span><select name="estado"><?php foreach ($estadoOptions as $value => $label): ?><option value="<?php echo req24_h($value); ?>"><?php echo req24_h($label); ?></option><?php endforeach; ?></select></label>
-                <label class="req24-span-2"><span>Comentario del requerimiento</span><textarea name="requerimiento_comentario" rows="4"></textarea></label>
+                <label class="req24-span-2"><span>Comentario del requerimiento</span><textarea name="requerimiento_comentario" rows="4" placeholder="Detalle, correcciones o sustento del requerimiento"></textarea></label>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -464,12 +460,18 @@ $areaOptions = [
 <div class="modal fade" id="req24DetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content req24-modal">
-            <div class="modal-header">
-                <div>
-                    <span>Consulta</span>
+            <div class="modal-header req24-detail-header">
+                <div class="req24-modal-titleblock">
+                    <span><i class="bi bi-search"></i> Consulta</span>
                     <h5 class="modal-title">Detalle de cotizacion</h5>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                <div class="req24-detail-modal-actions">
+                    <button type="button" class="btn btn-light btn-sm req24-detail-pdf-btn" id="req24DetailPdf">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        PDF nota
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
             </div>
             <div class="modal-body">
                 <div id="req24DetailBody"></div>
@@ -503,7 +505,9 @@ $areaOptions = [
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="<?= n360_asset('assets/js/contabilidad_requersen24_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_requersen24_nota_pdf_n360.js') ?>"></script>
 </body>
 </html>
 
