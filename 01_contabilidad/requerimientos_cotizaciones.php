@@ -258,12 +258,12 @@ $areaOptions = [
     <section class="req24-hero">
         <div>
             <p class="req24-eyebrow"><i class="bi bi-calculator"></i> Contabilidad - seguimiento operativo</p>
-            <h1>Cotizaciones y requerimientos</h1>
+            <h1>Requerimientos y Cotizaciones</h1>
         </div>
         <div class="req24-hero-actions">
             <?php if ($isAdminReq24): ?>
                 <button type="button" class="btn btn-light req24-new-quote">
-                    <i class="bi bi-plus-lg"></i> Nueva cotizacion
+                    <i class="bi bi-plus-lg"></i> Nuevo Requerimiento
                 </button>
             <?php endif; ?>
         </div>
@@ -276,7 +276,7 @@ $areaOptions = [
     <section class="req24-kpis">
         <article><span>Registros</span><strong><?php echo (int)$stats['total']; ?></strong></article>
         <article><span>Pendientes</span><strong><?php echo (int)$stats['pendientes']; ?></strong></article>
-        <article><span>Con requerimiento</span><strong><?php echo (int)$stats['con_requerimiento']; ?></strong></article>
+        <article><span>Con Cotización</span><strong><?php echo (int)$stats['con_requerimiento']; ?></strong></article>
         <article><span>Aprobados</span><strong><?php echo (int)$stats['aprobados']; ?></strong></article>
     </section>
 
@@ -314,7 +314,7 @@ $areaOptions = [
     <section class="req24-table-card">
         <div class="req24-card-head">
             <div>
-                <h2>Cotizaciones</h2>
+                <h2>Requerimientos</h2>
             </div>
             <span><?php echo (int)$stats['total']; ?> registros</span>
         </div>
@@ -322,11 +322,11 @@ $areaOptions = [
             <table class="table req24-table align-middle">
                 <thead>
                 <tr>
-                    <th>Cotizacion</th>
+                    <th>Requerimientos</th>
                     <th>Solicitante</th>
                     <th>Estado</th>
-                    <th>Requerimiento</th>
-                    <th>Actualizacion</th>
+                    <th>Cotización</th>
+                    <th>Actualización</th>
                     <th>Acciones</th>
                 </tr>
                 </thead>
@@ -362,7 +362,7 @@ $areaOptions = [
                         || trim((string)($row['clm_requersen24_requerimiento_name'] ?? '')) !== '';
                     $reqButtonClass = $hasRequirement ? 'btn-outline-warning req24-req-btn req24-req-btn--edit' : 'btn-primary req24-req-btn';
                     $reqButtonIcon = $hasRequirement ? 'bi-pencil-square' : 'bi-journal-plus';
-                    $reqButtonLabel = $hasRequirement ? 'Editar req.' : 'Requerimiento';
+                    $reqButtonLabel = $hasRequirement ? 'Editar cot.' : 'Cotización';
                     $rowJson = req24_h(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
                     ?>
                     <tr>
@@ -424,22 +424,22 @@ $areaOptions = [
             <div class="modal-header">
                 <div>
                     <span>Solo administradores</span>
-                    <h5 class="modal-title">Cotizacion</h5>
+                    <h5 class="modal-title">Requerimiento</h5>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body req24-form-grid">
                     <input type="hidden" name="codigo_interno">
                     <input type="hidden" name="estado" value="PENDIENTE">
-                    <label><span>Cotizacion</span><input name="cotizacion" maxlength="255" placeholder="Ej. COT-034 / proveedor / servicio"></label>
+                    <label><span>Requerimiento</span><input name="cotizacion" maxlength="255" placeholder="Ej. COT-034 / proveedor / servicio"></label>
                     <label><span>Solicitante</span><input name="solicitante" maxlength="255" placeholder="Nombre del solicitante"></label>
                     <label><span>Cargo</span><input name="cargo" maxlength="255" placeholder="Cargo o puesto"></label>
                     <label><span>Area</span><select name="area"><option value="">Seleccionar area operativa</option><?php foreach ($areaOptions as $value => $label): ?><option value="<?php echo req24_h($value); ?>"><?php echo req24_h($label); ?></option><?php endforeach; ?></select></label>
-                    <label class="req24-span-2"><span>Comentario</span><textarea name="comentario" rows="3" placeholder="Contexto breve de la cotizacion o servicio solicitado"></textarea></label>
+                    <label class="req24-span-2"><span>Comentario</span><textarea name="comentario" rows="3" placeholder="Contexto breve del servicio solicitado"></textarea></label>
                 </div>
                 <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Guardar cotizacion</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Guardar requerimiento</button>
             </div>
         </form>
     </div>
@@ -452,20 +452,20 @@ $areaOptions = [
             <div class="modal-header">
                 <div>
                     <span>Gestion operativa</span>
-                    <h5 class="modal-title">Requerimiento</h5>
+                    <h5 class="modal-title">Cotización</h5>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body req24-form-grid">
-                <label><span>Codigo de requerimiento</span><input name="requerimiento_codigo" maxlength="255" placeholder="Ej. REQ-OC-001 / OC-2026-..."></label>
+                <label><span>Codigo de Cotización</span><input name="requerimiento_codigo" maxlength="255" placeholder="Ej. REQ-OC-001 / OC-2026-..."></label>
                 <label><span>Nombre / detalle</span><input name="requerimiento_name" maxlength="255" placeholder="Descripcion clara del requerimiento"></label>
                 <label><span>Monto</span><input name="requerimiento_monto" type="number" min="0" step="0.0001" placeholder="0.00"></label>
                 <label><span>Estado</span><select name="estado"><?php foreach ($estadoOptions as $value => $label): ?><option value="<?php echo req24_h($value); ?>"><?php echo req24_h($label); ?></option><?php endforeach; ?></select></label>
-                <label class="req24-span-2"><span>Comentario del requerimiento</span><textarea name="requerimiento_comentario" rows="4" placeholder="Detalle, correcciones o sustento del requerimiento"></textarea></label>
+                <label class="req24-span-2"><span>Comentario de la cotización</span><textarea name="requerimiento_comentario" rows="4" placeholder="Detalle, correcciones o sustento del requerimiento"></textarea></label>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="bi bi-save2"></i> Guardar requerimiento</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save2"></i> Guardar cotización</button>
             </div>
         </form>
     </div>
@@ -477,7 +477,7 @@ $areaOptions = [
             <div class="modal-header req24-detail-header">
                 <div class="req24-modal-titleblock">
                     <span><i class="bi bi-search"></i> Consulta</span>
-                    <h5 class="modal-title">Detalle de cotizacion</h5>
+                    <h5 class="modal-title">Detalle de requerimiento</h5>
                 </div>
                 <div class="req24-detail-modal-actions">
                     <button type="button" class="btn btn-light btn-sm req24-detail-pdf-btn" id="req24DetailPdf">

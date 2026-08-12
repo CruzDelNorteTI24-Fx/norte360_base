@@ -232,7 +232,7 @@
                 </section>
                 <section class="req24-detail-grid">
                     <article>
-                        ${detailLabel('bi-receipt', 'Cotizacion')}
+                        ${detailLabel('bi-receipt', 'Requerimiento')}
                         <strong>${valueOrDash(row.cotizacion)}</strong>
                     </article>
                     <article>
@@ -249,7 +249,7 @@
                         <small>${valueOrDash(row.usuario_registro)}</small>
                     </article>
                     <article class="req24-detail-wide req24-detail-note">
-                        ${detailLabel('bi-chat-left-text', 'Comentario de cotizacion')}
+                        ${detailLabel('bi-chat-left-text', 'Comentario de requerimiento')}
                         <p>${valueOrDash(row.comentario)}</p>
                     </article>
                 </section>
@@ -258,7 +258,7 @@
                         <div class="req24-detail-title-main">
                             <span class="req24-section-icon"><i class="bi bi-journal-check"></i></span>
                             <div>
-                                <span>Requerimiento</span>
+                                <span>Cotización</span>
                                 <small>Datos completados posteriormente</small>
                             </div>
                         </div>
@@ -266,7 +266,7 @@
                     </div>
                     <div class="req24-detail-grid req24-detail-grid--compact">
                         <article>
-                            ${detailLabel('bi-hash', 'Codigo req.')}
+                            ${detailLabel('bi-hash', 'Codigo cot.')}
                             <strong>${valueOrDash(row.req_codigo)}</strong>
                         </article>
                         <article>
@@ -283,7 +283,7 @@
                             <small>${valueOrDash(row.usuario_update)}</small>
                         </article>
                         <article class="req24-detail-wide req24-detail-note">
-                            ${detailLabel('bi-chat-square-dots', 'Comentario del requerimiento')}
+                            ${detailLabel('bi-chat-square-dots', 'Comentario de la cotización')}
                             <p>${valueOrDash(row.req_comentario)}</p>
                         </article>
                     </div>

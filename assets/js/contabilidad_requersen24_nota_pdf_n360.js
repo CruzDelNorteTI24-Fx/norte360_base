@@ -245,7 +245,7 @@
         y += headerH;
 
         const rows = [
-            ['Código req.', plain(data.reqCodigo)],
+            ['Código cot.', plain(data.reqCodigo)],
             ['Nombre', plain(data.reqNombre)],
             ['Monto', money(data.reqMonto)],
             ['Actualizado', formatDateTime(data.fechaUpdate)],
@@ -372,10 +372,10 @@
         y += 8;
 
         setFont(doc, 8, 'bold');
-        doc.text('CONTROL INTERNO DE REQUERIMIENTOS', CFG.width / 2, y, { align: 'center' });
+        doc.text('CONTROL INTERNO', CFG.width / 2, y, { align: 'center' });
         y += 4;
 
-        y = banner(doc, 'NOTA DE COTIZACIÓN', y) + 5;
+        y = banner(doc, 'NOTA DE REQUERIMIENTO Y COTIZACIÓN', y) + 5;
 
         setFont(doc, 8.3, 'bold');
         doc.text(plain(data.codigo), CFG.marginX, y);
@@ -386,7 +386,7 @@
         y += 1.5;
 
         // Datos de la cotización: mismo enfoque simple y compacto de la Nota de Abastecimiento.
-        y = leftField(doc, 'Cotización', data.cotizacion, y, { labelWidth: 21, lineHeight: 4 });
+        y = leftField(doc, 'Requerimiento', data.cotizacion, y, { labelWidth: 21, lineHeight: 4 });
         y = leftField(doc, 'Solicitante', data.solicitante, y, { labelWidth: 21, lineHeight: 4 });
         y = leftField(doc, 'Cargo', data.cargo, y, { labelWidth: 21, lineHeight: 4 });
         y = paragraph(doc, 'Comentario', data.comentario, y + 1, { maxLines: 10 }) + 3;
@@ -396,9 +396,9 @@
         y = leftField(doc, 'Registró', data.usuarioRegistro, y, { labelWidth: 21, fontSize: 7, lineHeight: 3.6 });
         y += 3;
 
-        y = outlinedTitle(doc, 'REQUERIMIENTO', y) + 4;
+        y = outlinedTitle(doc, 'COTIZACIÓN', y) + 4;
         y = drawReqTable(doc, data, y) + 3;
-        y = paragraph(doc, 'Comentario del requerimiento', data.reqComentario, y, { maxLines: 12 });
+        y = paragraph(doc, 'Comentario de la cotización', data.reqComentario, y, { maxLines: 12 });
 
         // Separador igual al que precede al pie en la Nota de Abastecimiento.
         const footerTop = pageHeight - 15;
