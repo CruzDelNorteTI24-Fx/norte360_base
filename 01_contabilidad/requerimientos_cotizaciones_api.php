@@ -23,7 +23,7 @@ if (!isset($_SESSION['usuario'])) {
     req24_json(['ok' => false, 'message' => 'Sesion expirada. Inicia sesion nuevamente.'], 401);
 }
 
-if (!function_exists('n360_puede_modulo') || !n360_puede_modulo(12)) {
+if (!function_exists('n360_puede_modulo') || !n360_puede_modulo(12) || !function_exists('n360_puede_vista') || !n360_puede_vista('conta-permrequerim')) {
     req24_json(['ok' => false, 'message' => 'No tienes permiso para Contabilidad.'], 403);
 }
 

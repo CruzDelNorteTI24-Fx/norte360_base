@@ -18,7 +18,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 require_once __DIR__ . '/../layout/quick_scan_n360.php';
 require_once __DIR__ . '/../layout/bus_lookup_n360.php';
 
-if (!function_exists('n360_puede_modulo') || !n360_puede_modulo(12)) {
+if (!function_exists('n360_puede_modulo') || !n360_puede_modulo(12) || !function_exists('n360_puede_vista') || !n360_puede_vista('conta-permrequerim')) {
     header('Location: ../login/none_permisos.php?vista=Cotizaciones%20y%20requerimientos');
     exit();
 }

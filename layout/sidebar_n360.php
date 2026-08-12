@@ -460,7 +460,8 @@ function n360_menu_config(): array {
                                 'titulo' => 'Cotizaciones y requerimientos',
                                 'icono' => 'bi bi-receipt-cutoff',
                                 'url' => '01_contabilidad/requerimientos_cotizaciones.php',
-                                'modulo' => 12
+                                'modulo' => 12,
+                                'vista' => 'conta-permrequerim'
                             ],
                         ],
                     ],
