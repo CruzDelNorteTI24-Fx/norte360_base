@@ -263,7 +263,6 @@ $areaOptions = [
         <article><span>Pendientes</span><strong><?php echo (int)$stats['pendientes']; ?></strong></article>
         <article><span>Con requerimiento</span><strong><?php echo (int)$stats['con_requerimiento']; ?></strong></article>
         <article><span>Aprobados</span><strong><?php echo (int)$stats['aprobados']; ?></strong></article>
-        <article><span>Monto filtrado</span><strong><?php echo req24_h(req24_money($stats['monto'])); ?></strong></article>
     </section>
 
     <form class="req24-filters" method="get">
