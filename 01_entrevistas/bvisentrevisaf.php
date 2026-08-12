@@ -1910,34 +1910,34 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                 }
               }
                   $boton = "<button class='btn-validar' onclick='abrirModal(this)' 
-                      data-nombre='" . htmlspecialchars($row["nombre"]) . "'
-                      data-fecha='" . htmlspecialchars($row["fecha"]) . "'
-                      data-hora='" . htmlspecialchars($row["hora"]) . "'
-                      data-dni='" . htmlspecialchars($row["dni"]) . "'
-                      data-sexo='" . htmlspecialchars($row["sexo"]) . "'
-                      data-contacto='" . htmlspecialchars($row["contacto"]) . "'
-                      data-edad='" . htmlspecialchars($row["edad"]) . "'
-                      data-sede='" . htmlspecialchars($row["clm_sede"]) . "'
-                      data-puesto='" . htmlspecialchars($row["puesto"]) . "'
-                      data-clm_referencia='" . htmlspecialchars($row["clm_referencia"]) . "'
-                      data-estado='" . htmlspecialchars($row["clm_estado"]) . "'
-                      data-estadoTexto='" . htmlspecialchars($estadoTexto) . "'
-                      data-estadoProximo='" . htmlspecialchars($estadoProximo) . "'
-                      data-id_entrevista='" . htmlspecialchars($row["id_entrevista"]) . "'
-                      data-yesorno='" . htmlspecialchars($row["clm_yesorno"]) . "'
-                      data-clm_reservas='" . htmlspecialchars($row["clm_reservas"]) . "'
-                      data-comentario2='" . htmlspecialchars($row["clm_comentario_entrevistapersonal"]) . "'
-                      data-comentario3='" . htmlspecialchars($row["clm_comentario_induccion"]) . "'
-                      data-comentario4='" . htmlspecialchars($row["clm_comentario_contratado"]) . "'
-                      data-comentarioRechazo='" . htmlspecialchars($row["clm_comentario_rechazado"]) . "'
-                      data-observaciones='" . htmlspecialchars($row["observaciones"]) . "'>📄 Ver Detalle</button>";
+                      data-nombre='" . htmlspecialchars($row["nombre"], ENT_QUOTES, 'UTF-8') . "'
+                      data-fecha='" . htmlspecialchars($row["fecha"], ENT_QUOTES, 'UTF-8') . "'
+                      data-hora='" . htmlspecialchars($row["hora"], ENT_QUOTES, 'UTF-8') . "'
+                      data-dni='" . htmlspecialchars($row["dni"], ENT_QUOTES, 'UTF-8') . "'
+                      data-sexo='" . htmlspecialchars($row["sexo"], ENT_QUOTES, 'UTF-8') . "'
+                      data-contacto='" . htmlspecialchars($row["contacto"], ENT_QUOTES, 'UTF-8') . "'
+                      data-edad='" . htmlspecialchars($row["edad"], ENT_QUOTES, 'UTF-8') . "'
+                      data-sede='" . htmlspecialchars($row["clm_sede"], ENT_QUOTES, 'UTF-8') . "'
+                      data-puesto='" . htmlspecialchars($row["puesto"], ENT_QUOTES, 'UTF-8') . "'
+                      data-clm_referencia='" . htmlspecialchars($row["clm_referencia"], ENT_QUOTES, 'UTF-8') . "'
+                      data-estado='" . htmlspecialchars($row["clm_estado"], ENT_QUOTES, 'UTF-8') . "'
+                      data-estadoTexto='" . htmlspecialchars($estadoTexto, ENT_QUOTES, 'UTF-8') . "'
+                      data-estadoProximo='" . htmlspecialchars($estadoProximo, ENT_QUOTES, 'UTF-8') . "'
+                      data-id_entrevista='" . htmlspecialchars($row["id_entrevista"], ENT_QUOTES, 'UTF-8') . "'
+                      data-yesorno='" . htmlspecialchars($row["clm_yesorno"], ENT_QUOTES, 'UTF-8') . "'
+                      data-clm_reservas='" . htmlspecialchars($row["clm_reservas"], ENT_QUOTES, 'UTF-8') . "'
+                      data-comentario2='" . htmlspecialchars($row["clm_comentario_entrevistapersonal"], ENT_QUOTES, 'UTF-8') . "'
+                      data-comentario3='" . htmlspecialchars($row["clm_comentario_induccion"], ENT_QUOTES, 'UTF-8') . "'
+                      data-comentario4='" . htmlspecialchars($row["clm_comentario_contratado"], ENT_QUOTES, 'UTF-8') . "'
+                      data-comentarioRechazo='" . htmlspecialchars($row["clm_comentario_rechazado"], ENT_QUOTES, 'UTF-8') . "'
+                      data-observaciones='" . htmlspecialchars($row["observaciones"], ENT_QUOTES, 'UTF-8') . "'>📄 Ver Detalle</button>";
                   echo "<tr>
-                      <td>" . htmlspecialchars($row["fecha"]) . "</td>
-                      <td>" . htmlspecialchars($row["dni"]) . "</td>
-                      <td>" . htmlspecialchars($row["nombre"]) . "</td>
-                      <td>" . htmlspecialchars($row["clm_sede"]) . "</td>
-                      <td>" . htmlspecialchars($row["puesto"]) . "</td>
-                      <td>" . htmlspecialchars($row["clm_referencia"]) . "</td>
+                      <td>" . htmlspecialchars($row["fecha"], ENT_QUOTES, 'UTF-8') . "</td>
+                      <td>" . htmlspecialchars($row["dni"], ENT_QUOTES, 'UTF-8') . "</td>
+                      <td>" . htmlspecialchars($row["nombre"], ENT_QUOTES, 'UTF-8') . "</td>
+                      <td>" . htmlspecialchars($row["clm_sede"], ENT_QUOTES, 'UTF-8') . "</td>
+                      <td>" . htmlspecialchars($row["puesto"], ENT_QUOTES, 'UTF-8') . "</td>
+                      <td>" . htmlspecialchars($row["clm_referencia"], ENT_QUOTES, 'UTF-8') . "</td>
                       <td>$estadoHtml</td>
                       <td>$estadoTexto</td>
                       <td>$boton</td>
@@ -2166,19 +2166,19 @@ function mostrarPagina(pagina) {
     </div>
     <h3>📅 ${data.fecha} ⏰ ${data.hora}</h3>
       <table>
-        <tr><th>👤 Nombre</th><td>${data.nombre}</td></tr>
-        <tr><th>DNI</th><td>${data.dni}</td></tr>
-        <tr><th>Sexo</th><td>${data.sexo}</td></tr>
-        <tr><th>Edad</th><td>${data.edad}</td></tr>
-        <tr><th>Contacto</th><td>${data.contacto}</td></tr>
-        <tr><th>Sede</th><td>${data.sede}</td></tr>
-        <tr><th>Referencia:</th><td>${data.referencia}</td></tr>
+        <tr><th>👤 Nombre</th><td>${escapeHtml(data.nombre)}</td></tr>
+        <tr><th>DNI</th><td>${escapeHtml(data.dni)}</td></tr>
+        <tr><th>Sexo</th><td id="detalleSexoTexto">${escapeHtml(data.sexo || '-')}</td></tr>
+        <tr><th>Edad</th><td>${escapeHtml(data.edad)}</td></tr>
+        <tr><th>Contacto</th><td>${escapeHtml(data.contacto)}</td></tr>
+        <tr><th>Sede</th><td id="detalleSedeTexto">${escapeHtml(data.sede || '-')}</td></tr>
+        <tr><th>Referencia:</th><td id="detalleReferenciaTexto">${escapeHtml(data.referencia || '-')}</td></tr>
         <tr>
           <th>📝 Observaciones</th>
           <td>
-            <div id="obsTexto" style="white-space:pre-wrap;">${data.observaciones || ''}</div>
+            <div id="obsTexto" style="white-space:pre-wrap;">${escapeHtml(data.observaciones || '')}</div>
             <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-              <button type="button" class="btn-validar" style="max-width:220px;" onclick="editarObs()">✏️ Editar observaciones</button>
+              <button type="button" class="btn-validar" style="max-width:220px;" onclick="editarDatosEntrevista()">✏️ Editar datos</button>
             </div>
             <div id="obsEditor" style="display:none; margin-top:10px;">
               <textarea id="obsTextarea" rows="4" class="input-evaluacion" placeholder="Escribe las observaciones..."></textarea>
@@ -2191,6 +2191,37 @@ function mostrarPagina(pagina) {
         </tr>
         ${filaReserva}
       </table>
+      <div id="datosEntrevistaEditor" style="display:none; margin-top:14px; padding:14px; border:1px solid #dbe7f3; border-radius:12px; background:#f8fbff;">
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+          <strong style="color:#1b4968;">Editar datos de entrevista</strong>
+          <span style="font-size:12px; color:#64748b;">Sexo, sede, referencia y observaciones</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;">
+          <label style="display:flex; flex-direction:column; gap:6px; font-weight:700; color:#34495e;">
+            Sexo
+            <select id="editSexoEntrevista" class="input-evaluacion">
+              <option value="Femenino">Femenino</option>
+              <option value="Masculino">Masculino</option>
+            </select>
+          </label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-weight:700; color:#34495e;">
+            Sede
+            <input type="text" id="editSedeEntrevista" class="input-evaluacion" maxlength="120" placeholder="Sede de entrevista">
+          </label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-weight:700; color:#34495e;">
+            Referencia
+            <input type="text" id="editReferenciaEntrevista" class="input-evaluacion" maxlength="500" placeholder="Referencia o fuente">
+          </label>
+        </div>
+        <label style="display:flex; flex-direction:column; gap:6px; margin-top:12px; font-weight:700; color:#34495e;">
+          Observaciones
+          <textarea id="editObservacionesEntrevista" rows="4" class="input-evaluacion" maxlength="2000" placeholder="Observaciones de seleccion..."></textarea>
+        </label>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap;">
+          <button type="button" class="btn-validar" onclick="guardarDatosEntrevista()">Guardar cambios</button>
+          <button type="button" class="volver-btn" onclick="cancelarDatosEntrevista()">Cancelar</button>
+        </div>
+      </div>
   <div style="
     margin-top: 18px;
     padding: 12px 20px;
@@ -2205,7 +2236,7 @@ function mostrarPagina(pagina) {
     gap: 10px;">
     ${data.yesorno === "2" 
       ? `<span style="font-size: 20px;">📊</span> Etapa actual: ${data.estadoTexto} | Esta entrevista fue rechazada ❌`
-      : `<span style="font-size: 20px;">📊</span> Etapa actual: ${data.estadoTexto} | Etapa siguiente: ${data.estadoProximo}`
+      : `<span style="font-size: 20px;">📊</span> Etapa actual: ${data.estadoTexto} | Etapa siguiente: ${escapeHtml(data.estadoProximo)}`
     }
   </div>
   <div style="
@@ -2220,7 +2251,7 @@ function mostrarPagina(pagina) {
     display: flex;
     align-items: center;
     gap: 10px;">
-    <span style="font-size: 20px;">💼</span> Puesto: ${data.puesto}
+    <span style="font-size: 20px;">💼</span> Puesto: ${escapeHtml(data.puesto)}
   </div>
   <div style="margin-top: 25px; text-align: center;">
     <a href="../php/ver_cv.php?id=${data.id_entrevista}" target="_blank" class="btn-cv-profesional">
@@ -2555,6 +2586,114 @@ document.addEventListener("click", function (e) {
 });
 </script>
 <script>
+function datosEntrevistaDesdeBoton() {
+  const btn = window.__btnEntSel;
+  return {
+    sexo: btn ? (btn.getAttribute("data-sexo") || "") : "",
+    sede: btn ? (btn.getAttribute("data-sede") || "") : "",
+    referencia: btn ? (btn.getAttribute("data-clm_referencia") || "") : "",
+    observaciones: btn ? (btn.getAttribute("data-observaciones") || "") : ""
+  };
+}
+
+function editarDatosEntrevista() {
+  const actual = datosEntrevistaDesdeBoton();
+  const panel = document.getElementById("datosEntrevistaEditor");
+  if (!panel) return;
+
+  const sexoInput = document.getElementById("editSexoEntrevista");
+  sexoInput.value = ["Femenino", "Masculino"].includes(actual.sexo) ? actual.sexo : "Femenino";
+  document.getElementById("editSedeEntrevista").value = actual.sede;
+  document.getElementById("editReferenciaEntrevista").value = actual.referencia;
+  document.getElementById("editObservacionesEntrevista").value = actual.observaciones;
+  panel.style.display = "block";
+  sexoInput.focus();
+}
+
+function cancelarDatosEntrevista() {
+  const panel = document.getElementById("datosEntrevistaEditor");
+  if (panel) panel.style.display = "none";
+}
+
+function actualizarDatoEntrevistaEnPantalla(data) {
+  const btn = window.__btnEntSel;
+  if (btn) {
+    btn.setAttribute("data-sexo", data.sexo || "");
+    btn.setAttribute("data-sede", data.sede || "");
+    btn.setAttribute("data-clm_referencia", data.referencia || "");
+    btn.setAttribute("data-observaciones", data.observaciones || "");
+
+    const row = btn.closest("tr");
+    if (row && row.cells.length >= 6) {
+      row.cells[3].textContent = data.sede || "";
+      row.cells[5].textContent = data.referencia || "";
+    }
+  }
+
+  const sexoTxt = document.getElementById("detalleSexoTexto");
+  if (sexoTxt) sexoTxt.textContent = data.sexo || "-";
+  const sedeTxt = document.getElementById("detalleSedeTexto");
+  if (sedeTxt) sedeTxt.textContent = data.sede || "-";
+  const refTxt = document.getElementById("detalleReferenciaTexto");
+  if (refTxt) refTxt.textContent = data.referencia || "-";
+  const obsTexto = document.getElementById("obsTexto");
+  if (obsTexto) obsTexto.textContent = data.observaciones || "";
+  const histTxt = document.getElementById("histSeleccionTexto");
+  if (histTxt) histTxt.textContent = data.observaciones || "Sin comentario";
+}
+
+async function guardarDatosEntrevista() {
+  const id = document.getElementById("id_entrevistaSeleccionado").value;
+  const sexo = document.getElementById("editSexoEntrevista").value;
+  const sede = document.getElementById("editSedeEntrevista").value.trim();
+  const referencia = document.getElementById("editReferenciaEntrevista").value.trim();
+  const observaciones = document.getElementById("editObservacionesEntrevista").value.trim();
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+  if (!id) { alert("ID invalido"); return; }
+  if (!["Femenino", "Masculino"].includes(sexo)) {
+    alert("Selecciona un sexo valido.");
+    return;
+  }
+
+  const btnGuardar = document.querySelector('#datosEntrevistaEditor .btn-validar');
+  const textoOriginal = btnGuardar ? btnGuardar.textContent : "";
+  if (btnGuardar) {
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = "Guardando...";
+  }
+
+  try {
+    const body = new URLSearchParams({ id_entrevista: id, sexo, sede, referencia, observaciones, csrf });
+    const response = await fetch("../php/actualizar_datos_entrevista.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
+    const text = await response.text();
+    let payload;
+    try {
+      payload = JSON.parse(text);
+    } catch (error) {
+      throw new Error(text || "Respuesta invalida del servidor");
+    }
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.message || "No se pudo actualizar la entrevista.");
+    }
+
+    actualizarDatoEntrevistaEnPantalla(payload.data || { sexo, sede, referencia, observaciones });
+    cancelarDatosEntrevista();
+    alert("Datos de entrevista actualizados.");
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "No se pudo actualizar la entrevista.");
+  } finally {
+    if (btnGuardar) {
+      btnGuardar.disabled = false;
+      btnGuardar.textContent = textoOriginal || "Guardar cambios";
+    }
+  }
+}
 function editarObs() {
   const btn = window.__btnEntSel;
   const actual = btn ? (btn.getAttribute("data-observaciones") || "") : "";
