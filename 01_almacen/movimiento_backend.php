@@ -101,7 +101,7 @@ if (!function_exists('alm_can_almacen')) {
 
         return in_array(3, $moduleIds, true)
             || (in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm']))
-            || in_array(12, $moduleIds, true);
+            || (in_array(12, $moduleIds, true) && alm_session_has_vista(['conta-registeralm']));
     }
 }
 
@@ -118,7 +118,7 @@ if (!function_exists('alm_can_registrar')) {
 
         $fromAlmacen = in_array(3, $moduleIds, true) && alm_session_has_vista(['a-register', 'a-formulreg']);
         $fromRrhh = in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm']);
-        $fromContabilidad = in_array(12, $moduleIds, true);
+        $fromContabilidad = in_array(12, $moduleIds, true) && alm_session_has_vista(['conta-registeralm']);
 
         return $fromAlmacen || $fromRrhh || $fromContabilidad;
     }
@@ -142,7 +142,7 @@ if (!function_exists('alm_allowed_origin_ids')) {
         if (in_array(6, $moduleIds, true) && alm_session_has_vista(['rrhh-registeralm'])) {
             $allowed[] = 4;
         }
-        if (in_array(12, $moduleIds, true)) {
+        if (in_array(12, $moduleIds, true) && alm_session_has_vista(['conta-registeralm'])) {
             $allowed[] = 12;
         }
 

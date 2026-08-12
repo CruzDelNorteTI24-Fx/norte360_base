@@ -442,7 +442,8 @@ function n360_menu_config(): array {
                                 'titulo' => 'Registro de activos',
                                 'icono' => 'bi bi-pc-display-horizontal',
                                 'url' => '01_contabilidad/registro_activos.php',
-                                'modulo' => 12
+                                'modulo' => 12,
+                                'vista' => 'conta-registeralm'
                             ],
                             [
                                 'titulo' => 'Trazabilidad de activos',

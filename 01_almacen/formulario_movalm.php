@@ -47,7 +47,7 @@ $contextRuntime = [
     ],
     'contabilidad' => [
         'origin_id' => 12,
-        'permission' => n360_puede_modulo(12),
+        'permission' => n360_puede_modulo(12) && n360_puede_vista('conta-registeralm'),
         'fallback_code' => 'CONT',
         'fallback_name' => 'ACTIVOS FIJOS',
         'label' => 'Contabilidad',
