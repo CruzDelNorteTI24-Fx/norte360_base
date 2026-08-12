@@ -35,6 +35,17 @@ if (empty($_SESSION['requersen24_csrf'])) {
 }
 $csrfToken = $_SESSION['requersen24_csrf'];
 
+// Datos del usuario que GENERA el PDF (no del usuario que registró el requerimiento).
+$pdfUserData = function_exists('n360_header_user_data')
+    ? n360_header_user_data()
+    : [
+        'display_name' => (string)($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? 'Usuario'),
+        'dni' => (string)($_SESSION['DNI'] ?? ''),
+    ];
+$pdfUserName = trim((string)($pdfUserData['display_name'] ?? $_SESSION['usuario'] ?? 'Usuario'));
+$pdfUserDni = trim((string)($pdfUserData['dni'] ?? $_SESSION['DNI'] ?? ''));
+$rucEmpresa = '20403002101';
+
 function req24_h($value): string
 {
     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
@@ -236,6 +247,10 @@ $areaOptions = [
 <main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
     <div class="n360-main__inner req24-page"
          data-api="<?php echo req24_h(n360_base_url('01_contabilidad/requerimientos_cotizaciones_api.php')); ?>"
+         data-logo="<?php echo req24_h(n360_asset('img/completo.png')); ?>"
+         data-pdf-user="<?php echo req24_h($pdfUserName); ?>"
+         data-pdf-dni="<?php echo req24_h($pdfUserDni); ?>"
+         data-ruc="<?php echo req24_h($rucEmpresa); ?>"
          data-csrf="<?php echo req24_h($csrfToken); ?>"
          data-admin="<?php echo $isAdminReq24 ? '1' : '0'; ?>">
         <?php n360_render_content_separator('top'); ?>

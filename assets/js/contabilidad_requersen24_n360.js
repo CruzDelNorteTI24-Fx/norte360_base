@@ -4,6 +4,10 @@
 
     const apiUrl = page.dataset.api || 'requerimientos_cotizaciones_api.php';
     const csrf = page.dataset.csrf || '';
+    const logoUrl = page.dataset.logo || '';
+    const pdfUser = page.dataset.pdfUser || '';
+    const pdfDni = page.dataset.pdfDni || '';
+    const companyRuc = page.dataset.ruc || '';
     const isAdmin = page.dataset.admin === '1';
     const quoteModalEl = document.getElementById('req24QuoteModal');
     const requirementModalEl = document.getElementById('req24RequirementModal');
@@ -141,7 +145,13 @@
 
     const downloadDetailNotePdf = async (row) => {
         if (window.N360Req24NotaPdf && typeof window.N360Req24NotaPdf.download === 'function') {
-            await window.N360Req24NotaPdf.download(row, { showDialog });
+            await window.N360Req24NotaPdf.download(row, {
+                showDialog,
+                logoUrl,
+                pdfUser,
+                pdfDni,
+                ruc: companyRuc
+            });
             return;
         }
 
