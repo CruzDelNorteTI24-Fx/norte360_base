@@ -208,6 +208,9 @@ foreach ($permisos as $index => $modulo) {
     } elseif ($modulo == 9) {
         header('Location: ../01_fcombustible/historial_combustible.php');
         exit();        
+    } elseif ($modulo == 12) {
+        header('Location: ../index.php');
+        exit();        
     } elseif ($modulo == 10) {
         if ($vista == 'f-flotayoperaciones') {
             header('Location: ../index.php');
