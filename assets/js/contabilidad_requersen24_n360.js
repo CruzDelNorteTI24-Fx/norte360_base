@@ -59,13 +59,18 @@
             ADMINISTRACION: 'Administracion',
             ALMACEN: 'Almacen',
             CONTABILIDAD: 'Contabilidad',
+            FINANZAS: 'Finanzas',
             COMBUSTIBLE: 'Combustible',
+            CALIDAD: 'Calidad',
             FLOTA: 'Flota',
             MANTENIMIENTO: 'Mantenimiento',
             OPERACIONES: 'Operaciones',
             PEAJES: 'Peajes',
+            ENCOMIENDAS: 'Encomiendas',
             'RECURSOS HUMANOS': 'Recursos Humanos',
+            RECURSOS_HUMANOS: 'Recursos Humanos',
             SISTEMAS: 'Sistemas',
+            GERENCIA: 'Gerencia',
         };
         return labels[String(value || '').toUpperCase()] || valueOrDash(value);
     };

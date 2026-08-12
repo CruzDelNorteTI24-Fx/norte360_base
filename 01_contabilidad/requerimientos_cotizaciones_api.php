@@ -103,7 +103,7 @@ function req24_area_value(string $key = 'area'): ?string
     if ($value === '') {
         return null;
     }
-    if (!array_key_exists($value, req24_allowed_areas())) {
+    if (!in_array($value, req24_allowed_areas(), true)) {
         req24_json(['ok' => false, 'message' => 'Selecciona un area valida.'], 422);
     }
     return $value;
