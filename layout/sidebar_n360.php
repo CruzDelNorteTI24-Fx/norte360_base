@@ -591,6 +591,11 @@ function n360_menu_config(): array {
                                 'icono' => 'bi bi-truck-front-fill',
                                 'url' => '01_flota/gest_plac.php',
                                 'vistas' => ['f-placas', 'f-flotas']
+                            ],                            [
+                                'titulo' => 'Fichas informativas',
+                                'icono' => 'bi bi-card-image',
+                                'url' => '01_flota/fichas_informativas.php',
+                                'modulo' => 10
                             ],
                         ]
                     ],
