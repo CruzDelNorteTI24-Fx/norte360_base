@@ -1115,16 +1115,51 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
         <?php endif; ?>
 
         <section class="csb-summary">
-        <article><span>Registros</span><strong><?= number_format($kpis['registros']) ?></strong></article>
-        <article><span>Unidades</span><strong><?= number_format($kpis['unidades']) ?></strong></article>
-        <article><span>Conductores</span><strong><?= number_format($kpis['conductores']) ?></strong></article>
-        <article><span>Pendientes</span><strong><?= number_format($kpis['pendientes']) ?></strong></article>
-        <article><span>Observados</span><strong><?= number_format($kpis['observados']) ?></strong></article>
-        <article><span>Validados</span><strong><?= number_format($kpis['validados']) ?></strong></article>
-        <article><span>Corregidos</span><strong><?= number_format($kpis['corregidos']) ?></strong></article>
-        <article class="csb-kpi--manual"><span>Manuales</span><strong><?= number_format($kpis['manuales']) ?></strong></article>
-        <article class="csb-kpi--danger"><span>Anulados</span><strong><?= number_format($kpis['anulados']) ?></strong></article>
-    </section>
+            <article class="csb-kpi csb-kpi--registros">
+                <span>Registros</span>
+                <strong><?= number_format($kpis['registros']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--unidades">
+                <span>Unidades</span>
+                <strong><?= number_format($kpis['unidades']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--conductores">
+                <span>Conductores</span>
+                <strong><?= number_format($kpis['conductores']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--pendientes">
+                <span>Pendientes</span>
+                <strong><?= number_format($kpis['pendientes']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--observados">
+                <span>Observados</span>
+                <strong><?= number_format($kpis['observados']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--validados">
+                <span>Validados</span>
+                <strong><?= number_format($kpis['validados']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--corregidos">
+                <span>Corregidos</span>
+                <strong><?= number_format($kpis['corregidos']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--manual">
+                <span>Manuales</span>
+                <strong><?= number_format($kpis['manuales']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--danger">
+                <span>Anulados</span>
+                <strong><?= number_format($kpis['anulados']) ?></strong>
+            </article>
+        </section>
 
         <section class="csb-filter">
             <form method="get" class="csb-filter-grid" autocomplete="off">

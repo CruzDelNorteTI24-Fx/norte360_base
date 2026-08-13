@@ -102,6 +102,132 @@
     font-weight: 900;
 }
 
+
+/* =========================================================
+   KPI / RESUMEN - Dashboard visual Norte360
+   Solo presentación: no altera lógica ni datos.
+   ========================================================= */
+.csb-summary {
+    gap: 14px;
+}
+
+.csb-summary .csb-kpi {
+    --kpi-accent: #258ed1;
+    --kpi-soft: #edf7fd;
+
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    min-height: 104px;
+    padding: 20px 20px 18px;
+    border: 1px solid #d9e6f1;
+    border-left: 1px solid #d9e6f1;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #ffffff 58%, var(--kpi-soft) 145%);
+    box-shadow: 0 8px 22px rgba(15, 35, 55, .07);
+    transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.csb-summary .csb-kpi::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--kpi-accent);
+}
+
+
+.csb-summary .csb-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 13px 28px rgba(15, 35, 55, .11);
+}
+
+.csb-summary .csb-kpi span {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    color: #60758a;
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .055em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.csb-summary .csb-kpi span::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--kpi-accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--kpi-accent) 12%, transparent);
+}
+
+.csb-summary .csb-kpi strong {
+    position: relative;
+    z-index: 1;
+    display: block;
+    color: #071d33;
+    font-size: clamp(1.75rem, 2vw, 2.1rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -.035em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* KPI generales */
+.csb-kpi--registros {
+    --kpi-accent: #14364f !important;
+    --kpi-soft: #eef3f7 !important;
+}
+
+.csb-kpi--unidades {
+    --kpi-accent: #258ed1 !important;
+    --kpi-soft: #edf7fd !important;
+}
+
+.csb-kpi--conductores {
+    --kpi-accent: #5269ad !important;
+    --kpi-soft: #f0f2fb !important;
+}
+
+/* KPI de revisión */
+.csb-kpi--pendientes {
+    --kpi-accent: #d59a2d !important;
+    --kpi-soft: #fff7e7 !important;
+}
+
+.csb-kpi--observados {
+    --kpi-accent: #d66b3d !important;
+    --kpi-soft: #fff1eb !important;
+}
+
+.csb-kpi--validados {
+    --kpi-accent: #16855f !important;
+    --kpi-soft: #eaf8f2 !important;
+}
+
+.csb-kpi--corregidos {
+    --kpi-accent: #168bb5 !important;
+    --kpi-soft: #eaf8fc !important;
+}
+
+.csb-kpi--manual {
+    --kpi-accent: #7754ad !important;
+    --kpi-soft: #f4effb !important;
+}
+
+.csb-kpi--danger {
+    --kpi-accent: #c74343 !important;
+    --kpi-soft: #fff0f0 !important;
+}
+
 .csb-filter {
     padding: 16px;
 }
