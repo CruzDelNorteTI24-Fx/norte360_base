@@ -498,6 +498,235 @@
     excelButton?.addEventListener('click', exportExcel);
   }
 
+  function setupOperationalSummary() {
+    const openButton = document.querySelector('[data-csb-general-open]');
+    const modalEl = document.getElementById('csbGeneralSummaryModal');
+    const bodyEl = modalEl?.querySelector('[data-csb-general-body]');
+    const totalEl = modalEl?.querySelector('[data-csb-general-total]');
+    const datesEl = modalEl?.querySelector('[data-csb-general-dates]');
+    const statusesEl = modalEl?.querySelector('[data-csb-general-statuses]');
+    const excelButton = modalEl?.querySelector('[data-csb-general-excel]');
+    const filterForm = document.querySelector('.csb-filter form');
+
+    if (!openButton || !modalEl || !bodyEl || !window.bootstrap) return;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    const stateKeys = [
+      'PENDIENTE',
+      'VALIDADO',
+      'OBSERVADO',
+      'CORREGIDO',
+      'ANULADO',
+      'MANUAL',
+      'TRANSBORDADO',
+      'TRANSBORDO'
+    ];
+
+    const visibleRowsNow = () => Array.from(document.querySelectorAll('[data-csb-row]'))
+      .filter((row) => !row.hidden);
+
+    const normalizeState = (row) => {
+      const state = compact(
+        row.dataset.csbDbRevision
+        || row.querySelector('[data-csb-status]')?.textContent
+        || row.querySelector('[data-csb-field="estado"]')?.value
+        || 'PENDIENTE'
+      ).toUpperCase();
+
+      return stateKeys.includes(state) ? state : 'PENDIENTE';
+    };
+
+    const formatDate = (isoDate) => {
+      const match = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return match ? `${match[3]}/${match[2]}/${match[1]}` : compact(isoDate || '-');
+    };
+
+    const buildSummary = () => {
+      const summaryMap = new Map();
+
+      visibleRowsNow().forEach((row) => {
+        const fecha = compact(row.dataset.csbTransferDate || '');
+        if (!fecha) return;
+
+        if (!summaryMap.has(fecha)) {
+          const counters = { TOTAL: 0 };
+          stateKeys.forEach((key) => { counters[key] = 0; });
+          summaryMap.set(fecha, counters);
+        }
+
+        const counters = summaryMap.get(fecha);
+        const estado = normalizeState(row);
+        counters.TOTAL += 1;
+        counters[estado] += 1;
+      });
+
+      return Array.from(summaryMap.entries())
+        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+        .map(([fecha, counts]) => ({ fecha, ...counts }));
+    };
+
+    const statusCell = (value, state) => {
+      const n = Number(value || 0);
+      return `<span class="csb-general-count ${n ? `is-${state.toLowerCase()}` : 'is-zero'}">${new Intl.NumberFormat('es-PE').format(n)}</span>`;
+    };
+
+    const renderSummary = () => {
+      const summary = buildSummary();
+      const visibleRows = visibleRowsNow();
+      const presentStates = new Set();
+
+      visibleRows.forEach((row) => presentStates.add(normalizeState(row)));
+
+      if (totalEl) totalEl.textContent = new Intl.NumberFormat('es-PE').format(visibleRows.length);
+      if (datesEl) datesEl.textContent = new Intl.NumberFormat('es-PE').format(summary.length);
+      if (statusesEl) statusesEl.textContent = new Intl.NumberFormat('es-PE').format(presentStates.size);
+
+      if (!summary.length) {
+        bodyEl.innerHTML = '<tr><td colspan="10" class="csb-general-empty">No hay viajes visibles con los filtros actuales.</td></tr>';
+        return;
+      }
+
+      bodyEl.innerHTML = summary.map((item) => `
+        <tr>
+          <td>
+            <div class="csb-general-date-cell">
+              <div class="csb-general-date">
+                <i class="bi bi-calendar2-check"></i>
+                <strong>${escapeHtml(formatDate(item.fecha))}</strong>
+              </div>
+              <button
+                type="button"
+                class="csb-general-filter-btn"
+                data-csb-general-filter-date="${escapeHtml(item.fecha)}"
+                title="Filtrar la vista únicamente por ${escapeHtml(formatDate(item.fecha))}"
+              >
+                <i class="bi bi-funnel"></i>
+                Ver fecha
+              </button>
+            </div>
+          </td>
+          <td><strong class="csb-general-total">${new Intl.NumberFormat('es-PE').format(item.TOTAL)}</strong></td>
+          <td>${statusCell(item.PENDIENTE, 'PENDIENTE')}</td>
+          <td>${statusCell(item.VALIDADO, 'VALIDADO')}</td>
+          <td>${statusCell(item.OBSERVADO, 'OBSERVADO')}</td>
+          <td>${statusCell(item.CORREGIDO, 'CORREGIDO')}</td>
+          <td>${statusCell(item.ANULADO, 'ANULADO')}</td>
+          <td>${statusCell(item.MANUAL, 'MANUAL')}</td>
+          <td>${statusCell(item.TRANSBORDADO, 'TRANSBORDADO')}</td>
+          <td>${statusCell(item.TRANSBORDO, 'TRANSBORDO')}</td>
+        </tr>
+      `).join('');
+    };
+
+    const applyDateFilter = (date) => {
+      if (!filterForm) {
+        showNotice('No se encontró el formulario de filtros.', false);
+        return;
+      }
+
+      const startInput = filterForm.querySelector('[name="fecha_inicio"]');
+      const endInput = filterForm.querySelector('[name="fecha_fin"]');
+      if (!startInput || !endInput) {
+        showNotice('No se encontraron los filtros de fecha operativa.', false);
+        return;
+      }
+
+      startInput.value = date;
+      endInput.value = date;
+      modal.hide();
+
+      if (typeof filterForm.requestSubmit === 'function') {
+        filterForm.requestSubmit();
+      } else {
+        filterForm.submit();
+      }
+    };
+
+    const excelSafe = (value) => {
+      const text = compact(value);
+      return /^[=+\-@]/.test(text) ? `'${text}` : text;
+    };
+
+    const exportExcel = () => {
+      const summary = buildSummary();
+      if (!summary.length) {
+        showNotice('No hay datos visibles para exportar.', false);
+        return;
+      }
+
+      if (!window.XLSX || !window.XLSX.utils) {
+        showNotice('No se pudo cargar el generador de Excel.', false);
+        return;
+      }
+
+      const aoa = [
+        ['NORTE360 - RESUMEN DE ESTADOS POR FECHA OPERATIVA'],
+        ['Periodo visible', excelSafe(report.period || '-')],
+        ['Viajes visibles', summary.reduce((total, item) => total + Number(item.TOTAL || 0), 0), 'Fechas operativas', summary.length],
+        [],
+        ['Fecha operativa', 'Total', 'Pendiente', 'Validado', 'Observado', 'Corregido', 'Anulado', 'Manual', 'Transbordado', 'Transbordo'],
+        ...summary.map((item) => [
+          excelSafe(formatDate(item.fecha)),
+          item.TOTAL,
+          item.PENDIENTE,
+          item.VALIDADO,
+          item.OBSERVADO,
+          item.CORREGIDO,
+          item.ANULADO,
+          item.MANUAL,
+          item.TRANSBORDADO,
+          item.TRANSBORDO
+        ])
+      ];
+
+      const ws = window.XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [
+        { wch: 18 },
+        { wch: 10 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 15 },
+        { wch: 13 }
+      ];
+      ws['!autofilter'] = {
+        ref: `A5:J${Math.max(5, summary.length + 5)}`
+      };
+
+      const wb = window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb, ws, 'Resumen por fecha');
+
+      const fechaIni = String(cfg.fechaInicio || cfg.fechaOperativa || '').replace(/-/g, '');
+      const fechaFin = String(cfg.fechaFin || cfg.fechaOperativa || '').replace(/-/g, '');
+      const rango = fechaIni && fechaFin && fechaIni !== fechaFin
+        ? `${fechaIni}_${fechaFin}`
+        : (fechaIni || fechaFin || moneyDate().slice(0, 8));
+
+      window.XLSX.writeFile(wb, `resumen_estados_viajes_${rango}.xlsx`, {
+        compression: true
+      });
+
+      showNotice(`Excel generado con ${summary.length} fechas operativas.`, true);
+    };
+
+    openButton.addEventListener('click', () => {
+      renderSummary();
+      modal.show();
+    });
+
+    bodyEl.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-csb-general-filter-date]');
+      if (!button) return;
+      const date = compact(button.dataset.csbGeneralFilterDate || '');
+      if (date) applyDateFilter(date);
+    });
+
+    excelButton?.addEventListener('click', exportExcel);
+  }
+
   function setupGroupFilter() {
     const wrap = document.querySelector('[data-csb-group-filter]');
     if (!wrap) {
@@ -1218,6 +1447,7 @@
   setupGroupFilter();
   setupHojaRutaSort();
   setupHojaRutaList();
+  setupOperationalSummary();
   setupDriverEditor();
   setupTransferTrip();
   setupManualTrip();

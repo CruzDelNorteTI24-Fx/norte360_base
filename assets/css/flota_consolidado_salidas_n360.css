@@ -455,6 +455,7 @@
     white-space: nowrap;
 }
 
+.csb-btn--general,
 .csb-btn--route-list,
 .csb-btn--sort-route {
     min-height: 38px;
@@ -466,6 +467,7 @@
     transition: color .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease;
 }
 
+.csb-btn--general:hover,
 .csb-btn--route-list:hover,
 .csb-btn--sort-route:hover {
     color: #0874b9;
@@ -909,7 +911,8 @@
 .csb-manual-modal .modal-content,
 .csb-transfer-modal .modal-content,
 .csb-calendar-modal .modal-content,
-.csb-hojaruta-list-modal .modal-content {
+.csb-hojaruta-list-modal .modal-content,
+.csb-general-summary-modal .modal-content {
     border: 1px solid #c8d9ea;
     border-radius: 10px;
     overflow: hidden;
@@ -1145,6 +1148,203 @@
     font-weight: 900;
 }
 
+
+/* =========================================================
+   Resumen general por fecha operativa
+   Se construye únicamente con las filas visibles del DOM.
+   ========================================================= */
+.csb-general-summary-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.csb-general-summary-kpis > div {
+    padding: 13px 14px;
+    background: #f5f9fd;
+    border: 1px solid #d5e3ef;
+    border-radius: 8px;
+}
+
+.csb-general-summary-kpis span {
+    display: block;
+    margin-bottom: 4px;
+    color: #60758a;
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .035em;
+    text-transform: uppercase;
+}
+
+.csb-general-summary-kpis strong {
+    color: #071d33;
+    font-size: 1.35rem;
+    font-weight: 900;
+}
+
+.csb-general-help {
+    margin: 0 0 14px;
+    color: #60758a;
+    font-size: .84rem;
+    font-weight: 700;
+}
+
+.csb-general-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #d5e3ef;
+    border-radius: 9px;
+}
+
+.csb-general-table {
+    width: 100%;
+    min-width: 1180px;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.csb-general-table th {
+    padding: 11px 12px;
+    color: #fff;
+    background: #14263d;
+    font-size: .7rem;
+    font-weight: 900;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.csb-general-table td {
+    padding: 11px 12px;
+    color: #17344f;
+    border-bottom: 1px solid #e1eaf2;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.csb-general-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.csb-general-table tbody tr:hover td {
+    background: #f8fbfe;
+}
+
+.csb-general-date-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 230px;
+}
+
+.csb-general-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+    color: #08213a;
+    white-space: nowrap;
+}
+
+.csb-general-date i {
+    color: #258ed1;
+}
+
+.csb-general-date strong,
+.csb-general-total {
+    color: #071d33;
+    font-weight: 900;
+}
+
+.csb-general-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    min-height: 28px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: .74rem;
+    font-weight: 900;
+}
+
+.csb-general-count.is-zero {
+    color: #8393a5;
+    background: #f1f5f8;
+}
+
+.csb-general-count.is-pendiente {
+    color: #7a4a02;
+    background: #fff2d6;
+}
+
+.csb-general-count.is-validado {
+    color: #057044;
+    background: #dcfce9;
+}
+
+.csb-general-count.is-observado {
+    color: #aa241f;
+    background: #ffe2e2;
+}
+
+.csb-general-count.is-corregido {
+    color: #075985;
+    background: #e0f2fe;
+}
+
+.csb-general-count.is-anulado {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.csb-general-count.is-manual {
+    color: #4c1d95;
+    background: #ede9fe;
+}
+
+.csb-general-count.is-transbordado {
+    color: #9a4b0a;
+    background: #ffedd5;
+}
+
+.csb-general-count.is-transbordo {
+    color: #174f86;
+    background: #dbeafe;
+}
+
+.csb-general-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 10px;
+    color: #0874b9;
+    background: #eaf6ff;
+    border: 1px solid #a8cceb;
+    border-radius: 8px;
+    font-size: .72rem;
+    font-weight: 900;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.csb-general-filter-btn:hover {
+    color: #fff;
+    background: #258ed1;
+    border-color: #258ed1;
+}
+
+.csb-general-empty {
+    padding: 28px !important;
+    color: #60758a !important;
+    background: #f8fbfe !important;
+    font-weight: 900;
+    text-align: center !important;
+}
 
 /* =========================================================
    Listado visual de Hojas de Ruta
@@ -1571,6 +1771,7 @@
         flex-direction: column;
     }
 
+    .csb-btn--general,
     .csb-btn--route-list,
     .csb-btn--sort-route,
     .csb-visible-pill {
@@ -1578,7 +1779,8 @@
         justify-content: center;
     }
 
-    .csb-route-list-summary {
+    .csb-route-list-summary,
+    .csb-general-summary-kpis {
         grid-template-columns: 1fr;
     }
 

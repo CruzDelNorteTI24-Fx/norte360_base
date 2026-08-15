@@ -1550,6 +1550,15 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <div class="csb-card-head-actions">
                     <button
                         type="button"
+                        class="csb-btn csb-btn--general"
+                        data-csb-general-open
+                        title="Ver resumen de estados por fecha operativa"
+                    >
+                        <i class="bi bi-bar-chart-line"></i>
+                        <span>Resumen general</span>
+                    </button>
+                    <button
+                        type="button"
                         class="csb-btn csb-btn--route-list"
                         data-csb-hojarutas-open
                         title="Ver Hojas de Ruta de los viajes visibles"
@@ -1735,6 +1744,71 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     </main>
 
     <?php n360_render_content_separator('bottom'); ?>
+</div>
+
+<div class="modal fade csb-general-summary-modal" id="csbGeneralSummaryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="csb-modal-head">
+                <div>
+                    <span><i class="bi bi-bar-chart-line"></i> Vista general de pantalla</span>
+                    <h2>Resumen de estados por fecha operativa</h2>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="csb-general-summary-kpis">
+                    <div>
+                        <span>Viajes visibles</span>
+                        <strong data-csb-general-total>0</strong>
+                    </div>
+                    <div>
+                        <span>Fechas operativas</span>
+                        <strong data-csb-general-dates>0</strong>
+                    </div>
+                    <div>
+                        <span>Estados presentes</span>
+                        <strong data-csb-general-statuses>0</strong>
+                    </div>
+                </div>
+
+                <p class="csb-general-help">
+                    El resumen se construye con los viajes actualmente visibles en la pantalla y respeta los filtros aplicados.
+                    El botón de cada fecha coloca ese día como fecha operativa inicial y final en la vista.
+                </p>
+
+                <div class="csb-general-table-wrap">
+                    <table class="csb-general-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha operativa</th>
+                                <th>Total</th>
+                                <th>Pendiente</th>
+                                <th>Validado</th>
+                                <th>Observado</th>
+                                <th>Corregido</th>
+                                <th>Anulado</th>
+                                <th>Manual</th>
+                                <th>Transbordado</th>
+                                <th>Transbordo</th>
+                            </tr>
+                        </thead>
+                        <tbody data-csb-general-body>
+                            <tr>
+                                <td colspan="10" class="csb-general-empty">Abre el resumen para calcular los estados visibles.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer csb-route-list-footer">
+                <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="csb-btn csb-btn--excel" data-csb-general-excel>
+                    <i class="bi bi-file-earmark-excel"></i> Descargar Excel
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade csb-hojaruta-list-modal" id="csbHojaRutaListModal" tabindex="-1" aria-hidden="true">
