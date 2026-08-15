@@ -128,9 +128,9 @@
     const localDuplicate = findLocalHojaRutaDuplicate(row, value);
     if (localDuplicate) {
       const localInfo = {
-        bus: compact(localDuplicate.children?.[1]?.querySelector('strong')?.textContent || ''),
-        fecha: report.period || '',
-        hora: compact(localDuplicate.children?.[0]?.querySelector('strong')?.textContent || '')
+        bus: compact(localDuplicate.dataset.csbTransferUnit || ''),
+        fecha: compact(localDuplicate.dataset.csbTransferDate || report.period || ''),
+        hora: compact(localDuplicate.dataset.csbTransferHour || '')
       };
       setHojaRutaValidation(row, 'duplicate', localInfo);
       return false;
@@ -328,6 +328,72 @@
     syncHojaRutaSortButton();
   }
 
+  function setupHojaRutaList() {
+    const openButton = document.querySelector('[data-csb-hojarutas-open]');
+    const modalEl = document.getElementById('csbHojaRutaListModal');
+    const listEl = modalEl?.querySelector('[data-csb-hojarutas-list]');
+    const totalEl = modalEl?.querySelector('[data-csb-hojarutas-total]');
+    const completasEl = modalEl?.querySelector('[data-csb-hojarutas-completas]');
+    const pendientesEl = modalEl?.querySelector('[data-csb-hojarutas-pendientes]');
+
+    if (!openButton || !modalEl || !listEl || !window.bootstrap) return;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    const renderList = () => {
+      const visibleRows = rows.filter((row) => !row.hidden);
+      let completas = 0;
+
+      const html = visibleRows.map((row) => {
+        const fecha = compact(row.dataset.csbTransferDate || '');
+        const hora = compact(row.dataset.csbTransferHour || '');
+        const unidad = compact(row.dataset.csbTransferUnit || '');
+        const origen = compact(row.dataset.csbTransferOrigin || '');
+        const destino = compact(row.dataset.csbTransferDestination || '');
+        const rutaExtra = compact(row.dataset.csbTransferRoute || '');
+        const hojaRuta = compact(row.querySelector('[data-csb-field="hojaruta"]')?.value || '');
+        const duplicate = row.dataset.csbHojarutaDuplicate === '1';
+
+        if (hojaRuta) completas += 1;
+
+        const routeLabel = `${origen || '-'} → ${destino || '-'}${rutaExtra ? ` · ${rutaExtra}` : ''}`;
+        const statusClass = duplicate
+          ? 'is-duplicate'
+          : (hojaRuta ? 'is-complete' : 'is-pending');
+        const statusText = duplicate
+          ? 'Duplicada'
+          : (hojaRuta ? 'Registrada' : 'Pendiente');
+
+        return `<article class="csb-route-list-item ${statusClass}">
+          <div class="csb-route-list-main">
+            <div class="csb-route-list-trip">
+              <span>${escapeHtml([fecha, hora].filter(Boolean).join(' · ') || '-')}</span>
+              <strong>${escapeHtml(unidad || 'Unidad sin identificar')}</strong>
+              <small>${escapeHtml(routeLabel)}</small>
+            </div>
+            <span class="csb-route-list-status">${escapeHtml(statusText)}</span>
+          </div>
+          <div class="csb-route-list-code">
+            <span>Hoja de Ruta</span>
+            <strong>${escapeHtml(hojaRuta || 'Sin Hoja de Ruta registrada')}</strong>
+          </div>
+        </article>`;
+      }).join('');
+
+      const total = visibleRows.length;
+      if (totalEl) totalEl.textContent = new Intl.NumberFormat('es-PE').format(total);
+      if (completasEl) completasEl.textContent = new Intl.NumberFormat('es-PE').format(completas);
+      if (pendientesEl) pendientesEl.textContent = new Intl.NumberFormat('es-PE').format(total - completas);
+
+      listEl.innerHTML = html || '<div class="csb-route-list-empty">No hay viajes visibles con los filtros actuales.</div>';
+    };
+
+    openButton.addEventListener('click', () => {
+      renderList();
+      modal.show();
+    });
+  }
+
   function setupGroupFilter() {
     const wrap = document.querySelector('[data-csb-group-filter]');
     if (!wrap) {
@@ -424,7 +490,7 @@
     doc.setFontSize(7.2);
     doc.setTextColor(71, 85, 105);
     const filters = [
-      `Fecha operativa: ${report.period || '-'}`,
+      `Periodo operativo: ${report.period || '-'}`,
       `Revision: ${report.revision || 'TODOS'}`,
       report.buscar ? `Busqueda: ${report.buscar}` : ''
     ].filter(Boolean).join(' | ');
@@ -487,17 +553,18 @@
             },
             alternateRowStyles: { fillColor: [249, 251, 253] },
             columnStyles: {
-              0: { cellWidth: 16, halign: 'center' },
-              1: { cellWidth: 30 },
-              2: { cellWidth: 50 },
-              3: { cellWidth: 40 },
-              4: { cellWidth: 55 },
-              5: { cellWidth: 26, halign: 'center' },
-              6: { cellWidth: 50 }
+              0: { cellWidth: 24, halign: 'center' },
+              1: { cellWidth: 15, halign: 'center' },
+              2: { cellWidth: 28 },
+              3: { cellWidth: 44 },
+              4: { cellWidth: 34 },
+              5: { cellWidth: 48 },
+              6: { cellWidth: 24, halign: 'center' },
+              7: { cellWidth: 44 }
             },
             didParseCell: function (data) {
               if (data.section !== 'body') return;
-              if (data.column.index === 5) {
+              if (data.column.index === 6) {
                 data.cell.styles.fontStyle = 'bold';
                 const raw = String(data.cell.raw || '').toUpperCase();
                 if (raw.includes('VALIDADO')) data.cell.styles.textColor = [5, 112, 68];
@@ -937,7 +1004,7 @@
     modalEl.addEventListener('hidden.bs.modal', () => {
       form.reset();
       const fecha = form.querySelector('[name="fecha_operativa"]');
-      if (fecha && cfg.fechaOperativa) fecha.value = cfg.fechaOperativa;
+      if (fecha && (cfg.fechaInicio || cfg.fechaOperativa)) fecha.value = cfg.fechaInicio || cfg.fechaOperativa;
     });
   }
   function setupCalendar() {
@@ -987,7 +1054,7 @@
         const date = `${year}-${String(monthNumber).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const total = Number(counts[date] || 0);
         const cls = total > 0 ? 'csb-calendar-day has-data' : 'csb-calendar-day';
-        const url = `${endpoint}?fecha_operativa=${encodeURIComponent(date)}`;
+        const url = `${endpoint}?fecha_inicio=${encodeURIComponent(date)}&fecha_fin=${encodeURIComponent(date)}`;
         html += `<a class="${cls}" href="${url}">
           <strong>${day}</strong>
           <span>${total ? `${total} programaciones` : 'Sin datos'}</span>
@@ -1046,6 +1113,7 @@
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   setupGroupFilter();
   setupHojaRutaSort();
+  setupHojaRutaList();
   setupDriverEditor();
   setupTransferTrip();
   setupManualTrip();

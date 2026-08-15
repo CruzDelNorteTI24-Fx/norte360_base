@@ -482,12 +482,30 @@ $tableReady = isset($conn) && $conn instanceof mysqli && csb_table_exists(
     'tb_progbuses_salida_consolidado'
 );
 
-/* Fecha operativa disponible antes de procesar POST */
+/* Rango de fechas operativas disponible antes de procesar GET/POST.
+   Se conserva fecha_operativa como compatibilidad con enlaces antiguos. */
 $defaultDate = date('Y-m-d', strtotime('-1 day'));
-$fechaOperativa = csb_valid_date(
-    $_GET['fecha_operativa'] ?? '',
+$legacyFechaOperativa = $_GET['fecha_operativa'] ?? '';
+
+$fechaInicio = csb_valid_date(
+    $_GET['fecha_inicio'] ?? $legacyFechaOperativa,
     $defaultDate
 );
+$fechaFin = csb_valid_date(
+    $_GET['fecha_fin'] ?? $legacyFechaOperativa,
+    $fechaInicio
+);
+
+if ($fechaFin < $fechaInicio) {
+    [$fechaInicio, $fechaFin] = [$fechaFin, $fechaInicio];
+}
+
+/* Se mantiene como fecha por defecto para formularios de un solo viaje. */
+$fechaOperativa = $fechaInicio;
+$esRangoFechas = $fechaInicio !== $fechaFin;
+$periodoOperativoLabel = $esRangoFechas
+    ? csb_date_label($fechaInicio) . ' - ' . csb_date_label($fechaFin)
+    : csb_date_label($fechaInicio);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$tableReady) {
@@ -887,7 +905,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'related_id' => $nuevoId,
                 'related_role' => $counterpartRole,
                 'fecha_operativa' => $fechaOperativaTransfer,
-                'redirect' => 'consolidado_salidas_buses.php?fecha_operativa=' . rawurlencode($fechaOperativaTransfer),
+                'redirect' => 'consolidado_salidas_buses.php?fecha_inicio=' . rawurlencode($fechaOperativaTransfer) . '&fecha_fin=' . rawurlencode($fechaOperativaTransfer),
             ], 'Transbordo registrado: ' . $sourceRole . ' / ' . $counterpartRole . '.');
         } catch (Throwable $e) {
             $conn->rollback();
@@ -1082,7 +1100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             csb_json(true, [
                 'id' => $nuevoId,
                 'estado' => 'MANUAL',
-                'redirect' => 'consolidado_salidas_buses.php?fecha_operativa=' . rawurlencode($fechaManual) . '&revision=MANUAL',
+                'redirect' => 'consolidado_salidas_buses.php?fecha_inicio=' . rawurlencode($fechaManual) . '&fecha_fin=' . rawurlencode($fechaManual) . '&revision=MANUAL',
             ], 'Viaje manual registrado correctamente.');
         } catch (Throwable $e) {
             $conn->rollback();
@@ -1164,6 +1182,8 @@ $rows = [];
 $duplicateHojaRutaKeys = [];
 $pageError = '';
 $ultimoCierre = null;
+$cierresEnRango = 0;
+$retiradosEnRango = 0;
 $rowsForDateTotal = 0;
 $sedeGroups = [];
 $rowGroupsById = [];
@@ -1218,13 +1238,13 @@ if ($tableReady) {
         $dateTotalRows = csb_fetch_all($conn, "
             SELECT COUNT(*) AS total
             FROM tb_progbuses_salida_consolidado
-            WHERE clm_salprog_fecha_operativa = ?
-        ", 's', [$fechaOperativa]);
+            WHERE clm_salprog_fecha_operativa BETWEEN ? AND ?
+        ", 'ss', [$fechaInicio, $fechaFin]);
         $rowsForDateTotal = (int)($dateTotalRows[0]['total'] ?? 0);
 
-        $where = ["clm_salprog_fecha_operativa = ?"];
-        $types = 's';
-        $params = [$fechaOperativa];
+        $where = ["clm_salprog_fecha_operativa BETWEEN ? AND ?"];
+        $types = 'ss';
+        $params = [$fechaInicio, $fechaFin];
 
         if ($revision !== 'TODOS') {
             $where[] = "clm_salprog_revision_estado = ?";
@@ -1255,7 +1275,7 @@ if ($tableReady) {
             SELECT *
             FROM tb_progbuses_salida_consolidado
             WHERE " . implode(' AND ', $where) . "
-            ORDER BY clm_salprog_hora_orden ASC, clm_salprog_horasalida ASC, clm_salprog_bus ASC, clm_salprog_id ASC
+            ORDER BY clm_salprog_fecha_operativa ASC, clm_salprog_hora_orden ASC, clm_salprog_horasalida ASC, clm_salprog_bus ASC, clm_salprog_id ASC
         ", $types, $params);
 
         $duplicateRows = csb_fetch_all($conn, "
@@ -1277,11 +1297,15 @@ if ($tableReady) {
             $cierreRows = csb_fetch_all($conn, "
                 SELECT *
                 FROM tb_progbuses_cierre_operativo
-                WHERE clm_cierre_fecha = ?
-                ORDER BY clm_cierre_id DESC
-                LIMIT 1
-            ", 's', [$fechaOperativa]);
+                WHERE clm_cierre_fecha BETWEEN ? AND ?
+                ORDER BY clm_cierre_fecha DESC, clm_cierre_id DESC
+            ", 'ss', [$fechaInicio, $fechaFin]);
+
             $ultimoCierre = $cierreRows[0] ?? null;
+            $cierresEnRango = count($cierreRows);
+            foreach ($cierreRows as $cierreRow) {
+                $retiradosEnRango += (int)($cierreRow['clm_cierre_total_retirados'] ?? 0);
+            }
         }
     } catch (Throwable $e) {
         $pageError = $e->getMessage();
@@ -1375,7 +1399,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <h1>Buses con Programación Cerrada</h1>
             </div>
             <div class="csb-hero-meta">
-                <span><i class="bi bi-calendar2-check"></i> <?= csb_h(csb_date_label($fechaOperativa)) ?></span>
+                <span><i class="bi bi-calendar2-check"></i> <?= csb_h($periodoOperativoLabel) ?></span>
                 <span><i class="bi bi-clock-history"></i> Cierre (Pe) 04:59am</span>
                 <button type="button" class="csb-btn csb-btn--hero" data-csb-export-pdf><i class="bi bi-file-earmark-pdf"></i> PDF</button>
                 <?php if ($isAdmin): ?>
@@ -1459,8 +1483,12 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
         <section class="csb-filter">
             <form method="get" class="csb-filter-grid" autocomplete="off">
                 <label>
-                    <span>Fecha operativa</span>
-                    <input type="date" name="fecha_operativa" value="<?= csb_h($fechaOperativa) ?>">
+                    <span>Fecha operativa inicial</span>
+                    <input type="date" name="fecha_inicio" value="<?= csb_h($fechaInicio) ?>">
+                </label>
+                <label>
+                    <span>Fecha operativa final</span>
+                    <input type="date" name="fecha_fin" value="<?= csb_h($fechaFin) ?>">
                 </label>
                 <label>
                     <span>Revision</span>
@@ -1483,19 +1511,19 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 
         <section class="csb-close-info">
             <div>
-                <span>Fecha cerrada</span>
-                <strong><?= csb_h(csb_date_label($fechaOperativa)) ?></strong>
+                <span>Periodo operativo</span>
+                <strong><?= csb_h($periodoOperativoLabel) ?></strong>
             </div>
             <div>
-                <span>Ejecucion</span>
+                <span>Ultima ejecucion</span>
                 <strong><?= $ultimoCierre ? csb_h(csb_date_label($ultimoCierre['clm_cierre_datetime'] ?? '', 'd/m/Y H:i')) : '-' ?></strong>
             </div>
             <div>
-                <span>Retirados por rutina</span>
-                <strong><?= $ultimoCierre ? number_format((int)($ultimoCierre['clm_cierre_total_retirados'] ?? 0)) : '-' ?></strong>
+                <span>Cierres / retirados</span>
+                <strong><?= number_format($cierresEnRango) ?> / <?= number_format($retiradosEnRango) ?></strong>
             </div>
             <div>
-                <span>Estado cierre</span>
+                <span>Estado ultimo cierre</span>
                 <strong><?= $ultimoCierre ? csb_h($ultimoCierre['clm_cierre_estado'] ?? '-') : '-' ?></strong>
             </div>
         </section>
@@ -1522,6 +1550,15 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <div class="csb-card-head-actions">
                     <button
                         type="button"
+                        class="csb-btn csb-btn--route-list"
+                        data-csb-hojarutas-open
+                        title="Ver Hojas de Ruta de los viajes visibles"
+                    >
+                        <i class="bi bi-card-list"></i>
+                        <span>Ver Hojas de Ruta</span>
+                    </button>
+                    <button
+                        type="button"
                         class="csb-btn csb-btn--sort-route"
                         data-csb-sort-hojaruta
                         aria-pressed="false"
@@ -1538,6 +1575,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <table class="csb-table" data-csb-table>
                     <thead>
                         <tr>
+                            <th>Fecha operativa</th>
                             <th>Hora</th>
                             <th>Unidad</th>
                             <th>Programacion</th>
@@ -1556,7 +1594,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     : 'No hay registros para los filtros seleccionados.';
                             ?>
                             <tr>
-                                <td colspan="8" class="csb-empty"><?= csb_h($emptyMessage) ?></td>
+                                <td colspan="9" class="csb-empty"><?= csb_h($emptyMessage) ?></td>
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($rows as $row): ?>
@@ -1594,6 +1632,10 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 data-csb-transfer-ruta-ids="<?= csb_h($row['clm_salprog_ruta_ids'] ?? '') ?>"
                                 data-csb-transfer-route="<?= csb_h($row['clm_salprog_ruta_texto'] ?? '') ?>"
                             >
+                                <td class="csb-date-cell">
+                                    <strong><?= csb_h(csb_date_label($row['clm_salprog_fecha_operativa'] ?? '')) ?></strong>
+                                    <small>Dia operativo</small>
+                                </td>
                                 <td>
                                     <strong><?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?></strong>
                                     <small>#<?= (int)($row['clm_salprog_progid'] ?? 0) ?></small>
@@ -1693,6 +1735,43 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     </main>
 
     <?php n360_render_content_separator('bottom'); ?>
+</div>
+
+<div class="modal fade csb-hojaruta-list-modal" id="csbHojaRutaListModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="csb-modal-head">
+                <div>
+                    <span><i class="bi bi-card-list"></i> Vista de pantalla</span>
+                    <h2>Hojas de Ruta de los viajes visibles</h2>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="csb-route-list-summary">
+                    <div>
+                        <span>Viajes visibles</span>
+                        <strong data-csb-hojarutas-total>0</strong>
+                    </div>
+                    <div>
+                        <span>Con Hoja de Ruta</span>
+                        <strong data-csb-hojarutas-completas>0</strong>
+                    </div>
+                    <div>
+                        <span>Pendientes</span>
+                        <strong data-csb-hojarutas-pendientes>0</strong>
+                    </div>
+                </div>
+                <p class="csb-route-list-help">
+                    Este listado se genera unicamente con las filas actualmente cargadas y visibles en la pantalla. No realiza una nueva consulta a la base de datos.
+                </p>
+                <div class="csb-route-list" data-csb-hojarutas-list></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade csb-driver-modal" id="csbDriverModal" tabindex="-1" aria-hidden="true">
@@ -1968,19 +2047,21 @@ window.N360_CSB = {
     csrf: <?= json_encode($csrfToken) ?>,
     endpoint: 'consolidado_salidas_buses.php',
     fechaOperativa: <?= json_encode($fechaOperativa) ?>,
+    fechaInicio: <?= json_encode($fechaInicio) ?>,
+    fechaFin: <?= json_encode($fechaFin) ?>,
     conductores: <?= json_encode($conductoresActivos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     report: {
         title: 'CONSOLIDADO DE SALIDAS DE BUSES',
         subtitle: 'Buses con programacion cerrada',
         docCode: 'FLOTA_CONS_SALIDAS',
-        period: <?= json_encode(csb_date_label($fechaOperativa)) ?>,
+        period: <?= json_encode($periodoOperativoLabel) ?>,
         revision: <?= json_encode($revision) ?>,
         buscar: <?= json_encode($buscar) ?>,
         generatedBy: <?= json_encode($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? '') ?>,
         dni: <?= json_encode($_SESSION['DNI'] ?? 'No registrado') ?>,
         logoLeft: <?= json_encode(n360_asset('img/icon.png')) ?>,
         logoRight: <?= json_encode(n360_asset('img/norte360_black.png')) ?>,
-        fileBase: <?= json_encode('consolidado_salidas_buses_' . str_replace('-', '', $fechaOperativa)) ?>
+        fileBase: <?= json_encode('consolidado_salidas_buses_' . str_replace('-', '', $fechaInicio) . ($fechaInicio !== $fechaFin ? '_' . str_replace('-', '', $fechaFin) : '')) ?>
     }
 };
 </script>

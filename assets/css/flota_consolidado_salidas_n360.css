@@ -244,7 +244,7 @@
 
 .csb-filter-grid {
     display: grid;
-    grid-template-columns: 210px 190px minmax(240px, 1fr) auto;
+    grid-template-columns: 180px 180px 180px minmax(240px, 1fr) auto;
     gap: 12px;
     align-items: end;
 }
@@ -436,6 +436,7 @@
     white-space: nowrap;
 }
 
+.csb-btn--route-list,
 .csb-btn--sort-route {
     min-height: 38px;
     padding: 0 13px;
@@ -446,6 +447,7 @@
     transition: color .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease;
 }
 
+.csb-btn--route-list:hover,
 .csb-btn--sort-route:hover {
     color: #0874b9;
     background: #eaf6ff;
@@ -471,7 +473,7 @@
 
 .csb-table {
     width: 100%;
-    min-width: 1180px;
+    min-width: 1320px;
     border-collapse: collapse;
 }
 
@@ -488,6 +490,11 @@
     padding: 14px;
     vertical-align: top;
     border-bottom: 1px solid #dde8f3;
+}
+
+.csb-date-cell {
+    min-width: 128px;
+    white-space: nowrap;
 }
 
 .csb-table strong {
@@ -882,7 +889,8 @@
 .csb-driver-modal .modal-content,
 .csb-manual-modal .modal-content,
 .csb-transfer-modal .modal-content,
-.csb-calendar-modal .modal-content {
+.csb-calendar-modal .modal-content,
+.csb-hojaruta-list-modal .modal-content {
     border: 1px solid #c8d9ea;
     border-radius: 10px;
     overflow: hidden;
@@ -1115,6 +1123,144 @@
     margin: 3px 0 0;
     color: #071d33;
     font-size: 1.05rem;
+    font-weight: 900;
+}
+
+
+/* =========================================================
+   Listado visual de Hojas de Ruta
+   Se alimenta solo de las filas ya cargadas en pantalla.
+   ========================================================= */
+.csb-route-list-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.csb-route-list-summary > div {
+    padding: 13px 14px;
+    background: #f5f9fd;
+    border: 1px solid #d5e3ef;
+    border-radius: 8px;
+}
+
+.csb-route-list-summary span,
+.csb-route-list-code span {
+    display: block;
+    margin-bottom: 4px;
+    color: #60758a;
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .035em;
+    text-transform: uppercase;
+}
+
+.csb-route-list-summary strong {
+    color: #071d33;
+    font-size: 1.35rem;
+    font-weight: 900;
+}
+
+.csb-route-list-help {
+    margin: 0 0 14px;
+    color: #60758a;
+    font-size: .84rem;
+    font-weight: 700;
+}
+
+.csb-route-list {
+    display: grid;
+    gap: 10px;
+    max-height: 56vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.csb-route-list-item {
+    padding: 14px 15px;
+    background: #fff;
+    border: 1px solid #d5e3ef;
+    border-left: 4px solid #d59a2d;
+    border-radius: 9px;
+}
+
+.csb-route-list-item.is-complete {
+    border-left-color: #15845e;
+    background: #fbfffd;
+}
+
+.csb-route-list-item.is-duplicate {
+    border-left-color: #c43b34;
+    background: #fffafa;
+}
+
+.csb-route-list-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.csb-route-list-trip span,
+.csb-route-list-trip small {
+    display: block;
+    color: #60758a;
+    font-size: .78rem;
+    font-weight: 800;
+}
+
+.csb-route-list-trip strong {
+    display: block;
+    margin: 3px 0;
+    color: #071d33;
+    font-size: .98rem;
+    font-weight: 900;
+}
+
+.csb-route-list-status {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    color: #7a4a02;
+    background: #fff2d6;
+    border-radius: 999px;
+    font-size: .7rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.csb-route-list-item.is-complete .csb-route-list-status {
+    color: #057044;
+    background: #dcfce9;
+}
+
+.csb-route-list-item.is-duplicate .csb-route-list-status {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.csb-route-list-code {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #f5f9fd;
+    border: 1px solid #e1eaf2;
+    border-radius: 8px;
+}
+
+.csb-route-list-code strong {
+    color: #08213a;
+    font-size: .92rem;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+}
+
+.csb-route-list-empty {
+    padding: 26px;
+    color: #60758a;
+    background: #f8fbfe;
+    border: 1px dashed #c8d9ea;
+    border-radius: 8px;
+    text-align: center;
     font-weight: 900;
 }
 
@@ -1406,12 +1552,20 @@
         flex-direction: column;
     }
 
+    .csb-btn--route-list,
     .csb-btn--sort-route,
     .csb-visible-pill {
         width: 100%;
         justify-content: center;
     }
 
+    .csb-route-list-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .csb-route-list-main {
+        flex-direction: column;
+    }
 
     .csb-calendar-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
