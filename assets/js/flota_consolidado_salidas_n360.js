@@ -335,47 +335,73 @@
     const totalEl = modalEl?.querySelector('[data-csb-hojarutas-total]');
     const completasEl = modalEl?.querySelector('[data-csb-hojarutas-completas]');
     const pendientesEl = modalEl?.querySelector('[data-csb-hojarutas-pendientes]');
+    const excelButton = modalEl?.querySelector('[data-csb-hojarutas-excel]');
 
     if (!openButton || !modalEl || !listEl || !window.bootstrap) return;
 
     const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
 
+    // Se toma el DOM en el orden visual actual para respetar filtros y ordenamientos de pantalla.
+    const visibleRowsNow = () => Array.from(document.querySelectorAll('[data-csb-row]'))
+      .filter((row) => !row.hidden);
+
+    const routeRowData = (row) => {
+      const fecha = compact(row.dataset.csbTransferDate || '');
+      const hora = compact(row.dataset.csbTransferHour || '');
+      const unidad = compact(row.dataset.csbTransferUnit || '');
+      const servicio = compact(row.dataset.csbTransferService || '');
+      const origen = compact(row.dataset.csbTransferOrigin || '');
+      const destino = compact(row.dataset.csbTransferDestination || '');
+      const rutaExtra = compact(row.dataset.csbTransferRoute || '');
+      const hojaRuta = compact(row.querySelector('[data-csb-field="hojaruta"]')?.value || '');
+      const revision = compact(row.dataset.csbDbRevision || row.querySelector('[data-csb-field="estado"]')?.value || '');
+      const duplicate = row.dataset.csbHojarutaDuplicate === '1';
+
+      return {
+        fecha,
+        hora,
+        unidad,
+        servicio,
+        origen,
+        destino,
+        rutaExtra,
+        hojaRuta,
+        revision,
+        duplicate,
+        estadoHojaRuta: duplicate ? 'DUPLICADA' : (hojaRuta ? 'REGISTRADA' : 'PENDIENTE')
+      };
+    };
+
+    const excelSafe = (value) => {
+      const text = compact(value);
+      return /^[=+\-@]/.test(text) ? `'${text}` : text;
+    };
+
     const renderList = () => {
-      const visibleRows = rows.filter((row) => !row.hidden);
+      const visibleRows = visibleRowsNow();
       let completas = 0;
 
       const html = visibleRows.map((row) => {
-        const fecha = compact(row.dataset.csbTransferDate || '');
-        const hora = compact(row.dataset.csbTransferHour || '');
-        const unidad = compact(row.dataset.csbTransferUnit || '');
-        const origen = compact(row.dataset.csbTransferOrigin || '');
-        const destino = compact(row.dataset.csbTransferDestination || '');
-        const rutaExtra = compact(row.dataset.csbTransferRoute || '');
-        const hojaRuta = compact(row.querySelector('[data-csb-field="hojaruta"]')?.value || '');
-        const duplicate = row.dataset.csbHojarutaDuplicate === '1';
+        const data = routeRowData(row);
+        if (data.hojaRuta) completas += 1;
 
-        if (hojaRuta) completas += 1;
-
-        const routeLabel = `${origen || '-'} → ${destino || '-'}${rutaExtra ? ` · ${rutaExtra}` : ''}`;
-        const statusClass = duplicate
+        const routeLabel = `${data.origen || '-'} → ${data.destino || '-'}${data.rutaExtra ? ` · ${data.rutaExtra}` : ''}`;
+        const statusClass = data.duplicate
           ? 'is-duplicate'
-          : (hojaRuta ? 'is-complete' : 'is-pending');
-        const statusText = duplicate
-          ? 'Duplicada'
-          : (hojaRuta ? 'Registrada' : 'Pendiente');
+          : (data.hojaRuta ? 'is-complete' : 'is-pending');
 
         return `<article class="csb-route-list-item ${statusClass}">
           <div class="csb-route-list-main">
             <div class="csb-route-list-trip">
-              <span>${escapeHtml([fecha, hora].filter(Boolean).join(' · ') || '-')}</span>
-              <strong>${escapeHtml(unidad || 'Unidad sin identificar')}</strong>
+              <span>${escapeHtml([data.fecha, data.hora].filter(Boolean).join(' · ') || '-')}</span>
+              <strong>${escapeHtml(data.unidad || 'Unidad sin identificar')}</strong>
               <small>${escapeHtml(routeLabel)}</small>
             </div>
-            <span class="csb-route-list-status">${escapeHtml(statusText)}</span>
+            <span class="csb-route-list-status">${escapeHtml(data.estadoHojaRuta)}</span>
           </div>
           <div class="csb-route-list-code">
             <span>Hoja de Ruta</span>
-            <strong>${escapeHtml(hojaRuta || 'Sin Hoja de Ruta registrada')}</strong>
+            <strong>${escapeHtml(data.hojaRuta || 'Sin Hoja de Ruta registrada')}</strong>
           </div>
         </article>`;
       }).join('');
@@ -388,10 +414,88 @@
       listEl.innerHTML = html || '<div class="csb-route-list-empty">No hay viajes visibles con los filtros actuales.</div>';
     };
 
+    const exportExcel = () => {
+      const visibleRows = visibleRowsNow();
+      if (!visibleRows.length) {
+        showNotice('No hay viajes visibles para exportar.', false);
+        return;
+      }
+
+      if (!window.XLSX || !window.XLSX.utils) {
+        showNotice('No se pudo cargar el generador de Excel.', false);
+        return;
+      }
+
+      const data = visibleRows.map(routeRowData);
+      const completas = data.filter((item) => item.hojaRuta).length;
+      const pendientes = data.length - completas;
+
+      const table = data.map((item, index) => [
+        index + 1,
+        excelSafe(item.fecha),
+        excelSafe(item.hora),
+        excelSafe(item.unidad),
+        excelSafe(item.servicio),
+        excelSafe(item.origen),
+        excelSafe(item.destino),
+        excelSafe(item.rutaExtra),
+        excelSafe(item.hojaRuta),
+        excelSafe(item.estadoHojaRuta),
+        excelSafe(item.revision)
+      ]);
+
+      const aoa = [
+        ['NORTE360 - HOJAS DE RUTA'],
+        ['Periodo operativo', excelSafe(report.period || '-')],
+        ['Viajes visibles', data.length, 'Con Hoja de Ruta', completas, 'Pendientes', pendientes],
+        [],
+        ['N°', 'Fecha operativa', 'Hora', 'Unidad', 'Servicio', 'Origen', 'Destino', 'Ruta intermedia', 'Hoja de Ruta', 'Estado H.R.', 'Revisión'],
+        ...table
+      ];
+
+      const ws = window.XLSX.utils.aoa_to_sheet(aoa);
+
+      // Presentación tabular y cómoda al abrir en Excel.
+      ws['!cols'] = [
+        { wch: 6 },
+        { wch: 16 },
+        { wch: 10 },
+        { wch: 24 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 34 },
+        { wch: 24 },
+        { wch: 16 },
+        { wch: 16 }
+      ];
+
+      ws['!autofilter'] = {
+        ref: `A5:K${Math.max(5, table.length + 5)}`
+      };
+
+      const wb = window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb, ws, 'Hojas de Ruta');
+
+      const fechaIni = String(cfg.fechaInicio || cfg.fechaOperativa || '').replace(/-/g, '');
+      const fechaFin = String(cfg.fechaFin || cfg.fechaOperativa || '').replace(/-/g, '');
+      const rango = fechaIni && fechaFin && fechaIni !== fechaFin
+        ? `${fechaIni}_${fechaFin}`
+        : (fechaIni || fechaFin || moneyDate().slice(0, 8));
+
+      window.XLSX.writeFile(wb, `hojas_de_ruta_${rango}.xlsx`, {
+        compression: true
+      });
+
+      showNotice(`Excel generado con ${data.length} viajes visibles.`, true);
+    };
+
     openButton.addEventListener('click', () => {
       renderList();
       modal.show();
     });
+
+    excelButton?.addEventListener('click', exportExcel);
   }
 
   function setupGroupFilter() {

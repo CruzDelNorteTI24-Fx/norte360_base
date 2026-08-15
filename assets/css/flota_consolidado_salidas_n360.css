@@ -299,6 +299,25 @@
     background: #f5f9fd;
 }
 
+.csb-btn--excel {
+    color: #fff;
+    background: #16855f;
+    border-color: #16855f;
+    box-shadow: 0 8px 18px rgba(22, 133, 95, .18);
+}
+
+.csb-btn--excel:hover {
+    color: #fff;
+    background: #116b4c;
+    border-color: #116b4c;
+}
+
+.csb-route-list-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .csb-btn--hero,
 .csb-btn--hero-soft {
     min-height: 40px;
@@ -1565,6 +1584,14 @@
 
     .csb-route-list-main {
         flex-direction: column;
+    }
+
+    .csb-route-list-footer {
+        flex-direction: column-reverse;
+    }
+
+    .csb-route-list-footer .csb-btn {
+        width: 100%;
     }
 
     .csb-calendar-grid {

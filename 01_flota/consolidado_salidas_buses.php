@@ -1767,8 +1767,11 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 </p>
                 <div class="csb-route-list" data-csb-hojarutas-list></div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer csb-route-list-footer">
                 <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="csb-btn csb-btn--excel" data-csb-hojarutas-excel>
+                    <i class="bi bi-file-earmark-excel"></i> Descargar Excel
+                </button>
             </div>
         </div>
     </div>
@@ -2068,6 +2071,7 @@ window.N360_CSB = {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
