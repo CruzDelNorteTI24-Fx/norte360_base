@@ -1052,7 +1052,7 @@ $monthLabel = fcc_month_label($monthStart);
                 <section class="fcc-trip-section">
                     <div class="fcc-trip-section-title">
                         <i class="bi bi-bus-front-fill"></i>
-                        <div><strong>Unidad, ruta y horario</strong><small>La hora visible corresponde a <code>clm_salprog_horasalida</code>; el orden usa <code>clm_salprog_hora_orden</code>.</small></div>
+                        <div><strong>Unidad, ruta y horario</strong><small>La hora visible corresponde a la hora de la programación en pizarra.</small></div>
                     </div>
                     <div class="fcc-trip-detail-grid">
                         <article><span>Bus</span><strong data-fcc-trip-field="bus">-</strong></article>

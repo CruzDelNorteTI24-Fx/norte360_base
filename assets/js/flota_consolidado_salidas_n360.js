@@ -662,6 +662,186 @@
       saveButton.disabled = true;
     });
   }
+  function setupTransferTrip() {
+    const modalEl = document.getElementById('csbTransferModal');
+    const form = modalEl?.querySelector('[data-csb-transfer-form]');
+    if (!modalEl || !form || !window.bootstrap) return;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    const saveButton = form.querySelector('[data-csb-transfer-save]');
+    const sourceIdInput = form.querySelector('[name="source_id"]');
+    const sourceUnitEl = modalEl.querySelector('[data-csb-transfer-source-unit]');
+    const sourceIdEl = modalEl.querySelector('[data-csb-transfer-source-id]');
+    const sourceDateTimeEl = modalEl.querySelector('[data-csb-transfer-source-datetime]');
+    const sourceServiceEl = modalEl.querySelector('[data-csb-transfer-source-service]');
+    const sourceRouteEl = modalEl.querySelector('[data-csb-transfer-source-route]');
+    const counterpartTitle = modalEl.querySelector('[data-csb-transfer-counterpart-title]');
+    const counterpartRole = modalEl.querySelector('[data-csb-transfer-counterpart-role]');
+    const origin = form.querySelector('[name="idorigen"]');
+    const destination = form.querySelector('[name="iddestino"]');
+    const routes = form.querySelector('[name="ruta_ids[]"]');
+    const unit = form.querySelector('[name="idplaca"]');
+    let sourceRow = null;
+
+    const selectedRoutes = () => Array.from(routes?.selectedOptions || [])
+      .map((option) => String(option.value || ''))
+      .filter(Boolean);
+
+    const currentRole = () => String(form.querySelector('[name="source_role"]:checked')?.value || 'TRANSBORDADO').toUpperCase();
+
+    const syncRole = () => {
+      const sourceRole = currentRole();
+      const relatedRole = sourceRole === 'TRANSBORDADO' ? 'TRANSBORDO' : 'TRANSBORDADO';
+      if (counterpartRole) counterpartRole.textContent = relatedRole;
+      if (counterpartTitle) {
+        counterpartTitle.textContent = relatedRole === 'TRANSBORDO'
+          ? 'Unidad que realizó el TRANSBORDO'
+          : 'Unidad que fue TRANSBORDADA';
+      }
+      modalEl.querySelectorAll('.csb-transfer-role-card').forEach((card) => {
+        const input = card.querySelector('input[type="radio"]');
+        card.classList.toggle('is-selected', !!input?.checked);
+      });
+    };
+
+    const validateTransfer = () => {
+      const origen = String(origin?.value || '');
+      const destino = String(destination?.value || '');
+      const idPlaca = String(unit?.value || '');
+      const sourceIdPlaca = String(sourceRow?.dataset.csbTransferIdplaca || '');
+      const rutaIds = selectedRoutes();
+
+      if (idPlaca && sourceIdPlaca && idPlaca === sourceIdPlaca) {
+        return 'La unidad relacionada debe ser diferente a la unidad seleccionada.';
+      }
+      if (origen && destino && origen === destino) {
+        return 'El origen y destino no pueden ser iguales.';
+      }
+      if (origen && rutaIds.includes(origen)) {
+        return 'Las rutas intermedias no deben repetir el origen.';
+      }
+      if (destino && rutaIds.includes(destino)) {
+        return 'Las rutas intermedias no deben repetir el destino.';
+      }
+      return '';
+    };
+
+    form.querySelectorAll('[name="source_role"]').forEach((radio) => radio.addEventListener('change', syncRole));
+    [origin, destination, routes, unit].forEach((field) => field?.addEventListener('change', () => {
+      const message = validateTransfer();
+      if (message) showNotice(message, false);
+    }));
+
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-csb-transfer-open]');
+      if (!button) return;
+
+      const row = button.closest('[data-csb-row]');
+      if (!row) return;
+
+      const estado = String(row.dataset.csbDbRevision || '').toUpperCase();
+      if (estado === 'TRANSBORDADO' || estado === 'TRANSBORDO') {
+        showNotice(`Este viaje ya está marcado como ${estado}.`, false);
+        return;
+      }
+
+      sourceRow = row;
+      form.reset();
+      if (sourceIdInput) sourceIdInput.value = row.dataset.csbRow || '';
+
+      const sourceId = row.dataset.csbRow || '0';
+      const unitLabel = compact(row.dataset.csbTransferUnit || 'Unidad sin identificar');
+      const date = compact(row.dataset.csbTransferDate || cfg.fechaOperativa || '');
+      const hour = compact(row.dataset.csbTransferHour || '');
+      const service = compact(row.dataset.csbTransferService || '-');
+      const originLabel = compact(row.dataset.csbTransferOrigin || '-');
+      const destinationLabel = compact(row.dataset.csbTransferDestination || '-');
+      const routeExtra = compact(row.dataset.csbTransferRoute || '');
+
+      if (sourceUnitEl) sourceUnitEl.textContent = unitLabel;
+      if (sourceIdEl) sourceIdEl.textContent = `#${sourceId}`;
+      if (sourceDateTimeEl) sourceDateTimeEl.textContent = [date, hour].filter(Boolean).join(' · ') || '-';
+      if (sourceServiceEl) sourceServiceEl.textContent = service || '-';
+      if (sourceRouteEl) {
+        sourceRouteEl.textContent = `${originLabel} → ${destinationLabel}${routeExtra ? ` · ${routeExtra}` : ''}`;
+      }
+
+      // La fecha y los datos superiores salen de la fila ya cargada; no se hace consulta al abrir.
+      // Como ayuda operativa, heredamos únicamente el destino final. El origen del transbordo se registra manualmente.
+      if (destination) destination.value = String(row.dataset.csbTransferIddestino || '');
+      if (origin) origin.value = '';
+      if (routes) Array.from(routes.options).forEach((option) => { option.selected = false; });
+
+      syncRole();
+      modal.show();
+      window.setTimeout(() => form.querySelector('[name="hora_salida"]')?.focus(), 180);
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!sourceRow) {
+        showNotice('No se encontró el viaje seleccionado.', false);
+        return;
+      }
+
+      const validation = validateTransfer();
+      if (validation) {
+        showNotice(validation, false);
+        return;
+      }
+
+      const originalHtml = saveButton?.innerHTML || '';
+      const fd = new FormData(form);
+      fd.append('csrf', csrf);
+      fd.append('action', 'create_transfer_trip');
+
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Registrando...';
+      }
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          body: fd,
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const json = await res.json();
+        if (!json.ok) {
+          throw new Error(json.message || 'No se pudo registrar el transbordo.');
+        }
+
+        modal.hide();
+        showNotice(json.message || 'Transbordo registrado correctamente.', true);
+        const redirect = json.data?.redirect || '';
+        window.setTimeout(() => {
+          if (redirect) window.location.href = redirect;
+          else window.location.reload();
+        }, 700);
+      } catch (error) {
+        showNotice(error.message || 'No se pudo registrar el transbordo.', false);
+      } finally {
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.innerHTML = originalHtml;
+        }
+      }
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      sourceRow = null;
+      form.reset();
+      if (sourceIdInput) sourceIdInput.value = '';
+      if (sourceUnitEl) sourceUnitEl.textContent = 'Sin seleccionar';
+      if (sourceIdEl) sourceIdEl.textContent = '#0';
+      if (sourceDateTimeEl) sourceDateTimeEl.textContent = '-';
+      if (sourceServiceEl) sourceServiceEl.textContent = '-';
+      if (sourceRouteEl) sourceRouteEl.textContent = '-';
+      syncRole();
+    });
+  }
+
   function setupManualTrip() {
     const open = document.querySelector('[data-csb-manual-open]');
     const modalEl = document.getElementById('csbManualTripModal');
@@ -867,6 +1047,7 @@
   setupGroupFilter();
   setupHojaRutaSort();
   setupDriverEditor();
+  setupTransferTrip();
   setupManualTrip();
   setupCalendar();
 })();

@@ -169,6 +169,12 @@ function csb_estado_class(string $estado): string {
     if ($estado === 'MANUAL') {
         return 'csb-status--manual';
     }
+    if ($estado === 'TRANSBORDADO') {
+        return 'csb-status--transbordado';
+    }
+    if ($estado === 'TRANSBORDO') {
+        return 'csb-status--transbordo';
+    }
     return 'csb-status--pending';
 }
 
@@ -199,7 +205,7 @@ function csb_sede_label(array $row): string {
     $abr = trim((string)($row['abr'] ?? ''));
     $nombre = trim((string)($row['nombre'] ?? ''));
     if ($abr !== '' && $nombre !== '' && strcasecmp($abr, $nombre) !== 0) {
-        return $abr . ' - ' . $nombre;
+        return $abr;
     }
     return $nombre !== '' ? $nombre : $abr;
 }
@@ -471,7 +477,17 @@ if (empty($_SESSION['csb_token'])) {
 }
 $csrfToken = $_SESSION['csb_token'];
 $isAdmin = n360_is_admin();
-$tableReady = isset($conn) && $conn instanceof mysqli && csb_table_exists($conn, 'tb_progbuses_salida_consolidado');
+$tableReady = isset($conn) && $conn instanceof mysqli && csb_table_exists(
+    $conn,
+    'tb_progbuses_salida_consolidado'
+);
+
+/* Fecha operativa disponible antes de procesar POST */
+$defaultDate = date('Y-m-d', strtotime('-1 day'));
+$fechaOperativa = csb_valid_date(
+    $_GET['fecha_operativa'] ?? '',
+    $defaultDate
+);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$tableReady) {
@@ -627,6 +643,258 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ], $duplicate ? 'Hoja de ruta duplicada.' : 'Hoja de ruta disponible.');
     }
 
+    if ($action === 'create_transfer_trip') {
+        if (!$isAdmin) {
+            csb_json(false, [], 'Solo administradores pueden gestionar transbordos.', 403);
+        }
+
+        $sourceId = (int)($_POST['source_id'] ?? 0);
+        $sourceRole = strtoupper(trim((string)($_POST['source_role'] ?? '')));
+        $horaSalida = csb_normalize_time((string)($_POST['hora_salida'] ?? ''));
+        $idPlaca = (int)($_POST['idplaca'] ?? 0);
+        $idOrigen = (int)($_POST['idorigen'] ?? 0);
+        $idDestino = (int)($_POST['iddestino'] ?? 0);
+        $rutaIdsRaw = $_POST['ruta_ids'] ?? [];
+        $comentarioTransfer = trim((string)($_POST['comentario'] ?? ''));
+        $rolesPermitidos = ['TRANSBORDADO', 'TRANSBORDO'];
+
+        if (!is_array($rutaIdsRaw)) {
+            $rutaIdsRaw = [$rutaIdsRaw];
+        }
+        $rutaIds = array_values(array_unique(array_filter(array_map('intval', $rutaIdsRaw), static fn($id) => $id > 0)));
+
+        if ($sourceId <= 0 || !in_array($sourceRole, $rolesPermitidos, true)) {
+            csb_json(false, [], 'Selecciona el viaje y define si la unidad fue TRANSBORDADA o realizo el TRANSBORDO.', 422);
+        }
+        if (!$horaSalida || $idPlaca <= 0 || $idOrigen <= 0 || $idDestino <= 0) {
+            csb_json(false, [], 'Completa hora, unidad, origen y destino del viaje relacionado.', 422);
+        }
+        if ($idOrigen === $idDestino) {
+            csb_json(false, [], 'El origen y destino del viaje relacionado no pueden ser iguales.', 422);
+        }
+        if (in_array($idOrigen, $rutaIds, true) || in_array($idDestino, $rutaIds, true)) {
+            csb_json(false, [], 'Las rutas intermedias no deben repetir el origen ni el destino.', 422);
+        }
+
+        $counterpartRole = $sourceRole === 'TRANSBORDADO' ? 'TRANSBORDO' : 'TRANSBORDADO';
+        $uid = csb_uid();
+        $conn->begin_transaction();
+
+        try {
+            // La apertura del modal NO hace una consulta AJAX: usa los datos ya renderizados en la fila.
+            // En el guardado sí revalidamos el registro en servidor para evitar manipulación del formulario.
+            $sourceRows = csb_fetch_all($conn, "
+                SELECT *
+                FROM tb_progbuses_salida_consolidado
+                WHERE clm_salprog_id = ?
+                LIMIT 1
+                FOR UPDATE
+            ", 'i', [$sourceId]);
+
+            if (!$sourceRows) {
+                throw new RuntimeException('No se encontro el viaje seleccionado en el consolidado.');
+            }
+            $source = $sourceRows[0];
+            $sourceEstado = strtoupper(trim((string)($source['clm_salprog_revision_estado'] ?? 'PENDIENTE')));
+            if (in_array($sourceEstado, $rolesPermitidos, true)) {
+                throw new RuntimeException('Este viaje ya esta marcado como ' . $sourceEstado . '.');
+            }
+
+            $fechaOperativaTransfer = csb_valid_date((string)($source['clm_salprog_fecha_operativa'] ?? ''), '');
+            $sourceIdPlaca = (int)($source['clm_salprog_idplaca'] ?? 0);
+            if ($fechaOperativaTransfer === '') {
+                throw new RuntimeException('El viaje seleccionado no tiene una fecha operativa valida.');
+            }
+            if ($sourceIdPlaca > 0 && $sourceIdPlaca === $idPlaca) {
+                throw new RuntimeException('La unidad relacionada debe ser diferente a la unidad del viaje seleccionado.');
+            }
+
+            $servicioSelect = csb_column_exists($conn, 'tb_placas', 'clm_placas_servicio') ? "IFNULL(p.clm_placas_servicio, '') AS servicio" : "'' AS servicio";
+            $placaRows = csb_fetch_all(
+                $conn,
+                "SELECT p.clm_placas_id AS id,
+                        IFNULL(p.clm_placas_BUS, '') AS bus,
+                        IFNULL(p.clm_placas_PLACA, '') AS placa,
+                        {$servicioSelect}
+                   FROM tb_placas p
+                  WHERE p.clm_placas_id = ?
+                    AND UPPER(TRIM(IFNULL(p.clm_placas_ESTADO, 'ACTIVO'))) = 'ACTIVO'
+                  LIMIT 1",
+                'i',
+                [$idPlaca]
+            );
+            if (!$placaRows) {
+                throw new RuntimeException('La unidad relacionada no existe o no esta activa.');
+            }
+            $placa = $placaRows[0];
+
+            $sedeIds = array_merge([$idOrigen, $idDestino], $rutaIds);
+            $sedesMap = csb_fetch_sedes_by_ids($conn, $sedeIds);
+            if (!isset($sedesMap[$idOrigen], $sedesMap[$idDestino])) {
+                throw new RuntimeException('No se encontro el origen o destino seleccionado.');
+            }
+            foreach ($rutaIds as $rutaId) {
+                if (!isset($sedesMap[$rutaId])) {
+                    throw new RuntimeException('Una ruta intermedia seleccionada no existe.');
+                }
+            }
+
+            $duplicados = csb_fetch_all(
+                $conn,
+                "SELECT clm_salprog_id
+                   FROM tb_progbuses_salida_consolidado
+                  WHERE clm_salprog_fecha_operativa = ?
+                    AND clm_salprog_idplaca = ?
+                    AND clm_salprog_horasalida = ?
+                  LIMIT 1",
+                'sis',
+                [$fechaOperativaTransfer, $idPlaca, $horaSalida]
+            );
+            if ($duplicados) {
+                throw new RuntimeException('Ya existe un registro para esa unidad, fecha y hora de salida.');
+            }
+
+            $rutaLabels = [];
+            foreach ($rutaIds as $rutaId) {
+                $rutaLabels[] = $sedesMap[$rutaId];
+            }
+            $rutaIdsText = implode(',', $rutaIds);
+            $rutaTexto = implode(' -> ', $rutaLabels);
+            $horaOrden = csb_hora_orden($horaSalida);
+            $bus = trim((string)($placa['bus'] ?? ''));
+            $placaTexto = trim((string)($placa['placa'] ?? ''));
+            $servicio = trim((string)($placa['servicio'] ?? ''));
+            $revisionComentario = $counterpartRole . ' relacionado con el registro #' . $sourceId . '.';
+
+            $stmt = $conn->prepare("
+                INSERT INTO tb_progbuses_salida_consolidado (
+                    clm_salprog_cierre_id,
+                    clm_salprog_fecha_operativa,
+                    clm_salprog_fecha_ejecucion,
+                    clm_salprog_run_id,
+                    clm_salprog_progid,
+                    clm_salprog_idplaca,
+                    clm_salprog_bus,
+                    clm_salprog_placa,
+                    clm_salprog_servicio,
+                    clm_salprog_idorigen,
+                    clm_salprog_origen,
+                    clm_salprog_iddestino,
+                    clm_salprog_destino,
+                    clm_salprog_ruta_ids,
+                    clm_salprog_ruta_texto,
+                    clm_salprog_horasalida,
+                    clm_salprog_hora_orden,
+                    clm_salprog_conductores_texto,
+                    clm_salprog_conductores_json,
+                    clm_salprog_comentario_horario,
+                    clm_salprog_fecha_programacion,
+                    clm_salprog_revision_estado,
+                    clm_salprog_comentario_revision,
+                    clm_salprog_usuario_revision,
+                    clm_salprog_datetime_revision
+                ) VALUES (
+                    0,
+                    ?,
+                    CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00'),
+                    0,
+                    0,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    '',
+                    '[]',
+                    ?,
+                    CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00'),
+                    ?,
+                    ?,
+                    ?,
+                    CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')
+                )
+            ");
+            if (!$stmt) {
+                throw new RuntimeException($conn->error ?: 'No se pudo preparar el registro del transbordo.');
+            }
+
+            $paramsTransfer = [
+                $fechaOperativaTransfer,
+                $idPlaca,
+                $bus,
+                $placaTexto,
+                $servicio,
+                $idOrigen,
+                $sedesMap[$idOrigen],
+                $idDestino,
+                $sedesMap[$idDestino],
+                $rutaIdsText,
+                $rutaTexto,
+                $horaSalida,
+                $horaOrden,
+                $comentarioTransfer,
+                $counterpartRole,
+                $revisionComentario,
+                $uid,
+            ];
+            csb_bind($stmt, 'sisssisissssisssi', $paramsTransfer);
+            if (!$stmt->execute()) {
+                $error = $stmt->error;
+                $stmt->close();
+                throw new RuntimeException($error ?: 'No se pudo crear el viaje relacionado.');
+            }
+            $nuevoId = (int)$stmt->insert_id;
+            $stmt->close();
+
+            $sourceComentarioPrevio = trim((string)($source['clm_salprog_comentario_revision'] ?? ''));
+            $sourceNota = $sourceRole . ' relacionado con el registro #' . $nuevoId . '.';
+            $sourceComentarioNuevo = $sourceComentarioPrevio !== ''
+                ? $sourceComentarioPrevio . "\n" . $sourceNota
+                : $sourceNota;
+
+            $stmt = $conn->prepare("
+                UPDATE tb_progbuses_salida_consolidado
+                   SET clm_salprog_revision_estado = ?,
+                       clm_salprog_comentario_revision = ?,
+                       clm_salprog_usuario_revision = ?,
+                       clm_salprog_datetime_revision = CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')
+                 WHERE clm_salprog_id = ?
+                 LIMIT 1
+            ");
+            if (!$stmt) {
+                throw new RuntimeException($conn->error ?: 'No se pudo actualizar el viaje original.');
+            }
+            $stmt->bind_param('ssii', $sourceRole, $sourceComentarioNuevo, $uid, $sourceId);
+            if (!$stmt->execute()) {
+                $error = $stmt->error;
+                $stmt->close();
+                throw new RuntimeException($error ?: 'No se pudo marcar el viaje original.');
+            }
+            $stmt->close();
+
+            $conn->commit();
+
+            csb_json(true, [
+                'source_id' => $sourceId,
+                'source_role' => $sourceRole,
+                'related_id' => $nuevoId,
+                'related_role' => $counterpartRole,
+                'fecha_operativa' => $fechaOperativaTransfer,
+                'redirect' => 'consolidado_salidas_buses.php?fecha_operativa=' . rawurlencode($fechaOperativaTransfer),
+            ], 'Transbordo registrado: ' . $sourceRole . ' / ' . $counterpartRole . '.');
+        } catch (Throwable $e) {
+            $conn->rollback();
+            csb_json(false, [], 'No se pudo registrar el transbordo: ' . $e->getMessage(), 400);
+        }
+    }
+
     if ($action === 'create_manual_trip') {
         if (!$isAdmin) {
             csb_json(false, [], 'Solo administradores pueden agregar viajes manuales.', 403);
@@ -773,7 +1041,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$stmt) {
                 throw new RuntimeException('No se pudo preparar el registro manual.');
             }
-            csb_bind($stmt, 'sisssisissssissi', [
+            $paramsManual = [
                 $fechaManual,
                 $idPlaca,
                 $bus,
@@ -790,8 +1058,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $comentarioManual,
                 $revisionComentario,
                 $uid,
-            ]);
-            $stmt->execute();
+            ];
+
+            csb_bind(
+                $stmt,
+                'sisssisissssissi',
+                $paramsManual
+            );
+
+            if (!$stmt->execute()) {
+                $error = $stmt->error;
+                $stmt->close();
+
+                throw new RuntimeException(
+                    $error ?: 'No se pudo registrar el viaje manual.'
+                );
+            }
+
             $nuevoId = (int)$stmt->insert_id;
             $stmt->close();
             $conn->commit();
@@ -816,7 +1099,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comentario = trim((string)($_POST['comentario'] ?? ''));
     $correccion = trim((string)($_POST['correccion'] ?? ''));
     $hojaRuta = trim((string)($_POST['hojaruta'] ?? ''));
-    $permitidos = ['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL'];
+    $permitidos = ['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL', 'TRANSBORDADO', 'TRANSBORDO'];
 
     if ($id <= 0 || !in_array($estado, $permitidos, true)) {
         csb_json(false, [], 'Datos incompletos para guardar.', 422);
@@ -870,11 +1153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ], 'Cambios guardados.');
 }
 
-$defaultDate = date('Y-m-d', strtotime('-1 day'));
-$fechaOperativa = csb_valid_date($_GET['fecha_operativa'] ?? '', $defaultDate);
 $revision = strtoupper(trim((string)($_GET['revision'] ?? 'TODOS')));
 $buscar = trim((string)($_GET['buscar'] ?? ''));
-$revisionPermitidas = ['TODOS', 'PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL'];
+$revisionPermitidas = ['TODOS', 'PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL', 'TRANSBORDADO', 'TRANSBORDO'];
 if (!in_array($revision, $revisionPermitidas, true)) {
     $revision = 'TODOS';
 }
@@ -899,6 +1180,8 @@ $kpis = [
     'corregidos' => 0,
     'anulados' => 0,
     'manuales' => 0,
+    'transbordados' => 0,
+    'transbordos' => 0,
 ];
 
 if ($tableReady) {
@@ -1030,6 +1313,8 @@ foreach ($rows as $row) {
     elseif ($estadoRow === 'CORREGIDO') $kpis['corregidos']++;
     elseif ($estadoRow === 'ANULADO') $kpis['anulados']++;
     elseif ($estadoRow === 'MANUAL') $kpis['manuales']++;
+    elseif ($estadoRow === 'TRANSBORDADO') $kpis['transbordados']++;
+    elseif ($estadoRow === 'TRANSBORDO') $kpis['transbordos']++;
     else $kpis['pendientes']++;
 
     $hasConductor = false;
@@ -1153,6 +1438,16 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
             <article class="csb-kpi csb-kpi--manual">
                 <span>Manuales</span>
                 <strong><?= number_format($kpis['manuales']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--transbordado">
+                <span>Transbordados</span>
+                <strong><?= number_format($kpis['transbordados']) ?></strong>
+            </article>
+
+            <article class="csb-kpi csb-kpi--transbordo">
+                <span>Transbordos</span>
+                <strong><?= number_format($kpis['transbordos']) ?></strong>
             </article>
 
             <article class="csb-kpi csb-kpi--danger">
@@ -1287,6 +1582,17 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 data-csb-db-revision="<?= csb_h($estado) ?>"
                                 data-csb-has-hojaruta="<?= $tieneHojaRuta ? '1' : '0' ?>"
                                 data-csb-hojaruta-duplicate="<?= $hojaRutaDuplicada ? '1' : '0' ?>"
+                                data-csb-transfer-date="<?= csb_h($row['clm_salprog_fecha_operativa'] ?? $fechaOperativa) ?>"
+                                data-csb-transfer-hour="<?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?>"
+                                data-csb-transfer-idplaca="<?= (int)($row['clm_salprog_idplaca'] ?? 0) ?>"
+                                data-csb-transfer-unit="<?= csb_h($unidadLabel) ?>"
+                                data-csb-transfer-service="<?= csb_h($row['clm_salprog_servicio'] ?? '') ?>"
+                                data-csb-transfer-idorigen="<?= (int)($row['clm_salprog_idorigen'] ?? 0) ?>"
+                                data-csb-transfer-origin="<?= csb_h($row['clm_salprog_origen'] ?? '') ?>"
+                                data-csb-transfer-iddestino="<?= (int)($row['clm_salprog_iddestino'] ?? 0) ?>"
+                                data-csb-transfer-destination="<?= csb_h($row['clm_salprog_destino'] ?? '') ?>"
+                                data-csb-transfer-ruta-ids="<?= csb_h($row['clm_salprog_ruta_ids'] ?? '') ?>"
+                                data-csb-transfer-route="<?= csb_h($row['clm_salprog_ruta_texto'] ?? '') ?>"
                             >
                                 <td>
                                     <strong><?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?></strong>
@@ -1368,6 +1674,11 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                                 </button>
                                             <?php endforeach; ?>
                                         </div>
+                                        <?php if ($isAdmin): ?>
+                                            <button type="button" class="csb-transfer-btn" data-csb-transfer-open title="Gestionar transbordo">
+                                                <i class="bi bi-arrow-left-right"></i> Trans.
+                                            </button>
+                                        <?php endif; ?>
                                         <button type="button" class="csb-icon-btn csb-icon-btn--save" data-csb-save="<?= $id ?>" title="Guardar revision" aria-label="Guardar revision">
                                             <i class="bi bi-check2"></i>
                                         </button>
@@ -1419,6 +1730,131 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 </div>
 
 <?php if ($isAdmin): ?>
+<div class="modal fade csb-transfer-modal" id="csbTransferModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <form data-csb-transfer-form autocomplete="off">
+                <input type="hidden" name="source_id" value="">
+                <div class="csb-modal-head">
+                    <div>
+                        <span><i class="bi bi-arrow-left-right"></i> Gestión operativa</span>
+                        <h2>Registrar transbordo</h2>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <section class="csb-transfer-source">
+                        <div class="csb-transfer-source-head">
+                            <div>
+                                <span>Viaje seleccionado</span>
+                                <strong data-csb-transfer-source-unit>Sin seleccionar</strong>
+                            </div>
+                            <span class="csb-transfer-source-id" data-csb-transfer-source-id>#0</span>
+                        </div>
+                        <div class="csb-transfer-source-grid">
+                            <div><span>Fecha / hora</span><strong data-csb-transfer-source-datetime>-</strong></div>
+                            <div><span>Servicio</span><strong data-csb-transfer-source-service>-</strong></div>
+                            <div><span>Ruta</span><strong data-csb-transfer-source-route>-</strong></div>
+                        </div>
+                    </section>
+
+                    <section class="csb-transfer-role-section">
+                        <span class="csb-transfer-section-title">¿Qué ocurrió con la unidad seleccionada?</span>
+                        <div class="csb-transfer-role-grid">
+                            <label class="csb-transfer-role-card">
+                                <input type="radio" name="source_role" value="TRANSBORDADO" checked>
+                                <span class="csb-transfer-role-icon"><i class="bi bi-bus-front"></i></span>
+                                <span>
+                                    <strong>Fue TRANSBORDADA</strong>
+                                    <small>Esta unidad no continuó el servicio y sus pasajeros pasaron a otra unidad.</small>
+                                </span>
+                            </label>
+                            <label class="csb-transfer-role-card">
+                                <input type="radio" name="source_role" value="TRANSBORDO">
+                                <span class="csb-transfer-role-icon"><i class="bi bi-arrow-right-circle"></i></span>
+                                <span>
+                                    <strong>Realizó el TRANSBORDO</strong>
+                                    <small>Esta unidad recibió pasajeros de otra unidad y continuó el servicio.</small>
+                                </span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="csb-transfer-related">
+                        <div class="csb-transfer-related-head">
+                            <div>
+                                <span>Viaje relacionado a generar</span>
+                                <h3 data-csb-transfer-counterpart-title>Unidad que realizó el TRANSBORDO</h3>
+                            </div>
+                            <span class="csb-transfer-role-pill" data-csb-transfer-counterpart-role>TRANSBORDO</span>
+                        </div>
+
+                        <div class="csb-manual-grid">
+                            <label>
+                                <span>Hora salida</span>
+                                <input type="time" name="hora_salida" required>
+                            </label>
+                            <label>
+                                <span>Unidad relacionada</span>
+                                <select name="idplaca" required>
+                                    <option value="">Seleccionar unidad...</option>
+                                    <?php foreach ($manualCatalog['placas'] as $placa): ?>
+                                        <?php
+                                        $busLabel = trim((string)($placa['bus'] ?? ''));
+                                        $placaLabel = trim((string)($placa['placa'] ?? ''));
+                                        $servicioLabel = trim((string)($placa['servicio'] ?? ''));
+                                        $optionText = trim($busLabel . ($placaLabel !== '' ? ' - ' . $placaLabel : '') . ($servicioLabel !== '' ? ' | ' . $servicioLabel : ''));
+                                        ?>
+                                        <option value="<?= (int)$placa['id'] ?>"><?= csb_h($optionText !== '' ? $optionText : ('Unidad #' . (int)$placa['id'])) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Origen</span>
+                                <select name="idorigen" required>
+                                    <option value="">Seleccionar origen...</option>
+                                    <?php foreach ($manualCatalog['sedes'] as $sede): ?>
+                                        <option value="<?= (int)$sede['id'] ?>"><?= csb_h($sede['label'] ?? $sede['nombre'] ?? ('Sede #' . (int)$sede['id'])) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Destino</span>
+                                <select name="iddestino" required>
+                                    <option value="">Seleccionar destino...</option>
+                                    <?php foreach ($manualCatalog['sedes'] as $sede): ?>
+                                        <option value="<?= (int)$sede['id'] ?>"><?= csb_h($sede['label'] ?? $sede['nombre'] ?? ('Sede #' . (int)$sede['id'])) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label class="csb-manual-wide">
+                                <span>Rutas intermedias</span>
+                                <select name="ruta_ids[]" multiple size="5" class="csb-manual-routes">
+                                    <?php foreach ($manualCatalog['sedes'] as $sede): ?>
+                                        <option value="<?= (int)$sede['id'] ?>"><?= csb_h($sede['label'] ?? $sede['nombre'] ?? ('Sede #' . (int)$sede['id'])) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <small>Registra la ruta real de la unidad relacionada. No repitas origen ni destino.</small>
+                            </label>
+                            <label class="csb-manual-wide">
+                                <span>Comentario</span>
+                                <textarea name="comentario" rows="3" placeholder="Motivo del transbordo, punto de incidencia o referencia operativa"></textarea>
+                            </label>
+                        </div>
+                        <p class="csb-manual-help">La fecha operativa se hereda del viaje seleccionado. La nueva fila se crea con cierre 0 y programación 0; ambos registros quedan marcados como TRANSBORDADO / TRANSBORDO.</p>
+                    </section>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="csb-btn csb-btn--primary" data-csb-transfer-save>
+                        <i class="bi bi-arrow-left-right"></i> Registrar transbordo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade csb-manual-modal" id="csbManualTripModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
