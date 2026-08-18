@@ -44,12 +44,64 @@ while ($row = $resultado->fetch_assoc()) {
     }
 }
 $conn->close();
+
+// =====================================================
+// CONFIGURACIÓN VISUAL DEL KANBAN
+// No altera estados ni lógica de negocio; solo centraliza la presentación.
+// =====================================================
+$etapasKanban = [
+    1 => [
+        'nombre' => 'Selección',
+        'descripcion' => 'Preselección de candidatos',
+        'icono' => 'bi-search'
+    ],
+    2 => [
+        'nombre' => 'Entrevista',
+        'descripcion' => 'Evaluación presencial',
+        'icono' => 'bi-chat-dots'
+    ],
+    3 => [
+        'nombre' => 'Inducción',
+        'descripcion' => 'Ingreso e inducción',
+        'icono' => 'bi-mortarboard'
+    ],
+    4 => [
+        'nombre' => 'Mes de prueba',
+        'descripcion' => 'Periodo inicial de validación',
+        'icono' => 'bi-hourglass-split'
+    ],
+    5 => [
+        'nombre' => 'Solicitud Trabajador',
+        'descripcion' => 'Alta administrativa',
+        'icono' => 'bi-file-earmark-check'
+    ],
+    6 => [
+        'nombre' => 'Trabajando / En planilla',
+        'descripcion' => 'Colaborador activo',
+        'icono' => 'bi-person-check'
+    ]
+];
+
+$totalActivosKanban = 0;
+$totalProcesoKanban = 0;
+$totalRechazadosKanban = 0;
+
+for ($i = 1; $i <= 6; $i++) {
+    $cantidadEtapa = count($kanban[$i] ?? []);
+    $totalActivosKanban += $cantidadEtapa;
+    if ($i <= 5) {
+        $totalProcesoKanban += $cantidadEtapa;
+    }
+    $totalRechazadosKanban += count($rechazadosPorEtapa[$i] ?? []);
+}
+
+$totalTrabajandoKanban = count($kanban[6] ?? []);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Puestos por Etapa | Norte 360°</title>
+    <title>Entrevistas por Etapa | Norte 360°</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="../img/norte360.png">      
     <style>
@@ -1092,6 +1144,552 @@ margin: 20px
     margin-left: 240px;
     padding: 30px;
 }
+
+
+/* =========================================================
+   KANBAN RRHH · PALETA NORTE360
+   Basado en el estilo visual usado en Consolidado de Checklist.
+   Solo presentación: no modifica lógica, estados ni consultas.
+   ========================================================= */
+.rrhh-kanban-shell {
+    --n360-navy: #12344b;
+    --n360-navy-2: #1f5875;
+    --n360-blue: #278fc4;
+    --n360-blue-hover: #197cab;
+    --n360-blue-soft: #edf7fc;
+    --n360-bg: #eaf0f4;
+    --n360-surface: #ffffff;
+    --n360-border: #d7e1e8;
+    --n360-text: #10283a;
+    --n360-muted: #607485;
+    --n360-success: #158457;
+    --n360-danger: #c83b3b;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* ===== CABECERA TIPO NORTE360 ===== */
+.rrhh-kanban-hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    margin: 8px 0 20px;
+    padding: 28px 30px;
+    min-height: 132px;
+    background: linear-gradient(115deg, var(--n360-navy) 0%, var(--n360-navy-2) 100%);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 9px;
+    box-shadow: 0 10px 25px rgba(14, 47, 68, .16);
+}
+
+.rrhh-kanban-hero::after {
+    content: '';
+    position: absolute;
+    width: 340px;
+    height: 340px;
+    right: -150px;
+    top: -175px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(76,177,224,.18) 0%, rgba(76,177,224,0) 70%);
+    pointer-events: none;
+}
+
+.rrhh-kanban-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: #d8f1ff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+}
+
+.rrhh-kanban-eyebrow i {
+    color: #7ed3fb;
+}
+
+.rrhh-kanban-hero h1 {
+    margin: 0;
+    color: #ffffff;
+    font-size: clamp(29px, 2.5vw, 40px);
+    line-height: 1.1;
+    letter-spacing: -.025em;
+    text-align: left;
+    font-weight: 800;
+}
+
+.rrhh-kanban-hero p {
+    max-width: 820px;
+    margin: 10px 0 0;
+    color: #e7f0f5;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.rrhh-kanban-hero-badge {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 15px;
+    background: rgba(255,255,255,.08);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 750;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.rrhh-kanban-hero-badge i {
+    color: #8bdcff;
+    font-size: 16px;
+}
+
+/* ===== KPIs COMO LOS PANELES NORTE360 ===== */
+.rrhh-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.rrhh-kpi {
+    position: relative;
+    min-height: 72px;
+    padding: 15px 16px;
+    background: var(--n360-surface);
+    border: 1px solid var(--n360-border);
+    border-radius: 9px;
+    box-shadow: 0 4px 11px rgba(21, 56, 76, .055);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rrhh-kpi::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--kpi-color, var(--n360-blue));
+}
+
+.rrhh-kpi-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    color: var(--kpi-color, var(--n360-blue));
+    background: #f1f7fa;
+    font-size: 16px;
+}
+
+.rrhh-kpi-copy {
+    min-width: 0;
+}
+
+.rrhh-kpi-copy span {
+    display: block;
+    color: #566f7f;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+.rrhh-kpi-copy strong {
+    display: block;
+    margin-top: 3px;
+    color: var(--n360-text);
+    font-size: 24px;
+    line-height: 1;
+    font-weight: 800;
+}
+
+.rrhh-kpi--active,
+.rrhh-kpi--process { --kpi-color: var(--n360-blue); }
+.rrhh-kpi--working { --kpi-color: var(--n360-success); }
+.rrhh-kpi--rejected { --kpi-color: var(--n360-danger); }
+
+/* ===== CONTENEDOR DEL KANBAN ===== */
+.kanban-board-wrap {
+    position: relative;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 1px 14px;
+    scrollbar-width: thin;
+    scrollbar-color: #9fb4c2 transparent;
+}
+
+.kanban-board-wrap::-webkit-scrollbar {
+    height: 8px;
+}
+.kanban-board-wrap::-webkit-scrollbar-track {
+    background: transparent;
+}
+.kanban-board-wrap::-webkit-scrollbar-thumb {
+    background: #a8bac6;
+    border-radius: 999px;
+}
+
+.kanban-container.kanban-container--pro {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(255px, 1fr));
+    align-items: start;
+    justify-content: initial;
+    gap: 11px;
+    min-width: 1590px;
+    padding: 0;
+    margin: 0;
+    flex-wrap: nowrap;
+}
+
+/* Todas las etapas comparten la misma familia azul Norte360.
+   Solo cambiamos ligeramente la intensidad para mantener lectura del flujo. */
+.kanban-container--pro .kanban-col {
+    --stage-color: #278fc4;
+    --stage-soft: #eef7fb;
+    position: relative;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #f7fafc;
+    border: 1px solid #d6e1e8;
+    border-radius: 9px;
+    box-shadow: 0 4px 12px rgba(20, 57, 78, .065);
+}
+
+.kanban-container--pro .kanban-col::before {
+    content: '';
+    display: block;
+    height: 4px;
+    background: var(--stage-color);
+}
+
+.kanban-container--pro .stage-1 { --stage-color: #315b78; --stage-soft: #eef3f6; }
+.kanban-container--pro .stage-2 { --stage-color: #197da9; --stage-soft: #ecf6fa; }
+.kanban-container--pro .stage-3 { --stage-color: #278fc4; --stage-soft: #edf8fd; }
+.kanban-container--pro .stage-4 { --stage-color: #217fa5; --stage-soft: #edf6f9; }
+.kanban-container--pro .stage-5 { --stage-color: #176d91; --stage-soft: #ebf3f7; }
+.kanban-container--pro .stage-6 { --stage-color: #155b78; --stage-soft: #eaf2f6; }
+
+.kanban-column-header {
+    display: grid;
+    grid-template-columns: 35px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    padding: 13px 12px 12px;
+    background: #ffffff;
+    border-bottom: 1px solid #dbe5eb;
+}
+
+.kanban-step-icon {
+    width: 35px;
+    height: 35px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    color: var(--stage-color);
+    background: var(--stage-soft);
+    font-size: 15px;
+}
+
+.kanban-title-wrap {
+    min-width: 0;
+}
+
+.kanban-container--pro .kanban-title {
+    margin: 0;
+    text-align: left;
+    color: var(--n360-text);
+    font-size: 13px;
+    line-height: 1.22;
+    font-weight: 800;
+}
+
+.kanban-subtitle {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    color: #758998;
+    font-size: 9.5px;
+    line-height: 1.25;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.kanban-count {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 7px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #f7fbfd;
+    color: var(--stage-color);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.kanban-list {
+    padding: 10px;
+    min-height: 126px;
+    background: #f5f9fb;
+}
+
+/* ===== TARJETAS DE POSTULANTES ===== */
+.kanban-container--pro .kanban-card {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 9px;
+    align-items: center;
+    margin: 0 0 8px;
+    padding: 10px;
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid #dce6ec;
+    border-left: 3px solid var(--stage-color);
+    border-radius: 7px;
+    box-shadow: 0 2px 7px rgba(20, 57, 78, .055);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.kanban-container--pro .kanban-card:hover {
+    transform: translateY(-1px);
+    background: #ffffff;
+    color: #1f2937;
+    border-color: #b9d2df;
+    box-shadow: 0 5px 12px rgba(20, 57, 78, .11);
+}
+
+.kanban-person-icon {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    color: var(--stage-color);
+    background: var(--stage-soft);
+    font-size: 14px;
+}
+
+.kanban-person-copy {
+    min-width: 0;
+}
+
+.kanban-person-copy strong {
+    display: block;
+    overflow: hidden;
+    color: #153246;
+    font-size: 11.5px;
+    font-weight: 750;
+    line-height: 1.35;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.kanban-container--pro .kanban-card small {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    overflow: hidden;
+    color: #788a98;
+    font-size: 9.5px;
+    line-height: 1.3;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.kanban-container--pro .kanban-card small i {
+    color: #8da1af;
+}
+
+.kanban-empty {
+    display: grid;
+    place-items: center;
+    min-height: 98px;
+    padding: 14px;
+    color: #8799a6;
+    text-align: center;
+    border: 1px dashed #cbd9e1;
+    border-radius: 7px;
+    background: rgba(255,255,255,.66);
+}
+
+.kanban-empty i {
+    display: block;
+    margin-bottom: 6px;
+    color: #9eafb9;
+    font-size: 19px;
+}
+
+.kanban-empty span {
+    font-size: 10px;
+    font-weight: 650;
+}
+
+/* ===== RECHAZADOS: rojo solo como color semántico ===== */
+.kanban-rejected-block {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid #dfe7ec;
+}
+
+.kanban-container--pro .btn-rechazados {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 8px;
+    background: #fff5f5;
+    color: #b93535;
+    border: 1px solid #efcccc;
+    border-radius: 6px;
+    font-size: 9.5px;
+    font-weight: 800;
+    box-shadow: none;
+    transition: background .16s ease, border-color .16s ease;
+}
+
+.kanban-container--pro .btn-rechazados:hover {
+    background: #fdecec;
+    border-color: #e6b6b6;
+}
+
+.rechazados-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rechazados-count {
+    min-width: 20px;
+    height: 20px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid #e9c1c1;
+    font-size: 9px;
+}
+
+.btn-rechazados .toggle-chevron {
+    transition: transform .18s ease;
+}
+.btn-rechazados.is-open .toggle-chevron {
+    transform: rotate(180deg);
+}
+
+.rejected-list {
+    margin-top: 7px;
+}
+
+.kanban-container--pro .card-rechazo {
+    --stage-color: #c83b3b;
+    grid-template-columns: 31px minmax(0, 1fr);
+    background: #fff !important;
+    color: #1f2937 !important;
+    border: 1px solid #efd5d5;
+    border-left: 3px solid #c83b3b;
+}
+
+.kanban-container--pro .card-rechazo:hover {
+    transform: translateY(-1px);
+    background: #fff !important;
+    color: #1f2937 !important;
+    box-shadow: 0 5px 11px rgba(156, 36, 36, .10);
+}
+
+.kanban-container--pro .card-rechazo .kanban-person-icon {
+    width: 29px;
+    height: 29px;
+    color: #b63838;
+    background: #fff0f0;
+}
+
+.kanban-container--pro .card-rechazo small,
+.kanban-container--pro .card-rechazo:hover small {
+    color: #8a6a6a;
+}
+
+.kanban-board-hint {
+    display: none;
+    align-items: center;
+    gap: 7px;
+    margin: 0 0 9px;
+    color: #617989;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+/* Ajuste del fondo del área de trabajo para que acompañe la interfaz Norte360 */
+.main-content.n360-main.n360-main--module {
+    background: transparent;
+}
+
+@media (max-width: 1180px) {
+    .rrhh-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .kanban-board-hint {
+        display: flex;
+    }
+}
+
+@media (max-width: 768px) {
+    .rrhh-kanban-hero {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 22px 20px;
+        border-radius: 8px;
+    }
+    .rrhh-kanban-hero-badge {
+        align-self: flex-start;
+    }
+    .rrhh-kpis {
+        gap: 9px;
+    }
+    .rrhh-kpi {
+        min-height: 67px;
+        padding: 12px 11px;
+    }
+    .rrhh-kpi-icon {
+        width: 34px;
+        height: 34px;
+        flex-basis: 34px;
+    }
+    .rrhh-kpi-copy strong {
+        font-size: 21px;
+    }
+}
+
+@media (max-width: 520px) {
+    .rrhh-kpis {
+        grid-template-columns: 1fr 1fr;
+    }
+    .rrhh-kpi {
+        gap: 8px;
+    }
+    .rrhh-kpi-copy span {
+        font-size: 8.5px;
+    }
+}
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/header_n360.css') ?>">
@@ -1114,143 +1712,146 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 <?php n360_render_sidebar(); ?>
 <div class="main-content n360-main n360-main--module">
 <?php n360_render_content_separator('top'); ?>
-<h2>📋 Puestos por Etapa</h2>
-  <div class="kanban-container">
-    <div class="kanban-col">
-      <div class="kanban-title">1️⃣ Selección</div>
-      <?php foreach ($kanban[1] as $e): ?>
-        <div class="kanban-card">
-          <?= htmlspecialchars($e['nombre']) ?>
-          <small><?= htmlspecialchars($e['puesto']) ?></small>
-        </div>
-      <?php endforeach; ?>
-  <?php if (!empty($rechazadosPorEtapa[1])): ?>
-    <div style="margin-top: 10px;">
-      <button onclick="toggleRechazados(1)" class="btn-rechazados">+ Rechazados</button>
-      <div id="rechazados-1" style="display:none; margin-top:10px;">
-        <?php foreach ($rechazadosPorEtapa[1] as $r): ?>
-          <div class="kanban-card card-rechazo">
-            <?= htmlspecialchars($r['nombre']) ?>
-            <small><?= htmlspecialchars($r['puesto']) ?></small>
-          </div>
-        <?php endforeach; ?>
+<div class="rrhh-kanban-shell">
+  <div class="rrhh-kanban-hero">
+    <div>
+      <div class="rrhh-kanban-eyebrow">
+        <i class="bi bi-diagram-3"></i>
+        RRHH · Reclutamiento
       </div>
+      <h1>Entrevistas por Etapa</h1>
     </div>
-  <?php endif; ?>
-    </div>
-    <div class="kanban-col">
-      <div class="kanban-title">2️⃣ Entrevista</div>
-      <?php foreach ($kanban[2] as $e): ?>
-        <div class="kanban-card">
-          <?= htmlspecialchars($e['nombre']) ?>
-          <small><?= htmlspecialchars($e['puesto']) ?></small>
-        </div>
-      <?php endforeach; ?>
-  <?php if (!empty($rechazadosPorEtapa[2])): ?>
-    <div style="margin-top: 10px;">
-      <button onclick="toggleRechazados(2)" class="btn-rechazados">+ Rechazados</button>
-      <div id="rechazados-2" style="display:none; margin-top:10px;">
-        <?php foreach ($rechazadosPorEtapa[2] as $r): ?>
-          <div class="kanban-card card-rechazo">
-            <?= htmlspecialchars($r['nombre']) ?>
-            <small><?= htmlspecialchars($r['puesto']) ?></small>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-  <?php endif; ?>
-    </div>
-    <div class="kanban-col">
-      <div class="kanban-title">3️⃣ Inducción</div>
-      <?php foreach ($kanban[3] as $e): ?>
-        <div class="kanban-card">
-          <?= htmlspecialchars($e['nombre']) ?>
-          <small><?= htmlspecialchars($e['puesto']) ?></small>
-        </div>
-      <?php endforeach; ?>
-  <?php if (!empty($rechazadosPorEtapa[3])): ?>
-    <div style="margin-top: 10px;">
-      <button onclick="toggleRechazados(3)" class="btn-rechazados">+ Rechazados</button>
-      <div id="rechazados-3" style="display:none; margin-top:10px;">
-        <?php foreach ($rechazadosPorEtapa[3] as $r): ?>
-          <div class="kanban-card card-rechazo">
-            <?= htmlspecialchars($r['nombre']) ?>
-            <small><?= htmlspecialchars($r['puesto']) ?></small>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-  <?php endif; ?>
-    </div>
-    <div class="kanban-col">
-      <div class="kanban-title">4️⃣ Mes de prueba</div>
-      <?php foreach ($kanban[4] as $e): ?>
-        <div class="kanban-card">
-          <?= htmlspecialchars($e['nombre']) ?>
-          <small><?= htmlspecialchars($e['puesto']) ?></small>
-        </div>
-      <?php endforeach; ?>
-      <?php if (!empty($rechazadosPorEtapa[4])): ?>
-        <div style="margin-top: 10px;">
-          <button onclick="toggleRechazados(4)" class="btn-rechazados">+ Rechazados</button>
-          <div id="rechazados-4" style="display:none; margin-top:10px;">
-            <?php foreach ($rechazadosPorEtapa[4] as $r): ?>
-              <div class="kanban-card card-rechazo">
-                <?= htmlspecialchars($r['nombre']) ?>
-                <small><?= htmlspecialchars($r['puesto']) ?></small>
-              </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-      <?php endif; ?>
-    </div>
-
-    <div class="kanban-col">
-      <div class="kanban-title">5️⃣ Solicitud Trabajador</div>
-      <?php foreach ($kanban[5] as $e): ?>
-        <div class="kanban-card">
-          <?= htmlspecialchars($e['nombre']) ?>
-          <small><?= htmlspecialchars($e['puesto']) ?></small>
-        </div>
-      <?php endforeach; ?>
-      <?php if (!empty($rechazadosPorEtapa[5])): ?>
-        <div style="margin-top: 10px;">
-          <button onclick="toggleRechazados(5)" class="btn-rechazados">+ Rechazados</button>
-          <div id="rechazados-5" style="display:none; margin-top:10px;">
-            <?php foreach ($rechazadosPorEtapa[5] as $r): ?>
-              <div class="kanban-card card-rechazo">
-                <?= htmlspecialchars($r['nombre']) ?>
-                <small><?= htmlspecialchars($r['puesto']) ?></small>
-              </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-      <?php endif; ?>
-    </div>
-
-    <div class="kanban-col">
-      <div class="kanban-title">6️⃣ Trabajando/En Planilla</div>
-      <?php foreach ($kanban[6] as $e): ?>
-        <div class="kanban-card">
-          <?= htmlspecialchars($e['nombre']) ?>
-          <small><?= htmlspecialchars($e['puesto']) ?></small>
-        </div>
-      <?php endforeach; ?>
-      <?php if (!empty($rechazadosPorEtapa[6])): ?>
-        <div style="margin-top: 10px;">
-          <button onclick="toggleRechazados(6)" class="btn-rechazados">+ Rechazados</button>
-          <div id="rechazados-6" style="display:none; margin-top:10px;">
-            <?php foreach ($rechazadosPorEtapa[6] as $r): ?>
-              <div class="kanban-card card-rechazo">
-                <?= htmlspecialchars($r['nombre']) ?>
-                <small><?= htmlspecialchars($r['puesto']) ?></small>
-              </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-      <?php endif; ?>
+    <div class="rrhh-kanban-hero-badge">
+      <i class="bi bi-columns-gap"></i>
+      <span>6 etapas del proceso</span>
     </div>
   </div>
+
+  <div class="rrhh-kpis">
+    <div class="rrhh-kpi rrhh-kpi--active">
+      <div class="rrhh-kpi-icon"><i class="bi bi-people"></i></div>
+      <div class="rrhh-kpi-copy">
+        <span>Postulantes activos</span>
+        <strong><?= number_format($totalActivosKanban) ?></strong>
+      </div>
+    </div>
+
+    <div class="rrhh-kpi rrhh-kpi--process">
+      <div class="rrhh-kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+      <div class="rrhh-kpi-copy">
+        <span>En proceso</span>
+        <strong><?= number_format($totalProcesoKanban) ?></strong>
+      </div>
+    </div>
+
+    <div class="rrhh-kpi rrhh-kpi--working">
+      <div class="rrhh-kpi-icon"><i class="bi bi-person-workspace"></i></div>
+      <div class="rrhh-kpi-copy">
+        <span>En planilla</span>
+        <strong><?= number_format($totalTrabajandoKanban) ?></strong>
+      </div>
+    </div>
+
+    <div class="rrhh-kpi rrhh-kpi--rejected">
+      <div class="rrhh-kpi-icon"><i class="bi bi-person-x"></i></div>
+      <div class="rrhh-kpi-copy">
+        <span>Rechazados</span>
+        <strong><?= number_format($totalRechazadosKanban) ?></strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="kanban-board-hint">
+    <i class="bi bi-arrows"></i>
+    Desliza horizontalmente para revisar todas las etapas.
+  </div>
+
+  <div class="kanban-board-wrap">
+    <div class="kanban-container kanban-container--pro">
+      <?php foreach ($etapasKanban as $idEtapa => $etapa): ?>
+        <?php
+          $postulantesEtapa = $kanban[$idEtapa] ?? [];
+          $rechazadosEtapa = $rechazadosPorEtapa[$idEtapa] ?? [];
+        ?>
+        <div class="kanban-col stage-<?= (int)$idEtapa ?>">
+          <div class="kanban-column-header">
+            <div class="kanban-step-icon">
+              <i class="bi <?= htmlspecialchars($etapa['icono']) ?>"></i>
+            </div>
+            <div class="kanban-title-wrap">
+              <div class="kanban-title"><?= (int)$idEtapa ?>. <?= htmlspecialchars($etapa['nombre']) ?></div>
+              <small class="kanban-subtitle"><?= htmlspecialchars($etapa['descripcion']) ?></small>
+            </div>
+            <span class="kanban-count" title="Postulantes activos en esta etapa">
+              <?= count($postulantesEtapa) ?>
+            </span>
+          </div>
+
+          <div class="kanban-list">
+            <?php if (empty($postulantesEtapa)): ?>
+              <div class="kanban-empty">
+                <div>
+                  <i class="bi bi-inbox"></i>
+                  <span>Sin postulantes en esta etapa</span>
+                </div>
+              </div>
+            <?php else: ?>
+              <?php foreach ($postulantesEtapa as $e): ?>
+                <div class="kanban-card" title="<?= htmlspecialchars($e['nombre']) ?>">
+                  <div class="kanban-person-icon">
+                    <i class="bi bi-person-fill"></i>
+                  </div>
+                  <div class="kanban-person-copy">
+                    <strong><?= htmlspecialchars($e['nombre']) ?></strong>
+                    <small>
+                      <i class="bi bi-briefcase"></i>
+                      <?= htmlspecialchars($e['puesto'] ?: 'Puesto no especificado') ?>
+                    </small>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            <?php endif; ?>
+
+            <?php if (!empty($rechazadosEtapa)): ?>
+              <div class="kanban-rejected-block">
+                <button
+                  type="button"
+                  onclick="toggleRechazados(<?= (int)$idEtapa ?>, this)"
+                  class="btn-rechazados"
+                  aria-expanded="false"
+                  aria-controls="rechazados-<?= (int)$idEtapa ?>">
+                  <span class="rechazados-label">
+                    <i class="bi bi-x-circle"></i>
+                    Rechazados
+                    <span class="rechazados-count"><?= count($rechazadosEtapa) ?></span>
+                  </span>
+                  <i class="bi bi-chevron-down toggle-chevron"></i>
+                </button>
+
+                <div id="rechazados-<?= (int)$idEtapa ?>" class="rejected-list" style="display:none;">
+                  <?php foreach ($rechazadosEtapa as $r): ?>
+                    <div class="kanban-card card-rechazo" title="<?= htmlspecialchars($r['nombre']) ?>">
+                      <div class="kanban-person-icon">
+                        <i class="bi bi-person-x-fill"></i>
+                      </div>
+                      <div class="kanban-person-copy">
+                        <strong><?= htmlspecialchars($r['nombre']) ?></strong>
+                        <small>
+                          <i class="bi bi-briefcase"></i>
+                          <?= htmlspecialchars($r['puesto'] ?: 'Puesto no especificado') ?>
+                        </small>
+                      </div>
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+              </div>
+            <?php endif; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>
 <script>
 function abrirModal(boton) {
   const data = {
@@ -1499,9 +2100,17 @@ function toggleEvaluacion(aceptado) {
 }
 </script>
 <script>
-function toggleRechazados(id) {
+function toggleRechazados(id, boton = null) {
   const cont = document.getElementById('rechazados-' + id);
-  cont.style.display = (cont.style.display === 'none') ? 'block' : 'none';
+  if (!cont) return;
+
+  const estabaOculto = cont.style.display === 'none' || getComputedStyle(cont).display === 'none';
+  cont.style.display = estabaOculto ? 'block' : 'none';
+
+  if (boton) {
+    boton.classList.toggle('is-open', estabaOculto);
+    boton.setAttribute('aria-expanded', estabaOculto ? 'true' : 'false');
+  }
 }
 </script>
 
