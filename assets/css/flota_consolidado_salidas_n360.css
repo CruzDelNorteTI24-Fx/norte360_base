@@ -1883,3 +1883,27 @@
 @keyframes csb-route-spin {
     to { transform: rotate(360deg); }
 }
+
+/* Conductores inactivos: visibles únicamente cuando backend los habilita para administradores. */
+.csb-driver-choice.is-inactive {
+    order: 2;
+    border-style: dashed;
+    border-color: #d7a4a4;
+    background: #fff8f8;
+    opacity: .82;
+}
+
+.csb-driver-choice.is-inactive strong {
+    color: #8b3434;
+}
+
+.csb-driver-choice.is-inactive span {
+    color: #9b5a5a;
+}
+
+.csb-driver-choice.is-inactive:hover,
+.csb-driver-choice.is-inactive.is-selected {
+    opacity: 1;
+    border-color: #c55b5b;
+    background: #fff0f0;
+}

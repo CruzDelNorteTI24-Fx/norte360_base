@@ -359,7 +359,7 @@ function csb_driver_label(array $row): string {
     return $dni !== '' ? $nombre . ' (' . $dni . ')' : $nombre;
 }
 
-function csb_fetch_conductores_activos(mysqli $conn): array {
+function csb_fetch_conductores(mysqli $conn, bool $includeInactive = false): array {
     if (!csb_table_exists($conn, 'tb_trabajador')) {
         return [];
     }
@@ -367,20 +367,36 @@ function csb_fetch_conductores_activos(mysqli $conn): array {
     $licenseSelect = csb_column_exists($conn, 'tb_trabajador', 'clm_tra_nlicenciaconducir')
         ? "IFNULL(t.clm_tra_nlicenciaconducir, '') AS licencia"
         : "'' AS licencia";
+    $hasContrato = csb_column_exists($conn, 'tb_trabajador', 'clm_tra_contrato');
+    $contractSelect = $hasContrato
+        ? "UPPER(TRIM(IFNULL(t.clm_tra_contrato, ''))) AS estado_contrato"
+        : "'ACTIVO' AS estado_contrato";
+
+    $where = "UPPER(TRIM(IFNULL(t.clm_tra_tipo_trabajador, ''))) = 'CONDUCTOR'";
+    if (!$includeInactive && $hasContrato) {
+        $where .= " AND UPPER(TRIM(IFNULL(t.clm_tra_contrato, ''))) = 'ACTIVO'";
+    }
+
+    $orderActive = $hasContrato
+        ? "CASE WHEN UPPER(TRIM(IFNULL(t.clm_tra_contrato, ''))) = 'ACTIVO' THEN 0 ELSE 1 END,"
+        : "";
 
     $rows = csb_fetch_all($conn, "
         SELECT
             t.clm_tra_id AS id,
             IFNULL(t.clm_tra_nombres, '') AS conductor,
             IFNULL(t.clm_tra_dni, '') AS dni,
-            {$licenseSelect}
+            {$licenseSelect},
+            {$contractSelect}
         FROM tb_trabajador t
-        WHERE " . csb_active_driver_where($conn, 't') . "
-        ORDER BY t.clm_tra_nombres ASC
+        WHERE {$where}
+        ORDER BY {$orderActive} t.clm_tra_nombres ASC
     ");
 
     foreach ($rows as &$row) {
         $row['id'] = (int)($row['id'] ?? 0);
+        $row['estado_contrato'] = strtoupper(trim((string)($row['estado_contrato'] ?? 'ACTIVO')));
+        $row['es_activo'] = $row['estado_contrato'] === 'ACTIVO';
         $row['label'] = csb_driver_label($row);
     }
     unset($row);
@@ -388,7 +404,7 @@ function csb_fetch_conductores_activos(mysqli $conn): array {
     return $rows;
 }
 
-function csb_fetch_conductor_activo(mysqli $conn, int $id): ?array {
+function csb_fetch_conductor_disponible(mysqli $conn, int $id, bool $allowInactive = false): ?array {
     if ($id <= 0 || !csb_table_exists($conn, 'tb_trabajador')) {
         return null;
     }
@@ -396,16 +412,25 @@ function csb_fetch_conductor_activo(mysqli $conn, int $id): ?array {
     $licenseSelect = csb_column_exists($conn, 'tb_trabajador', 'clm_tra_nlicenciaconducir')
         ? "IFNULL(t.clm_tra_nlicenciaconducir, '') AS licencia"
         : "'' AS licencia";
+    $hasContrato = csb_column_exists($conn, 'tb_trabajador', 'clm_tra_contrato');
+    $contractSelect = $hasContrato
+        ? "UPPER(TRIM(IFNULL(t.clm_tra_contrato, ''))) AS estado_contrato"
+        : "'ACTIVO' AS estado_contrato";
+
+    $where = "t.clm_tra_id = ? AND UPPER(TRIM(IFNULL(t.clm_tra_tipo_trabajador, ''))) = 'CONDUCTOR'";
+    if (!$allowInactive && $hasContrato) {
+        $where .= " AND UPPER(TRIM(IFNULL(t.clm_tra_contrato, ''))) = 'ACTIVO'";
+    }
 
     $rows = csb_fetch_all($conn, "
         SELECT
             t.clm_tra_id AS id,
             IFNULL(t.clm_tra_nombres, '') AS conductor,
             IFNULL(t.clm_tra_dni, '') AS dni,
-            {$licenseSelect}
+            {$licenseSelect},
+            {$contractSelect}
         FROM tb_trabajador t
-        WHERE t.clm_tra_id = ?
-          AND " . csb_active_driver_where($conn, 't') . "
+        WHERE {$where}
         LIMIT 1
     ", 'i', [$id]);
 
@@ -413,6 +438,8 @@ function csb_fetch_conductor_activo(mysqli $conn, int $id): ?array {
         return null;
     }
     $rows[0]['id'] = (int)($rows[0]['id'] ?? 0);
+    $rows[0]['estado_contrato'] = strtoupper(trim((string)($rows[0]['estado_contrato'] ?? 'ACTIVO')));
+    $rows[0]['es_activo'] = $rows[0]['estado_contrato'] === 'ACTIVO';
     $rows[0]['label'] = csb_driver_label($rows[0]);
     return $rows[0];
 }
@@ -559,9 +586,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             csb_json(false, [], 'Selecciona un conductor valido.', 422);
         }
 
-        $driver = csb_fetch_conductor_activo($conn, $driverId);
+        $driver = csb_fetch_conductor_disponible($conn, $driverId, $isAdmin);
         if (!$driver) {
-            csb_json(false, [], 'El conductor seleccionado no esta activo o no existe.', 422);
+            csb_json(false, [], $isAdmin
+                ? 'El conductor seleccionado no existe o no corresponde a un conductor.'
+                : 'El conductor seleccionado no esta activo o no existe.', 422);
         }
 
         $conn->begin_transaction();
@@ -638,9 +667,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             csb_json(false, [], 'Selecciona un conductor valido.', 422);
         }
 
-        $driver = csb_fetch_conductor_activo($conn, $driverId);
+        $driver = csb_fetch_conductor_disponible($conn, $driverId, $isAdmin);
         if (!$driver) {
-            csb_json(false, [], 'El conductor seleccionado no esta activo o no existe.', 422);
+            csb_json(false, [], $isAdmin
+                ? 'El conductor seleccionado no existe o no corresponde a un conductor.'
+                : 'El conductor seleccionado no esta activo o no existe.', 422);
         }
 
         $conn->begin_transaction();
@@ -1300,7 +1331,7 @@ $kpis = [
 
 if ($tableReady) {
     try {
-        $conductoresActivos = csb_fetch_conductores_activos($conn);
+        $conductoresActivos = csb_fetch_conductores($conn, $isAdmin);
         if ($isAdmin) {
             $manualCatalog = csb_fetch_manual_catalog($conn);
         }

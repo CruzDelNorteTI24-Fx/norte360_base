@@ -925,11 +925,14 @@
   function driverDisplay(driver) {
     const dni = compact(driver.dni || '');
     const licencia = compact(driver.licencia || '');
+    const inactive = driver.es_activo === false || String(driver.estado_contrato || '').toUpperCase() !== 'ACTIVO';
     return {
       title: compact(driver.label || driver.conductor || ''),
+      inactive,
       meta: [
         dni ? `DNI ${dni}` : '',
-        licencia ? `Lic. ${licencia}` : ''
+        licencia ? `Lic. ${licencia}` : '',
+        inactive ? `INACTIVO${driver.estado_contrato && String(driver.estado_contrato).toUpperCase() !== 'INACTIVO' ? ` · ${String(driver.estado_contrato).toUpperCase()}` : ''}` : ''
       ].filter(Boolean).join(' · ')
     };
   }
@@ -987,14 +990,14 @@
         .slice(0, 80);
 
       if (!matches.length) {
-        listEl.innerHTML = '<div class="csb-driver-empty">No se encontraron conductores activos disponibles.</div>';
+        listEl.innerHTML = '<div class="csb-driver-empty">No se encontraron conductores disponibles.</div>';
         return;
       }
 
       listEl.innerHTML = matches.map((driver) => {
         const display = driverDisplay(driver);
         const selected = state.selected && Number(state.selected.id) === Number(driver.id);
-        return `<button type="button" class="csb-driver-choice ${selected ? 'is-selected' : ''}" data-csb-driver-choice="${Number(driver.id)}">
+        return `<button type="button" class="csb-driver-choice ${selected ? 'is-selected' : ''} ${display.inactive ? 'is-inactive' : ''}" data-csb-driver-choice="${Number(driver.id)}">
           <strong>${escapeHtml(display.title || 'Conductor sin nombre')}</strong>
           <span>${escapeHtml(display.meta || 'Sin DNI ni licencia registrada')}</span>
         </button>`;
@@ -1009,7 +1012,7 @@
         return;
       }
       if (!conductores.length) {
-        showNotice('No hay conductores activos disponibles.', false);
+        showNotice('No hay conductores disponibles.', false);
         return;
       }
 
