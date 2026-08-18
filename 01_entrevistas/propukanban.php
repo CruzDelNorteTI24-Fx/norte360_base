@@ -30,7 +30,8 @@ $kanban = [
     2 => [],
     3 => [],
     4 => [],
-    5 => []
+    5 => [],
+    6 => []
 ];
 $rechazadosPorEtapa = [];
 while ($row = $resultado->fetch_assoc()) {
@@ -1182,48 +1183,72 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   <?php endif; ?>
     </div>
     <div class="kanban-col">
-      <div class="kanban-title">4️⃣ Solicitud Trabajador</div>
+      <div class="kanban-title">4️⃣ Mes de prueba</div>
       <?php foreach ($kanban[4] as $e): ?>
         <div class="kanban-card">
           <?= htmlspecialchars($e['nombre']) ?>
           <small><?= htmlspecialchars($e['puesto']) ?></small>
         </div>
       <?php endforeach; ?>
-  <?php if (!empty($rechazadosPorEtapa[4])): ?>
-    <div style="margin-top: 10px;">
-      <button onclick="toggleRechazados(4)" class="btn-rechazados">+ Rechazados</button>
-      <div id="rechazados-4" style="display:none; margin-top:10px;">
-        <?php foreach ($rechazadosPorEtapa[4] as $r): ?>
-          <div class="kanban-card card-rechazo">
-            <?= htmlspecialchars($r['nombre']) ?>
-            <small><?= htmlspecialchars($r['puesto']) ?></small>
+      <?php if (!empty($rechazadosPorEtapa[4])): ?>
+        <div style="margin-top: 10px;">
+          <button onclick="toggleRechazados(4)" class="btn-rechazados">+ Rechazados</button>
+          <div id="rechazados-4" style="display:none; margin-top:10px;">
+            <?php foreach ($rechazadosPorEtapa[4] as $r): ?>
+              <div class="kanban-card card-rechazo">
+                <?= htmlspecialchars($r['nombre']) ?>
+                <small><?= htmlspecialchars($r['puesto']) ?></small>
+              </div>
+            <?php endforeach; ?>
           </div>
-        <?php endforeach; ?>
-      </div>
+        </div>
+      <?php endif; ?>
     </div>
-  <?php endif; ?>
-    </div>
+
     <div class="kanban-col">
-      <div class="kanban-title">Trabajando/En Planilla</div>
+      <div class="kanban-title">5️⃣ Solicitud Trabajador</div>
       <?php foreach ($kanban[5] as $e): ?>
         <div class="kanban-card">
           <?= htmlspecialchars($e['nombre']) ?>
           <small><?= htmlspecialchars($e['puesto']) ?></small>
         </div>
       <?php endforeach; ?>
-  <?php if (!empty($rechazadosPorEtapa[5])): ?>
-    <div style="margin-top: 10px;">
-      <button onclick="toggleRechazados(5)" class="btn-rechazados">+ Rechazados</button>
-      <div id="rechazados-5" style="display:none; margin-top:10px;">
-        <?php foreach ($rechazadosPorEtapa[5] as $r): ?>
-          <div class="kanban-card card-rechazo">
-            <?= htmlspecialchars($r['nombre']) ?>
-            <small><?= htmlspecialchars($r['puesto']) ?></small>
+      <?php if (!empty($rechazadosPorEtapa[5])): ?>
+        <div style="margin-top: 10px;">
+          <button onclick="toggleRechazados(5)" class="btn-rechazados">+ Rechazados</button>
+          <div id="rechazados-5" style="display:none; margin-top:10px;">
+            <?php foreach ($rechazadosPorEtapa[5] as $r): ?>
+              <div class="kanban-card card-rechazo">
+                <?= htmlspecialchars($r['nombre']) ?>
+                <small><?= htmlspecialchars($r['puesto']) ?></small>
+              </div>
+            <?php endforeach; ?>
           </div>
-        <?php endforeach; ?>
-      </div>
+        </div>
+      <?php endif; ?>
     </div>
-  <?php endif; ?>
+
+    <div class="kanban-col">
+      <div class="kanban-title">6️⃣ Trabajando/En Planilla</div>
+      <?php foreach ($kanban[6] as $e): ?>
+        <div class="kanban-card">
+          <?= htmlspecialchars($e['nombre']) ?>
+          <small><?= htmlspecialchars($e['puesto']) ?></small>
+        </div>
+      <?php endforeach; ?>
+      <?php if (!empty($rechazadosPorEtapa[6])): ?>
+        <div style="margin-top: 10px;">
+          <button onclick="toggleRechazados(6)" class="btn-rechazados">+ Rechazados</button>
+          <div id="rechazados-6" style="display:none; margin-top:10px;">
+            <?php foreach ($rechazadosPorEtapa[6] as $r): ?>
+              <div class="kanban-card card-rechazo">
+                <?= htmlspecialchars($r['nombre']) ?>
+                <small><?= htmlspecialchars($r['puesto']) ?></small>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endif; ?>
     </div>
   </div>
 <script>
@@ -1243,6 +1268,7 @@ function abrirModal(boton) {
     observaciones: boton.getAttribute("data-observaciones"),
     comentario2: boton.getAttribute("data-comentario2"),
     comentario3: boton.getAttribute("data-comentario3"),
+    comentarioMesPrueba: boton.getAttribute("data-comentarioMesPrueba"),
     comentario4: boton.getAttribute("data-comentario4"),
     comentarioRechazo: boton.getAttribute("data-comentarioRechazo"),
   };
@@ -1307,7 +1333,8 @@ estadoSelect.innerHTML = "<option value=''>Selecciona una opción</option>";
 const estados = {
   2: "Entrevista presencial",
   3: "Inducción",
-  4: "Solicitud Trabajador"
+  4: "Mes de prueba",
+  5: "Solicitud Trabajador"
 };
 const estadoActual = parseInt(data.estado);
 for (let clave in estados) {
@@ -1341,6 +1368,10 @@ if (data.estado >= 3) historialComentarios.innerHTML += `
   <strong>🟣 Inducción:</strong> ${data.comentario3 || 'Sin comentario'}
 </li>`;
 if (data.estado >= 4) historialComentarios.innerHTML += `
+<li style="background: #ecf0f1; margin-bottom: 10px; padding: 10px 15px; border-left: 4px solid #f39c12; border-radius: 8px;">
+  <strong>🟠 Mes de prueba:</strong> ${data.comentarioMesPrueba || 'Sin comentario'}
+</li>`;
+if (data.estado >= 5) historialComentarios.innerHTML += `
 <li style="background: #ecf0f1; margin-bottom: 10px; padding: 10px 15px; border-left: 4px solid #27ae60; border-radius: 8px;">
   <strong>🟢 Solicitud Trabajador:</strong> ${data.comentario4 || 'Sin comentario'}
 </li>`;

@@ -8,13 +8,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $comentario = trim($_POST["comentario"] ?? '');
 
     // Validación básica
-    if ($id_entrevista && in_array($estado, [2, 3, 4])) {
+    if ($id_entrevista && in_array($estado, [2, 3, 4, 5], true)) {
 
         // Mapeo de estado a columna
         $columna_comentario = [
             2 => "clm_comentario_entrevistapersonal",
             3 => "clm_comentario_induccion",
-            4 => "clm_comentario_contratado"
+            4 => "clm_comentario_mes_prueba",
+            5 => "clm_comentario_contratado"
         ][$estado];
 
         // Construcción dinámica del query seguro

@@ -21,6 +21,7 @@ $permitidos = [
   'observaciones',
   'clm_comentario_entrevistapersonal',
   'clm_comentario_induccion',
+  'clm_comentario_mes_prueba',
   'clm_comentario_contratado',
   'clm_comentario_rechazado'
 ];

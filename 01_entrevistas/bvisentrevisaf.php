@@ -1883,7 +1883,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
           <tbody>
               <!-- Aquí se cargará dinámicamente desde PHP -->
         <?php
-        $sql = "SELECT nombre, fecha, hora, puesto, clm_referencia, observaciones, dni, sexo, contacto,edad, clm_estado, id_entrevista, clm_yesorno, clm_comentario_entrevistapersonal, clm_comentario_induccion, clm_comentario_contratado, clm_comentario_rechazado, clm_reservas, clm_sede  FROM entrevistas ORDER BY fecha DESC";
+        $sql = "SELECT nombre, fecha, hora, puesto, clm_referencia, observaciones, dni, sexo, contacto,edad, clm_estado, id_entrevista, clm_yesorno, clm_comentario_entrevistapersonal, clm_comentario_induccion, clm_comentario_mes_prueba, clm_comentario_contratado, clm_comentario_rechazado, clm_reservas, clm_sede  FROM entrevistas ORDER BY fecha DESC";
         $result = $conn->query($sql);
         $totalEntrevistas = $result->num_rows; // ✅ coloca aquí el conteo
         if ($result && $result->num_rows > 0) {
@@ -1893,8 +1893,9 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                   1 => "Selección",
                   2 => "Entrevista presencial",
                   3 => "Inducción",
-                  4 => "Solicitud Trabajador",
-                  5 => "Trabajador",
+                  4 => "Mes de prueba",
+                  5 => "Solicitud Trabajador",
+                  6 => "Trabajador",
               ];
               $estadoTexto = isset($estados[$estado]) ? $estados[$estado] : "Desconocido";
               $estadonumsiguiente = $estado + 1;
@@ -1928,6 +1929,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                       data-clm_reservas='" . htmlspecialchars($row["clm_reservas"], ENT_QUOTES, 'UTF-8') . "'
                       data-comentario2='" . htmlspecialchars($row["clm_comentario_entrevistapersonal"], ENT_QUOTES, 'UTF-8') . "'
                       data-comentario3='" . htmlspecialchars($row["clm_comentario_induccion"], ENT_QUOTES, 'UTF-8') . "'
+                      data-comentarioMesPrueba='" . htmlspecialchars($row["clm_comentario_mes_prueba"], ENT_QUOTES, 'UTF-8') . "' 
                       data-comentario4='" . htmlspecialchars($row["clm_comentario_contratado"], ENT_QUOTES, 'UTF-8') . "'
                       data-comentarioRechazo='" . htmlspecialchars($row["clm_comentario_rechazado"], ENT_QUOTES, 'UTF-8') . "'
                       data-observaciones='" . htmlspecialchars($row["observaciones"], ENT_QUOTES, 'UTF-8') . "'>📄 Ver Detalle</button>";
@@ -2134,6 +2136,7 @@ function mostrarPagina(pagina) {
       observaciones: boton.getAttribute("data-observaciones"),
       comentario2: boton.getAttribute("data-comentario2"),
       comentario3: boton.getAttribute("data-comentario3"),
+      comentarioMesPrueba: boton.getAttribute("data-comentarioMesPrueba"),
       comentario4: boton.getAttribute("data-comentario4"),
       reservas : boton.getAttribute("data-clm_reservas"),
       comentarioRechazo: boton.getAttribute("data-comentarioRechazo"),
@@ -2276,7 +2279,8 @@ function mostrarPagina(pagina) {
   const estados = {
     2: "Entrevista presencial",
     3: "Inducción",
-    4: "Solicitud Trabajador"
+    4: "Mes de prueba",
+    5: "Solicitud Trabajador"
   };
   const estadoActual = parseInt(data.estado);
   for (let clave in estados) {
@@ -2293,8 +2297,8 @@ function mostrarPagina(pagina) {
   document.getElementById("bloque_rechazo").style.display = "none";
   document.getElementById("clm_yesorno").value = ""; // valor vacío hasta que se seleccione
 document.getElementById("contenidoModal").innerHTML = contenido;
-// ✅ Insertar botón solo si estado es Trabajador (5)
-if (data.estado === "4") {
+// ✅ Insertar botón solo si está en Solicitud Trabajador (5)
+if (data.estado === "5") {
   const btnContratar = document.createElement("div");
   btnContratar.innerHTML = `
     <div style="margin-top: 20px; text-align: center;">
@@ -2358,8 +2362,24 @@ if (data.estado >= 3) historialComentarios.innerHTML += `
       </div>
     </div>
   </li>`;
-// Solicitud Trabajador
+// Mes de prueba
 if (data.estado >= 4) historialComentarios.innerHTML += `
+  <li style="background:#ecf0f1;margin-bottom:10px;padding:10px 15px;border-left:4px solid #f39c12;border-radius:8px;">
+    <strong>🟠 Mes de prueba:</strong>
+    <span id="histMesPruebaTexto">${data.comentarioMesPrueba || 'Sin comentario'}</span>
+    <div style="margin-top:8px;">
+      <button type="button" class="volver-btn" onclick="editarEtapa('mesprueba')">✏️ Editar</button>
+    </div>
+    <div id="editor-mesprueba" style="display:none;margin-top:10px;">
+      <textarea id="ta-mesprueba" rows="3" class="input-evaluacion"></textarea>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn-validar" onclick="guardarEtapa('mesprueba')">💾 Guardar</button>
+        <button type="button" class="volver-btn" onclick="cancelarEtapa('mesprueba')">Cancelar</button>
+      </div>
+    </div>
+  </li>`;
+// Solicitud Trabajador
+if (data.estado >= 5) historialComentarios.innerHTML += `
   <li style="background:#ecf0f1;margin-bottom:10px;padding:10px 15px;border-left:4px solid #27ae60;border-radius:8px;">
     <strong>🟢 Solicitud Trabajador:</strong>
     <span id="histSolicitudTexto">${data.comentario4 || 'Sin comentario'}</span>
@@ -2392,12 +2412,12 @@ if (data.yesorno === "2") historialComentarios.innerHTML += `
   </li>`;
     document.getElementById("modalDetalle").style.display = "block";
 // === Nueva lógica ===
-if (data.estado === "5") {
+if (data.estado === "6") {
   // Estado Trabajador: ocultar TODO lo de evaluación
   document.getElementById("radio_opciones").style.display = "none";
   document.getElementById("contenedor_interaccion").style.display = "none";
   document.getElementById("mensaje_rechazado").style.display = "none";
-} else if (data.estado === "4") {
+} else if (data.estado === "5") {
   // Estado Solicitud Trabajador: ocultar SOLO el radio de Aceptado/Rechazado y todo el bloque
   document.getElementById("radio_opciones").style.display = "none";
   document.getElementById("contenedor_interaccion").style.display = "none";
@@ -2408,7 +2428,7 @@ if (data.estado === "5") {
   document.getElementById("contenedor_interaccion").style.display = "none";
   document.getElementById("mensaje_rechazado").style.display = "block";
 } else {
-  // Cualquier otro estado (1,2,3)
+  // Cualquier otro estado evaluable (1,2,3,4)
   document.getElementById("mensaje_rechazado").style.display = "none";
   document.getElementById("contenedor_interaccion").style.display = "block";
   document.getElementById("radio_opciones").style.display = "block";
@@ -2740,6 +2760,7 @@ function editarEtapa(key) {
     seleccion: 'histSeleccionTexto',
     entrevista: 'histEntrevistaTexto',
     induccion: 'histInduccionTexto',
+    mesprueba: 'histMesPruebaTexto',
     solicitud: 'histSolicitudTexto',
     rechazo: 'histRechazoTexto'
   };
@@ -2760,6 +2781,7 @@ function guardarEtapa(key) {
     seleccion: { campo: 'observaciones', spanId: 'histSeleccionTexto', datasetAttr: 'data-observaciones' },
     entrevista: { campo: 'clm_comentario_entrevistapersonal', spanId: 'histEntrevistaTexto', datasetAttr: 'data-comentario2' },
     induccion:  { campo: 'clm_comentario_induccion',         spanId: 'histInduccionTexto',  datasetAttr: 'data-comentario3' },
+    mesprueba: { campo: 'clm_comentario_mes_prueba',         spanId: 'histMesPruebaTexto',  datasetAttr: 'data-comentarioMesPrueba' },
     solicitud:  { campo: 'clm_comentario_contratado',        spanId: 'histSolicitudTexto',  datasetAttr: 'data-comentario4' },
     rechazo:    { campo: 'clm_comentario_rechazado',         spanId: 'histRechazoTexto',    datasetAttr: 'data-comentarioRechazo' }
   };
