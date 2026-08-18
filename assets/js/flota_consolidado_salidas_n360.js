@@ -769,6 +769,12 @@
       button.hidden = !canEdit;
       button.disabled = !canEdit;
     });
+    row.querySelectorAll('[data-csb-driver-add]').forEach((button) => {
+      const driverCount = row.querySelectorAll('[data-csb-driver-line]').length;
+      const canAdd = dbValue === 'OBSERVADO' && driverCount === 1;
+      button.hidden = !canAdd;
+      button.disabled = !canAdd;
+    });
   }
 
 
@@ -933,23 +939,43 @@
     if (!modalEl || !window.bootstrap) return;
 
     const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    const titleEl = modalEl.querySelector('[data-csb-driver-modal-title]');
+    const currentLabelEl = modalEl.querySelector('[data-csb-driver-current-label]');
     const currentEl = modalEl.querySelector('[data-csb-driver-current]');
     const searchInput = modalEl.querySelector('[data-csb-driver-search]');
     const listEl = modalEl.querySelector('[data-csb-driver-list]');
     const saveButton = modalEl.querySelector('[data-csb-driver-save]');
     if (!currentEl || !searchInput || !listEl || !saveButton) return;
 
+    const setSaveLabel = (text) => {
+      const label = modalEl.querySelector('[data-csb-driver-save-label]');
+      if (label) label.textContent = text;
+    };
+
     let state = {
+      mode: 'edit',
       row: null,
       line: null,
       index: -1,
       selected: null
     };
 
+    const existingDriverTexts = () => {
+      if (!state.row) return [];
+      return Array.from(state.row.querySelectorAll('[data-csb-driver-text]'))
+        .map((el) => compact(el.textContent).toLowerCase())
+        .filter(Boolean);
+    };
+
     const renderList = () => {
       const term = compact(searchInput.value).toLowerCase();
+      const existing = existingDriverTexts();
       const matches = conductores
         .filter((driver) => {
+          if (state.mode === 'add') {
+            const display = driverDisplay(driver);
+            if (existing.includes(compact(display.title).toLowerCase())) return false;
+          }
           if (!term) return true;
           return [
             driver.label,
@@ -961,7 +987,7 @@
         .slice(0, 80);
 
       if (!matches.length) {
-        listEl.innerHTML = '<div class="csb-driver-empty">No se encontraron conductores activos.</div>';
+        listEl.innerHTML = '<div class="csb-driver-empty">No se encontraron conductores activos disponibles.</div>';
         return;
       }
 
@@ -973,6 +999,44 @@
           <span>${escapeHtml(display.meta || 'Sin DNI ni licencia registrada')}</span>
         </button>`;
       }).join('');
+    };
+
+    const openDriverModal = ({ mode, row, line = null, index = -1 }) => {
+      const estadoDb = String(row?.dataset.csbDbRevision || row?.querySelector('[data-csb-field="estado"]')?.value || '').toUpperCase();
+      if (!row) return;
+      if (estadoDb !== 'OBSERVADO') {
+        showNotice(`Guarda la revision como OBSERVADO antes de ${mode === 'add' ? 'agregar' : 'editar'} conductores.`, false);
+        return;
+      }
+      if (!conductores.length) {
+        showNotice('No hay conductores activos disponibles.', false);
+        return;
+      }
+
+      if (mode === 'add') {
+        const driverLines = row.querySelectorAll('[data-csb-driver-line]');
+        if (driverLines.length !== 1) {
+          showNotice('Solo puedes agregar un conductor cuando el viaje tiene uno asignado.', false);
+          return;
+        }
+      }
+
+      state = { mode, row, line, index, selected: null };
+      if (titleEl) titleEl.textContent = mode === 'add' ? 'Agregar conductor al consolidado' : 'Editar conductor del consolidado';
+      if (currentLabelEl) currentLabelEl.textContent = mode === 'add' ? 'Conductor ya asignado' : 'Conductor actual';
+      setSaveLabel(mode === 'add' ? 'Agregar conductor' : 'Guardar conductor');
+
+      if (mode === 'add') {
+        currentEl.textContent = compact(row.querySelector('[data-csb-driver-text]')?.textContent || 'Sin conductor asignado');
+      } else {
+        currentEl.textContent = compact(line?.querySelector('[data-csb-driver-text]')?.textContent || 'Sin conductor asignado');
+      }
+
+      searchInput.value = '';
+      saveButton.disabled = true;
+      renderList();
+      modal.show();
+      setTimeout(() => searchInput.focus(), 180);
     };
 
     listEl.addEventListener('click', (event) => {
@@ -987,42 +1051,36 @@
     searchInput.addEventListener('input', renderList);
 
     document.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-csb-driver-edit]');
-      if (!button) return;
-
-      const row = button.closest('[data-csb-row]');
-      const line = button.closest('[data-csb-driver-line]');
-      const index = Number(button.dataset.csbDriverIndex ?? line?.dataset.csbDriverIndex ?? -1);
-      const estadoDb = String(row?.dataset.csbDbRevision || row?.querySelector('[data-csb-field="estado"]')?.value || '').toUpperCase();
-
-      if (!row || !line || index < 0) return;
-      if (estadoDb !== 'OBSERVADO') {
-        showNotice('Guarda la revision como OBSERVADO antes de editar conductores.', false);
-        return;
-      }
-      if (!conductores.length) {
-        showNotice('No hay conductores activos disponibles.', false);
+      const editButton = event.target.closest('[data-csb-driver-edit]');
+      if (editButton) {
+        const row = editButton.closest('[data-csb-row]');
+        const line = editButton.closest('[data-csb-driver-line]');
+        const index = Number(editButton.dataset.csbDriverIndex ?? line?.dataset.csbDriverIndex ?? -1);
+        if (!row || !line || index < 0) return;
+        openDriverModal({ mode: 'edit', row, line, index });
         return;
       }
 
-      state = { row, line, index, selected: null };
-      currentEl.textContent = compact(line.querySelector('[data-csb-driver-text]')?.textContent || 'Sin conductor asignado');
-      searchInput.value = '';
-      saveButton.disabled = true;
-      renderList();
-      modal.show();
-      setTimeout(() => searchInput.focus(), 180);
+      const addButton = event.target.closest('[data-csb-driver-add]');
+      if (addButton) {
+        const row = addButton.closest('[data-csb-row]');
+        if (!row) return;
+        openDriverModal({ mode: 'add', row });
+      }
     });
 
     saveButton.addEventListener('click', async () => {
-      if (!state.row || !state.line || !state.selected) return;
+      if (!state.row || !state.selected) return;
+      if (state.mode === 'edit' && !state.line) return;
 
       const originalHtml = saveButton.innerHTML;
       const fd = new FormData();
       fd.append('csrf', csrf);
-      fd.append('action', 'update_driver');
+      fd.append('action', state.mode === 'add' ? 'add_driver' : 'update_driver');
       fd.append('id', state.row.dataset.csbRow || '');
-      fd.append('driver_index', String(state.index));
+      if (state.mode === 'edit') {
+        fd.append('driver_index', String(state.index));
+      }
       fd.append('driver_id', String(state.selected.id));
 
       saveButton.disabled = true;
@@ -1037,17 +1095,42 @@
         });
         const json = await res.json();
         if (!json.ok) {
-          throw new Error(json.message || 'No se pudo actualizar el conductor.');
+          throw new Error(json.message || (state.mode === 'add' ? 'No se pudo agregar el conductor.' : 'No se pudo actualizar el conductor.'));
         }
 
-        const target = state.line.querySelector('[data-csb-driver-text]');
-        if (target) {
-          target.textContent = json.data?.driver_label || state.selected.label || state.selected.conductor || '';
+        const driverLabel = json.data?.driver_label || state.selected.label || state.selected.conductor || '';
+
+        if (state.mode === 'add') {
+          const driversBox = state.row.querySelector('[data-csb-drivers]');
+          const addButton = driversBox?.querySelector('[data-csb-driver-add]');
+          const index = Number(json.data?.driver_index ?? 1);
+          if (driversBox) {
+            const line = document.createElement('span');
+            line.className = 'csb-driver-line';
+            line.dataset.csbDriverLine = '';
+            line.dataset.csbDriverIndex = String(index);
+            line.innerHTML = `
+              <span data-csb-driver-text>${escapeHtml(driverLabel)}</span>
+              <button type="button" class="csb-driver-edit" data-csb-driver-edit data-csb-driver-index="${index}" title="Editar conductor" aria-label="Editar conductor">
+                <i class="bi bi-pencil-square"></i>
+              </button>`;
+            if (addButton) {
+              driversBox.insertBefore(line, addButton);
+              addButton.remove();
+            } else {
+              driversBox.appendChild(line);
+            }
+          }
+        } else {
+          const target = state.line.querySelector('[data-csb-driver-text]');
+          if (target) target.textContent = driverLabel;
         }
-        showNotice(json.message || 'Conductor actualizado.', true);
+
+        syncStateButtons(state.row, state.row.dataset.csbDbRevision || 'OBSERVADO');
+        showNotice(json.message || (state.mode === 'add' ? 'Conductor agregado.' : 'Conductor actualizado.'), true);
         modal.hide();
       } catch (error) {
-        showNotice(error.message || 'No se pudo actualizar el conductor.', false);
+        showNotice(error.message || (state.mode === 'add' ? 'No se pudo agregar el conductor.' : 'No se pudo actualizar el conductor.'), false);
         saveButton.disabled = false;
       } finally {
         saveButton.innerHTML = originalHtml;
@@ -1055,7 +1138,10 @@
     });
 
     modalEl.addEventListener('hidden.bs.modal', () => {
-      state = { row: null, line: null, index: -1, selected: null };
+      state = { mode: 'edit', row: null, line: null, index: -1, selected: null };
+      if (titleEl) titleEl.textContent = 'Editar conductor del consolidado';
+      if (currentLabelEl) currentLabelEl.textContent = 'Conductor actual';
+      setSaveLabel('Guardar conductor');
       currentEl.textContent = 'Sin seleccionar';
       searchInput.value = '';
       listEl.innerHTML = '';

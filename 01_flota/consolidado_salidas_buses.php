@@ -417,7 +417,7 @@ function csb_fetch_conductor_activo(mysqli $conn, int $id): ?array {
     return $rows[0];
 }
 
-function csb_build_driver_history(?string $rawJson, string $oldText, string $newText, int $driverIndex, array $driver): string {
+function csb_build_driver_history(?string $rawJson, string $oldText, string $newText, int $driverIndex, array $driver, string $action = 'edicion_conductor_consolidado'): string {
     $decoded = json_decode((string)$rawJson, true);
     if (!is_array($decoded)) {
         $decoded = [];
@@ -444,7 +444,7 @@ function csb_build_driver_history(?string $rawJson, string $oldText, string $new
         'conductor_label' => (string)($driver['label'] ?? ''),
         'texto_anterior' => $oldText,
         'texto_nuevo' => $newText,
-        'accion' => 'edicion_conductor_consolidado',
+        'accion' => $action,
     ];
 
     return json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -627,6 +627,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             $conn->rollback();
             csb_json(false, [], $e->getMessage() ?: 'No se pudo actualizar el conductor.', 400);
+        }
+    }
+
+    if ($action === 'add_driver') {
+        $id = (int)($_POST['id'] ?? 0);
+        $driverId = (int)($_POST['driver_id'] ?? 0);
+
+        if ($id <= 0 || $driverId <= 0) {
+            csb_json(false, [], 'Selecciona un conductor valido.', 422);
+        }
+
+        $driver = csb_fetch_conductor_activo($conn, $driverId);
+        if (!$driver) {
+            csb_json(false, [], 'El conductor seleccionado no esta activo o no existe.', 422);
+        }
+
+        $conn->begin_transaction();
+        try {
+            $currentRows = csb_fetch_all($conn, "
+                SELECT
+                    clm_salprog_revision_estado,
+                    clm_salprog_conductores_texto,
+                    clm_salprog_conductores_json
+                FROM tb_progbuses_salida_consolidado
+                WHERE clm_salprog_id = ?
+                LIMIT 1
+                FOR UPDATE
+            ", 'i', [$id]);
+
+            if (!$currentRows) {
+                throw new RuntimeException('No se encontro el registro del consolidado.');
+            }
+
+            $current = $currentRows[0];
+            $estadoActual = strtoupper(trim((string)($current['clm_salprog_revision_estado'] ?? 'PENDIENTE')));
+            if ($estadoActual !== 'OBSERVADO') {
+                throw new RuntimeException('Solo puedes agregar conductores cuando el registro esta OBSERVADO.');
+            }
+
+            $oldText = trim((string)($current['clm_salprog_conductores_texto'] ?? ''));
+            $driverLines = csb_conductores_lineas($oldText);
+            if (count($driverLines) !== 1) {
+                throw new RuntimeException('Solo puedes agregar un conductor cuando el viaje tiene exactamente un conductor asignado.');
+            }
+
+            $newLabel = trim((string)$driver['label']);
+            foreach ($driverLines as $existingLabel) {
+                if (csb_norm($existingLabel) === csb_norm($newLabel)) {
+                    throw new RuntimeException('Ese conductor ya esta asignado en este viaje.');
+                }
+            }
+
+            $driverLines[] = $newLabel;
+            $driverIndex = count($driverLines) - 1;
+            $newText = implode(' | ', $driverLines);
+            $newJson = csb_build_driver_history(
+                $current['clm_salprog_conductores_json'] ?? '',
+                $oldText,
+                $newText,
+                $driverIndex,
+                $driver,
+                'agregar_conductor_consolidado'
+            );
+
+            $stmt = $conn->prepare("
+                UPDATE tb_progbuses_salida_consolidado
+                   SET clm_salprog_conductores_texto = ?,
+                       clm_salprog_conductores_json = ?
+                 WHERE clm_salprog_id = ?
+                 LIMIT 1
+            ");
+            if (!$stmt) {
+                throw new RuntimeException($conn->error ?: 'No se pudo preparar el guardado.');
+            }
+            $stmt->bind_param('ssi', $newText, $newJson, $id);
+            if (!$stmt->execute()) {
+                $error = $stmt->error;
+                $stmt->close();
+                throw new RuntimeException($error ?: 'No se pudo agregar el conductor.');
+            }
+            $stmt->close();
+            $conn->commit();
+
+            csb_json(true, [
+                'id' => $id,
+                'driver_index' => $driverIndex,
+                'driver_id' => $driverId,
+                'driver_label' => $driver['label'],
+                'conductores_texto' => $newText,
+                'conductores_lineas' => $driverLines,
+            ], 'Segundo conductor agregado y guardado en historial.');
+        } catch (Throwable $e) {
+            $conn->rollback();
+            csb_json(false, [], $e->getMessage() ?: 'No se pudo agregar el conductor.', 400);
         }
     }
 
@@ -1695,6 +1789,19 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                                 </button>
                                             </span>
                                         <?php endforeach; ?>
+                                        <?php if (count($conductoresLineas) === 1): ?>
+                                            <button
+                                                type="button"
+                                                class="csb-driver-add"
+                                                data-csb-driver-add
+                                                title="Agregar segundo conductor"
+                                                aria-label="Agregar segundo conductor"
+                                                <?= $estado === 'OBSERVADO' ? '' : 'hidden' ?>
+                                            >
+                                                <i class="bi bi-person-plus-fill"></i>
+                                                <span>Agregar conductor</span>
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                     <small>Asignacion capturada del modulo Conductores</small>
                                 </td>
@@ -1857,13 +1964,13 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
             <div class="csb-modal-head">
                 <div>
                     <span><i class="bi bi-pencil-square"></i> Registro observado</span>
-                    <h2>Editar conductor del consolidado</h2>
+                    <h2 data-csb-driver-modal-title>Editar conductor del consolidado</h2>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
                 <div class="csb-driver-current">
-                    <span>Conductor actual</span>
+                    <span data-csb-driver-current-label>Conductor actual</span>
                     <strong data-csb-driver-current>Sin seleccionar</strong>
                 </div>
                 <label class="csb-driver-search">
@@ -1878,7 +1985,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
             <div class="modal-footer">
                 <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="csb-btn csb-btn--primary" data-csb-driver-save disabled>
-                    <i class="bi bi-check2"></i> Guardar conductor
+                    <i class="bi bi-check2"></i> <span data-csb-driver-save-label>Guardar conductor</span>
                 </button>
             </div>
         </div>
