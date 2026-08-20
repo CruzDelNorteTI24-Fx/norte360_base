@@ -35,9 +35,8 @@ if ($tipo === 'GUIA_TRANSPORTISTA') {
         enc_json(false, 'Tipo de comprobante del documento no valido.', [], 422);
     }
     if ($tipoComprobante === '') {
-        $tipoComprobante = 'SIN_COMPROBANTE';
-    }
-    if ($tipoComprobante === 'SIN_COMPROBANTE') {
+        $tipoComprobante = null;
+    } elseif ($tipoComprobante === 'SIN_COMPROBANTE') {
         $numeroComprobante = null;
         $fechaComprobante = null;
     }

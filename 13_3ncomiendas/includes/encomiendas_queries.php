@@ -80,8 +80,6 @@ function enc_schema_has_guias_norte(mysqli $conn): bool {
 function enc_current_filters(): array {
     $today = date('Y-m-d');
     $first = date('Y-m-01');
-    $perPage = (int)($_GET['per_page'] ?? 25);
-    if (!in_array($perPage, [15, 25, 50, 100], true)) $perPage = 25;
 
     return [
         'guia' => trim((string)($_GET['guia'] ?? '')),
@@ -98,7 +96,7 @@ function enc_current_filters(): array {
         'estado_vida' => trim((string)($_GET['estado_vida'] ?? 'TODOS')),
         'buscar' => trim((string)($_GET['buscar'] ?? '')),
         'page' => max(1, (int)($_GET['page'] ?? 1)),
-        'per_page' => $perPage,
+        'per_page' => 25,
     ];
 }
 
@@ -256,8 +254,8 @@ function enc_fetch_tracking(mysqli $conn, array $filters): array {
                sd.clm_sedes_name AS sede_desembarque,
                p.clm_placas_BUS AS placa_bus,
                p.clm_placas_PLACA AS placa_placa,
-               COALESCE(NULLIF(TRIM(ur.nombre), ''), ur.usuario, CONCAT('Usuario ', ur.id_usuario)) AS usuario_registra,
-               COALESCE(NULLIF(TRIM(ua.nombre), ''), ua.usuario, CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza,
+               COALESCE(NULLIF(TRIM(ur.usuario), ''), NULLIF(TRIM(ur.nombre), ''), CONCAT('Usuario ', ur.id_usuario)) AS usuario_registra,
+               COALESCE(NULLIF(TRIM(ua.usuario), ''), NULLIF(TRIM(ua.nombre), ''), CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza,
                COALESCE(pts.puntos_total, 0) AS puntos_total,
                COALESCE(pts.manifiestos_req, 0) AS manifiestos_req,
                COALESCE(docs.manifiestos_ok, 0) AS manifiestos_ok,
@@ -292,11 +290,11 @@ function enc_fetch_guia(mysqli $conn, int $id): ?array {
                sd.clm_sedes_name AS sede_desembarque,
                p.clm_placas_BUS AS placa_bus,
                p.clm_placas_PLACA AS placa_placa,
-               COALESCE(NULLIF(TRIM(ur.nombre), ''), ur.usuario, CONCAT('Usuario ', ur.id_usuario)) AS usuario_registra,
-               COALESCE(NULLIF(TRIM(ua.nombre), ''), ua.usuario, CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza,
-               COALESCE(NULLIF(TRIM(ue.nombre), ''), ue.usuario, CONCAT('Usuario ', ue.id_usuario)) AS usuario_embarque,
-               COALESCE(NULLIF(TRIM(ud.nombre), ''), ud.usuario, CONCAT('Usuario ', ud.id_usuario)) AS usuario_desembarque,
-               COALESCE(NULLIF(TRIM(uan.nombre), ''), uan.usuario, CONCAT('Usuario ', uan.id_usuario)) AS usuario_anula
+               COALESCE(NULLIF(TRIM(ur.usuario), ''), NULLIF(TRIM(ur.nombre), ''), CONCAT('Usuario ', ur.id_usuario)) AS usuario_registra,
+               COALESCE(NULLIF(TRIM(ua.usuario), ''), NULLIF(TRIM(ua.nombre), ''), CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza,
+               COALESCE(NULLIF(TRIM(ue.usuario), ''), NULLIF(TRIM(ue.nombre), ''), CONCAT('Usuario ', ue.id_usuario)) AS usuario_embarque,
+               COALESCE(NULLIF(TRIM(ud.usuario), ''), NULLIF(TRIM(ud.nombre), ''), CONCAT('Usuario ', ud.id_usuario)) AS usuario_desembarque,
+               COALESCE(NULLIF(TRIM(uan.usuario), ''), NULLIF(TRIM(uan.nombre), ''), CONCAT('Usuario ', uan.id_usuario)) AS usuario_anula
         FROM tb_enc_guias g
         INNER JOIN tb_sedes se ON se.clm_sedes_id = g.clm_enc_idsede_embarque
         INNER JOIN tb_sedes sd ON sd.clm_sedes_id = g.clm_enc_idsede_desembarque
@@ -315,7 +313,7 @@ function enc_fetch_route_points(mysqli $conn, int $guideId): array {
     return enc_fetch_all($conn, "
         SELECT p.*,
                s.clm_sedes_name AS sede_nombre,
-               COALESCE(NULLIF(TRIM(u.nombre), ''), u.usuario, CONCAT('Usuario ', u.id_usuario)) AS usuario_evento
+               COALESCE(NULLIF(TRIM(u.usuario), ''), NULLIF(TRIM(u.nombre), ''), CONCAT('Usuario ', u.id_usuario)) AS usuario_evento
         FROM tb_enc_guia_puntos p
         INNER JOIN tb_sedes s ON s.clm_sedes_id = p.clm_encpunto_idsede
         LEFT JOIN tb_usuarios u ON u.id_usuario = p.clm_encpunto_idusuario_evento
@@ -347,8 +345,8 @@ function enc_fetch_documents(mysqli $conn, int $guideId): array {
                p.clm_encpunto_orden,
                p.clm_encpunto_tipo,
                s.clm_sedes_name AS punto_sede,
-               COALESCE(NULLIF(TRIM(uc.nombre), ''), uc.usuario, CONCAT('Usuario ', uc.id_usuario)) AS usuario_carga,
-               COALESCE(NULLIF(TRIM(ua.nombre), ''), ua.usuario, CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza
+               COALESCE(NULLIF(TRIM(uc.usuario), ''), NULLIF(TRIM(uc.nombre), ''), CONCAT('Usuario ', uc.id_usuario)) AS usuario_carga,
+               COALESCE(NULLIF(TRIM(ua.usuario), ''), NULLIF(TRIM(ua.nombre), ''), CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza
         FROM tb_enc_documentos d
         LEFT JOIN tb_enc_guia_puntos p ON p.clm_encpunto_id = d.clm_encdoc_idpunto
         LEFT JOIN tb_sedes s ON s.clm_sedes_id = p.clm_encpunto_idsede
@@ -384,7 +382,7 @@ function enc_fetch_document_blob(mysqli $conn, int $docId): ?array {
 function enc_fetch_history(mysqli $conn, int $guideId): array {
     return enc_fetch_all($conn, "
         SELECT h.*,
-               COALESCE(NULLIF(TRIM(u.nombre), ''), u.usuario, CONCAT('Usuario ', u.id_usuario)) AS usuario_evento
+               COALESCE(NULLIF(TRIM(u.usuario), ''), NULLIF(TRIM(u.nombre), ''), CONCAT('Usuario ', u.id_usuario)) AS usuario_evento
         FROM tb_hist_enc_guias h
         LEFT JOIN tb_usuarios u ON u.id_usuario = h.clm_enchist_idusuario
         WHERE h.clm_enchist_idguia = ?
@@ -427,8 +425,8 @@ function enc_fetch_tracking_report(mysqli $conn, array $filters, int $limit = 15
                sd.clm_sedes_name AS sede_desembarque,
                p.clm_placas_BUS AS placa_bus,
                p.clm_placas_PLACA AS placa_placa,
-               COALESCE(NULLIF(TRIM(ur.nombre), ''), ur.usuario, CONCAT('Usuario ', ur.id_usuario)) AS usuario_registra,
-               COALESCE(NULLIF(TRIM(ua.nombre), ''), ua.usuario, CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza,
+               COALESCE(NULLIF(TRIM(ur.usuario), ''), NULLIF(TRIM(ur.nombre), ''), CONCAT('Usuario ', ur.id_usuario)) AS usuario_registra,
+               COALESCE(NULLIF(TRIM(ua.usuario), ''), NULLIF(TRIM(ua.nombre), ''), CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza,
                COALESCE(pts.puntos_total, 0) AS puntos_total,
                COALESCE(pts.manifiestos_req, 0) AS manifiestos_req,
                COALESCE(docs.manifiestos_ok, 0) AS manifiestos_ok,

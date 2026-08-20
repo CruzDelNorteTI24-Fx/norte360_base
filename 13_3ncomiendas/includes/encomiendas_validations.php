@@ -39,6 +39,11 @@ function enc_validate_new_guia(array $data): array {
         $errors['idsede_desembarque'] = 'La oficina de destino debe ser diferente al origen.';
     }
 
+    $placa = (int)($data['idplaca_embarque'] ?? 0);
+    if ($placa <= 0) {
+        $errors['idplaca_embarque'] = 'Selecciona una unidad de transporte.';
+    }
+
     $points = $data['puntos_ruta'] ?? [];
     if (!is_array($points)) {
         $points = [$points];

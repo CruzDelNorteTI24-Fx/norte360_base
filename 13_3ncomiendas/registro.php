@@ -48,7 +48,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/loader_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
-    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.4.0">
+    <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/encomiendas.css')) ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -136,11 +136,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                 </label>
                                 <span class="enc-readonly-chip" data-enc-schedule-status><i class="bi bi-pencil-square"></i> Modo manual</span>
                             </div>
-                            <label class="stock-field stock-field--wide">
-                                <span>Descripcion del horario</span>
-                                <input type="text" name="horario_operativo" maxlength="120" autocomplete="off" data-enc-manual-schedule placeholder="Ej. Lima - Huancayo 20:30 / Servicio 158" <?= !$schemaReady ? 'disabled' : '' ?>>
-                                <small data-error-for="horario_operativo"></small>
-                            </label>
+                            <input type="hidden" name="horario_operativo" data-enc-manual-schedule <?= !$schemaReady ? 'disabled' : '' ?>>
                             <label class="stock-field stock-field--wide">
                                 <span>Observaciones internas</span>
                                 <textarea name="observacion" rows="3" maxlength="2000" placeholder="Indicaciones de gerencia, incidencias o notas internas" <?= !$schemaReady ? 'disabled' : '' ?>></textarea>
@@ -182,19 +178,12 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                 </select>
                                 <small data-error-for="idsede_desembarque"></small>
                             </label>
-                            <label class="stock-field stock-field--wide">
-                                <span>Unidad de embarque</span>
-                                <select name="idplaca_embarque" data-enc-unit <?= !$schemaReady ? 'disabled' : '' ?>>
-                                    <option value="">Sin unidad asignada aun</option>
-                                    <?php foreach ($placas as $placa): ?>
-                                        <?php
-                                        $bus = trim((string)($placa['bus'] ?? ''));
-                                        $plate = trim((string)($placa['placa'] ?? ''));
-                                        $label = trim(($bus !== '' ? $bus : 'Unidad ' . $placa['id']) . ($plate !== '' ? ' - ' . $plate : ''));
-                                        ?>
-                                        <option value="<?= enc_h($placa['id']) ?>"><?= enc_h($label) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                            <label class="stock-field stock-field--wide enc-unit-lookup" data-enc-unit-lookup>
+                                <span>Unidad de transporte *</span>
+                                <input type="hidden" name="idplaca_embarque" data-enc-unit <?= !$schemaReady ? 'disabled' : '' ?>>
+                                <input type="search" data-enc-unit-search autocomplete="off" placeholder="Escribe bus o placa..." required <?= !$schemaReady ? 'disabled' : '' ?>>
+                                <div class="enc-unit-suggestions" data-enc-unit-suggestions hidden></div>
+                                <small data-error-for="idplaca_embarque"></small>
                             </label>
                         </div>
 
@@ -259,10 +248,11 @@ require_once __DIR__ . '/../layout/content_n360.php';
 
 <script type="application/json" id="encProgramacionesData"><?= json_encode($programaciones, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="encSedesData"><?= json_encode($sedes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
+<script type="application/json" id="encPlacasData"><?= json_encode($placas, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script src="<?= enc_h(n360_asset('assets/js/loader_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('assets/js/dialog_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('assets/js/header_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('assets/js/sidebar_n360.js')) ?>"></script>
-<script src="assets/js/registro_encomiendas.js?v=1.4.0"></script>
+<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/registro_encomiendas.js')) ?>"></script>
 </body>
 </html>

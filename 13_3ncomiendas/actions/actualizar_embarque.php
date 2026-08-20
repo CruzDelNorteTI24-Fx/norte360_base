@@ -38,6 +38,9 @@ try {
            SET clm_enc_estado_embarque = ?,
                clm_enc_idusuario_embarque = ?,
                clm_enc_idusuario_actualiza = ?,
+               clm_enc_tipo_comprobante = NULL,
+               clm_enc_numero_comprobante = NULL,
+               clm_enc_fecha_comprobante = NULL,
                clm_enc_fecha_embarque = CASE
                    WHEN ? IN ('EMBARCADO','OBSERVADO') AND clm_enc_fecha_embarque IS NULL THEN NOW()
                    ELSE clm_enc_fecha_embarque
@@ -50,5 +53,9 @@ try {
 } catch (Throwable $e) {
     $conn->rollback();
     enc_log($e);
-    enc_json(false, enc_db_message($e), [], 500);
+    $status = 500;
+    if ((int)$e->getCode() === 1644 || (method_exists($e, 'getSqlState') && $e->getSqlState() === '45000')) {
+        $status = 422;
+    }
+    enc_json(false, enc_db_message($e), [], $status);
 }

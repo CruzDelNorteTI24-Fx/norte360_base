@@ -12,9 +12,17 @@
   const annulModal = annulModalEl && window.bootstrap ? new bootstrap.Modal(annulModalEl) : null;
   const annulGuideInput = annulModalEl?.querySelector('[data-enc-annul-guide-id]');
   const annulGuideCode = annulModalEl?.querySelector('[data-enc-annul-guide-code]');
+  const filterForm = document.querySelector('[data-enc-filter-form]');
+  const filterToggle = document.querySelector('[data-enc-filter-toggle]');
+  const filterToggleText = filterToggle?.querySelector('[data-enc-filter-toggle-text]');
   let currentGuideId = detailPage?.dataset.guideId || null;
 
   const escapeHtml = (value) => String(value || '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[char]));
+  const todayValue = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 10);
+  };
 
   const parseJson = async (response) => {
     const text = await response.text();
@@ -48,6 +56,13 @@
   const setDrawerLoading = () => {
     if (!drawerBody) return;
     drawerBody.innerHTML = '<div class="enc-loading-inline"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Cargando Control Encomienda...</div>';
+  };
+
+  const setFilterExpanded = (expanded) => {
+    if (!filterForm || !filterToggle) return;
+    filterForm.classList.toggle('is-expanded', expanded);
+    filterToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    if (filterToggleText) filterToggleText.textContent = expanded ? 'Ocultar filtros' : 'Mostrar filtros';
   };
 
   const openDrawer = () => {
@@ -120,6 +135,8 @@
     const form = transportModalEl.querySelector('form');
     form?.reset();
     if (transportGuideInput && currentGuideId) transportGuideInput.value = currentGuideId;
+    const docDateInput = transportModalEl.querySelector('input[name="fecha_comprobante"]');
+    if (docDateInput) docDateInput.value = todayValue();
     transportModalEl.querySelectorAll('[data-enc-file-name]').forEach((node) => { node.textContent = 'Ningun PDF seleccionado'; });
   };
 
@@ -179,6 +196,13 @@
     }
   };
   document.addEventListener('click', (event) => {
+    const filterTrigger = event.target.closest('[data-enc-filter-toggle]');
+    if (filterTrigger) {
+      event.preventDefault();
+      setFilterExpanded(!filterForm?.classList.contains('is-expanded'));
+      return;
+    }
+
     const detailPanelTrigger = event.target.closest('[data-enc-detail-toggle]');
     if (detailPanelTrigger) {
       event.preventDefault();
@@ -291,4 +315,5 @@
 
   transportModalEl?.addEventListener('hidden.bs.modal', resetTransportModal);
   annulModalEl?.addEventListener('hidden.bs.modal', resetAnnulModal);
+  if (filterForm && filterToggle) setFilterExpanded(filterForm.classList.contains('is-expanded'));
 })();

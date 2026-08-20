@@ -17,6 +17,9 @@
   const scheduleTimeInput = root.querySelector('[data-enc-schedule-time]');
   const scheduleTextInput = root.querySelector('[data-enc-manual-schedule]');
   const scheduleStatus = root.querySelector('[data-enc-schedule-status]');
+  const unitIdInput = root.querySelector('[data-enc-unit]');
+  const unitSearchInput = root.querySelector('[data-enc-unit-search]');
+  const unitSuggestBox = root.querySelector('[data-enc-unit-suggestions]');
   const sameOfficeMessage = 'La oficina de origen, ruta y destino no se deben repetir.';
 
   if (!form) return;
@@ -36,9 +39,14 @@
     }
   };
 
-  const programaciones = Array.isArray(readJson('encProgramacionesData', [])) ? readJson('encProgramacionesData', []) : [];
-  const sedes = Array.isArray(readJson('encSedesData', [])) ? readJson('encSedesData', []) : [];
+  const programacionesData = readJson('encProgramacionesData', []);
+  const sedesData = readJson('encSedesData', []);
+  const placasData = readJson('encPlacasData', []);
+  const programaciones = Array.isArray(programacionesData) ? programacionesData : [];
+  const sedes = Array.isArray(sedesData) ? sedesData : [];
+  const placas = Array.isArray(placasData) ? placasData : [];
   const sedesById = new Map(sedes.map((sede) => [String(sede.id), sede]));
+  const placasById = new Map(placas.map((placa) => [String(placa.id), placa]));
 
   const escapeHtml = (value) => String(value || '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[char]));
 
@@ -199,7 +207,118 @@
     const origin = prog.origen || sedesById.get(String(prog.idsede_origen))?.nombre || 'Origen';
     const dest = prog.destino || sedesById.get(String(prog.idsede_destino))?.nombre || 'Destino';
     const unit = [prog.bus, prog.placa].map((v) => String(v || '').trim()).filter(Boolean).join(' - ');
-    return [hour, `${origin} -> ${dest}`, unit].filter(Boolean).join(' | ');
+    return [hour, `${origin} -> ${dest}`, unit].filter(Boolean).join(' | ').slice(0, 120);
+  };
+
+  const normalizeText = (value) => String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+  const unitLabel = (unit) => {
+    if (!unit) return '';
+    const bus = String(unit.bus || '').trim();
+    const plate = String(unit.placa || '').trim();
+    const fallback = unit.id ? `Unidad ${unit.id}` : 'Unidad';
+    return [bus || fallback, plate].filter(Boolean).join(' - ');
+  };
+
+  const unitSearchHaystack = (unit) => normalizeText([
+    unitLabel(unit),
+    unit?.bus,
+    unit?.placa,
+    unit?.id
+  ].filter(Boolean).join(' '));
+
+  const hideUnitSuggestions = () => {
+    if (!unitSuggestBox) return;
+    unitSuggestBox.hidden = true;
+    unitSuggestBox.innerHTML = '';
+  };
+
+  const setUnitValue = (id) => {
+    if (!unitIdInput || !unitSearchInput) return false;
+    const nextId = id == null ? '' : String(id);
+    if (!nextId) {
+      unitIdInput.value = '';
+      unitSearchInput.value = '';
+      hideUnitSuggestions();
+      return true;
+    }
+    const unit = placasById.get(nextId);
+    if (!unit) return false;
+    unitIdInput.value = nextId;
+    unitSearchInput.value = unitLabel(unit);
+    hideUnitSuggestions();
+    return true;
+  };
+
+  const matchingUnits = (query) => {
+    const normalized = normalizeText(query);
+    const terms = normalized.split(/\s+/).filter(Boolean);
+    if (!terms.length) return placas.slice(0, 8);
+    return placas
+      .filter((unit) => {
+        const haystack = unitSearchHaystack(unit);
+        return terms.every((term) => haystack.includes(term));
+      })
+      .slice(0, 8);
+  };
+
+  const renderUnitSuggestions = (query) => {
+    if (!unitSuggestBox || !unitSearchInput || unitSearchInput.disabled) return;
+    const matches = matchingUnits(query);
+    if (!matches.length) {
+      unitSuggestBox.innerHTML = '<div class="enc-unit-suggestions__empty">Sin coincidencias</div>';
+      unitSuggestBox.hidden = false;
+      return;
+    }
+
+    unitSuggestBox.innerHTML = matches.map((unit) => {
+      const id = escapeHtml(unit.id);
+      const bus = String(unit.bus || '').trim();
+      const plate = String(unit.placa || '').trim();
+      const meta = [bus ? `Bus ${bus}` : '', plate ? `Placa ${plate}` : ''].filter(Boolean).join(' | ');
+      return `<button type="button" data-enc-unit-option="${id}">
+        <strong>${escapeHtml(unitLabel(unit))}</strong>
+        <small>${escapeHtml(meta || `Unidad ${unit.id || ''}`)}</small>
+      </button>`;
+    }).join('');
+    unitSuggestBox.hidden = false;
+  };
+
+  const resolveTypedUnit = () => {
+    if (!unitIdInput || !unitSearchInput) return true;
+    const typed = normalizeText(unitSearchInput.value);
+    if (!typed) {
+      unitIdInput.value = '';
+      return false;
+    }
+
+    const selected = placasById.get(String(unitIdInput.value || ''));
+    if (selected && normalizeText(unitLabel(selected)) === typed) return true;
+
+    const exact = placas.find((unit) => {
+      const bus = String(unit.bus || '').trim();
+      const plate = String(unit.placa || '').trim();
+      const variants = [
+        unitLabel(unit),
+        bus,
+        plate,
+        [bus, plate].filter(Boolean).join(' - '),
+        bus ? `bus ${bus}` : '',
+        plate ? `placa ${plate}` : ''
+      ].filter(Boolean).map(normalizeText);
+      return variants.includes(typed);
+    });
+
+    if (exact) {
+      setUnitValue(exact.id);
+      return true;
+    }
+    unitIdInput.value = '';
+    return false;
   };
 
   const setScheduleMode = (active) => {
@@ -236,7 +355,7 @@
     if (scheduleTextInput) scheduleTextInput.value = scheduleLabel(prog);
     setSelectValue('idsede_embarque', prog.idsede_origen || '');
     setSelectValue('idsede_desembarque', prog.idsede_destino || '');
-    setSelectValue('idplaca_embarque', prog.idplaca || '');
+    setUnitValue(prog.idplaca || '');
 
     clearRoutePoints();
     const blocked = new Set([String(prog.idsede_origen || ''), String(prog.idsede_destino || '')].filter(Boolean));
@@ -270,6 +389,10 @@
       setError('idsede_desembarque', 'Selecciona la oficina de destino.');
       ok = false;
     }
+    if (!resolveTypedUnit() || !unitIdInput?.value) {
+      setError('idplaca_embarque', 'Selecciona una unidad de transporte.');
+      ok = false;
+    }
 
     const values = [
       form.elements.idsede_embarque?.value || '',
@@ -298,6 +421,36 @@
     applySchedule(getSchedule(scheduleSelect.value));
   });
 
+  unitSearchInput?.addEventListener('focus', () => {
+    renderUnitSuggestions(unitSearchInput.value);
+  });
+
+  unitSearchInput?.addEventListener('input', () => {
+    const selected = placasById.get(String(unitIdInput?.value || ''));
+    if (selected && normalizeText(unitSearchInput.value) !== normalizeText(unitLabel(selected))) {
+      unitIdInput.value = '';
+    }
+    renderUnitSuggestions(unitSearchInput.value);
+  });
+
+  unitSearchInput?.addEventListener('blur', () => {
+    window.setTimeout(() => {
+      resolveTypedUnit();
+      hideUnitSuggestions();
+    }, 120);
+  });
+
+  unitSuggestBox?.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+  });
+
+  unitSuggestBox?.addEventListener('click', (event) => {
+    const option = event.target.closest('[data-enc-unit-option]');
+    if (!option) return;
+    setUnitValue(option.dataset.encUnitOption || '');
+    unitSearchInput?.focus();
+  });
+
   routeBox?.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-enc-remove-point]');
     if (!trigger) return;
@@ -314,6 +467,7 @@
       clearRoutePoints();
       clearErrors();
       if (form.elements.fecha_guia) form.elements.fecha_guia.value = today();
+      setUnitValue('');
       if (scheduleToggle) scheduleToggle.checked = false;
       setScheduleMode(false);
     }, 0);
@@ -388,5 +542,6 @@
   });
 
   setScheduleMode(false);
+  setUnitValue(unitIdInput?.value || '');
   syncRouteOptions();
 })();

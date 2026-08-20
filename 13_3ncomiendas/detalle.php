@@ -101,6 +101,27 @@ function enc_doc_action_links(array $doc): string {
         . '</div>';
 }
 
+function enc_doc_file_summary(?array $doc): string {
+    if (!$doc) {
+        return '<div class="enc-doc-file enc-doc-file--empty">'
+            . '<i class="bi bi-file-earmark-pdf"></i>'
+            . '<div><strong>Sin manifiesto PDF</strong><span>Pendiente de carga</span></div>'
+            . '</div>';
+    }
+
+    $name = (string)($doc['clm_encdoc_nombre'] ?? 'documento.pdf');
+    $meta = array_filter([
+        enc_file_size($doc['clm_encdoc_size'] ?? 0),
+        enc_fmt_datetime($doc['clm_encdoc_fechacarga'] ?? null),
+        (string)($doc['usuario_carga'] ?? ''),
+    ], static fn($value) => trim((string)$value) !== '' && $value !== '-');
+
+    return '<div class="enc-doc-file">'
+        . '<i class="bi bi-file-earmark-check"></i>'
+        . '<div><strong title="' . enc_h($name) . '">' . enc_h($name) . '</strong><span>' . enc_h(implode(' · ', $meta)) . '</span></div>'
+        . '</div>';
+}
+
 function enc_render_detail_content(?array $guia, array $points, array $documents, array $history, string $pageError, string $csrf): void {
     if ($pageError !== '' || !$guia) {
         echo '<div class="stock-alert stock-alert--danger"><i class="bi bi-exclamation-triangle-fill"></i>' . enc_h($pageError ?: 'No se pudo cargar el detalle.') . '</div>';
@@ -210,49 +231,50 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
             </article>
         </section>
 
-        <section class="enc-section">
+        <section class="enc-section enc-section--manifests">
             <div class="enc-section__head"><h3>Ruta y manifiestos</h3><span><?= enc_h($readyManifests . '/' . $requiredManifests) ?> manifiestos</span></div>
-            <div class="enc-route-doc-grid">
+            <div class="enc-route-manifest-list">
                 <?php if (!$points): ?>
                     <div class="stock-empty">No hay puntos de ruta registrados.</div>
                 <?php else: ?>
                     <?php foreach ($points as $point): ?>
                         <?php $doc = $manifestDocsByPoint[(int)$point['clm_encpunto_id']] ?? null; ?>
-                        <article class="enc-point-card <?= $doc ? 'has-doc' : '' ?>">
-                            <div class="enc-point-card__head">
-                                <span class="enc-mini-chip"><i class="bi bi-geo-alt"></i><?= enc_h(enc_route_type_label($point['clm_encpunto_tipo'] ?? 'RUTA')) ?></span>
-                                <?= $doc ? '<span class="enc-manifest-pill enc-manifest-pill--ok"><i class="bi bi-check2-circle"></i>PDF listo</span>' : '<span class="enc-manifest-pill enc-manifest-pill--pending"><i class="bi bi-hourglass-split"></i>Pendiente</span>' ?>
+                        <article class="enc-route-manifest-row <?= $doc ? 'has-doc' : 'is-pending' ?>">
+                            <div class="enc-route-manifest-main">
+                                <span class="enc-route-step"><?= enc_h(str_pad((string)(int)$point['clm_encpunto_orden'], 2, '0', STR_PAD_LEFT)) ?></span>
+                                <div>
+                                    <div class="enc-route-manifest-title">
+                                        <span class="enc-mini-chip"><i class="bi bi-geo-alt"></i><?= enc_h(enc_route_type_label($point['clm_encpunto_tipo'] ?? 'RUTA')) ?></span>
+                                        <?= $doc ? '<span class="enc-manifest-pill enc-manifest-pill--ok"><i class="bi bi-check2-circle"></i>PDF listo</span>' : '<span class="enc-manifest-pill enc-manifest-pill--pending"><i class="bi bi-hourglass-split"></i>Pendiente</span>' ?>
+                                    </div>
+                                    <h4><?= enc_h($point['sede_nombre']) ?></h4>
+                                </div>
                             </div>
-                            <h4><?= enc_h($point['sede_nombre']) ?></h4>
-                            <p>Orden <?= enc_h((int)$point['clm_encpunto_orden']) ?> dentro de la Control Encomienda.</p>
-                            <?php if ($doc): ?>
-                                <dl class="enc-doc-meta-grid">
-                                    <div><dt>Archivo</dt><dd><?= enc_h($doc['clm_encdoc_nombre']) ?></dd></div>
-                                    <div><dt>Peso</dt><dd><?= enc_h(enc_file_size($doc['clm_encdoc_size'])) ?></dd></div>
-                                    <div><dt>Cargado</dt><dd><?= enc_h(enc_fmt_datetime($doc['clm_encdoc_fechacarga'])) ?></dd></div>
-                                    <div><dt>Usuario</dt><dd><?= enc_h($doc['usuario_carga']) ?></dd></div>
-                                </dl>
-                                <?= enc_doc_action_links($doc) ?>
-                            <?php endif; ?>
-                            <?php if (!$isAnulada && $canDocs): ?>
-                                <form class="enc-upload-form enc-ajax-form" action="actions/subir_documento.php" method="post" enctype="multipart/form-data" data-confirm="<?= $doc ? 'Reemplazar manifiesto de este punto.' : 'Subir manifiesto de este punto.' ?>">
-                                    <input type="hidden" name="csrf_token" value="<?= enc_h($csrf) ?>">
-                                    <input type="hidden" name="id" value="<?= enc_h($guia['clm_enc_id']) ?>">
-                                    <input type="hidden" name="tipo" value="MANIFIESTO_ENCOMIENDAS">
-                                    <input type="hidden" name="idpunto" value="<?= enc_h($point['clm_encpunto_id']) ?>">
-                                    <input type="file" name="documento" accept="application/pdf,.pdf" required>
-                                    <button class="stock-btn stock-btn--soft stock-btn--sm" type="submit"><i class="bi bi-cloud-arrow-up"></i> <?= $doc ? 'Reemplazar' : 'Subir manifiesto' ?></button>
-                                </form>
-                            <?php endif; ?>
+                            <?= enc_doc_file_summary($doc) ?>
+                            <div class="enc-route-manifest-actions">
+                                <?php if ($doc): ?>
+                                    <?= enc_doc_action_links($doc) ?>
+                                <?php endif; ?>
+                                <?php if (!$isAnulada && $canDocs): ?>
+                                    <form class="enc-upload-form enc-upload-form--compact enc-ajax-form" action="actions/subir_documento.php" method="post" enctype="multipart/form-data" data-confirm="<?= $doc ? 'Reemplazar manifiesto de este punto.' : 'Subir manifiesto de este punto.' ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= enc_h($csrf) ?>">
+                                        <input type="hidden" name="id" value="<?= enc_h($guia['clm_enc_id']) ?>">
+                                        <input type="hidden" name="tipo" value="MANIFIESTO_ENCOMIENDAS">
+                                        <input type="hidden" name="idpunto" value="<?= enc_h($point['clm_encpunto_id']) ?>">
+                                        <input type="file" name="documento" accept="application/pdf,.pdf" required>
+                                        <button class="stock-btn stock-btn--soft stock-btn--sm" type="submit"><i class="bi bi-cloud-arrow-up"></i> <?= $doc ? 'Reemplazar' : 'Subir' ?></button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
                         </article>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>
         </section>
 
-        <section class="enc-section">
+        <section class="enc-section enc-section--transport">
             <div class="enc-section__head enc-section__head--actions">
-                <div><h3>Guias de transportista</h3><span>Opcionales por factura, boleta o recibo</span></div>
+                <div><h3>Guias de transportista</h3><span>Opcionales con numero y fecha de documento</span></div>
                 <?php if (!$isAnulada && $canDocs): ?>
                     <button class="stock-btn stock-btn--primary stock-btn--sm" type="button" data-enc-transport-open data-guide-id="<?= enc_h($guia['clm_enc_id']) ?>"><i class="bi bi-plus-circle"></i> Agregar guia</button>
                 <?php endif; ?>
@@ -282,7 +304,6 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
                                             <input type="hidden" name="id" value="<?= enc_h($guia['clm_enc_id']) ?>">
                                             <input type="hidden" name="tipo" value="GUIA_TRANSPORTISTA">
                                             <input type="hidden" name="documento_id" value="<?= enc_h($doc['clm_encdoc_id']) ?>">
-                                            <input type="hidden" name="tipo_comprobante" value="<?= enc_h($doc['clm_encdoc_tipo_comprobante']) ?>">
                                             <input type="hidden" name="numero_comprobante" value="<?= enc_h($doc['clm_encdoc_numero_comprobante']) ?>">
                                             <input type="hidden" name="fecha_comprobante" value="<?= enc_h($doc['clm_encdoc_fecha_comprobante']) ?>">
                                             <input type="hidden" name="doc_observacion" value="<?= enc_h($doc['clm_encdoc_observacion']) ?>">
@@ -369,7 +390,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/loader_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
-    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.7.0">
+    <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/encomiendas.css')) ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -403,9 +424,8 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 <input type="hidden" name="csrf_token" value="<?= enc_h($csrf) ?>">
                 <input type="hidden" name="id" value="<?= enc_h($guideId) ?>" data-enc-transport-guide-id>
                 <input type="hidden" name="tipo" value="GUIA_TRANSPORTISTA">
-                <label class="stock-field"><span>Tipo doc.</span><select name="tipo_comprobante"><option value="">Sin especificar</option><option value="FACTURA">Factura</option><option value="BOLETA">Boleta</option><option value="RECIBO">Recibo</option><option value="SIN_COMPROBANTE">Sin comprobante</option></select></label>
                 <label class="stock-field"><span>Numero</span><input type="text" name="numero_comprobante" maxlength="80" autocomplete="off" placeholder="F001-000123"></label>
-                <label class="stock-field"><span>Fecha doc.</span><input type="date" name="fecha_comprobante"></label>
+                <label class="stock-field"><span>Fecha doc.</span><input type="date" name="fecha_comprobante" value="<?= enc_h(enc_now_date()) ?>"></label>
                 <label class="stock-field stock-field--wide"><span>Observacion</span><input type="text" name="doc_observacion" maxlength="500" autocomplete="off" placeholder="Ruta, cliente o referencia"></label>
                 <label class="stock-field stock-field--wide"><span>PDF</span><input type="file" name="documento" accept="application/pdf,.pdf" required></label>
                 <div class="enc-doc-helper"><i class="bi bi-shield-check"></i> El archivo se valida como PDF real antes de guardarse.</div>
@@ -424,7 +444,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= enc_h(n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js')) ?>"></script>
-<script src="assets/js/encomiendas_pdf.js?v=1.0.0"></script>
-<script src="assets/js/tracking_encomiendas.js?v=1.6.0"></script>
+<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/encomiendas_pdf.js')) ?>"></script>
+<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/tracking_encomiendas.js')) ?>"></script>
 </body>
 </html>

@@ -27,7 +27,7 @@ $idProgbusRaw = (int)($_POST['idprogbus'] ?? 0);
 $idProgbus = $idProgbusRaw > 0 ? $idProgbusRaw : null;
 $horaEmbarque = trim((string)($_POST['hora_embarque_programada'] ?? ''));
 $horaEmbarque = $horaEmbarque !== '' ? substr($horaEmbarque, 0, 5) : null;
-$placa = enc_id_or_null($_POST['idplaca_embarque'] ?? null);
+$placa = (int)($_POST['idplaca_embarque'] ?? 0);
 $origen = (int)($_POST['idsede_embarque'] ?? 0);
 $destino = (int)($_POST['idsede_desembarque'] ?? 0);
 $obs = trim((string)($_POST['observacion'] ?? ''));
@@ -53,6 +53,18 @@ foreach ($routePoints as $rawPoint) {
 }
 
 try {
+    $placaRow = enc_fetch_one($conn, "
+        SELECT clm_placas_id
+        FROM tb_placas
+        WHERE clm_placas_id = ?
+        LIMIT 1
+    ", 'i', [$placa]);
+    if (!$placaRow) {
+        enc_json(false, 'La unidad de transporte seleccionada no existe.', [
+            'errors' => ['idplaca_embarque' => 'Selecciona una unidad de transporte valida.']
+        ], 422);
+    }
+
     $conn->begin_transaction();
 
     enc_execute($conn, "

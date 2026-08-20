@@ -22,7 +22,7 @@ function enc_user_id(): int {
 }
 
 function enc_user_name(): string {
-    return trim((string)($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? 'Usuario'));
+    return trim((string)($_SESSION['usuario'] ?? $_SESSION['nombre'] ?? 'Usuario'));
 }
 
 function enc_is_admin(): bool {
@@ -344,18 +344,27 @@ function enc_log(Throwable $e): void {
 
 function enc_db_message(Throwable $e): string {
     $message = $e->getMessage();
+    $plainMessage = function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $message) : false;
+    if ($plainMessage === false) {
+        $plainMessage = $message;
+    }
     if (stripos($message, 'uq_enc_guia') !== false || stripos($message, 'uq_enc_serie_correlativo') !== false || stripos($message, 'Duplicate') !== false) {
         return 'Ya existe una Control Encomienda con ese correlativo.';
     }
-    if (stripos($message, 'unknown column') !== false || stripos($message, 'doesn\'t exist') !== false || stripos($message, 'Base table or view not found') !== false) {
+    if (stripos($plainMessage, 'unknown column') !== false || stripos($plainMessage, 'doesn\'t exist') !== false || stripos($plainMessage, 'Base table or view not found') !== false) {
         return 'Falta ejecutar la migracion SQL de Control Encomiendas antes de usar esta vista.';
     }
-    if (stripos($message, 'foreign key') !== false) {
+    if (stripos($plainMessage, 'foreign key') !== false) {
         return 'Uno de los datos seleccionados ya no existe o no esta disponible.';
     }
 
     $knownBusinessMessages = [
         'La oficina de embarque no puede ser igual a la oficina de desembarque',
+        'El numero de guia es obligatorio',
+        'Debe registrar correctamente el tipo y numero del comprobante',
+        'Para confirmar el embarque debes seleccionar una unidad',
+        'Debes indicar el usuario que realiza el embarque',
+        'Debes indicar el usuario que observa el embarque',
         'Primero debes registrar la Control Encomienda y posteriormente procesar el desembarque',
         'No puedes procesar el desembarque si la Control Encomienda no fue embarcada',
         'Para finalizar el desembarque debes adjuntar los manifiestos PDF de todos los puntos obligatorios',
@@ -367,7 +376,7 @@ function enc_db_message(Throwable $e): string {
         'Debes indicar el usuario que realiza la modificacion',
     ];
     foreach ($knownBusinessMessages as $businessMessage) {
-        if (stripos($message, $businessMessage) !== false) {
+        if (stripos($message, $businessMessage) !== false || stripos($plainMessage, $businessMessage) !== false) {
             return rtrim($businessMessage, '.') . '.';
         }
     }

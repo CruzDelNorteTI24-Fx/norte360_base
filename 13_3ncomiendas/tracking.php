@@ -39,6 +39,16 @@ try {
 $totalPages = max(1, (int)ceil($totalRows / max(1, $filters['per_page'])));
 $currentPage = min($filters['page'], $totalPages);
 $canAnular = enc_can_view('enc-anular');
+$hasAdvancedFilters = $filters['fecha_guia'] !== ''
+    || $filters['desde'] !== date('Y-m-01')
+    || $filters['hasta'] !== date('Y-m-d')
+    || $filters['idsede_embarque'] > 0
+    || $filters['idsede_desembarque'] > 0
+    || $filters['idplaca'] > 0
+    || $filters['estado_embarque'] !== 'TODOS'
+    || $filters['estado_desembarque'] !== 'TODOS'
+    || $filters['estado_general'] !== 'TODOS'
+    || $filters['estado_vida'] !== 'TODOS';
 
 if (!defined('N360_LAYOUT')) define('N360_LAYOUT', true);
 if (!defined('N360_BASE_URL')) define('N360_BASE_URL', '../');
@@ -49,6 +59,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 
 function enc_tracking_url(array $changes = []): string {
     $params = array_merge($_GET, $changes);
+    unset($params['per_page']);
     foreach ($params as $key => $value) {
         if ($value === null || $value === '') unset($params[$key]);
     }
@@ -91,7 +102,7 @@ function enc_manifest_status(array $row): string {
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/loader_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
-    <link rel="stylesheet" href="assets/css/encomiendas.css?v=1.7.0">
+    <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/encomiendas.css')) ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -136,7 +147,18 @@ function enc_manifest_status(array $row): string {
                 <article class="stock-kpi stock-kpi--red"><span>Anuladas</span><strong><?= enc_h($kpis['anuladas'] ?? 0) ?></strong></article>
             </section> -->
 
-                        <form class="stock-filters enc-filters enc-filters--segmented" method="get" action="tracking.php">
+                        <form class="stock-filters enc-filters enc-filters--segmented <?= $hasAdvancedFilters ? 'is-expanded' : '' ?>" method="get" action="tracking.php" data-enc-filter-form>
+                <div class="enc-filter-toolbar">
+                    <div>
+                        <strong>Filtros de tracking</strong>
+                        <span>Busqueda rapida y filtros operativos.</span>
+                    </div>
+                    <button class="stock-btn stock-btn--soft" type="button" data-enc-filter-toggle aria-expanded="<?= $hasAdvancedFilters ? 'true' : 'false' ?>">
+                        <i class="bi bi-sliders"></i>
+                        <span data-enc-filter-toggle-text><?= $hasAdvancedFilters ? 'Ocultar filtros' : 'Mostrar filtros' ?></span>
+                    </button>
+                </div>
+
                 <section class="enc-filter-group enc-filter-group--lookup">
                     <div class="enc-filter-group__head">
                         <i class="bi bi-search"></i>
@@ -149,7 +171,7 @@ function enc_manifest_status(array $row): string {
                     </div>
                 </section>
 
-                <section class="enc-filter-group enc-filter-group--dates">
+                <section class="enc-filter-group enc-filter-group--dates" data-enc-filter-advanced>
                     <div class="enc-filter-group__head">
                         <i class="bi bi-calendar-range"></i>
                         <div><strong>Fechas</strong><span>Dia de guia o periodo.</span></div>
@@ -161,7 +183,7 @@ function enc_manifest_status(array $row): string {
                     </div>
                 </section>
 
-                <section class="enc-filter-group enc-filter-group--route">
+                <section class="enc-filter-group enc-filter-group--route" data-enc-filter-advanced>
                     <div class="enc-filter-group__head">
                         <i class="bi bi-signpost-2"></i>
                         <div><strong>Ruta y unidad</strong><span>Origen, destino y bus asignado.</span></div>
@@ -173,17 +195,16 @@ function enc_manifest_status(array $row): string {
                     </div>
                 </section>
 
-                <section class="enc-filter-group enc-filter-group--states">
+                <section class="enc-filter-group enc-filter-group--states" data-enc-filter-advanced>
                     <div class="enc-filter-group__head">
                         <i class="bi bi-toggles2"></i>
-                        <div><strong>Estados</strong><span>Control operativo y cantidad de filas.</span></div>
+                        <div><strong>Estados</strong><span>Control operativo de la guia.</span></div>
                     </div>
                     <div class="enc-filter-group__fields">
                         <label class="stock-field"><span>Estado embarque</span><select name="estado_embarque"><option value="TODOS">Todos</option><?php foreach (['PENDIENTE','EMBARCADO','OBSERVADO'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_embarque']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
                         <label class="stock-field"><span>Estado desembarque</span><select name="estado_desembarque"><option value="TODOS">Todos</option><?php foreach (['PENDIENTE','RECIBIDO','INCOMPLETO','OBSERVADO'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_desembarque']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
                         <label class="stock-field"><span>Estado general</span><select name="estado_general"><option value="TODOS">Todos</option><?php foreach (['REGISTRADA','EN_TRANSITO','FINALIZADA','OBSERVADA','ANULADA'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_general']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
                         <label class="stock-field"><span>Vista</span><select name="estado_vida"><option value="TODOS">Todos</option><?php foreach (['ACTIVO'=>'Activas','FINALIZADO'=>'Finalizadas','OBSERVADO'=>'Observadas','ANULADO'=>'Anuladas'] as $value=>$label): ?><option value="<?= enc_h($value) ?>" <?= $filters['estado_vida']===$value?'selected':'' ?>><?= enc_h($label) ?></option><?php endforeach; ?></select></label>
-                        <label class="stock-field"><span>Filas</span><select name="per_page"><?php foreach ([15,25,50,100] as $n): ?><option value="<?= $n ?>" <?= $filters['per_page']===$n?'selected':'' ?>><?= $n ?></option><?php endforeach; ?></select></label>
                     </div>
                 </section>
 
@@ -200,7 +221,7 @@ function enc_manifest_status(array $row): string {
                     </div>
                     <span class="stock-table-count"><?= enc_h($totalRows) ?> registros</span>
                 </div>
-                <div class="stock-table-wrap">
+                <div class="stock-table-wrap enc-table-wrap--cards">
                     <table class="stock-table enc-table enc-table--tracking">
                         <thead>
                             <tr>
@@ -258,6 +279,56 @@ function enc_manifest_status(array $row): string {
                         </tbody>
                     </table>
                 </div>
+                <div class="enc-card-list enc-tracking-card-list" aria-label="Control Encomiendas registradas en vista compacta">
+                    <?php if (!$rows): ?>
+                        <div class="stock-empty"><?= $schemaReady ? 'No existen Control Encomiendas para los filtros actuales.' : 'Pendiente ejecutar la migracion de Control Encomiendas.' ?></div>
+                    <?php else: ?>
+                        <?php foreach ($rows as $row): ?>
+                            <?php
+                            $unit = trim((string)($row['placa_bus'] ?? '')) . (trim((string)($row['placa_placa'] ?? '')) !== '' ? ' - ' . trim((string)$row['placa_placa']) : '');
+                            $scheduleText = trim((string)($row['clm_enc_horario_operativo'] ?? ''));
+                            $scheduleHour = trim((string)($row['clm_enc_hora_embarque_programada'] ?? ''));
+                            $hour = $scheduleText !== '' ? $scheduleText : 'Sin horario';
+                            if ($scheduleHour !== '') $hour .= ' | ' . substr($scheduleHour, 0, 5);
+                            $isAnulada = ((int)($row['clm_enc_activo'] ?? 1) === 0) || strtoupper((string)($row['clm_enc_estado_general'] ?? '')) === 'ANULADA';
+                            ?>
+                            <article class="enc-mobile-card enc-tracking-card">
+                                <div class="enc-tracking-card__head">
+                                    <div>
+                                        <span>Control Encomienda</span>
+                                        <h3><?= enc_h($row['clm_enc_guia']) ?></h3>
+                                    </div>
+                                    <?= enc_state_badge($row['clm_enc_estado_general']) ?>
+                                </div>
+                                <div class="enc-tracking-card__route">
+                                    <strong><?= enc_h($row['sede_embarque']) ?></strong>
+                                    <i class="bi bi-arrow-right"></i>
+                                    <strong><?= enc_h($row['sede_desembarque']) ?></strong>
+                                </div>
+                                <dl>
+                                    <div><dt>Fecha</dt><dd><?= enc_h(enc_fmt_date($row['clm_enc_fecha_guia'])) ?></dd></div>
+                                    <div><dt>Horario</dt><dd><?= enc_h($hour) ?></dd></div>
+                                    <div><dt>Unidad</dt><dd><?= enc_h(trim($unit) !== '' ? $unit : 'Sin unidad') ?></dd></div>
+                                    <div><dt>Ultima act.</dt><dd><?= enc_h(enc_fmt_datetime($row['clm_enc_datetimeupdated'] ?: $row['clm_enc_fechacreated'])) ?></dd></div>
+                                </dl>
+                                <div class="enc-tracking-card__states">
+                                    <?= enc_state_badge($row['clm_enc_estado_embarque']) ?>
+                                    <?= enc_state_badge($row['clm_enc_estado_desembarque']) ?>
+                                    <?= enc_manifest_status($row) ?>
+                                    <span class="enc-mini-chip"><i class="bi bi-files"></i><?= enc_h((int)($row['guias_transportista_total'] ?? 0)) ?></span>
+                                </div>
+                                <div class="enc-card-actions">
+                                    <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-eye"></i> Ver</button>
+                                    <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail-section="timeline" data-guide-id="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-diagram-3"></i> Seguimiento</button>
+                                    <button class="stock-btn stock-btn--primary stock-btn--sm" type="button" data-enc-pdf-guide="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-filetype-pdf"></i> PDF</button>
+                                    <?php if ($canAnular && !$isAnulada): ?>
+                                        <button class="stock-btn stock-btn--danger stock-btn--sm" type="button" data-enc-annul-open data-guide-id="<?= enc_h($row['clm_enc_id']) ?>" data-guide-code="<?= enc_h($row['clm_enc_guia']) ?>"><i class="bi bi-x-octagon"></i> Anular</button>
+                                    <?php endif; ?>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
                 <div class="enc-pagination">
                     <a class="stock-btn stock-btn--soft <?= $currentPage <= 1 ? 'is-disabled' : '' ?>" href="<?= enc_h(enc_tracking_url(['page' => max(1, $currentPage - 1)])) ?>"><i class="bi bi-chevron-left"></i> Anterior</a>
                     <span>Pagina <?= enc_h($currentPage) ?> de <?= enc_h($totalPages) ?></span>
@@ -300,9 +371,8 @@ function enc_manifest_status(array $row): string {
                 <input type="hidden" name="csrf_token" value="<?= enc_h(enc_csrf_token()) ?>">
                 <input type="hidden" name="id" value="" data-enc-transport-guide-id>
                 <input type="hidden" name="tipo" value="GUIA_TRANSPORTISTA">
-                <label class="stock-field"><span>Tipo doc.</span><select name="tipo_comprobante"><option value="">Sin especificar</option><option value="FACTURA">Factura</option><option value="BOLETA">Boleta</option><option value="RECIBO">Recibo</option><option value="SIN_COMPROBANTE">Sin comprobante</option></select></label>
                 <label class="stock-field"><span>Numero</span><input type="text" name="numero_comprobante" maxlength="80" autocomplete="off" placeholder="F001-000123"></label>
-                <label class="stock-field"><span>Fecha doc.</span><input type="date" name="fecha_comprobante"></label>
+                <label class="stock-field"><span>Fecha doc.</span><input type="date" name="fecha_comprobante" value="<?= enc_h(enc_now_date()) ?>"></label>
                 <label class="stock-field stock-field--wide"><span>Observacion</span><input type="text" name="doc_observacion" maxlength="500" autocomplete="off" placeholder="Ruta, cliente o referencia"></label>
                 <label class="stock-field stock-field--wide"><span>PDF</span><input type="file" name="documento" accept="application/pdf,.pdf" required></label>
                 <div class="enc-doc-helper"><i class="bi bi-shield-check"></i> El archivo se valida como PDF real antes de guardarse.</div>
@@ -346,7 +416,7 @@ function enc_manifest_status(array $row): string {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= enc_h(n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js')) ?>"></script>
-<script src="assets/js/encomiendas_pdf.js?v=1.4.0"></script>
-<script src="assets/js/tracking_encomiendas.js?v=1.6.0"></script>
+<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/encomiendas_pdf.js')) ?>"></script>
+<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/tracking_encomiendas.js')) ?>"></script>
 </body>
 </html>
