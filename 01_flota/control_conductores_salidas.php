@@ -378,6 +378,14 @@ function fcc_conductor_class(string $estado): string {
     return $estado === 'PAGADO' ? 'fcc-pay--ok' : ($estado === 'PENDIENTE' ? 'fcc-pay--pending' : 'fcc-pay--empty');
 }
 
+function fcc_ida_vuelta($value): string {
+    $estado = strtoupper(trim((string)$value));
+    if (in_array($estado, ['PENDIENTE', 'IDA', 'RETORNO'], true)) {
+        return $estado;
+    }
+    return 'PENDIENTE';
+}
+
 function fcc_importe_nullable($value, string $label): string {
     $value = trim((string)$value);
     if ($value === '') {
@@ -429,6 +437,7 @@ function fcc_driver_update_payload(array $data): array {
         throw new InvalidArgumentException('Registro invalido.');
     }
 
+    $idaVuelta = fcc_ida_vuelta($data['ida_vuelta'] ?? 'PENDIENTE');
     $cond1Estado = fcc_conductor_estado($data['cond1_estado'] ?? '', true);
     $cond2Estado = fcc_conductor_estado($data['cond2_estado'] ?? '', true);
     $cond1Importe = fcc_importe_nullable($data['cond1_importe'] ?? '', 'Pago del conductor 1');
@@ -438,8 +447,16 @@ function fcc_driver_update_payload(array $data): array {
     $cond1Obs = function_exists('mb_substr') ? mb_substr($cond1Obs, 0, 1000, 'UTF-8') : substr($cond1Obs, 0, 1000);
     $cond2Obs = function_exists('mb_substr') ? mb_substr($cond2Obs, 0, 1000, 'UTF-8') : substr($cond2Obs, 0, 1000);
 
+    if ($idaVuelta === 'RETORNO') {
+        $cond1Estado = '';
+        $cond1Importe = '';
+        $cond2Estado = '';
+        $cond2Importe = '';
+    }
+
     return [
         'id' => $id,
+        'ida_vuelta' => $idaVuelta,
         'cond1_estado' => $cond1Estado,
         'cond1_importe' => $cond1Importe,
         'cond1_observacion' => $cond1Obs,
@@ -452,10 +469,11 @@ function fcc_driver_update_payload(array $data): array {
 function fcc_prepare_driver_update(mysqli $conn): mysqli_stmt {
     $stmt = $conn->prepare('
         UPDATE tb_progbuses_salida_consolidado
-           SET clm_salprog_cond1_estado = ?,
+           SET clm_salprog_estadoidavuelta = ?,
+               clm_salprog_cond1_estado = NULLIF(?, \'\'),
                clm_salprog_imtotalcond1 = NULLIF(?, \'\'),
                clm_salprog_cond1_observacion = NULLIF(?, \'\'),
-               clm_salprog_cond2_estado = ?,
+               clm_salprog_cond2_estado = NULLIF(?, \'\'),
                clm_salprog_imtotalcond2 = NULLIF(?, \'\'),
                clm_salprog_cond2_observacion = NULLIF(?, \'\')
          WHERE clm_salprog_id = ?
@@ -474,6 +492,7 @@ $csrfToken = $_SESSION['fcc_token'];
 $isAdmin = n360_is_admin();
 $tableReady = isset($conn) && $conn instanceof mysqli && fcc_table_exists($conn, 'tb_progbuses_salida_consolidado');
 $driverColumns = [
+    'clm_salprog_estadoidavuelta',
     'clm_salprog_cond1_estado',
     'clm_salprog_cond1_observacion',
     'clm_salprog_imtotalcond1',
@@ -493,7 +512,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fcc_json(false, [], 'La tabla del consolidado todavia no esta disponible.', 500);
     }
     if (!$driverColumnsReady) {
-        fcc_json(false, [], 'Faltan columnas de estado, observacion o importe de conductores. Ejecuta la query ALTER.', 500);
+        fcc_json(false, [], 'Faltan columnas de ida/vuelta, estado, observacion o importe de conductores. Ejecuta la query ALTER.', 500);
     }
     if (!hash_equals($csrfToken, (string)($_POST['csrf'] ?? ''))) {
         fcc_json(false, [], 'Sesion invalida. Actualiza la pagina.', 419);
@@ -521,11 +540,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $transactionStarted = true;
 
             $stmt = fcc_prepare_driver_update($conn);
-            $cond1Estado = $cond1Importe = $cond1Obs = $cond2Estado = $cond2Importe = $cond2Obs = '';
+            $idaVuelta = $cond1Estado = $cond1Importe = $cond1Obs = $cond2Estado = $cond2Importe = $cond2Obs = '';
             $id = 0;
-            $stmt->bind_param('ssssssi', $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
+            $stmt->bind_param('sssssssi', $idaVuelta, $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
 
             foreach ($payloads as $payload) {
+                $idaVuelta = $payload['ida_vuelta'];
                 $cond1Estado = $payload['cond1_estado'];
                 $cond1Importe = $payload['cond1_importe'];
                 $cond1Obs = $payload['cond1_observacion'];
@@ -566,6 +586,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $payload = fcc_driver_update_payload($_POST);
         $stmt = fcc_prepare_driver_update($conn);
 
+        $idaVuelta = $payload['ida_vuelta'];
         $cond1Estado = $payload['cond1_estado'];
         $cond1Importe = $payload['cond1_importe'];
         $cond1Obs = $payload['cond1_observacion'];
@@ -573,7 +594,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cond2Importe = $payload['cond2_importe'];
         $cond2Obs = $payload['cond2_observacion'];
         $id = $payload['id'];
-        $stmt->bind_param('ssssssi', $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
+        $stmt->bind_param('sssssssi', $idaVuelta, $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
 
         if (!$stmt->execute()) {
             throw new RuntimeException($stmt->error ?: 'No se pudo guardar la gestion del conductor.');
@@ -583,6 +604,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = null;
 
         fcc_json(true, [
+            'ida_vuelta' => $payload['ida_vuelta'],
             'cond1_estado' => $payload['cond1_estado'],
             'cond1_importe' => $payload['cond1_importe'],
             'cond2_estado' => $payload['cond2_estado'],
@@ -677,6 +699,8 @@ foreach ($plates as $plateId => $plate) {
                 'weekday' => $day['weekday'],
                 'revision' => 'SIN SALIDA',
                 'is_anulado' => false,
+                'ida_vuelta' => '',
+                'is_retorno' => false,
                 'trip_index' => 0,
                 'trips_day' => 0,
                 'hora' => '',
@@ -725,6 +749,8 @@ foreach ($plates as $plateId => $plate) {
             $cond2Estado = fcc_conductor_estado($row['clm_salprog_cond2_estado'] ?? '', $cond2 !== '');
             $revision = fcc_estado_revision_label($row['clm_salprog_revision_estado'] ?? '');
             $isAnulado = fcc_revision_is_anulada($revision);
+            $idaVuelta = fcc_ida_vuelta($row['clm_salprog_estadoidavuelta'] ?? 'PENDIENTE');
+            $isRetorno = $idaVuelta === 'RETORNO';
 
             if ($isAnulado) {
                 $unitCanceled++;
@@ -733,7 +759,7 @@ foreach ($plates as $plateId => $plate) {
                 $unitProgrammed++;
                 $kpis['programaciones']++;
 
-                if ($cond1 !== '') {
+                if (!$isRetorno && $cond1 !== '') {
                     if ($cond1Estado === 'PAGADO') {
                         $unitPaid++;
                         $kpis['pagados']++;
@@ -743,7 +769,7 @@ foreach ($plates as $plateId => $plate) {
                     }
                 }
 
-                if ($cond2 !== '') {
+                if (!$isRetorno && $cond2 !== '') {
                     if ($cond2Estado === 'PAGADO') {
                         $unitPaid++;
                         $kpis['pagados']++;
@@ -761,6 +787,8 @@ foreach ($plates as $plateId => $plate) {
                 'weekday' => $day['weekday'],
                 'revision' => $revision,
                 'is_anulado' => $isAnulado,
+                'ida_vuelta' => $idaVuelta,
+                'is_retorno' => $isRetorno,
                 'trip_index' => $tripIndex + 1,
                 'trips_day' => $totalTripsDay,
                 'hora' => fcc_time_label($row['clm_salprog_horasalida'] ?? ''),
@@ -790,12 +818,12 @@ foreach ($plates as $plateId => $plate) {
                 'usuario_creacion' => isset($row['clm_salprog_usuario_creacion']) ? (int)$row['clm_salprog_usuario_creacion'] : null,
                 'fecha_creacion' => (string)($row['clm_salprog_fecha_creacion'] ?? ''),
                 'cond1' => $cond1,
-                'cond1_estado' => $cond1Estado,
-                'cond1_importe' => fcc_importe_input($row['clm_salprog_imtotalcond1'] ?? null),
+                'cond1_estado' => $isRetorno ? '' : $cond1Estado,
+                'cond1_importe' => $isRetorno ? '' : fcc_importe_input($row['clm_salprog_imtotalcond1'] ?? null),
                 'cond1_observacion' => (string)($row['clm_salprog_cond1_observacion'] ?? ''),
                 'cond2' => $cond2,
-                'cond2_estado' => $cond2Estado,
-                'cond2_importe' => fcc_importe_input($row['clm_salprog_imtotalcond2'] ?? null),
+                'cond2_estado' => $isRetorno ? '' : $cond2Estado,
+                'cond2_importe' => $isRetorno ? '' : fcc_importe_input($row['clm_salprog_imtotalcond2'] ?? null),
                 'cond2_observacion' => (string)($row['clm_salprog_cond2_observacion'] ?? ''),
             ];
         }
@@ -873,7 +901,7 @@ $monthLabel = fcc_month_label($monthStart);
             <article><span>Viajes</span><strong><?= number_format($kpis['programaciones']) ?></strong></article>
             <article><span>Anulados</span><strong><?= number_format($kpis['anulados']) ?></strong></article>
             <article><span>Pendientes</span><strong><?= number_format($kpis['pendientes']) ?></strong></article>
-            <article><span>Pagados</span><strong><?= number_format($kpis['pagados']) ?></strong></article>
+            <article><span>OK</span><strong><?= number_format($kpis['pagados']) ?></strong></article>
         </section>
 
         <section class="fcc-filter">
@@ -942,7 +970,7 @@ $monthLabel = fcc_month_label($monthStart);
                                 <span class="fcc-mini fcc-mini--void">Anul. <?= number_format($unit['canceled']) ?></span>
                             <?php endif; ?>
                             <span class="fcc-mini fcc-mini--pending">Pend. <?= number_format($unit['pending']) ?></span>
-                            <span class="fcc-mini fcc-mini--paid">Pag. <?= number_format($unit['paid']) ?></span>
+                            <span class="fcc-mini fcc-mini--paid">OK <?= number_format($unit['paid']) ?></span>
                             <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-unit><i class="bi bi-file-earmark-pdf"></i> PDF unidad</button>
                         </div>
                     </div>
@@ -954,6 +982,8 @@ $monthLabel = fcc_month_label($monthStart);
                                     <tr>
                                         <th>Dia</th>
                                         <th>Estado trabajo</th>
+                                        <th>Ida/Vuelta</th>
+                                        <th>Ruta</th>
                                         <th>Cond. 1</th>
                                         <th>Estado cond. 1</th>
                                         <th>Pago cond. 1</th>
@@ -980,14 +1010,23 @@ $monthLabel = fcc_month_label($monthStart);
                                         <?php
                                             $hasSchedule = (int)$unitRow['id'] > 0;
                                             $isAnulado = !empty($unitRow['is_anulado']);
-                                            $cond1Enabled = $hasSchedule && !$isAnulado && $unitRow['cond1'] !== '' && $driverColumnsReady;
-                                            $cond2Enabled = $hasSchedule && !$isAnulado && $unitRow['cond2'] !== '' && $driverColumnsReady;
+                                            $isRetorno = !empty($unitRow['is_retorno']);
+                                            $cond1Enabled = $hasSchedule && !$isAnulado && !$isRetorno && $unitRow['cond1'] !== '' && $driverColumnsReady;
+                                            $cond2Enabled = $hasSchedule && !$isAnulado && !$isRetorno && $unitRow['cond2'] !== '' && $driverColumnsReady;
+                                            $cond1ObsEnabled = $hasSchedule && !$isAnulado && $unitRow['cond1'] !== '' && $driverColumnsReady;
+                                            $cond2ObsEnabled = $hasSchedule && !$isAnulado && $unitRow['cond2'] !== '' && $driverColumnsReady;
 
                                             $fccDateKey = (string)($unitRow['date'] ?? '');
                                             $fccShowDate = !isset($fccRenderedDates[$fccDateKey]);
                                             $fccDateRowspan = max(1, (int)($fccDateRowCounts[$fccDateKey] ?? 1));
                                             $fccIsGroupStart = $fccShowDate;
                                             $fccIsGroupEnd = ((int)$unitRow['trip_index'] >= (int)$unitRow['trips_day']) || !$hasSchedule;
+                                            $fccRowOrigen = trim((string)($unitRow['origen'] ?? ''));
+                                            $fccRowDestino = trim((string)($unitRow['destino'] ?? ''));
+                                            $fccHasRoute = $hasSchedule && ($fccRowOrigen !== '' || $fccRowDestino !== '');
+                                            $fccIdaVueltaClass = $unitRow['ida_vuelta'] === 'RETORNO'
+                                                ? 'is-return'
+                                                : ($unitRow['ida_vuelta'] === 'IDA' ? 'is-outbound' : 'is-pending');
 
                                             if ($fccShowDate) {
                                                 $fccRenderedDates[$fccDateKey] = true;
@@ -996,10 +1035,16 @@ $monthLabel = fcc_month_label($monthStart);
                                             $fccRowClasses = [];
                                             if (!$hasSchedule) {
                                                 $fccRowClasses[] = 'is-empty-day';
-                                            } elseif ($isAnulado) {
-                                                $fccRowClasses[] = 'is-anulado';
-                                            } elseif ((int)$unitRow['trips_day'] > 1) {
-                                                $fccRowClasses[] = 'has-multiple-trips';
+                                            } else {
+                                                if ($isAnulado) {
+                                                    $fccRowClasses[] = 'is-anulado';
+                                                }
+                                                if ($isRetorno) {
+                                                    $fccRowClasses[] = 'is-retorno';
+                                                }
+                                                if ((int)$unitRow['trips_day'] > 1) {
+                                                    $fccRowClasses[] = 'has-multiple-trips';
+                                                }
                                             }
                                             if ($fccIsGroupStart) {
                                                 $fccRowClasses[] = 'fcc-date-group-start';
@@ -1017,7 +1062,13 @@ $monthLabel = fcc_month_label($monthStart);
                                             data-fcc-trips-day="<?= (int)$unitRow['trips_day'] ?>"
                                             data-fcc-hora="<?= fcc_h($unitRow['hora']) ?>"
                                             data-fcc-revision="<?= fcc_h($unitRow['revision']) ?>"
+                                            data-fcc-origen="<?= fcc_h($fccRowOrigen) ?>"
+                                            data-fcc-destino="<?= fcc_h($fccRowDestino) ?>"
                                             data-fcc-anulado="<?= $isAnulado ? '1' : '0' ?>"
+                                            data-fcc-retorno="<?= $isRetorno ? '1' : '0' ?>"
+                                            data-fcc-editable="<?= ($driverColumnsReady && $hasSchedule && !$isAnulado) ? '1' : '0' ?>"
+                                            data-fcc-cond1="<?= $unitRow['cond1'] !== '' ? '1' : '0' ?>"
+                                            data-fcc-cond2="<?= $unitRow['cond2'] !== '' ? '1' : '0' ?>"
                                             class="<?= fcc_h(implode(' ', $fccRowClasses)) ?>"
                                         >
                                             <?php if ($fccShowDate): ?>
@@ -1040,14 +1091,39 @@ $monthLabel = fcc_month_label($monthStart);
                                                     </small>
                                                 <?php endif; ?>
                                             </td>
+                                            <td data-fcc-col="ida_vuelta">
+                                                <?php if ($hasSchedule && !$isAnulado): ?>
+                                                    <select data-fcc-field="ida_vuelta" class="fcc-roundtrip <?= fcc_h($fccIdaVueltaClass) ?>" <?= $driverColumnsReady ? '' : 'disabled' ?>>
+                                                        <option value="PENDIENTE" <?= $unitRow['ida_vuelta'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
+                                                        <option value="IDA" <?= $unitRow['ida_vuelta'] === 'IDA' ? 'selected' : '' ?>>IDA</option>
+                                                        <option value="RETORNO" <?= $unitRow['ida_vuelta'] === 'RETORNO' ? 'selected' : '' ?>>RETORNO</option>
+                                                    </select>
+                                                <?php elseif ($hasSchedule): ?>
+                                                    <span class="fcc-roundtrip-badge"><?= fcc_h($unitRow['ida_vuelta'] ?: '-') ?></span>
+                                                <?php else: ?>
+                                                    <span class="fcc-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td data-fcc-col="ruta">
+                                                <?php if ($fccHasRoute): ?>
+                                                    <span class="fcc-route-line">
+                                                        <strong><?= fcc_h($fccRowOrigen !== '' ? $fccRowOrigen : '-') ?></strong>
+                                                        <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                                                        <strong><?= fcc_h($fccRowDestino !== '' ? $fccRowDestino : '-') ?></strong>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="fcc-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
                                             <td data-fcc-col="cond1"><?= (!$isAnulado && $unitRow['cond1'] !== '') ? fcc_h($unitRow['cond1']) : '<span class="fcc-muted">-</span>' ?></td>
                                             <td data-fcc-col="cond1_estado">
                                                 <?php if ($isAnulado): ?>
                                                     <span class="fcc-muted">-</span>
                                                 <?php else: ?>
                                                     <select data-fcc-field="cond1_estado" class="<?= fcc_conductor_class($unitRow['cond1_estado']) ?>" <?= $cond1Enabled ? '' : 'disabled' ?>>
+                                                        <option value="" <?= $unitRow['cond1_estado'] === '' ? 'selected' : '' ?>>-</option>
                                                         <option value="PENDIENTE" <?= $unitRow['cond1_estado'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
-                                                        <option value="PAGADO" <?= $unitRow['cond1_estado'] === 'PAGADO' ? 'selected' : '' ?>>PAGADO</option>
+                                                        <option value="PAGADO" <?= $unitRow['cond1_estado'] === 'PAGADO' ? 'selected' : '' ?>>OK</option>
                                                     </select>
                                                 <?php endif; ?>
                                             </td>
@@ -1065,7 +1141,7 @@ $monthLabel = fcc_month_label($monthStart);
                                                 <?php if ($isAnulado): ?>
                                                     <span class="fcc-muted">-</span>
                                                 <?php else: ?>
-                                                    <textarea data-fcc-field="cond1_observacion" rows="1" <?= $cond1Enabled ? '' : 'disabled' ?>><?= fcc_h($unitRow['cond1_observacion']) ?></textarea>
+                                                    <textarea data-fcc-field="cond1_observacion" rows="1" <?= $cond1ObsEnabled ? '' : 'disabled' ?>><?= fcc_h($unitRow['cond1_observacion']) ?></textarea>
                                                 <?php endif; ?>
                                             </td>
                                             <td data-fcc-col="cond2"><?= (!$isAnulado && $unitRow['cond2'] !== '') ? fcc_h($unitRow['cond2']) : '<span class="fcc-muted">-</span>' ?></td>
@@ -1074,8 +1150,9 @@ $monthLabel = fcc_month_label($monthStart);
                                                     <span class="fcc-muted">-</span>
                                                 <?php else: ?>
                                                     <select data-fcc-field="cond2_estado" class="<?= fcc_conductor_class($unitRow['cond2_estado']) ?>" <?= $cond2Enabled ? '' : 'disabled' ?>>
+                                                        <option value="" <?= $unitRow['cond2_estado'] === '' ? 'selected' : '' ?>>-</option>
                                                         <option value="PENDIENTE" <?= $unitRow['cond2_estado'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
-                                                        <option value="PAGADO" <?= $unitRow['cond2_estado'] === 'PAGADO' ? 'selected' : '' ?>>PAGADO</option>
+                                                        <option value="PAGADO" <?= $unitRow['cond2_estado'] === 'PAGADO' ? 'selected' : '' ?>>OK</option>
                                                     </select>
                                                 <?php endif; ?>
                                             </td>
@@ -1093,7 +1170,7 @@ $monthLabel = fcc_month_label($monthStart);
                                                 <?php if ($isAnulado): ?>
                                                     <span class="fcc-muted">-</span>
                                                 <?php else: ?>
-                                                    <textarea data-fcc-field="cond2_observacion" rows="1" <?= $cond2Enabled ? '' : 'disabled' ?>><?= fcc_h($unitRow['cond2_observacion']) ?></textarea>
+                                                    <textarea data-fcc-field="cond2_observacion" rows="1" <?= $cond2ObsEnabled ? '' : 'disabled' ?>><?= fcc_h($unitRow['cond2_observacion']) ?></textarea>
                                                 <?php endif; ?>
                                             </td>
                                             <td class="fcc-actions">
@@ -1139,7 +1216,7 @@ $monthLabel = fcc_month_label($monthStart);
                     <article><span>Viajes</span><strong data-fcc-driver-kpi="trips">0</strong></article>
                     <article><span>Buses usados</span><strong data-fcc-driver-kpi="buses">0</strong></article>
                     <article><span>Pendientes</span><strong data-fcc-driver-kpi="pending">0</strong></article>
-                    <article><span>Pagados</span><strong data-fcc-driver-kpi="paid">0</strong></article>
+                    <article><span>OK</span><strong data-fcc-driver-kpi="paid">0</strong></article>
                 </div>
 
                 <label class="fcc-driver-search">
@@ -1155,7 +1232,7 @@ $monthLabel = fcc_month_label($monthStart);
                                 <th>Viajes</th>
                                 <th>Buses</th>
                                 <th>Pendientes</th>
-                                <th>Pagados</th>
+                                <th>OK</th>
                                 <th>Obs.</th>
                             </tr>
                         </thead>
@@ -1276,6 +1353,7 @@ $monthLabel = fcc_month_label($monthStart);
                         <article><span>Bus</span><strong data-fcc-trip-field="bus">-</strong></article>
                         <article><span>Placa</span><strong data-fcc-trip-field="placa">-</strong></article>
                         <article><span>Servicio</span><strong data-fcc-trip-field="servicio">-</strong></article>
+                        <article><span>Ida/Vuelta</span><strong data-fcc-trip-field="ida_vuelta">-</strong></article>
                         <article><span>Origen</span><strong data-fcc-trip-field="origen">-</strong></article>
                         <article><span>Destino</span><strong data-fcc-trip-field="destino">-</strong></article>
                         <article><span>Programado en pizarra</span><strong data-fcc-trip-field="fecha_programacion">-</strong></article>

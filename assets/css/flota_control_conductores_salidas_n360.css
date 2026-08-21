@@ -386,7 +386,7 @@
 
 .fcc-table {
     width: 100%;
-    min-width: 1420px;
+    min-width: 1660px;
     border-collapse: collapse;
     font-size: 13px;
 }
@@ -410,6 +410,10 @@
 
 .fcc-table tbody tr:hover {
     background: #f8fbff;
+}
+
+.fcc-table tbody tr[data-fcc-row]:not(.is-empty-day) {
+    cursor: pointer;
 }
 
 .fcc-table tbody tr.is-bulk-dirty td {
@@ -446,6 +450,14 @@ body.fcc-bulk-mode .fcc-action-buttons {
     background: #fff1f1;
 }
 
+.fcc-table tbody tr.is-retorno:not(.is-anulado) td {
+    background: #f7fbff;
+}
+
+.fcc-table tbody tr.is-retorno:not(.is-anulado) td:first-child {
+    box-shadow: inset 4px 0 0 #248ed2;
+}
+
 .fcc-table td[data-fcc-col="dia"] {
     width: 64px;
     text-align: center;
@@ -469,6 +481,30 @@ body.fcc-bulk-mode .fcc-action-buttons {
 
 .fcc-table td[data-fcc-col="dia"][rowspan] {
     vertical-align: middle;
+}
+
+.fcc-table td[data-fcc-col="ruta"] {
+    min-width: 210px;
+}
+
+.fcc-route-line {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    max-width: 270px;
+    color: #0b2740;
+    line-height: 1.28;
+}
+
+.fcc-route-line strong {
+    font-weight: 900;
+    overflow-wrap: anywhere;
+}
+
+.fcc-route-line i {
+    color: #248ed2;
+    font-size: 12px;
 }
 
 .fcc-date-group-cell {
@@ -558,6 +594,45 @@ body.fcc-bulk-mode .fcc-action-buttons {
 
 .fcc-table select {
     padding: 0 8px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.fcc-table select.fcc-roundtrip {
+    min-width: 118px;
+    color: #075985;
+    background: #eaf6ff;
+}
+
+.fcc-table select.fcc-roundtrip.is-return,
+.fcc-roundtrip-badge {
+    color: #155e75;
+    background: #e0f2fe;
+}
+
+.fcc-table select.fcc-roundtrip.is-pending {
+    color: #936000;
+    background: #fff4d7;
+}
+
+.fcc-table select.fcc-roundtrip,
+.fcc-table input,
+.fcc-table textarea,
+.fcc-table label {
+    cursor: auto;
+}
+
+.fcc-table button {
+    cursor: pointer;
+}
+
+.fcc-roundtrip-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border: 1px solid #bae6fd;
+    border-radius: 999px;
     font-size: 12px;
     font-weight: 900;
 }

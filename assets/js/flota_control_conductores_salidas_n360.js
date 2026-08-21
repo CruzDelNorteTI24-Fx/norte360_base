@@ -23,6 +23,11 @@
     return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
   };
   const isCanceledRevision = (value) => compact(value).toUpperCase() === 'ANULADO';
+  const isReturnTrip = (value) => compact(value).toUpperCase() === 'RETORNO';
+  const tripDirection = (value) => {
+    const direction = compact(value).toUpperCase();
+    return ['PENDIENTE', 'IDA', 'RETORNO'].includes(direction) ? direction : 'PENDIENTE';
+  };
 
   function statusClass(value) {
     const status = compact(value).toUpperCase() || 'PENDIENTE';
@@ -34,6 +39,12 @@
     if (status === 'TRANSBORDADO' || status === 'TRANSBORDO') return 'fcc-status--transfer';
     if (status === 'SIN SALIDA') return 'fcc-status--muted';
     return 'fcc-status--pending';
+  }
+
+  function driverStateText(value) {
+    const state = compact(value).toUpperCase();
+    if (state === 'PAGADO') return 'OK';
+    return state || '-';
   }
 
   function normalizeMoneyValue(value) {
@@ -114,12 +125,20 @@
 
   function syncTripFromRow(trip, row) {
     if (!trip || !row) return trip;
-    trip.cond1_estado = row.querySelector('[data-fcc-field="cond1_estado"]')?.value || trip.cond1_estado || '';
-    trip.cond1_importe = row.querySelector('[data-fcc-field="cond1_importe"]')?.value || trip.cond1_importe || '';
-    trip.cond1_observacion = row.querySelector('[data-fcc-field="cond1_observacion"]')?.value || trip.cond1_observacion || '';
-    trip.cond2_estado = row.querySelector('[data-fcc-field="cond2_estado"]')?.value || trip.cond2_estado || '';
-    trip.cond2_importe = row.querySelector('[data-fcc-field="cond2_importe"]')?.value || trip.cond2_importe || '';
-    trip.cond2_observacion = row.querySelector('[data-fcc-field="cond2_observacion"]')?.value || trip.cond2_observacion || '';
+    const idaVuelta = row.querySelector('[data-fcc-field="ida_vuelta"]');
+    const cond1Estado = row.querySelector('[data-fcc-field="cond1_estado"]');
+    const cond1Importe = row.querySelector('[data-fcc-field="cond1_importe"]');
+    const cond1Obs = row.querySelector('[data-fcc-field="cond1_observacion"]');
+    const cond2Estado = row.querySelector('[data-fcc-field="cond2_estado"]');
+    const cond2Importe = row.querySelector('[data-fcc-field="cond2_importe"]');
+    const cond2Obs = row.querySelector('[data-fcc-field="cond2_observacion"]');
+    if (idaVuelta) trip.ida_vuelta = tripDirection(idaVuelta.value);
+    if (cond1Estado) trip.cond1_estado = cond1Estado.value;
+    if (cond1Importe) trip.cond1_importe = cond1Importe.value;
+    if (cond1Obs) trip.cond1_observacion = cond1Obs.value;
+    if (cond2Estado) trip.cond2_estado = cond2Estado.value;
+    if (cond2Importe) trip.cond2_importe = cond2Importe.value;
+    if (cond2Obs) trip.cond2_observacion = cond2Obs.value;
     return trip;
   }
 
@@ -141,6 +160,7 @@
 
   function syncSelectClass(select) {
     if (!select) return;
+    if (!select.matches('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]')) return;
     select.classList.remove('fcc-pay--ok', 'fcc-pay--pending', 'fcc-pay--empty');
     const value = String(select.value || '').toUpperCase();
     if (select.disabled || !value) {
@@ -154,6 +174,7 @@
 
   function rowFields(row) {
     return {
+      ida_vuelta: row.querySelector('[data-fcc-field="ida_vuelta"]'),
       cond1_estado: row.querySelector('[data-fcc-field="cond1_estado"]'),
       cond1_importe: row.querySelector('[data-fcc-field="cond1_importe"]'),
       cond1_observacion: row.querySelector('[data-fcc-field="cond1_observacion"]'),
@@ -167,10 +188,11 @@
     const fields = rowFields(row);
     return {
       id: row.dataset.fccRow || '',
-      cond1_estado: fields.cond1_estado?.value || 'PENDIENTE',
+      ida_vuelta: tripDirection(fields.ida_vuelta?.value),
+      cond1_estado: fields.cond1_estado?.value || '',
       cond1_importe: fields.cond1_importe?.value || '',
       cond1_observacion: fields.cond1_observacion?.value || '',
-      cond2_estado: fields.cond2_estado?.value || 'PENDIENTE',
+      cond2_estado: fields.cond2_estado?.value || '',
       cond2_importe: fields.cond2_importe?.value || '',
       cond2_observacion: fields.cond2_observacion?.value || ''
     };
@@ -178,6 +200,7 @@
 
   function comparableRowValues(values) {
     return {
+      ida_vuelta: tripDirection(values.ida_vuelta),
       cond1_estado: compact(values.cond1_estado).toUpperCase(),
       cond1_importe: normalizeMoneyValue(values.cond1_importe),
       cond1_observacion: String(values.cond1_observacion || ''),
@@ -203,8 +226,55 @@
     Object.entries(baseline).forEach(([name, value]) => {
       if (fields[name]) fields[name].value = value;
     });
+    applyRoundTripState(row, false);
     row.querySelectorAll('select').forEach(syncSelectClass);
     row.classList.remove('is-bulk-dirty');
+  }
+
+  function applyRoundTripState(row, clearDriverFields) {
+    if (!row) return;
+    const fields = rowFields(row);
+    const direction = tripDirection(fields.ida_vuelta?.value);
+    const retorno = isReturnTrip(direction);
+    const outbound = direction === 'IDA';
+    const editable = row.dataset.fccEditable === '1';
+
+    row.dataset.fccRetorno = retorno ? '1' : '0';
+    row.classList.toggle('is-retorno', retorno);
+    if (fields.ida_vuelta) {
+      fields.ida_vuelta.value = direction;
+      fields.ida_vuelta.classList.toggle('is-return', retorno);
+      fields.ida_vuelta.classList.toggle('is-outbound', outbound);
+      fields.ida_vuelta.classList.toggle('is-pending', direction === 'PENDIENTE');
+    }
+
+    [
+      { hasDriver: row.dataset.fccCond1 === '1', state: fields.cond1_estado, amount: fields.cond1_importe },
+      { hasDriver: row.dataset.fccCond2 === '1', state: fields.cond2_estado, amount: fields.cond2_importe }
+    ].forEach((driver) => {
+      if (retorno) {
+        if (clearDriverFields) {
+          if (driver.state) driver.state.value = '';
+          if (driver.amount) driver.amount.value = '';
+        }
+        if (driver.state) driver.state.disabled = true;
+        if (driver.amount) driver.amount.disabled = true;
+        return;
+      }
+
+      const canEdit = editable && driver.hasDriver;
+      if (driver.state) {
+        driver.state.disabled = !canEdit;
+        if (canEdit && driver.state.value === '') {
+          driver.state.value = 'PENDIENTE';
+        }
+      }
+      if (driver.amount) {
+        driver.amount.disabled = !canEdit;
+      }
+    });
+
+    row.querySelectorAll('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]').forEach(syncSelectClass);
   }
 
   function dirtyRows() {
@@ -268,19 +338,22 @@
   function applySavedRow(row, data) {
     if (!row) return;
     const fields = rowFields(row);
-    if (fields.cond1_estado && data?.cond1_estado) fields.cond1_estado.value = data.cond1_estado;
+    if (fields.ida_vuelta && data && Object.prototype.hasOwnProperty.call(data, 'ida_vuelta')) fields.ida_vuelta.value = tripDirection(data.ida_vuelta);
+    if (fields.cond1_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond1_estado')) fields.cond1_estado.value = data.cond1_estado || '';
     if (fields.cond1_importe) fields.cond1_importe.value = normalizeMoneyValue(data?.cond1_importe ?? fields.cond1_importe.value);
-    if (fields.cond2_estado && data?.cond2_estado) fields.cond2_estado.value = data.cond2_estado;
+    if (fields.cond2_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond2_estado')) fields.cond2_estado.value = data.cond2_estado || '';
     if (fields.cond2_importe) fields.cond2_importe.value = normalizeMoneyValue(data?.cond2_importe ?? fields.cond2_importe.value);
+    applyRoundTripState(row, false);
     row.querySelectorAll('select').forEach(syncSelectClass);
 
     const id = row.dataset.fccRow || '';
     const savedTrip = tripMap.get(String(id));
     if (savedTrip) {
       syncTripFromRow(savedTrip, row);
-      savedTrip.cond1_estado = data?.cond1_estado || savedTrip.cond1_estado;
+      savedTrip.ida_vuelta = data && Object.prototype.hasOwnProperty.call(data, 'ida_vuelta') ? tripDirection(data.ida_vuelta) : savedTrip.ida_vuelta;
+      savedTrip.cond1_estado = data && Object.prototype.hasOwnProperty.call(data, 'cond1_estado') ? (data.cond1_estado || '') : savedTrip.cond1_estado;
       savedTrip.cond1_importe = data?.cond1_importe ?? savedTrip.cond1_importe;
-      savedTrip.cond2_estado = data?.cond2_estado || savedTrip.cond2_estado;
+      savedTrip.cond2_estado = data && Object.prototype.hasOwnProperty.call(data, 'cond2_estado') ? (data.cond2_estado || '') : savedTrip.cond2_estado;
       savedTrip.cond2_importe = data?.cond2_importe ?? savedTrip.cond2_importe;
     }
     rememberRow(row);
@@ -307,10 +380,11 @@
     fd.append('csrf', csrf);
     fd.append('action', 'update_driver_status');
     fd.append('id', id);
-    fd.append('cond1_estado', row.querySelector('[data-fcc-field="cond1_estado"]')?.value || 'PENDIENTE');
+    fd.append('ida_vuelta', tripDirection(row.querySelector('[data-fcc-field="ida_vuelta"]')?.value));
+    fd.append('cond1_estado', row.querySelector('[data-fcc-field="cond1_estado"]')?.value || '');
     fd.append('cond1_importe', row.querySelector('[data-fcc-field="cond1_importe"]')?.value || '');
     fd.append('cond1_observacion', row.querySelector('[data-fcc-field="cond1_observacion"]')?.value || '');
-    fd.append('cond2_estado', row.querySelector('[data-fcc-field="cond2_estado"]')?.value || 'PENDIENTE');
+    fd.append('cond2_estado', row.querySelector('[data-fcc-field="cond2_estado"]')?.value || '');
     fd.append('cond2_importe', row.querySelector('[data-fcc-field="cond2_importe"]')?.value || '');
     fd.append('cond2_observacion', row.querySelector('[data-fcc-field="cond2_observacion"]')?.value || '');
 
@@ -414,7 +488,10 @@
   }
 
   function setupBulkEdit() {
-    document.querySelectorAll('[data-fcc-row]').forEach((row) => rememberRow(row));
+    document.querySelectorAll('[data-fcc-row]').forEach((row) => {
+      applyRoundTripState(row, false);
+      rememberRow(row);
+    });
 
     const toggle = document.querySelector('[data-fcc-bulk-toggle]');
     const save = document.querySelector('[data-fcc-bulk-save]');
@@ -435,8 +512,12 @@
     document.querySelectorAll('[data-fcc-field]').forEach((field) => {
       const eventName = field.matches('select') ? 'change' : 'input';
       field.addEventListener(eventName, () => {
+        const row = field.closest('[data-fcc-row]');
+        if (field.matches('[data-fcc-field="ida_vuelta"]')) {
+          applyRoundTripState(row, true);
+        }
         if (field.matches('select')) syncSelectClass(field);
-        markRowChange(field.closest('[data-fcc-row]'));
+        markRowChange(row);
       });
     });
 
@@ -475,6 +556,11 @@
       const hora = compact(row.dataset.fccHora || '');
       const revision = compact(row.dataset.fccRevision || cellText(row, '[data-fcc-col="revision"]'));
       const anulado = row.dataset.fccAnulado === '1' || isCanceledRevision(revision);
+      const idaVuelta = tripDirection(cellText(row, '[data-fcc-field="ida_vuelta"]') || cellText(row, '[data-fcc-col="ida_vuelta"]'));
+      const retorno = row.dataset.fccRetorno === '1' || isReturnTrip(idaVuelta);
+      const origen = compact(row.dataset.fccOrigen || '');
+      const destino = compact(row.dataset.fccDestino || '');
+      const rutaSimple = (origen || destino) ? `${origen || '-'} -> ${destino || '-'}` : '-';
 
       return {
         id: row.dataset.fccRow || '',
@@ -487,6 +573,11 @@
         hora,
         revision,
         anulado,
+        idaVuelta,
+        retorno,
+        origen,
+        destino,
+        rutaSimple,
         cond1: cellText(row, '[data-fcc-col="cond1"]'),
         cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
         cond1Importe: cellText(row, '[data-fcc-field="cond1_importe"]'),
@@ -513,6 +604,7 @@
       const unitName = compact(unit.title || 'Unidad');
       (unit.rows || []).forEach((row) => {
         if (row.anulado || isCanceledRevision(row.revision)) return;
+        if (row.retorno || isReturnTrip(row.idaVuelta)) return;
         [
           { name: row.cond1, estado: row.cond1Estado, obs: row.cond1Obs },
           { name: row.cond2, estado: row.cond2Estado, obs: row.cond2Obs }
@@ -730,17 +822,18 @@
     setTripField('bus', bus);
     setTripField('placa', placa);
     setTripField('servicio', trip.servicio);
+    setTripField('ida_vuelta', tripDirection(trip.ida_vuelta));
     setTripField('origen', trip.origen);
     setTripField('destino', trip.destino);
     setTripField('fecha_programacion', formatDateTimeValue(trip.fecha_programacion));
     setTripField('ruta_texto', trip.ruta_texto);
     setTripField('comentario_horario', trip.comentario_horario);
     setTripField('cond1', trip.cond1);
-    setTripField('cond1_estado', trip.cond1_estado);
+    setTripField('cond1_estado', driverStateText(trip.cond1_estado));
     setTripField('cond1_importe', moneyText(trip.cond1_importe));
     setTripField('cond1_observacion', trip.cond1_observacion);
     setTripField('cond2', trip.cond2);
-    setTripField('cond2_estado', trip.cond2_estado);
+    setTripField('cond2_estado', driverStateText(trip.cond2_estado));
     setTripField('cond2_importe', moneyText(trip.cond2_importe));
     setTripField('cond2_observacion', trip.cond2_observacion);
     setTripField('comentario_revision', trip.comentario_revision);
@@ -769,9 +862,9 @@
   }
 
   function tripRouteText(trip) {
-    const route = compact(trip.ruta_texto || '');
-    if (route) return route;
-    return [trip.origen, trip.destino].map(compact).filter(Boolean).join(' -> ') || '-';
+    const origen = compact(trip.origen || '');
+    const destino = compact(trip.destino || '');
+    return (origen || destino) ? `${origen || '-'} -> ${destino || '-'}` : '-';
   }
 
   function tripConductorsText(trip) {
@@ -795,7 +888,7 @@
           placa: detail.placa || detail.unitPlaca || '',
           cond1: detail.cond1 || row.cond1 || '',
           cond2: detail.cond2 || row.cond2 || '',
-          routeText: tripRouteText(detail),
+          routeText: tripRouteText({ ...detail, ...row }),
           conductorsText: tripConductorsText(detail),
           dateLabel: formatDateValue(row.date || detail.date),
           timeLabel: row.hora || detail.hora || '-'
@@ -918,6 +1011,15 @@
         showTripDetail(button.dataset.fccTripId || '', button.closest('[data-fcc-row]'));
       });
     });
+
+    document.querySelectorAll('[data-fcc-row]').forEach((row) => {
+      row.addEventListener('dblclick', (event) => {
+        if (event.target.closest('button, a, input, select, textarea, label, [data-fcc-field]')) return;
+        const id = row.dataset.fccRow || '';
+        if (!id || id === '0') return;
+        showTripDetail(id, row);
+      });
+    });
   }
 
   function drawInfo(doc, left, y, width, unit, unitIndex, unitsCount) {
@@ -967,6 +1069,8 @@
       return [
         showDate ? (row.dia || '-') : '',
         `${row.revision || '-'}${row.hora ? `` : ''}`,
+        tripDirection(row.idaVuelta),
+        row.rutaSimple || '-',
         canceled ? '-' : (row.cond1 || '-'),
         canceled ? '-' : (row.cond1Obs || '-'),
         canceled ? '-' : (row.cond2 || '-'),
@@ -1158,7 +1262,7 @@
             y += 4;
 
             doc.autoTable({
-              head: [['Dia', 'Trabajo', 'Cond. 1', 'Obs. 1', 'Cond. 2', 'Obs. 2']],
+              head: [['Dia', 'Trabajo', 'Ida/Vuelta', 'Ruta', 'Cond. 1', 'Obs. 1', 'Cond. 2', 'Obs. 2']],
               body: tableBody(unit),
               startY: y,
               margin: { left, right, top: 32, bottom: 22 },
@@ -1179,12 +1283,14 @@
               },
               alternateRowStyles: { fillColor: [249, 251, 253] },
               columnStyles: {
-                0: { cellWidth: 9, halign: 'center' },
-                1: { cellWidth: 18, halign: 'center' },
-                2: { cellWidth: 39 },
-                3: { cellWidth: 39.3 },
-                4: { cellWidth: 39 },
-                5: { cellWidth: 39.3 }
+                0: { cellWidth: 8, halign: 'center' },
+                1: { cellWidth: 17, halign: 'center' },
+                2: { cellWidth: 17, halign: 'center' },
+                3: { cellWidth: 36 },
+                4: { cellWidth: 28 },
+                5: { cellWidth: 27 },
+                6: { cellWidth: 28 },
+                7: { cellWidth: 23.6 }
               },
               didParseCell: function (data) {
                 if (data.section !== 'body') return;
