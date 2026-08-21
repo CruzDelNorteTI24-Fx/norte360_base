@@ -513,14 +513,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             fcc_json(false, [], 'Selecciona menos de 300 registros por guardado masivo.', 422);
         }
 
+        $stmt = null;
+        $transactionStarted = false;
         try {
             $payloads = array_map(static fn($item) => fcc_driver_update_payload(is_array($item) ? $item : []), $items);
-        } catch (InvalidArgumentException $e) {
-            fcc_json(false, [], $e->getMessage(), 422);
-        }
-
-        try {
             $conn->begin_transaction();
+            $transactionStarted = true;
+
             $stmt = fcc_prepare_driver_update($conn);
             $cond1Estado = $cond1Importe = $cond1Obs = $cond2Estado = $cond2Importe = $cond2Obs = '';
             $id = 0;
@@ -540,53 +539,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $stmt->close();
+            $stmt = null;
             $conn->commit();
+            $transactionStarted = false;
+
+            fcc_json(true, [
+                'actualizados' => count($payloads),
+                'rows' => $payloads,
+                'actualizado' => date('d/m/Y H:i'),
+            ], count($payloads) . ' registro(s) actualizados correctamente.');
+        } catch (InvalidArgumentException $e) {
+            fcc_json(false, [], $e->getMessage(), 422);
         } catch (Throwable $e) {
-            if (isset($stmt) && $stmt instanceof mysqli_stmt) {
+            if ($stmt instanceof mysqli_stmt) {
                 $stmt->close();
             }
-            $conn->rollback();
+            if ($transactionStarted) {
+                $conn->rollback();
+            }
             fcc_json(false, [], $e->getMessage(), 500);
         }
-
-        fcc_json(true, [
-            'actualizados' => count($payloads),
-            'rows' => $payloads,
-            'actualizado' => date('d/m/Y H:i'),
-        ], count($payloads) . ' registro(s) actualizados correctamente.');
     }
 
+    $stmt = null;
     try {
         $payload = fcc_driver_update_payload($_POST);
         $stmt = fcc_prepare_driver_update($conn);
+
+        $cond1Estado = $payload['cond1_estado'];
+        $cond1Importe = $payload['cond1_importe'];
+        $cond1Obs = $payload['cond1_observacion'];
+        $cond2Estado = $payload['cond2_estado'];
+        $cond2Importe = $payload['cond2_importe'];
+        $cond2Obs = $payload['cond2_observacion'];
+        $id = $payload['id'];
+        $stmt->bind_param('ssssssi', $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
+
+        if (!$stmt->execute()) {
+            throw new RuntimeException($stmt->error ?: 'No se pudo guardar la gestion del conductor.');
+        }
+
+        $stmt->close();
+        $stmt = null;
+
+        fcc_json(true, [
+            'cond1_estado' => $payload['cond1_estado'],
+            'cond1_importe' => $payload['cond1_importe'],
+            'cond2_estado' => $payload['cond2_estado'],
+            'cond2_importe' => $payload['cond2_importe'],
+            'actualizado' => date('d/m/Y H:i'),
+        ], 'Estado, pago y observaciones de conductores actualizados.');
     } catch (InvalidArgumentException $e) {
         fcc_json(false, [], $e->getMessage(), 422);
     } catch (Throwable $e) {
+        if ($stmt instanceof mysqli_stmt) {
+            $stmt->close();
+        }
         fcc_json(false, [], $e->getMessage(), 500);
     }
-
-    $cond1Estado = $payload['cond1_estado'];
-    $cond1Importe = $payload['cond1_importe'];
-    $cond1Obs = $payload['cond1_observacion'];
-    $cond2Estado = $payload['cond2_estado'];
-    $cond2Importe = $payload['cond2_importe'];
-    $cond2Obs = $payload['cond2_observacion'];
-    $id = $payload['id'];
-    $stmt->bind_param('ssssssi', $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
-    if (!$stmt->execute()) {
-        $error = $stmt->error ?: 'No se pudo guardar la gestion del conductor.';
-        $stmt->close();
-        fcc_json(false, [], $error, 500);
-    }
-    $stmt->close();
-
-    fcc_json(true, [
-        'cond1_estado' => $payload['cond1_estado'],
-        'cond1_importe' => $payload['cond1_importe'],
-        'cond2_estado' => $payload['cond2_estado'],
-        'cond2_importe' => $payload['cond2_importe'],
-        'actualizado' => date('d/m/Y H:i'),
-    ], 'Estado, pago y observaciones de conductores actualizados.');
 }
 
 $month = fcc_valid_month($_GET['mes'] ?? date('Y-m'));
