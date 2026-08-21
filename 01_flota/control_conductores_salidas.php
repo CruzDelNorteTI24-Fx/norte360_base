@@ -410,6 +410,50 @@ function fcc_conductores($texto): array {
     return array_slice($out, 0, 2);
 }
 
+function fcc_driver_update_payload(array $data): array {
+    $id = (int)($data['id'] ?? 0);
+    if ($id <= 0) {
+        throw new InvalidArgumentException('Registro invalido.');
+    }
+
+    $cond1Estado = fcc_conductor_estado($data['cond1_estado'] ?? '', true);
+    $cond2Estado = fcc_conductor_estado($data['cond2_estado'] ?? '', true);
+    $cond1Importe = fcc_importe_nullable($data['cond1_importe'] ?? '', 'Pago del conductor 1');
+    $cond2Importe = fcc_importe_nullable($data['cond2_importe'] ?? '', 'Pago del conductor 2');
+    $cond1Obs = trim((string)($data['cond1_observacion'] ?? ''));
+    $cond2Obs = trim((string)($data['cond2_observacion'] ?? ''));
+    $cond1Obs = function_exists('mb_substr') ? mb_substr($cond1Obs, 0, 1000, 'UTF-8') : substr($cond1Obs, 0, 1000);
+    $cond2Obs = function_exists('mb_substr') ? mb_substr($cond2Obs, 0, 1000, 'UTF-8') : substr($cond2Obs, 0, 1000);
+
+    return [
+        'id' => $id,
+        'cond1_estado' => $cond1Estado,
+        'cond1_importe' => $cond1Importe,
+        'cond1_observacion' => $cond1Obs,
+        'cond2_estado' => $cond2Estado,
+        'cond2_importe' => $cond2Importe,
+        'cond2_observacion' => $cond2Obs,
+    ];
+}
+
+function fcc_prepare_driver_update(mysqli $conn): mysqli_stmt {
+    $stmt = $conn->prepare('
+        UPDATE tb_progbuses_salida_consolidado
+           SET clm_salprog_cond1_estado = ?,
+               clm_salprog_imtotalcond1 = NULLIF(?, \'\'),
+               clm_salprog_cond1_observacion = NULLIF(?, \'\'),
+               clm_salprog_cond2_estado = ?,
+               clm_salprog_imtotalcond2 = NULLIF(?, \'\'),
+               clm_salprog_cond2_observacion = NULLIF(?, \'\')
+         WHERE clm_salprog_id = ?
+         LIMIT 1
+    ');
+    if (!$stmt) {
+        throw new RuntimeException($conn->error ?: 'No se pudo preparar la actualizacion.');
+    }
+    return $stmt;
+}
+
 if (empty($_SESSION['fcc_token'])) {
     $_SESSION['fcc_token'] = bin2hex(random_bytes(16));
 }
@@ -443,42 +487,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $action = (string)($_POST['action'] ?? '');
-    if ($action !== 'update_driver_status') {
+    if (!in_array($action, ['update_driver_status', 'bulk_update_driver_status'], true)) {
         fcc_json(false, [], 'Accion no reconocida.', 400);
     }
 
-    $id = (int)($_POST['id'] ?? 0);
-    $cond1Estado = fcc_conductor_estado($_POST['cond1_estado'] ?? '', true);
-    $cond2Estado = fcc_conductor_estado($_POST['cond2_estado'] ?? '', true);
+    if ($action === 'bulk_update_driver_status') {
+        $items = json_decode((string)($_POST['items'] ?? '[]'), true);
+        if (!is_array($items) || !$items) {
+            fcc_json(false, [], 'No hay filas modificadas para guardar.', 422);
+        }
+        if (count($items) > 300) {
+            fcc_json(false, [], 'Selecciona menos de 300 registros por guardado masivo.', 422);
+        }
+
+        try {
+            $payloads = array_map(static fn($item) => fcc_driver_update_payload(is_array($item) ? $item : []), $items);
+        } catch (InvalidArgumentException $e) {
+            fcc_json(false, [], $e->getMessage(), 422);
+        }
+
+        try {
+            $conn->begin_transaction();
+            $stmt = fcc_prepare_driver_update($conn);
+            $cond1Estado = $cond1Importe = $cond1Obs = $cond2Estado = $cond2Importe = $cond2Obs = '';
+            $id = 0;
+            $stmt->bind_param('ssssssi', $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
+
+            foreach ($payloads as $payload) {
+                $cond1Estado = $payload['cond1_estado'];
+                $cond1Importe = $payload['cond1_importe'];
+                $cond1Obs = $payload['cond1_observacion'];
+                $cond2Estado = $payload['cond2_estado'];
+                $cond2Importe = $payload['cond2_importe'];
+                $cond2Obs = $payload['cond2_observacion'];
+                $id = $payload['id'];
+                if (!$stmt->execute()) {
+                    throw new RuntimeException($stmt->error ?: 'No se pudo guardar la gestion del conductor.');
+                }
+            }
+
+            $stmt->close();
+            $conn->commit();
+        } catch (Throwable $e) {
+            if (isset($stmt) && $stmt instanceof mysqli_stmt) {
+                $stmt->close();
+            }
+            $conn->rollback();
+            fcc_json(false, [], $e->getMessage(), 500);
+        }
+
+        fcc_json(true, [
+            'actualizados' => count($payloads),
+            'rows' => $payloads,
+            'actualizado' => date('d/m/Y H:i'),
+        ], count($payloads) . ' registro(s) actualizados correctamente.');
+    }
+
     try {
-        $cond1Importe = fcc_importe_nullable($_POST['cond1_importe'] ?? '', 'Pago del conductor 1');
-        $cond2Importe = fcc_importe_nullable($_POST['cond2_importe'] ?? '', 'Pago del conductor 2');
+        $payload = fcc_driver_update_payload($_POST);
+        $stmt = fcc_prepare_driver_update($conn);
     } catch (InvalidArgumentException $e) {
         fcc_json(false, [], $e->getMessage(), 422);
-    }
-    $cond1Obs = trim((string)($_POST['cond1_observacion'] ?? ''));
-    $cond2Obs = trim((string)($_POST['cond2_observacion'] ?? ''));
-    $cond1Obs = function_exists('mb_substr') ? mb_substr($cond1Obs, 0, 1000, 'UTF-8') : substr($cond1Obs, 0, 1000);
-    $cond2Obs = function_exists('mb_substr') ? mb_substr($cond2Obs, 0, 1000, 'UTF-8') : substr($cond2Obs, 0, 1000);
-
-    if ($id <= 0) {
-        fcc_json(false, [], 'Registro invalido.', 422);
+    } catch (Throwable $e) {
+        fcc_json(false, [], $e->getMessage(), 500);
     }
 
-    $stmt = $conn->prepare('
-        UPDATE tb_progbuses_salida_consolidado
-           SET clm_salprog_cond1_estado = ?,
-               clm_salprog_imtotalcond1 = NULLIF(?, \'\'),
-               clm_salprog_cond1_observacion = NULLIF(?, \'\'),
-               clm_salprog_cond2_estado = ?,
-               clm_salprog_imtotalcond2 = NULLIF(?, \'\'),
-               clm_salprog_cond2_observacion = NULLIF(?, \'\')
-         WHERE clm_salprog_id = ?
-         LIMIT 1
-    ');
-    if (!$stmt) {
-        fcc_json(false, [], $conn->error ?: 'No se pudo preparar la actualizacion.', 500);
-    }
+    $cond1Estado = $payload['cond1_estado'];
+    $cond1Importe = $payload['cond1_importe'];
+    $cond1Obs = $payload['cond1_observacion'];
+    $cond2Estado = $payload['cond2_estado'];
+    $cond2Importe = $payload['cond2_importe'];
+    $cond2Obs = $payload['cond2_observacion'];
+    $id = $payload['id'];
     $stmt->bind_param('ssssssi', $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
     if (!$stmt->execute()) {
         $error = $stmt->error ?: 'No se pudo guardar la gestion del conductor.';
@@ -488,10 +568,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->close();
 
     fcc_json(true, [
-        'cond1_estado' => $cond1Estado,
-        'cond1_importe' => $cond1Importe,
-        'cond2_estado' => $cond2Estado,
-        'cond2_importe' => $cond2Importe,
+        'cond1_estado' => $payload['cond1_estado'],
+        'cond1_importe' => $payload['cond1_importe'],
+        'cond2_estado' => $payload['cond2_estado'],
+        'cond2_importe' => $payload['cond2_importe'],
         'actualizado' => date('d/m/Y H:i'),
     ], 'Estado, pago y observaciones de conductores actualizados.');
 }
@@ -784,6 +864,22 @@ $monthLabel = fcc_month_label($monthStart);
                     <a class="fcc-btn fcc-btn--soft" href="control_conductores_salidas.php"><i class="bi bi-x-circle"></i> Limpiar</a>
                 </div>
             </form>
+        </section>
+
+        <section class="fcc-bulk-panel" data-fcc-bulk-panel>
+            <div class="fcc-bulk-panel__info">
+                <span class="fcc-bulk-icon"><i class="bi bi-pencil-square"></i></span>
+                <div>
+                    <strong>Editar masivo</strong>
+                    <small>Activa este modo para modificar varias filas y guardar todo en una sola confirmacion.</small>
+                </div>
+            </div>
+            <div class="fcc-bulk-panel__actions">
+                <span class="fcc-bulk-count" data-fcc-bulk-count>0 filas modificadas</span>
+                <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-bulk-toggle <?= $driverColumnsReady ? '' : 'disabled' ?>><i class="bi bi-toggles"></i> Activar masivo</button>
+                <button type="button" class="fcc-btn fcc-btn--primary" data-fcc-bulk-save disabled><i class="bi bi-save2"></i> Guardar cambios</button>
+                <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-bulk-cancel disabled><i class="bi bi-x-circle"></i> Cancelar cambios</button>
+            </div>
         </section>
 
         <section class="fcc-units" data-fcc-units>

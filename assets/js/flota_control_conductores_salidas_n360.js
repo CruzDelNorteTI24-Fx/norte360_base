@@ -4,6 +4,8 @@
   const csrf = cfg.csrf || '';
   const report = cfg.report || {};
   const tripMap = new Map();
+  const rowBaselines = new Map();
+  let bulkMode = false;
 
   const clean = (value) => String(value || '').replace(/[ \t]+/g, ' ').replace(/\n\s+/g, '\n').trim();
   const compact = (value) => clean(value).replace(/\s+/g, ' ');
@@ -16,6 +18,10 @@
     '"': '&quot;',
     "'": '&#039;'
   }[char]));
+  const cssEscape = (value) => {
+    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+    return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+  };
 
   function normalizeMoneyValue(value) {
     const raw = String(value ?? '').trim().replace(',', '.');
@@ -133,6 +139,138 @@
     }
   }
 
+  function rowFields(row) {
+    return {
+      cond1_estado: row.querySelector('[data-fcc-field="cond1_estado"]'),
+      cond1_importe: row.querySelector('[data-fcc-field="cond1_importe"]'),
+      cond1_observacion: row.querySelector('[data-fcc-field="cond1_observacion"]'),
+      cond2_estado: row.querySelector('[data-fcc-field="cond2_estado"]'),
+      cond2_importe: row.querySelector('[data-fcc-field="cond2_importe"]'),
+      cond2_observacion: row.querySelector('[data-fcc-field="cond2_observacion"]')
+    };
+  }
+
+  function rowValues(row) {
+    const fields = rowFields(row);
+    return {
+      id: row.dataset.fccRow || '',
+      cond1_estado: fields.cond1_estado?.value || 'PENDIENTE',
+      cond1_importe: fields.cond1_importe?.value || '',
+      cond1_observacion: fields.cond1_observacion?.value || '',
+      cond2_estado: fields.cond2_estado?.value || 'PENDIENTE',
+      cond2_importe: fields.cond2_importe?.value || '',
+      cond2_observacion: fields.cond2_observacion?.value || ''
+    };
+  }
+
+  function comparableRowValues(values) {
+    return {
+      cond1_estado: compact(values.cond1_estado).toUpperCase(),
+      cond1_importe: normalizeMoneyValue(values.cond1_importe),
+      cond1_observacion: String(values.cond1_observacion || ''),
+      cond2_estado: compact(values.cond2_estado).toUpperCase(),
+      cond2_importe: normalizeMoneyValue(values.cond2_importe),
+      cond2_observacion: String(values.cond2_observacion || '')
+    };
+  }
+
+  function rememberRow(row) {
+    const id = row?.dataset?.fccRow || '';
+    if (!id || id === '0') return;
+    rowBaselines.set(id, comparableRowValues(rowValues(row)));
+    row.classList.remove('is-bulk-dirty');
+  }
+
+  function restoreRow(row) {
+    const id = row?.dataset?.fccRow || '';
+    const baseline = rowBaselines.get(id);
+    if (!baseline) return;
+    const fields = rowFields(row);
+    Object.entries(baseline).forEach(([name, value]) => {
+      if (fields[name]) fields[name].value = value;
+    });
+    row.querySelectorAll('select').forEach(syncSelectClass);
+    row.classList.remove('is-bulk-dirty');
+  }
+
+  function dirtyRows() {
+    return Array.from(document.querySelectorAll('[data-fcc-row].is-bulk-dirty'))
+      .filter((row) => row.dataset.fccRow && row.dataset.fccRow !== '0');
+  }
+
+  function updateBulkUi() {
+    const panel = document.querySelector('[data-fcc-bulk-panel]');
+    const count = dirtyRows().length;
+    const countText = document.querySelector('[data-fcc-bulk-count]');
+    const save = document.querySelector('[data-fcc-bulk-save]');
+    const cancel = document.querySelector('[data-fcc-bulk-cancel]');
+    const toggle = document.querySelector('[data-fcc-bulk-toggle]');
+    if (panel) panel.classList.toggle('is-active', bulkMode);
+    if (countText) countText.textContent = `${count} fila${count === 1 ? '' : 's'} modificada${count === 1 ? '' : 's'}`;
+    if (save) save.disabled = !bulkMode || count === 0;
+    if (cancel) cancel.disabled = !bulkMode || count === 0;
+    if (toggle) {
+      toggle.classList.toggle('fcc-btn--primary', bulkMode);
+      toggle.classList.toggle('fcc-btn--soft', !bulkMode);
+      toggle.innerHTML = bulkMode
+        ? '<i class="bi bi-toggles2"></i> Desactivar masivo'
+        : '<i class="bi bi-toggles"></i> Activar masivo';
+    }
+  }
+
+  function markRowChange(row) {
+    if (!row || !bulkMode) return;
+    const id = row.dataset.fccRow || '';
+    if (!id || id === '0') return;
+    const baseline = rowBaselines.get(id) || comparableRowValues(rowValues(row));
+    const changed = JSON.stringify(comparableRowValues(rowValues(row))) !== JSON.stringify(baseline);
+    row.classList.toggle('is-bulk-dirty', changed);
+    updateBulkUi();
+  }
+
+  function setBulkMode(active) {
+    bulkMode = !!active;
+    document.body.classList.toggle('fcc-bulk-mode', bulkMode);
+    if (bulkMode) {
+      document.querySelectorAll('[data-fcc-row]').forEach(markRowChange);
+    }
+    updateBulkUi();
+  }
+
+  function validateAndNormalizeRow(row) {
+    const amountInputs = Array.from(row.querySelectorAll('[data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]'));
+    const invalidAmount = amountInputs.find((input) => !input.disabled && !input.checkValidity());
+    if (invalidAmount) {
+      invalidAmount.reportValidity();
+      return false;
+    }
+    amountInputs.forEach((input) => {
+      if (!input.disabled && input.value !== '') input.value = normalizeMoneyValue(input.value);
+    });
+    return true;
+  }
+
+  function applySavedRow(row, data) {
+    if (!row) return;
+    const fields = rowFields(row);
+    if (fields.cond1_estado && data?.cond1_estado) fields.cond1_estado.value = data.cond1_estado;
+    if (fields.cond1_importe) fields.cond1_importe.value = normalizeMoneyValue(data?.cond1_importe ?? fields.cond1_importe.value);
+    if (fields.cond2_estado && data?.cond2_estado) fields.cond2_estado.value = data.cond2_estado;
+    if (fields.cond2_importe) fields.cond2_importe.value = normalizeMoneyValue(data?.cond2_importe ?? fields.cond2_importe.value);
+    row.querySelectorAll('select').forEach(syncSelectClass);
+
+    const id = row.dataset.fccRow || '';
+    const savedTrip = tripMap.get(String(id));
+    if (savedTrip) {
+      syncTripFromRow(savedTrip, row);
+      savedTrip.cond1_estado = data?.cond1_estado || savedTrip.cond1_estado;
+      savedTrip.cond1_importe = data?.cond1_importe ?? savedTrip.cond1_importe;
+      savedTrip.cond2_estado = data?.cond2_estado || savedTrip.cond2_estado;
+      savedTrip.cond2_importe = data?.cond2_importe ?? savedTrip.cond2_importe;
+    }
+    rememberRow(row);
+  }
+
   async function saveRow(button) {
     const row = button.closest('[data-fcc-row]');
     if (!row) return;
@@ -142,16 +280,9 @@
       return;
     }
 
-    const amountInputs = Array.from(row.querySelectorAll('[data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]'));
-    const invalidAmount = amountInputs.find((input) => !input.disabled && !input.checkValidity());
-    if (invalidAmount) {
-      invalidAmount.reportValidity();
+    if (!validateAndNormalizeRow(row)) {
       return;
     }
-
-    amountInputs.forEach((input) => {
-      if (!input.disabled && input.value !== '') input.value = normalizeMoneyValue(input.value);
-    });
 
     const fd = new FormData();
     fd.append('csrf', csrf);
@@ -179,19 +310,8 @@
       if (!json.ok) {
         throw new Error(json.message || 'No se pudo guardar.');
       }
-      row.querySelectorAll('select').forEach(syncSelectClass);
-      const cond1Amount = row.querySelector('[data-fcc-field="cond1_importe"]');
-      const cond2Amount = row.querySelector('[data-fcc-field="cond2_importe"]');
-      if (cond1Amount) cond1Amount.value = normalizeMoneyValue(json.data?.cond1_importe || cond1Amount.value);
-      if (cond2Amount) cond2Amount.value = normalizeMoneyValue(json.data?.cond2_importe || cond2Amount.value);
-      const savedTrip = tripMap.get(String(id));
-      if (savedTrip) {
-        syncTripFromRow(savedTrip, row);
-        savedTrip.cond1_estado = json.data?.cond1_estado || savedTrip.cond1_estado;
-        savedTrip.cond1_importe = json.data?.cond1_importe || savedTrip.cond1_importe;
-        savedTrip.cond2_estado = json.data?.cond2_estado || savedTrip.cond2_estado;
-        savedTrip.cond2_importe = json.data?.cond2_importe || savedTrip.cond2_importe;
-      }
+      applySavedRow(row, json.data || rowValues(row));
+      updateBulkUi();
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
       showNotice(err.message || 'No se pudo guardar.', false);
@@ -199,6 +319,109 @@
       button.disabled = false;
       button.innerHTML = original;
     }
+  }
+
+  async function saveBulkRows(button) {
+    const rows = dirtyRows();
+    if (!rows.length) {
+      showNotice('No hay filas modificadas para guardar.', false);
+      return;
+    }
+
+    for (const row of rows) {
+      if (!validateAndNormalizeRow(row)) return;
+    }
+
+    const items = rows.map(rowValues);
+    const ok = window.confirm(`Deseas actualizar ${items.length} registro${items.length === 1 ? '' : 's'} de estados, pagos y observaciones?`);
+    if (!ok) return;
+
+    const fd = new FormData();
+    fd.append('csrf', csrf);
+    fd.append('action', 'bulk_update_driver_status');
+    fd.append('items', JSON.stringify(items));
+
+    const original = button?.innerHTML || '';
+    const toggle = document.querySelector('[data-fcc-bulk-toggle]');
+    const cancel = document.querySelector('[data-fcc-bulk-cancel]');
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Guardando...';
+    }
+    if (toggle) toggle.disabled = true;
+    if (cancel) cancel.disabled = true;
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        throw new Error(json.message || 'No se pudo guardar el lote.');
+      }
+
+      const savedRows = Array.isArray(json.data?.rows) ? json.data.rows : items;
+      savedRows.forEach((item) => {
+        const row = document.querySelector(`[data-fcc-row="${cssEscape(String(item.id || ''))}"]`);
+        applySavedRow(row, item);
+      });
+      updateBulkUi();
+      showNotice(json.message || 'Cambios masivos guardados.', true);
+    } catch (err) {
+      showNotice(err.message || 'No se pudo guardar el lote.', false);
+    } finally {
+      if (button) {
+        button.innerHTML = original;
+      }
+      if (toggle) toggle.disabled = false;
+      updateBulkUi();
+    }
+  }
+
+  function cancelBulkChanges() {
+    const rows = dirtyRows();
+    if (!rows.length) {
+      updateBulkUi();
+      return;
+    }
+    const ok = window.confirm(`Deseas cancelar ${rows.length} cambio${rows.length === 1 ? '' : 's'} sin guardar?`);
+    if (!ok) return;
+    rows.forEach(restoreRow);
+    updateBulkUi();
+    showNotice('Cambios masivos cancelados.', true);
+  }
+
+  function setupBulkEdit() {
+    document.querySelectorAll('[data-fcc-row]').forEach((row) => rememberRow(row));
+
+    const toggle = document.querySelector('[data-fcc-bulk-toggle]');
+    const save = document.querySelector('[data-fcc-bulk-save]');
+    const cancel = document.querySelector('[data-fcc-bulk-cancel]');
+
+    toggle?.addEventListener('click', () => {
+      if (bulkMode && dirtyRows().length) {
+        const ok = window.confirm('Hay cambios masivos sin guardar. Deseas salir y descartarlos?');
+        if (!ok) return;
+        dirtyRows().forEach(restoreRow);
+      }
+      setBulkMode(!bulkMode);
+    });
+
+    save?.addEventListener('click', () => saveBulkRows(save));
+    cancel?.addEventListener('click', cancelBulkChanges);
+
+    document.querySelectorAll('[data-fcc-field]').forEach((field) => {
+      const eventName = field.matches('select') ? 'change' : 'input';
+      field.addEventListener(eventName, () => {
+        if (field.matches('select')) syncSelectClass(field);
+        markRowChange(field.closest('[data-fcc-row]'));
+      });
+    });
+
+    setBulkMode(false);
   }
 
   function setupSearch() {
@@ -785,8 +1008,10 @@
     if (input.value !== '') input.value = normalizeMoneyValue(input.value);
     input.addEventListener('blur', () => {
       if (input.value !== '' && input.checkValidity()) input.value = normalizeMoneyValue(input.value);
+      markRowChange(input.closest('[data-fcc-row]'));
     });
   });
+  setupBulkEdit();
   setupSearch();
   setupPdfButtons();
   setupDriverSummaryModal();
