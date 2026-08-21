@@ -386,6 +386,15 @@ function fcc_ida_vuelta($value): string {
     return 'PENDIENTE';
 }
 
+function fcc_hojaruta_key($value): string {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+    $value = preg_replace('/\s+/u', ' ', $value) ?: $value;
+    return function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
+}
+
 function fcc_importe_nullable($value, string $label): string {
     $value = trim((string)$value);
     if ($value === '') {
@@ -630,6 +639,7 @@ $allPlates = [];
 $plates = [];
 $rows = [];
 $rowsByPlateDay = [];
+$hojaRutaCounts = [];
 $selectedUnit = trim((string)($_GET['unidad'] ?? 'TODOS'));
 
 try {
@@ -647,6 +657,11 @@ try {
     ', 'ss', [$monthStart, $monthEnd]);
 
     foreach ($rows as $row) {
+        $hojaRutaKey = fcc_hojaruta_key($row['clm_salprog_hojaruta'] ?? '');
+        if ($hojaRutaKey !== '') {
+            $hojaRutaCounts[$hojaRutaKey] = ($hojaRutaCounts[$hojaRutaKey] ?? 0) + 1;
+        }
+
         $plateId = (int)($row['clm_salprog_idplaca'] ?? 0);
         $date = (string)($row['clm_salprog_fecha_operativa'] ?? '');
         if ($plateId <= 0 || $date === '') {
@@ -725,6 +740,9 @@ foreach ($plates as $plateId => $plate) {
                 'conductores_texto' => '',
                 'comentario_revision' => '',
                 'correccion' => '',
+                'hoja_ruta' => '',
+                'hoja_ruta_validada' => false,
+                'hoja_ruta_duplicada' => false,
                 'usuario_revision' => null,
                 'datetime_revision' => '',
                 'usuario_creacion' => null,
@@ -751,6 +769,10 @@ foreach ($plates as $plateId => $plate) {
             $isAnulado = fcc_revision_is_anulada($revision);
             $idaVuelta = fcc_ida_vuelta($row['clm_salprog_estadoidavuelta'] ?? 'PENDIENTE');
             $isRetorno = $idaVuelta === 'RETORNO';
+            $hojaRuta = trim((string)($row['clm_salprog_hojaruta'] ?? ''));
+            $hojaRutaKey = fcc_hojaruta_key($hojaRuta);
+            $hojaRutaDuplicada = $hojaRutaKey !== '' && (int)($hojaRutaCounts[$hojaRutaKey] ?? 0) > 1;
+            $hojaRutaValidada = $hojaRuta !== '' && !$hojaRutaDuplicada;
 
             if ($isAnulado) {
                 $unitCanceled++;
@@ -813,6 +835,9 @@ foreach ($plates as $plateId => $plate) {
                 'conductores_texto' => (string)($row['clm_salprog_conductores_texto'] ?? ''),
                 'comentario_revision' => (string)($row['clm_salprog_comentario_revision'] ?? ''),
                 'correccion' => (string)($row['clm_salprog_correccion'] ?? ''),
+                'hoja_ruta' => $hojaRuta,
+                'hoja_ruta_validada' => $hojaRutaValidada,
+                'hoja_ruta_duplicada' => $hojaRutaDuplicada,
                 'usuario_revision' => isset($row['clm_salprog_usuario_revision']) ? (int)$row['clm_salprog_usuario_revision'] : null,
                 'datetime_revision' => (string)($row['clm_salprog_datetime_revision'] ?? ''),
                 'usuario_creacion' => isset($row['clm_salprog_usuario_creacion']) ? (int)$row['clm_salprog_usuario_creacion'] : null,
@@ -1042,6 +1067,12 @@ $monthLabel = fcc_month_label($monthStart);
                                                 if ($isRetorno) {
                                                     $fccRowClasses[] = 'is-retorno';
                                                 }
+                                                if (!empty($unitRow['hoja_ruta_validada'])) {
+                                                    $fccRowClasses[] = 'has-hojaruta';
+                                                }
+                                                if (!empty($unitRow['hoja_ruta_duplicada'])) {
+                                                    $fccRowClasses[] = 'has-hojaruta-warning';
+                                                }
                                                 if ((int)$unitRow['trips_day'] > 1) {
                                                     $fccRowClasses[] = 'has-multiple-trips';
                                                 }
@@ -1064,6 +1095,9 @@ $monthLabel = fcc_month_label($monthStart);
                                             data-fcc-revision="<?= fcc_h($unitRow['revision']) ?>"
                                             data-fcc-origen="<?= fcc_h($fccRowOrigen) ?>"
                                             data-fcc-destino="<?= fcc_h($fccRowDestino) ?>"
+                                            data-fcc-hojaruta="<?= fcc_h($unitRow['hoja_ruta']) ?>"
+                                            data-fcc-hojaruta-validada="<?= !empty($unitRow['hoja_ruta_validada']) ? '1' : '0' ?>"
+                                            data-fcc-hojaruta-duplicada="<?= !empty($unitRow['hoja_ruta_duplicada']) ? '1' : '0' ?>"
                                             data-fcc-anulado="<?= $isAnulado ? '1' : '0' ?>"
                                             data-fcc-retorno="<?= $isRetorno ? '1' : '0' ?>"
                                             data-fcc-editable="<?= ($driverColumnsReady && $hasSchedule && !$isAnulado) ? '1' : '0' ?>"
@@ -1087,6 +1121,15 @@ $monthLabel = fcc_month_label($monthStart);
                                                         <span>Viaje <?= (int)$unitRow['trip_index'] ?><?= (int)$unitRow['trips_day'] > 1 ? ' de ' . (int)$unitRow['trips_day'] : '' ?></span>
                                                         <?php if ($unitRow['hora'] !== ''): ?>
                                                             <span><i class="bi bi-clock"></i> <?= fcc_h($unitRow['hora']) ?></span>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($unitRow['hoja_ruta_validada'])): ?>
+                                                            <span class="fcc-hojaruta-shield" title="Hoja de ruta validada: <?= fcc_h($unitRow['hoja_ruta']) ?>" aria-label="Hoja de ruta validada">
+                                                                <i class="bi bi-shield-check"></i> HR
+                                                            </span>
+                                                        <?php elseif (!empty($unitRow['hoja_ruta_duplicada'])): ?>
+                                                            <span class="fcc-hojaruta-shield fcc-hojaruta-shield--warn" title="Hoja de ruta duplicada: <?= fcc_h($unitRow['hoja_ruta']) ?>" aria-label="Hoja de ruta duplicada">
+                                                                <i class="bi bi-shield-exclamation"></i> HR
+                                                            </span>
                                                         <?php endif; ?>
                                                     </small>
                                                 <?php endif; ?>
@@ -1132,8 +1175,8 @@ $monthLabel = fcc_month_label($monthStart);
                                                     <span class="fcc-muted">-</span>
                                                 <?php else: ?>
                                                     <label class="fcc-money-field">
-                                                        <span>S/</span>
-                                                        <input type="number" min="0" max="9999999999999999.9999" step="0.0001" inputmode="decimal" aria-label="Pago conductor 1" data-fcc-field="cond1_importe" value="<?= fcc_h($unitRow['cond1_importe']) ?>" placeholder="0.0000" <?= $cond1Enabled ? '' : 'disabled' ?>>
+                                                        <span><strong>S/</strong><small>PEN</small></span>
+                                                        <input type="number" min="0" max="9999999999999999.9999" step="0.0001" inputmode="decimal" aria-label="Pago conductor 1 en soles" data-fcc-field="cond1_importe" value="<?= fcc_h($unitRow['cond1_importe']) ?>" placeholder="0.00" <?= $cond1Enabled ? '' : 'disabled' ?>>
                                                     </label>
                                                 <?php endif; ?>
                                             </td>
@@ -1161,8 +1204,8 @@ $monthLabel = fcc_month_label($monthStart);
                                                     <span class="fcc-muted">-</span>
                                                 <?php else: ?>
                                                     <label class="fcc-money-field">
-                                                        <span>S/</span>
-                                                        <input type="number" min="0" max="9999999999999999.9999" step="0.0001" inputmode="decimal" aria-label="Pago conductor 2" data-fcc-field="cond2_importe" value="<?= fcc_h($unitRow['cond2_importe']) ?>" placeholder="0.0000" <?= $cond2Enabled ? '' : 'disabled' ?>>
+                                                        <span><strong>S/</strong><small>PEN</small></span>
+                                                        <input type="number" min="0" max="9999999999999999.9999" step="0.0001" inputmode="decimal" aria-label="Pago conductor 2 en soles" data-fcc-field="cond2_importe" value="<?= fcc_h($unitRow['cond2_importe']) ?>" placeholder="0.00" <?= $cond2Enabled ? '' : 'disabled' ?>>
                                                     </label>
                                                 <?php endif; ?>
                                             </td>                                            
@@ -1357,6 +1400,8 @@ $monthLabel = fcc_month_label($monthStart);
                         <article><span>Origen</span><strong data-fcc-trip-field="origen">-</strong></article>
                         <article><span>Destino</span><strong data-fcc-trip-field="destino">-</strong></article>
                         <article><span>Programado en pizarra</span><strong data-fcc-trip-field="fecha_programacion">-</strong></article>
+                        <article><span>Hoja de ruta</span><strong data-fcc-trip-field="hoja_ruta">-</strong></article>
+                        <article><span>Estado hoja ruta</span><strong data-fcc-trip-field="hoja_ruta_estado">-</strong></article>
                         <article class="fcc-trip-detail-wide"><span>Ruta consolidada</span><strong data-fcc-trip-field="ruta_texto">-</strong></article>
                         <article class="fcc-trip-detail-wide"><span>Comentario del horario</span><strong data-fcc-trip-field="comentario_horario">-</strong></article>
                     </div>

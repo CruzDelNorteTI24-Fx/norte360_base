@@ -57,9 +57,52 @@
     return `${integer}.${decimal}`;
   }
 
-  function moneyText(value) {
+  function moneyDisplayValue(value) {
+    const raw = String(value ?? '').trim().replace(',', '.');
+    if (!raw) return '0.00';
+    const match = raw.match(/^(\d{1,17})(?:\.(\d+))?$/);
+    if (!match) return raw;
+    let integer = match[1].replace(/^0+(?=\d)/, '') || '0';
+    const decimals = String(match[2] || '');
+    if (!decimals) return `${integer}.00`;
+    if (decimals.length <= 2) return `${integer}.${decimals.padEnd(2, '0')}`;
+    return `${integer}.${decimals}`;
+  }
+
+  function moneyInputRaw(input) {
+    if (!input) return '';
+    const source = document.activeElement === input ? input.value : (input.dataset.fccMoneyRaw ?? input.value);
+    return normalizeMoneyValue(source);
+  }
+
+  function setMoneyInputValue(input, value, showRaw, displaySource) {
+    if (!input) return;
     const normalized = normalizeMoneyValue(value);
-    return normalized ? `S/ ${normalized}` : '-';
+    const display = String(displaySource ?? value ?? '').trim().replace(',', '.');
+    input.dataset.fccMoneyRaw = normalized;
+    input.dataset.fccMoneyDisplay = display;
+    input.value = showRaw ? normalized : moneyDisplayValue(display || normalized);
+  }
+
+  function displayMoneyInput(input) {
+    setMoneyInputValue(input, moneyInputRaw(input), false, input?.dataset?.fccMoneyDisplay || '');
+  }
+
+  function editMoneyInput(input) {
+    setMoneyInputValue(input, moneyInputRaw(input), true);
+  }
+
+  function moneyText(value) {
+    const raw = String(value ?? '').trim();
+    return raw ? `S/ ${moneyDisplayValue(raw)}` : '-';
+  }
+
+  function hojaRutaStateText(trip) {
+    const hojaRuta = compact(trip?.hoja_ruta || '');
+    if (!hojaRuta) return 'PENDIENTE';
+    if (trip?.hoja_ruta_duplicada) return 'DUPLICADA';
+    if (trip?.hoja_ruta_validada) return 'VALIDADA';
+    return 'REGISTRADA';
   }
 
   function monthParts() {
@@ -134,10 +177,10 @@
     const cond2Obs = row.querySelector('[data-fcc-field="cond2_observacion"]');
     if (idaVuelta) trip.ida_vuelta = tripDirection(idaVuelta.value);
     if (cond1Estado) trip.cond1_estado = cond1Estado.value;
-    if (cond1Importe) trip.cond1_importe = cond1Importe.value;
+    if (cond1Importe) trip.cond1_importe = moneyInputRaw(cond1Importe);
     if (cond1Obs) trip.cond1_observacion = cond1Obs.value;
     if (cond2Estado) trip.cond2_estado = cond2Estado.value;
-    if (cond2Importe) trip.cond2_importe = cond2Importe.value;
+    if (cond2Importe) trip.cond2_importe = moneyInputRaw(cond2Importe);
     if (cond2Obs) trip.cond2_observacion = cond2Obs.value;
     return trip;
   }
@@ -190,10 +233,10 @@
       id: row.dataset.fccRow || '',
       ida_vuelta: tripDirection(fields.ida_vuelta?.value),
       cond1_estado: fields.cond1_estado?.value || '',
-      cond1_importe: fields.cond1_importe?.value || '',
+      cond1_importe: moneyInputRaw(fields.cond1_importe),
       cond1_observacion: fields.cond1_observacion?.value || '',
       cond2_estado: fields.cond2_estado?.value || '',
-      cond2_importe: fields.cond2_importe?.value || '',
+      cond2_importe: moneyInputRaw(fields.cond2_importe),
       cond2_observacion: fields.cond2_observacion?.value || ''
     };
   }
@@ -226,6 +269,8 @@
     Object.entries(baseline).forEach(([name, value]) => {
       if (fields[name]) fields[name].value = value;
     });
+    setMoneyInputValue(fields.cond1_importe, baseline.cond1_importe || '', false);
+    setMoneyInputValue(fields.cond2_importe, baseline.cond2_importe || '', false);
     applyRoundTripState(row, false);
     row.querySelectorAll('select').forEach(syncSelectClass);
     row.classList.remove('is-bulk-dirty');
@@ -255,7 +300,7 @@
       if (retorno) {
         if (clearDriverFields) {
           if (driver.state) driver.state.value = '';
-          if (driver.amount) driver.amount.value = '';
+          if (driver.amount) setMoneyInputValue(driver.amount, '', false);
         }
         if (driver.state) driver.state.disabled = true;
         if (driver.amount) driver.amount.disabled = true;
@@ -330,7 +375,7 @@
       return false;
     }
     amountInputs.forEach((input) => {
-      if (!input.disabled && input.value !== '') input.value = normalizeMoneyValue(input.value);
+      if (!input.disabled && moneyInputRaw(input) !== '') displayMoneyInput(input);
     });
     return true;
   }
@@ -340,9 +385,9 @@
     const fields = rowFields(row);
     if (fields.ida_vuelta && data && Object.prototype.hasOwnProperty.call(data, 'ida_vuelta')) fields.ida_vuelta.value = tripDirection(data.ida_vuelta);
     if (fields.cond1_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond1_estado')) fields.cond1_estado.value = data.cond1_estado || '';
-    if (fields.cond1_importe) fields.cond1_importe.value = normalizeMoneyValue(data?.cond1_importe ?? fields.cond1_importe.value);
+    if (fields.cond1_importe) setMoneyInputValue(fields.cond1_importe, data?.cond1_importe ?? moneyInputRaw(fields.cond1_importe), false);
     if (fields.cond2_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond2_estado')) fields.cond2_estado.value = data.cond2_estado || '';
-    if (fields.cond2_importe) fields.cond2_importe.value = normalizeMoneyValue(data?.cond2_importe ?? fields.cond2_importe.value);
+    if (fields.cond2_importe) setMoneyInputValue(fields.cond2_importe, data?.cond2_importe ?? moneyInputRaw(fields.cond2_importe), false);
     applyRoundTripState(row, false);
     row.querySelectorAll('select').forEach(syncSelectClass);
 
@@ -382,10 +427,10 @@
     fd.append('id', id);
     fd.append('ida_vuelta', tripDirection(row.querySelector('[data-fcc-field="ida_vuelta"]')?.value));
     fd.append('cond1_estado', row.querySelector('[data-fcc-field="cond1_estado"]')?.value || '');
-    fd.append('cond1_importe', row.querySelector('[data-fcc-field="cond1_importe"]')?.value || '');
+    fd.append('cond1_importe', moneyInputRaw(row.querySelector('[data-fcc-field="cond1_importe"]')));
     fd.append('cond1_observacion', row.querySelector('[data-fcc-field="cond1_observacion"]')?.value || '');
     fd.append('cond2_estado', row.querySelector('[data-fcc-field="cond2_estado"]')?.value || '');
-    fd.append('cond2_importe', row.querySelector('[data-fcc-field="cond2_importe"]')?.value || '');
+    fd.append('cond2_importe', moneyInputRaw(row.querySelector('[data-fcc-field="cond2_importe"]')));
     fd.append('cond2_observacion', row.querySelector('[data-fcc-field="cond2_observacion"]')?.value || '');
 
     const original = button.innerHTML;
@@ -580,11 +625,11 @@
         rutaSimple,
         cond1: cellText(row, '[data-fcc-col="cond1"]'),
         cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
-        cond1Importe: cellText(row, '[data-fcc-field="cond1_importe"]'),
+        cond1Importe: moneyInputRaw(row.querySelector('[data-fcc-field="cond1_importe"]')),
         cond1Obs: cellText(row, '[data-fcc-field="cond1_observacion"]'),
         cond2: cellText(row, '[data-fcc-col="cond2"]'),
         cond2Estado: cellText(row, '[data-fcc-field="cond2_estado"]'),
-        cond2Importe: cellText(row, '[data-fcc-field="cond2_importe"]'),
+        cond2Importe: moneyInputRaw(row.querySelector('[data-fcc-field="cond2_importe"]')),
         cond2Obs: cellText(row, '[data-fcc-field="cond2_observacion"]')
       };
     });
@@ -826,6 +871,8 @@
     setTripField('origen', trip.origen);
     setTripField('destino', trip.destino);
     setTripField('fecha_programacion', formatDateTimeValue(trip.fecha_programacion));
+    setTripField('hoja_ruta', trip.hoja_ruta);
+    setTripField('hoja_ruta_estado', hojaRutaStateText(trip));
     setTripField('ruta_texto', trip.ruta_texto);
     setTripField('comentario_horario', trip.comentario_horario);
     setTripField('cond1', trip.cond1);
@@ -1350,9 +1397,14 @@
     select.addEventListener('change', () => syncSelectClass(select));
   });
   document.querySelectorAll('[data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]').forEach((input) => {
-    if (input.value !== '') input.value = normalizeMoneyValue(input.value);
+    setMoneyInputValue(input, input.value, false);
+    input.addEventListener('focus', () => editMoneyInput(input));
+    input.addEventListener('input', () => {
+      input.dataset.fccMoneyDisplay = input.value;
+      input.dataset.fccMoneyRaw = normalizeMoneyValue(input.value);
+    });
     input.addEventListener('blur', () => {
-      if (input.value !== '' && input.checkValidity()) input.value = normalizeMoneyValue(input.value);
+      if (input.checkValidity()) displayMoneyInput(input);
       markRowChange(input.closest('[data-fcc-row]'));
     });
   });
