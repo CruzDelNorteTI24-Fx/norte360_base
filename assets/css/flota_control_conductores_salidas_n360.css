@@ -89,6 +89,20 @@
     background: #f7fbff;
 }
 
+.fcc-btn [data-fcc-canceled-count] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #991b1b;
+    font-size: 12px;
+    font-weight: 900;
+}
+
 .fcc-alert {
     display: flex;
     align-items: center;
@@ -112,7 +126,7 @@
 
 .fcc-summary {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 12px;
 }
 
@@ -126,8 +140,9 @@
     box-shadow: 0 12px 30px rgba(15, 42, 64, 0.07);
 }
 
-.fcc-summary article:nth-child(4) { border-left-color: #f59e0b; }
-.fcc-summary article:nth-child(5) { border-left-color: #22a164; }
+.fcc-summary article:nth-child(4) { border-left-color: #dc2626; }
+.fcc-summary article:nth-child(5) { border-left-color: #f59e0b; }
+.fcc-summary article:nth-child(6) { border-left-color: #22a164; }
 
 .fcc-summary span,
 .fcc-filter span {
@@ -359,6 +374,11 @@
     color: #0f6b42;
 }
 
+.fcc-mini--void {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 .fcc-table-wrap {
     overflow: auto;
     border-top: 1px solid #e6eef7;
@@ -412,6 +432,18 @@ body.fcc-bulk-mode .fcc-action-buttons {
 .fcc-table tbody tr.is-empty-day {
     background: #fbfdff;
     color: #8aa0b6;
+}
+
+.fcc-table tbody tr.is-anulado td {
+    background: #fff7f7;
+}
+
+.fcc-table tbody tr.is-anulado td:first-child {
+    box-shadow: inset 4px 0 0 #dc2626;
+}
+
+.fcc-table tbody tr.is-anulado:hover td {
+    background: #fff1f1;
 }
 
 .fcc-table td[data-fcc-col="dia"] {
@@ -513,6 +545,9 @@ body.fcc-bulk-mode .fcc-action-buttons {
 .fcc-status--info { background: #e9f5ff; color: #075985; }
 .fcc-status--pending { background: #fff4d7; color: #936000; }
 .fcc-status--muted { background: #eef3f8; color: #667b91; }
+.fcc-status--void { background: #fee2e2; color: #991b1b; }
+.fcc-status--manual { background: #f1e9ff; color: #6d28d9; }
+.fcc-status--transfer { background: #dcfce7; color: #166534; }
 
 .fcc-table small {
     display: block;
@@ -739,6 +774,22 @@ body.fcc-bulk-mode .fcc-action-buttons {
     border-left-color: #22a164;
 }
 
+.fcc-canceled-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fcc-canceled-kpis article:first-child {
+    border-left-color: #dc2626;
+}
+
+.fcc-canceled-kpis article:nth-child(2) {
+    border-left-color: #248ed2;
+}
+
+.fcc-canceled-kpis article:nth-child(3) {
+    border-left-color: #8b5cf6;
+}
+
 .fcc-driver-kpis span {
     display: block;
     color: #5c718a;
@@ -896,6 +947,14 @@ body.fcc-bulk-mode .fcc-action-buttons {
 
 .fcc-driver-table tr.is-hidden {
     display: none;
+}
+
+.fcc-canceled-table {
+    min-width: 980px;
+}
+
+.fcc-canceled-table td:last-child {
+    text-align: center;
 }
 
 .fcc-driver-empty {

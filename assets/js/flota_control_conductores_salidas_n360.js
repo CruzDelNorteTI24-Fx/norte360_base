@@ -22,6 +22,19 @@
     if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
     return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
   };
+  const isCanceledRevision = (value) => compact(value).toUpperCase() === 'ANULADO';
+
+  function statusClass(value) {
+    const status = compact(value).toUpperCase() || 'PENDIENTE';
+    if (status === 'VALIDADO') return 'fcc-status--ok';
+    if (status === 'OBSERVADO') return 'fcc-status--warn';
+    if (status === 'CORREGIDO') return 'fcc-status--info';
+    if (status === 'ANULADO') return 'fcc-status--void';
+    if (status === 'MANUAL') return 'fcc-status--manual';
+    if (status === 'TRANSBORDADO' || status === 'TRANSBORDO') return 'fcc-status--transfer';
+    if (status === 'SIN SALIDA') return 'fcc-status--muted';
+    return 'fcc-status--pending';
+  }
 
   function normalizeMoneyValue(value) {
     const raw = String(value ?? '').trim().replace(',', '.');
@@ -177,6 +190,7 @@
   function rememberRow(row) {
     const id = row?.dataset?.fccRow || '';
     if (!id || id === '0') return;
+    if (row.dataset.fccAnulado === '1') return;
     rowBaselines.set(id, comparableRowValues(rowValues(row)));
     row.classList.remove('is-bulk-dirty');
   }
@@ -195,7 +209,7 @@
 
   function dirtyRows() {
     return Array.from(document.querySelectorAll('[data-fcc-row].is-bulk-dirty'))
-      .filter((row) => row.dataset.fccRow && row.dataset.fccRow !== '0');
+      .filter((row) => row.dataset.fccRow && row.dataset.fccRow !== '0' && row.dataset.fccAnulado !== '1');
   }
 
   function updateBulkUi() {
@@ -222,6 +236,7 @@
     if (!row || !bulkMode) return;
     const id = row.dataset.fccRow || '';
     if (!id || id === '0') return;
+    if (row.dataset.fccAnulado === '1') return;
     const baseline = rowBaselines.get(id) || comparableRowValues(rowValues(row));
     const changed = JSON.stringify(comparableRowValues(rowValues(row))) !== JSON.stringify(baseline);
     row.classList.toggle('is-bulk-dirty', changed);
@@ -277,6 +292,10 @@
     const id = row.dataset.fccRow || '';
     if (!id || id === '0') {
       showNotice('Este dia no tiene salida capturada.', false);
+      return;
+    }
+    if (row.dataset.fccAnulado === '1') {
+      showNotice('Este viaje esta anulado y no entra al control de pagos.', false);
       return;
     }
 
@@ -421,7 +440,7 @@
       });
     });
 
-    setBulkMode(false);
+    setBulkMode(!!toggle && !toggle.disabled);
   }
 
   function setupSearch() {
@@ -454,8 +473,11 @@
       const tripIndex = Number(row.dataset.fccTripIndex || 0);
       const tripsDay = Number(row.dataset.fccTripsDay || 0);
       const hora = compact(row.dataset.fccHora || '');
+      const revision = compact(row.dataset.fccRevision || cellText(row, '[data-fcc-col="revision"]'));
+      const anulado = row.dataset.fccAnulado === '1' || isCanceledRevision(revision);
 
       return {
+        id: row.dataset.fccRow || '',
         dia: [dayNumber, weekday].filter(Boolean).join(' '),
         date,
         dayNumber,
@@ -463,7 +485,8 @@
         tripIndex,
         tripsDay,
         hora,
-        revision: cellText(row, '[data-fcc-col="revision"]'),
+        revision,
+        anulado,
         cond1: cellText(row, '[data-fcc-col="cond1"]'),
         cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
         cond1Importe: cellText(row, '[data-fcc-field="cond1_importe"]'),
@@ -489,6 +512,7 @@
     units.forEach((unit) => {
       const unitName = compact(unit.title || 'Unidad');
       (unit.rows || []).forEach((row) => {
+        if (row.anulado || isCanceledRevision(row.revision)) return;
         [
           { name: row.cond1, estado: row.cond1Estado, obs: row.cond1Obs },
           { name: row.cond2, estado: row.cond2Estado, obs: row.cond2Obs }
@@ -671,85 +695,227 @@
     }
   }
 
-  function setupTripDetailModal() {
-    buildTripMap();
+  function activeTripRow(id) {
+    return document.querySelector(`[data-fcc-row="${cssEscape(String(id || ''))}"]`);
+  }
 
+  function showTripDetail(id, sourceRow) {
     const modalEl = document.getElementById('fccTripDetailModal');
-    if (!modalEl) return;
+    const trip = tripMap.get(String(id || ''));
+    if (!modalEl || !trip) {
+      showNotice('No se encontro el detalle del viaje.', false);
+      return;
+    }
+
+    syncTripFromRow(trip, sourceRow || activeTripRow(id));
+
+    const bus = nullableText(trip.bus || trip.unitBus);
+    const placa = nullableText(trip.placa || trip.unitPlaca);
+    const title = document.querySelector('[data-fcc-trip-title]');
+    const subtitle = document.querySelector('[data-fcc-trip-subtitle]');
+    if (title) title.textContent = `${bus} (${placa})`;
+    if (subtitle) {
+      subtitle.textContent = `Viaje ${Number(trip.trip_index || 1)} de ${Number(trip.trips_day || 1)} - dia operativo ${formatDateValue(trip.date)}`;
+    }
+
+    setTripField('id', trip.id);
+    setTripField('cierre_id', trip.cierre_id);
+    setTripField('progid', trip.progid);
+    setTripField('run_id', trip.run_id);
+    setTripField('fecha_operativa', formatDateValue(trip.date));
+    setTripField('fecha_salida_real', formatDateTimeValue(trip.fecha_salida_real));
+    setTripField('horasalida', trip.hora || '-');
+    setTripField('fecha_ejecucion', formatDateTimeValue(trip.fecha_ejecucion));
+    setTripField('hora_orden', trip.hora_orden);
+    setTripField('bus', bus);
+    setTripField('placa', placa);
+    setTripField('servicio', trip.servicio);
+    setTripField('origen', trip.origen);
+    setTripField('destino', trip.destino);
+    setTripField('fecha_programacion', formatDateTimeValue(trip.fecha_programacion));
+    setTripField('ruta_texto', trip.ruta_texto);
+    setTripField('comentario_horario', trip.comentario_horario);
+    setTripField('cond1', trip.cond1);
+    setTripField('cond1_estado', trip.cond1_estado);
+    setTripField('cond1_importe', moneyText(trip.cond1_importe));
+    setTripField('cond1_observacion', trip.cond1_observacion);
+    setTripField('cond2', trip.cond2);
+    setTripField('cond2_estado', trip.cond2_estado);
+    setTripField('cond2_importe', moneyText(trip.cond2_importe));
+    setTripField('cond2_observacion', trip.cond2_observacion);
+    setTripField('comentario_revision', trip.comentario_revision);
+    setTripField('correccion', trip.correccion);
+    setTripField('usuario_revision', trip.usuario_revision);
+    setTripField('datetime_revision', formatDateTimeValue(trip.datetime_revision));
+    setTripField('usuario_creacion', trip.usuario_creacion);
+    setTripField('fecha_creacion', formatDateTimeValue(trip.fecha_creacion));
+
+    const status = document.querySelector('[data-fcc-trip-status]');
+    if (status) {
+      const value = compact(trip.revision || '').toUpperCase() || 'PENDIENTE';
+      status.textContent = value;
+      status.className = `fcc-status ${statusClass(value)}`;
+    }
+
+    const modal = window.bootstrap && window.bootstrap.Modal
+      ? window.bootstrap.Modal.getOrCreateInstance(modalEl)
+      : null;
+    if (modal) {
+      modal.show();
+    } else {
+      modalEl.classList.add('show');
+      modalEl.style.display = 'block';
+    }
+  }
+
+  function tripRouteText(trip) {
+    const route = compact(trip.ruta_texto || '');
+    if (route) return route;
+    return [trip.origen, trip.destino].map(compact).filter(Boolean).join(' -> ') || '-';
+  }
+
+  function tripConductorsText(trip) {
+    return [trip.cond1, trip.cond2]
+      .map(nullableText)
+      .filter((value) => value && value !== '-')
+      .join(' / ') || '-';
+  }
+
+  function collectCanceledTrips(units) {
+    const canceled = [];
+    units.forEach((unit) => {
+      (unit.rows || []).forEach((row) => {
+        if (!(row.anulado || isCanceledRevision(row.revision))) return;
+        const detail = tripMap.get(String(row.id || '')) || {};
+        const trip = {
+          ...detail,
+          ...row,
+          unitTitle: unit.title || detail.unitLabel || detail.bus || 'Unidad',
+          bus: detail.bus || detail.unitBus || '',
+          placa: detail.placa || detail.unitPlaca || '',
+          cond1: detail.cond1 || row.cond1 || '',
+          cond2: detail.cond2 || row.cond2 || '',
+          routeText: tripRouteText(detail),
+          conductorsText: tripConductorsText(detail),
+          dateLabel: formatDateValue(row.date || detail.date),
+          timeLabel: row.hora || detail.hora || '-'
+        };
+        trip.searchText = keyText([
+          trip.dateLabel,
+          trip.unitTitle,
+          trip.bus,
+          trip.placa,
+          trip.timeLabel,
+          trip.routeText,
+          trip.conductorsText,
+          trip.revision
+        ].join(' '));
+        canceled.push(trip);
+      });
+    });
+    return canceled.sort((a, b) => {
+      const dateCompare = String(a.date || '').localeCompare(String(b.date || ''));
+      if (dateCompare !== 0) return dateCompare;
+      const timeCompare = String(a.timeLabel || '').localeCompare(String(b.timeLabel || ''));
+      if (timeCompare !== 0) return timeCompare;
+      return String(a.unitTitle || '').localeCompare(String(b.unitTitle || ''));
+    });
+  }
+
+  function canceledTotals(trips) {
+    const units = new Set();
+    const drivers = new Set();
+    trips.forEach((trip) => {
+      const unit = compact(trip.unitTitle || trip.bus || '');
+      if (unit) units.add(keyText(unit));
+      [trip.cond1, trip.cond2].forEach((name) => {
+        const driver = compact(name);
+        if (driver && driver !== '-') drivers.add(keyText(driver));
+      });
+    });
+    return { trips: trips.length, units: units.size, drivers: drivers.size };
+  }
+
+  function renderCanceledTrips(trips) {
+    const body = document.querySelector('[data-fcc-canceled-body]');
+    const totals = canceledTotals(trips);
+    Object.entries(totals).forEach(([key, value]) => {
+      const el = document.querySelector(`[data-fcc-canceled-kpi="${key}"]`);
+      if (el) el.textContent = Number(value || 0).toLocaleString('es-PE');
+    });
+    const count = document.querySelector('[data-fcc-canceled-count]');
+    if (count) count.textContent = Number(trips.length || 0).toLocaleString('es-PE');
+    if (!body) return;
+
+    if (!trips.length) {
+      body.innerHTML = '<tr><td colspan="6" class="fcc-driver-empty">No hay viajes anulados en las unidades visibles.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = trips.map((trip) => `
+      <tr data-canceled-row data-canceled-search="${escapeHtml(trip.searchText || '')}">
+        <td><strong>${escapeHtml(trip.dateLabel || '-')}</strong></td>
+        <td><span>${escapeHtml(trip.unitTitle || '-')}</span><small>${escapeHtml([trip.bus, trip.placa].map(compact).filter(Boolean).join(' / ') || '-')}</small></td>
+        <td>${escapeHtml(trip.timeLabel || '-')}</td>
+        <td>${escapeHtml(trip.routeText || '-')}</td>
+        <td>${escapeHtml(trip.conductorsText || '-')}</td>
+        <td><button type="button" class="fcc-icon-detail" data-fcc-canceled-view data-fcc-trip-id="${escapeHtml(String(trip.id || ''))}" title="Ver detalle del viaje" aria-label="Ver detalle del viaje"><i class="bi bi-eye-fill"></i></button></td>
+      </tr>
+    `).join('');
+  }
+
+  function setupCanceledTripsModal() {
+    const button = document.querySelector('[data-fcc-canceled-summary]');
+    const modalEl = document.getElementById('fccCanceledTripsModal');
+    const search = document.querySelector('[data-fcc-canceled-search]');
+    const body = document.querySelector('[data-fcc-canceled-body]');
+    if (!button || !modalEl) return;
 
     const modal = window.bootstrap && window.bootstrap.Modal
       ? window.bootstrap.Modal.getOrCreateInstance(modalEl)
       : null;
 
+    button.addEventListener('click', () => {
+      if (search) search.value = '';
+      renderCanceledTrips(collectCanceledTrips(visibleUnits()));
+      if (modal) {
+        modal.show();
+      } else {
+        modalEl.classList.add('show');
+        modalEl.style.display = 'block';
+      }
+    });
+
+    search?.addEventListener('input', () => {
+      const q = keyText(search.value);
+      document.querySelectorAll('[data-canceled-row]').forEach((row) => {
+        const haystack = String(row.dataset.canceledSearch || '');
+        row.classList.toggle('is-hidden', q !== '' && !haystack.includes(q));
+      });
+    });
+
+    body?.addEventListener('click', (event) => {
+      const view = event.target.closest('[data-fcc-canceled-view]');
+      if (!view) return;
+      const id = view.dataset.fccTripId || '';
+      const openDetail = () => showTripDetail(id, activeTripRow(id));
+      if (modal) {
+        modal.hide();
+        window.setTimeout(openDetail, 160);
+      } else {
+        openDetail();
+      }
+    });
+
+    renderCanceledTrips(collectCanceledTrips(visibleUnits()));
+  }
+
+  function setupTripDetailModal() {
+    buildTripMap();
+
     document.querySelectorAll('[data-fcc-view-trip]').forEach((button) => {
       button.addEventListener('click', () => {
-        const id = String(button.dataset.fccTripId || '');
-        const trip = tripMap.get(id);
-        if (!trip) {
-          showNotice('No se encontró el detalle del viaje.', false);
-          return;
-        }
-
-        syncTripFromRow(trip, button.closest('[data-fcc-row]'));
-
-        const bus = nullableText(trip.bus || trip.unitBus);
-        const placa = nullableText(trip.placa || trip.unitPlaca);
-        const title = document.querySelector('[data-fcc-trip-title]');
-        const subtitle = document.querySelector('[data-fcc-trip-subtitle]');
-        if (title) title.textContent = `${bus} (${placa})`;
-        if (subtitle) {
-          subtitle.textContent = `Viaje ${Number(trip.trip_index || 1)} de ${Number(trip.trips_day || 1)} · día operativo ${formatDateValue(trip.date)}`;
-        }
-
-        setTripField('id', trip.id);
-        setTripField('cierre_id', trip.cierre_id);
-        setTripField('progid', trip.progid);
-        setTripField('run_id', trip.run_id);
-        setTripField('fecha_operativa', formatDateValue(trip.date));
-        setTripField('fecha_salida_real', formatDateTimeValue(trip.fecha_salida_real));
-        setTripField('horasalida', trip.hora || '-');
-        setTripField('fecha_ejecucion', formatDateTimeValue(trip.fecha_ejecucion));
-        setTripField('hora_orden', trip.hora_orden);
-        setTripField('bus', bus);
-        setTripField('placa', placa);
-        setTripField('servicio', trip.servicio);
-        setTripField('origen', trip.origen);
-        setTripField('destino', trip.destino);
-        setTripField('fecha_programacion', formatDateTimeValue(trip.fecha_programacion));
-        setTripField('ruta_texto', trip.ruta_texto);
-        setTripField('comentario_horario', trip.comentario_horario);
-        setTripField('cond1', trip.cond1);
-        setTripField('cond1_estado', trip.cond1_estado);
-        setTripField('cond1_importe', moneyText(trip.cond1_importe));
-        setTripField('cond1_observacion', trip.cond1_observacion);
-        setTripField('cond2', trip.cond2);
-        setTripField('cond2_estado', trip.cond2_estado);
-        setTripField('cond2_importe', moneyText(trip.cond2_importe));
-        setTripField('cond2_observacion', trip.cond2_observacion);
-        setTripField('comentario_revision', trip.comentario_revision);
-        setTripField('correccion', trip.correccion);
-        setTripField('usuario_revision', trip.usuario_revision);
-        setTripField('datetime_revision', formatDateTimeValue(trip.datetime_revision));
-        setTripField('usuario_creacion', trip.usuario_creacion);
-        setTripField('fecha_creacion', formatDateTimeValue(trip.fecha_creacion));
-
-        const status = document.querySelector('[data-fcc-trip-status]');
-        if (status) {
-          const value = compact(trip.revision || '').toUpperCase() || 'PENDIENTE';
-          status.textContent = value;
-          status.className = 'fcc-status';
-          if (value === 'VALIDADO') status.classList.add('fcc-status--ok');
-          else if (value === 'OBSERVADO') status.classList.add('fcc-status--warn');
-          else if (value === 'CORREGIDO') status.classList.add('fcc-status--info');
-          else status.classList.add('fcc-status--pending');
-        }
-
-        if (modal) {
-          modal.show();
-        } else {
-          modalEl.classList.add('show');
-          modalEl.style.display = 'block';
-        }
+        showTripDetail(button.dataset.fccTripId || '', button.closest('[data-fcc-row]'));
       });
     });
   }
@@ -757,6 +923,7 @@
   function drawInfo(doc, left, y, width, unit, unitIndex, unitsCount) {
     const summary = summarizeDrivers([unit]);
     const totals = driverSummaryTotals(summary);
+    const canceled = collectCanceledTrips([unit]).length;
     if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
       return window.N360PDF.drawReportSummary(doc, {
         x: left,
@@ -767,7 +934,8 @@
           { label: 'Mes operativo', value: cfg.monthLabel || cfg.month || '-' },
           { label: 'Unidad', value: unit.title || '-' },
           { label: 'Pagina de unidad', value: `${unitIndex + 1} de ${unitsCount}` },
-          { label: 'Conductores / viajes', value: `${totals.drivers} / ${totals.trips}` }
+          { label: 'Conductores / viajes', value: `${totals.drivers} / ${totals.trips}` },
+          { label: 'Anulados', value: canceled.toLocaleString('es-PE') }
         ],
         columns: 2,
         bottomGap: 7
@@ -782,8 +950,9 @@
     doc.setFontSize(7.5);
     doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y + 12);
     doc.text(`Unidad: ${unit.title || '-'}`, left + width, y + 12, { align: 'right' });
+    doc.text(`Anulados: ${canceled.toLocaleString('es-PE')}`, left, y + 17);
     doc.setDrawColor(210, 224, 238);
-    doc.line(left, y + 16, left + width, y + 16);
+    doc.line(left, y + 21, left + width, y + 21);
     return y + 23;
   }
 
@@ -793,16 +962,28 @@
       const dateKey = compact(row.date || row.dia || '');
       const showDate = dateKey !== previousDate;
       previousDate = dateKey;
+      const canceled = row.anulado || isCanceledRevision(row.revision);
 
       return [
         showDate ? (row.dia || '-') : '',
         `${row.revision || '-'}${row.hora ? `` : ''}`,
-        row.cond1 || '-',
-        row.cond1Obs || '-',
-        row.cond2 || '-',
-        row.cond2Obs || '-'
+        canceled ? '-' : (row.cond1 || '-'),
+        canceled ? '-' : (row.cond1Obs || '-'),
+        canceled ? '-' : (row.cond2 || '-'),
+        canceled ? '-' : (row.cond2Obs || '-')
       ];
     });
+  }
+
+  function canceledPdfBody(trips) {
+    return trips.map((trip) => [
+      trip.dateLabel || '-',
+      trip.unitTitle || '-',
+      trip.timeLabel || '-',
+      trip.routeText || '-',
+      trip.conductorsText || '-',
+      compact(trip.comentario_revision || trip.correccion || '') || '-'
+    ]);
   }
 
   function driverSummaryBody(summary) {
@@ -876,6 +1057,58 @@
     });
   }
 
+  function drawCanceledTripsPage(doc, left, y, width, trips) {
+    const totals = canceledTotals(trips);
+
+    doc.setTextColor(15, 42, 64);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Viajes anulados', left, y);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(82, 105, 130);
+    doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y + 6);
+    doc.text(`Anulados: ${totals.trips} | Unidades: ${totals.units} | Conductores asociados: ${totals.drivers}`, left, y + 11);
+
+    if (!trips.length) {
+      doc.setTextColor(82, 105, 130);
+      doc.text('No hay viajes anulados para las unidades visibles.', left, y + 24);
+      return;
+    }
+
+    doc.autoTable({
+      head: [['Fecha', 'Unidad', 'Hora', 'Ruta', 'Conductores', 'Obs. revision']],
+      body: canceledPdfBody(trips),
+      startY: y + 18,
+      margin: { left, right: left, top: 32, bottom: 22 },
+      rowPageBreak: 'avoid',
+      styles: {
+        fontSize: 6.4,
+        cellPadding: 1.4,
+        overflow: 'linebreak',
+        valign: 'middle',
+        lineColor: [226, 232, 240],
+        lineWidth: 0.08
+      },
+      headStyles: {
+        fillColor: [112, 26, 26],
+        textColor: 255,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      alternateRowStyles: { fillColor: [255, 247, 247] },
+      columnStyles: {
+        0: { cellWidth: 17, halign: 'center' },
+        1: { cellWidth: 34 },
+        2: { cellWidth: 14, halign: 'center' },
+        3: { cellWidth: 48 },
+        4: { cellWidth: 38 },
+        5: { cellWidth: width - 151 }
+      }
+    });
+  }
+
   async function exportPdf(units, fileSuffix) {
     if (!units.length) {
       showNotice('No hay unidades visibles para exportar.', false);
@@ -888,6 +1121,7 @@
 
     try {
       const driverSummary = summarizeDrivers(units);
+      const canceledTrips = collectCanceledTrips(units);
       const doc = await window.N360PDF.createDocument({
         orientation: 'portrait',
         title: report.title || 'CONTROL MENSUAL DE CONDUCTORES',
@@ -960,6 +1194,7 @@
                   if (raw.includes('VALIDADO')) data.cell.styles.textColor = [5, 112, 68];
                   if (raw.includes('OBSERVADO')) data.cell.styles.textColor = [170, 36, 31];
                   if (raw.includes('CORREGIDO')) data.cell.styles.textColor = [7, 89, 133];
+                  if (raw.includes('ANULADO')) data.cell.styles.textColor = [176, 39, 39];
                 }
               }
             });
@@ -969,6 +1204,10 @@
 
           doc.addPage();
           drawDriverSummaryPage(doc, left, 34, width, driverSummary);
+          if (canceledTrips.length) {
+            doc.addPage();
+            drawCanceledTripsPage(doc, left, 34, width, canceledTrips);
+          }
         }
       });
 
@@ -1016,4 +1255,5 @@
   setupPdfButtons();
   setupDriverSummaryModal();
   setupTripDetailModal();
+  setupCanceledTripsModal();
 })();
