@@ -84,7 +84,7 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
         <section class="check-report-filterbar check-report-hidden" id="fleetLocalFilters" aria-label="Filtros locales del consolidado">
             <label class="check-report-field">
                 <span>Buscar en resultados</span>
-                <input type="search" id="fleetLocalSearch" class="check-report-input" placeholder="Unidad, placa, checklist, responsable...">
+                <input type="search" id="fleetLocalSearch" class="check-report-input" placeholder="Unidad, placa, checklist, responsable, observacion...">
             </label>
             <label class="check-report-field">
                 <span>Checklist</span>
@@ -127,10 +127,11 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
                                 <th>Estado</th>
                                 <th>KPI</th>
                                 <th>Responsable</th>
+                                <th>Observaciones</th>
                             </tr>
                         </thead>
                         <tbody id="fleetBody">
-                            <tr><td colspan="6">Pulsa Consultar para cargar el consolidado.</td></tr>
+                            <tr><td colspan="7">Pulsa Consultar para cargar el consolidado.</td></tr>
                         </tbody>
                     </table>
                 </div>

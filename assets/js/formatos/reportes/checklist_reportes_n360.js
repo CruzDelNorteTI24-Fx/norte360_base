@@ -402,11 +402,12 @@
           `${chk.fecha || '-'}\n${chk.hora || '-'}`,
           `${chk.tipo || '-'}\n${chk.corr || '-'}`,
           `${chk.completion?.respondidos || 0}/${chk.completion?.total || 0}\n${chk.completion?.estado || '-'}`,
-          kpiCell(chk.kpi)
+          kpiCell(chk.kpi),
+          chk.observaciones || '-'
         ]);
-        y = drawTable(doc, ['Unidad', 'Fecha', 'Checklist', 'Items', 'KPI'], rows, [32, 30, 42, 28, 50], y, {
+        y = drawTable(doc, ['Unidad', 'Fecha', 'Checklist', 'Items', 'KPI', 'Observaciones'], rows, [26, 23, 32, 20, 39, 42], y, {
           orientation: 'portrait',
-          fontSize: 6.2,
+          fontSize: 5.8,
           maxLines: 4
         });
       }
@@ -464,6 +465,7 @@
         chk.tipo,
         chk.corr,
         chk.responsable,
+        chk.observaciones,
         chk.kpi?.titulo,
         chk.kpi?.texto,
         chk.kpi?.valor
@@ -583,9 +585,10 @@
         <td>${chip(chk.completion?.estado || '-', chk.completion?.estado === 'Completo' ? 'ok' : 'bad')}<br><small>${esc(chk.completion?.respondidos || 0)} / ${esc(chk.completion?.total || 0)}</small></td>
         <td>${kpiChip(chk.kpi)}<br><small>${esc(chk.kpi?.titulo || 'Sin KPI')}</small></td>
         <td>${esc(text(chk.responsable, '-'))}</td>
+        <td>${esc(text(chk.observaciones, '-'))}</td>
       </tr>
     `).join('');
-    $('fleetBody').innerHTML = rows || `<tr><td colspan="6">No hay informacion en el periodo.</td></tr>`;
+    $('fleetBody').innerHTML = rows || `<tr><td colspan="7">No hay informacion en el periodo.</td></tr>`;
     $('btnFleetPdf').disabled = !(report.checklists || []).length;
   }
 
