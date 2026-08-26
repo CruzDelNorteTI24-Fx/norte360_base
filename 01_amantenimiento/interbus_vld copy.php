@@ -1925,7 +1925,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
           echo "<li><a href='interbus_vld.php'>Ver Buses</a></li>";
           echo "<li><a href='viajes.php'>Ver Viajes</a></li>";
           echo "<li><a href='calendario_cheklist.php'>Calendario ChekList</a></li>";
-          echo "<li><a href='categorias_items.php'>Gestionar Ítems ChekList</a></li>";
+          echo "<li><a href='gestionar_checklists.php'>Gestionar Checklists</a></li>";
           if (in_array("c-lalu", $vistas)) {
             echo "<li><a href='interbus_vld.php'>Ver Buses</a></li>";
           }   

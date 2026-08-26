@@ -332,9 +332,9 @@ function n360_menu_config(): array {
                                 'modulo' => 5
                             ],
                             [
-                                'titulo' => 'Categorias e items',
+                                'titulo' => 'Gestion checklist',
                                 'icono' => 'bi bi-tags-fill',
-                                'url' => '01_amantenimiento/categorias_items.php',
+                                'url' => '01_amantenimiento/gestionar_checklists.php',
                                 'admin' => true,
                                 'modulo' => 5
                             ],
