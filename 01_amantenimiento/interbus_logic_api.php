@@ -11,6 +11,7 @@ if (!defined('ACCESS_GRANTED')) {
     define('ACCESS_GRANTED', true);
 }
 require_once("../.c0nn3ct/db_securebd2.php");
+require_once __DIR__ . "/checklist_versiones.php";
 
 $data = [];
 
@@ -47,9 +48,23 @@ if (isset($_GET['bus_id'])) {
                 $tipo_nombre = $tipo_row['clm_checktip_nombre'];
 
                 // Completitud
+                $checklist_id = n360_cv_checklist_id_for_context($conn, $bus_id, (string)$fecha_actual, $tipo_id);
+                $filter_items = n360_cv_item_filter($conn, $checklist_id, $tipo_id, 'i', 'c', (string)$fecha_actual);
                 $stmt_items = $conn->prepare("
                     SELECT COUNT(*) as total, 
-                           SUM(r.clm_resultado_estado IS NOT NULL) as respondidos
+                           COALESCE(SUM(
+                            CASE
+                              WHEN i.clm_items_tipo = 'R' THEN r.clm_resultado_estado IS NOT NULL
+                              WHEN i.clm_items_tipo = 'E' THEN r.clm_resultado_estado IS NOT NULL
+                              WHEN i.clm_items_tipo = 'Q' THEN r.clm_resultado_estado IS NOT NULL
+                              WHEN i.clm_items_tipo = 'H' THEN r.clm_resultado_dfecd IS NOT NULL
+                              WHEN i.clm_items_tipo = 'T' THEN r.clm_rescheck_conductor1 IS NOT NULL AND r.clm_rescheck_conductor1 != ''
+                              WHEN i.clm_items_tipo = 'O' THEN r.clm_rescheck_conductor1 IS NOT NULL AND r.clm_rescheck_conductor1 != ''
+                              WHEN i.clm_items_tipo = 'N' THEN r.clm_rescheck_porcentaje1 IS NOT NULL AND r.clm_rescheck_porcentaje1 != ''
+                              WHEN i.clm_items_tipo = 'F' THEN r.clm_rescheck_imagen IS NOT NULL AND r.clm_rescheck_imagen != ''
+                              ELSE 0
+                            END
+                           ), 0) as respondidos
                     FROM tb_items_checklist i
                     LEFT JOIN tb_resultados_checklist r 
                            ON i.clm_item_id = r.clm_resultado_id_item
@@ -62,10 +77,13 @@ if (isset($_GET['bus_id'])) {
                           )
                     INNER JOIN tb_categorias_checklist c
                             ON i.clm_item_id_categoria = c.clm_categoria_id
-                    WHERE i.clm_item_estado = 'activo'
-                      AND c.clm_categorias_estado = 'activo'
+                    WHERE {$filter_items['where']}
                 ");
-                $stmt_items->bind_param("isi", $bus_id, $fecha_actual, $tipo_id);
+                n360_cv_bind_params(
+                    $stmt_items,
+                    'isi' . $filter_items['types'],
+                    array_merge([$bus_id, $fecha_actual, $tipo_id], $filter_items['params'])
+                );
                 $stmt_items->execute();
                 $res_items = $stmt_items->get_result()->fetch_assoc();
                 $stmt_items->close();

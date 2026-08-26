@@ -3,6 +3,7 @@ session_start();
 
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
+require_once __DIR__ . "/checklist_versiones.php";
 
 // Validar id_checklist recibido
 $id_checklist = $_GET['id_checklist'] ?? null;
@@ -13,7 +14,7 @@ if (!$id_checklist) {
 
 // Obtener el tipo de checklist (debe ir antes de la consulta)
 //Obtener el tipo de checklist (clm_checklist_idtipo) para el checklist recibido como id_checklist
-$stmt = $conn->prepare("SELECT clm_checklist_idtipo FROM tb_checklist_limpieza WHERE clm_checklist_id = ?");
+$stmt = $conn->prepare("SELECT clm_checklist_idtipo, clm_checklist_fecha FROM tb_checklist_limpieza WHERE clm_checklist_id = ?");
 $stmt->bind_param("i", $id_checklist);
 $stmt->execute();
 
@@ -25,12 +26,14 @@ if ($res->num_rows == 0) {
 
 $row = $res->fetch_assoc();
 $tipo_checklist = $row['clm_checklist_idtipo'];
+$fecha_checklist = $row['clm_checklist_fecha'] ?? '';
 $stmt->close();
 
 
 // ES IGUAL A INTER_BUSMODEL.PHP CORRESPONDE A LA FUNCIÓN obtenerKPIChecklist, SINTETIZAR
 // Obtener todos los items y sus resultados para el checklist
 //Traer todos los items de ese tipo de checklist junto con sus resultados registrados para ese checklist específico.
+$filter_items = n360_cv_item_filter($conn, (int)$id_checklist, (int)$tipo_checklist, 'i', null, (string)$fecha_checklist);
 $stmt_items = $conn->prepare("
     SELECT i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo, i.clm_item_idtipocheck,
            r.clm_resultado_dfecd, r.clm_rescheck_conductor1, r.clm_resultado_estado, r.clm_rescheck_porcentaje1, r.clm_rescheck_imagen
@@ -38,11 +41,10 @@ $stmt_items = $conn->prepare("
     LEFT JOIN tb_resultados_checklist r
       ON i.clm_item_id = r.clm_resultado_id_item
      AND r.clm_resultado_id_checklist = ?
-    WHERE i.clm_item_idtipocheck = ?
-      AND i.clm_item_estado = 'activo'
+    WHERE {$filter_items['where']}
 ");
 
-$stmt_items->bind_param("ii", $id_checklist, $tipo_checklist);
+n360_cv_bind_params($stmt_items, 'i' . $filter_items['types'], array_merge([(int)$id_checklist], $filter_items['params']));
 $stmt_items->execute();
 $res_items = $stmt_items->get_result();
 

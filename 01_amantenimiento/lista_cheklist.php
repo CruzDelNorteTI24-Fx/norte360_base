@@ -17,6 +17,7 @@ if ($_SESSION['web_rol'] !== 'Admin') {
 define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
 require_once("../.c0nn3ct/db_securebd2.php");
+require_once __DIR__ . "/checklist_versiones.php";
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
 require_once __DIR__ . '/../layout/sidebar_n360.php';
@@ -1390,9 +1391,17 @@ if ($res_gen->num_rows > 0) {
             // Verificar estado de completitud
             // Verificar estado de completitud CORREGIDO por tipo checklist
 //Cuenta los items totales y respondidos de un checklist específico.
+            $filter_items = n360_cv_item_filter(
+              $conn,
+              (int)$row['clm_checklist_id'],
+              (int)$row['clm_checklist_idtipo'],
+              'i',
+              'c',
+              (string)($row['clm_checklist_fecha'] ?? '')
+            );
             $stmt_items = $conn->prepare("
               SELECT COUNT(*) as total, 
-                    SUM(
+                    COALESCE(SUM(
                       CASE 
                         WHEN i.clm_items_tipo = 'R' THEN r.clm_resultado_estado IS NOT NULL
                         WHEN i.clm_items_tipo = 'E' THEN r.clm_resultado_estado IS NOT NULL
@@ -1404,18 +1413,20 @@ if ($res_gen->num_rows > 0) {
                         WHEN i.clm_items_tipo = 'F' THEN r.clm_rescheck_imagen IS NOT NULL AND r.clm_rescheck_imagen != ''
                         ELSE 0
                       END
-                    ) as respondidos
+                    ), 0) as respondidos
               FROM tb_items_checklist i
               LEFT JOIN tb_resultados_checklist r 
                 ON i.clm_item_id = r.clm_resultado_id_item 
               AND r.clm_resultado_id_checklist = ?
               INNER JOIN tb_categorias_checklist c
                 ON i.clm_item_id_categoria = c.clm_categoria_id
-              WHERE i.clm_item_estado = 'activo'
-                AND c.clm_categorias_estado = 'activo'
-                AND i.clm_item_idtipocheck = ?
+              WHERE {$filter_items['where']}
             ");
-            $stmt_items->bind_param("ii", $row['clm_checklist_id'], $row['clm_checklist_idtipo']);
+            n360_cv_bind_params(
+              $stmt_items,
+              'i' . $filter_items['types'],
+              array_merge([(int)$row['clm_checklist_id']], $filter_items['params'])
+            );
             $stmt_items->execute();
             $res_items = $stmt_items->get_result()->fetch_assoc();
             $stmt_items->close();

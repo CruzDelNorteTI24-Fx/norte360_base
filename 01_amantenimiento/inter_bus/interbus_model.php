@@ -4,6 +4,7 @@ if (!defined('ACCESS_GRANTED')) {
 }
 
 require_once(__DIR__ . "/../../.c0nn3ct/db_securebd2.php");
+require_once(__DIR__ . "/../checklist_versiones.php");
 
 //Obtener los datos básicos de un bus específico a partir de su ID.
 //Mostrar la información del bus en la interfaz de mantenimiento o checklist.
@@ -35,6 +36,27 @@ function obtenerTiposChecklist($conn, $bus_id, $fecha_actual) {
     return $stmt->get_result();
 }
 
+function n360_interbus_checklist_id($conn, $bus_id, $fecha_actual, $tipo_id): int {
+    $stmt = $conn->prepare("
+        SELECT clm_checklist_id
+        FROM tb_checklist_limpieza
+        WHERE clm_checklist_id_bus = ?
+          AND clm_checklist_fecha = ?
+          AND clm_checklist_idtipo = ?
+        ORDER BY clm_checklist_fecha DESC, clm_checklist_hora DESC, clm_checklist_id DESC
+        LIMIT 1
+    ");
+    if (!$stmt) return 0;
+    $stmt->bind_param("isi", $bus_id, $fecha_actual, $tipo_id);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return 0;
+    }
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return $row ? (int)$row['clm_checklist_id'] : 0;
+}
+
 
 //Calcular la completitud de un checklist, es decir
 //     Total de items en ese tipo de checklist.
@@ -44,9 +66,11 @@ function obtenerTiposChecklist($conn, $bus_id, $fecha_actual) {
 //  respondidos cantidad de items respondidos con estado no nulo.
 
 function obtenerCompletitud($conn, $bus_id, $fecha_actual, $tipo_id) {
+    $checklist_id = n360_interbus_checklist_id($conn, $bus_id, $fecha_actual, $tipo_id);
+    $filter_items = n360_cv_item_filter($conn, $checklist_id, (int)$tipo_id, 'i', 'c', (string)$fecha_actual);
     $stmt = $conn->prepare("
         SELECT COUNT(*) as total, 
-            SUM(
+            COALESCE(SUM(
                 CASE 
                 WHEN i.clm_items_tipo = 'R' THEN r.clm_resultado_estado IS NOT NULL
                 WHEN i.clm_items_tipo = 'E' THEN r.clm_resultado_estado IS NOT NULL
@@ -58,7 +82,7 @@ function obtenerCompletitud($conn, $bus_id, $fecha_actual, $tipo_id) {
                 WHEN i.clm_items_tipo = 'F' THEN r.clm_rescheck_imagen IS NOT NULL AND r.clm_rescheck_imagen != ''
                 ELSE 0
                 END
-            ) as respondidos
+            ), 0) as respondidos
         FROM tb_items_checklist i
         LEFT JOIN tb_resultados_checklist r 
             ON i.clm_item_id = r.clm_resultado_id_item
@@ -71,11 +95,13 @@ function obtenerCompletitud($conn, $bus_id, $fecha_actual, $tipo_id) {
             )
         INNER JOIN tb_categorias_checklist c
             ON i.clm_item_id_categoria = c.clm_categoria_id
-        WHERE i.clm_item_estado = 'activo'
-        AND c.clm_categorias_estado = 'activo'
-        AND i.clm_item_idtipocheck = ?
+        WHERE {$filter_items['where']}
     ");
-    $stmt->bind_param("isii", $bus_id, $fecha_actual, $tipo_id, $tipo_id);
+    n360_cv_bind_params(
+        $stmt,
+        'isi' . $filter_items['types'],
+        array_merge([$bus_id, $fecha_actual, $tipo_id], $filter_items['params'])
+    );
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
 }
@@ -139,6 +165,7 @@ function obtenerUltimoChecklistDetallesTipo4($conn, $bus_id) {
 
 function obtenerKPIChecklist($conn, $checklist_id, $tipo_id, $bus_id = null) {
     // Reutiliza la lógica de ver_kpi_checklist.php
+    $filter_items = n360_cv_item_filter($conn, (int)$checklist_id, (int)$tipo_id, 'i');
     $stmt_items = $conn->prepare("
         SELECT i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo,
                r.clm_resultado_dfecd, r.clm_rescheck_conductor1, r.clm_resultado_estado, r.clm_rescheck_porcentaje1
@@ -146,10 +173,13 @@ function obtenerKPIChecklist($conn, $checklist_id, $tipo_id, $bus_id = null) {
         LEFT JOIN tb_resultados_checklist r
           ON i.clm_item_id = r.clm_resultado_id_item
          AND r.clm_resultado_id_checklist = ?
-        WHERE i.clm_item_idtipocheck = ?
-          AND i.clm_item_estado = 'activo'
+        WHERE {$filter_items['where']}
     ");
-    $stmt_items->bind_param("ii", $checklist_id, $tipo_id);
+    n360_cv_bind_params(
+        $stmt_items,
+        'i' . $filter_items['types'],
+        array_merge([(int)$checklist_id], $filter_items['params'])
+    );
     $stmt_items->execute();
     $res_items = $stmt_items->get_result();
 

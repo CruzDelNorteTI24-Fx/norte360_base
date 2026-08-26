@@ -2,11 +2,13 @@
 session_start();
 define('ACCESS_GRANTED', true);
 require_once("../../.c0nn3ct/db_securebd2.php");
+require_once __DIR__ . "/../checklist_versiones.php";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
   $bus = $_POST['bus'];
   $responsable = $_POST['responsable'];
   $observaciones = $_POST['observaciones'];
+  $id_tipo_checklist = (int)($_POST['id_tipo_checklist'] ?? 1);
   $id_registra = $_SESSION['id_usuario'];
   $fecha = $_POST['fecha_seleccionada'];
   $hora = date('H:i:s');
@@ -19,8 +21,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   }
 
   // Insertar en tb_checklist_limpieza
-  $stmt = $conn->prepare("INSERT INTO tb_checklist_limpieza (clm_checklist_id_bus, clm_checklist_fecha, clm_checklist_hora, clm_checklist_responsable, clm_checklist_idpersonaregistra, clm_checklist_observaciones) VALUES (?, ?, ?, ?, ?, ?)");
-  $stmt->bind_param("isssis", $bus, $fecha, $hora, $responsable, $id_registra, $observaciones);
+  $id_version_checklist = n360_cv_current_version_id($conn, $id_tipo_checklist, $fecha);
+  if ($id_version_checklist !== null && n360_cv_checklist_version_ready($conn)) {
+    $stmt = $conn->prepare("INSERT INTO tb_checklist_limpieza (clm_checklist_id_bus, clm_checklist_fecha, clm_checklist_hora, clm_checklist_responsable, clm_checklist_idpersonaregistra, clm_checklist_observaciones, clm_checklist_idtipo, clm_checklist_idversion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("isssisii", $bus, $fecha, $hora, $responsable, $id_registra, $observaciones, $id_tipo_checklist, $id_version_checklist);
+  } else {
+    $stmt = $conn->prepare("INSERT INTO tb_checklist_limpieza (clm_checklist_id_bus, clm_checklist_fecha, clm_checklist_hora, clm_checklist_responsable, clm_checklist_idpersonaregistra, clm_checklist_observaciones, clm_checklist_idtipo) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("isssisi", $bus, $fecha, $hora, $responsable, $id_registra, $observaciones, $id_tipo_checklist);
+  }
   $stmt->execute();
   $id_checklist = $stmt->insert_id;
 

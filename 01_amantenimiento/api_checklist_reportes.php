@@ -10,6 +10,7 @@ if (!isset($_SESSION['usuario'])) {
 
 define('ACCESS_GRANTED', true);
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
+require_once __DIR__ . '/checklist_versiones.php';
 
 mysqli_report(MYSQLI_REPORT_OFF);
 
@@ -177,6 +178,7 @@ function cr_item_metric(array $row): array {
 }
 
 function cr_fetch_checklist_items_flat(mysqli $conn, int $checklistId, int $tipoId): array {
+    $filter = n360_cv_item_filter($conn, $checklistId, $tipoId, 'i', 'c');
     $stmt = $conn->prepare("
         SELECT i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo,
                r.clm_resultado_estado, r.clm_resultado_dfecd, r.clm_rescheck_conductor1,
@@ -188,13 +190,11 @@ function cr_fetch_checklist_items_flat(mysqli $conn, int $checklistId, int $tipo
         LEFT JOIN tb_resultados_checklist r
             ON r.clm_resultado_id_item = i.clm_item_id
            AND r.clm_resultado_id_checklist = ?
-        WHERE i.clm_item_estado = 'activo'
-          AND c.clm_categorias_estado = 'activo'
-          AND i.clm_item_idtipocheck = ?
+        WHERE {$filter['where']}
         ORDER BY i.clm_item_id ASC
     ");
     if (!$stmt) throw new RuntimeException(cr_db_error($conn));
-    $stmt->bind_param('ii', $checklistId, $tipoId);
+    n360_cv_bind_params($stmt, 'i' . $filter['types'], array_merge([$checklistId], $filter['params']));
     return cr_fetch_all($stmt);
 }
 
@@ -349,6 +349,7 @@ function cr_checklist_base_query(): string {
 function cr_summary_from_row(mysqli $conn, array $row): array {
     $checklistId = (int)$row['clm_checklist_id'];
     $tipoId = (int)$row['clm_checklist_idtipo'];
+    $versionId = n360_cv_checklist_version_id($conn, $checklistId, $tipoId, cr_text($row['clm_checklist_fecha'] ?? ''));
     $completion = cr_completion_for_checklist($conn, $checklistId, $tipoId);
     $kpi = cr_kpi_for_checklist($conn, $checklistId, $tipoId, (int)$row['clm_checklist_id_bus']);
 
@@ -357,6 +358,8 @@ function cr_summary_from_row(mysqli $conn, array $row): array {
         'corr' => cr_text($row['clm_checklist_corr']),
         'tipo_id' => $tipoId,
         'tipo' => cr_text($row['tipo_nombre']),
+        'version_id' => $versionId,
+        'version' => n360_cv_version_label($conn, $versionId),
         'fecha' => cr_text($row['clm_checklist_fecha']),
         'hora' => cr_text($row['clm_checklist_hora']),
         'estado' => cr_text($row['clm_checklist_estado']),
@@ -384,6 +387,8 @@ function cr_fetch_checklist_detail(mysqli $conn, int $checklistId): array {
         cr_json(false, [], 'No tienes permiso para este tipo de checklist.', 403);
     }
 
+    $tipoId = (int)$row['clm_checklist_idtipo'];
+    $filter = n360_cv_item_filter($conn, $checklistId, $tipoId, 'i', 'cat', cr_text($row['clm_checklist_fecha'] ?? ''));
     $stmtItems = $conn->prepare("
         SELECT cat.clm_categoria_id, cat.clm_categoria_nombre,
                i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo,
@@ -400,14 +405,11 @@ function cr_fetch_checklist_detail(mysqli $conn, int $checklistId): array {
            AND r.clm_resultado_id_checklist = ?
         LEFT JOIN tb_usuarios ureg
             ON ureg.id_usuario = r.clm_resultados_id_user
-        WHERE i.clm_item_estado = 'activo'
-          AND cat.clm_categorias_estado = 'activo'
-          AND i.clm_item_idtipocheck = ?
+        WHERE {$filter['where']}
         ORDER BY cat.clm_categoria_id ASC, i.clm_item_id ASC
     ");
     if (!$stmtItems) throw new RuntimeException(cr_db_error($conn));
-    $tipoId = (int)$row['clm_checklist_idtipo'];
-    $stmtItems->bind_param('ii', $checklistId, $tipoId);
+    n360_cv_bind_params($stmtItems, 'i' . $filter['types'], array_merge([$checklistId], $filter['params']));
     $itemRows = cr_fetch_all($stmtItems);
 
     $categories = [];

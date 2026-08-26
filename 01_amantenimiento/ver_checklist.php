@@ -21,6 +21,7 @@ if ($_SESSION['web_rol'] !== 'Admin') {
 define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
 require_once("../.c0nn3ct/db_securebd2.php");
+require_once __DIR__ . "/checklist_versiones.php";
 // conexión y función SOLO aquí
 require_once("funciones_trabajador.php");
 
@@ -1464,6 +1465,16 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
       $res_datos = $stmt_datos->get_result();
       $datos = $res_datos->fetch_assoc();
 
+      if (!$datos) {
+          die("Checklist no encontrado.");
+      }
+
+      $tipo_checklist_detalle = (int)($datos['clm_checklist_idtipo'] ?? 1);
+      $fecha_checklist_detalle = (string)($datos['clm_checklist_fecha'] ?? '');
+      $checklist_version_id = n360_cv_checklist_version_id($conn, (int)$id_checklist, $tipo_checklist_detalle, $fecha_checklist_detalle);
+      $checklist_version_label = n360_cv_version_label($conn, $checklist_version_id);
+      $checklist_version_mode = $checklist_version_id !== null && n360_cv_item_version_ready($conn);
+
 
       
       $is_cerrado = ($datos['clm_checklist_fecha'] != date('Y-m-d'));
@@ -1493,6 +1504,9 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
           <?= $is_cerrado ? 'CERRADO' : 'ABIERTO' ?>
         </span>
       </p>
+      <?php if ($checklist_version_label !== ''): ?>
+        <p><strong>Version checklist:</strong> <?= htmlspecialchars($checklist_version_label) ?></p>
+      <?php endif; ?>
 
     </div>
 
@@ -1512,13 +1526,39 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
   <?php
     // Obtener categorías
-    $sql_cat = "SELECT * FROM tb_categorias_checklist WHERE clm_categorias_estado = 'activo' ORDER BY clm_categoria_id";
-    $res_cat = $conn->query($sql_cat);
+    if ($checklist_version_mode) {
+      $stmt_cat = $conn->prepare("
+        SELECT DISTINCT cat.clm_categoria_id, cat.clm_categoria_nombre
+        FROM tb_categorias_checklist cat
+        INNER JOIN tb_items_checklist i
+          ON i.clm_item_id_categoria = cat.clm_categoria_id
+        WHERE i.clm_item_idversion = ?
+        ORDER BY cat.clm_categoria_id
+      ");
+      $stmt_cat->bind_param("i", $checklist_version_id);
+      $stmt_cat->execute();
+      $res_cat = $stmt_cat->get_result();
+    } else {
+      $sql_cat = "SELECT * FROM tb_categorias_checklist WHERE clm_categorias_estado = 'activo' ORDER BY clm_categoria_id";
+      $res_cat = $conn->query($sql_cat);
+    }
     $contador_pregunta = 1;
 
     while ($cat = $res_cat->fetch_assoc()) {
         // Obtener items de la categoría
-      $stmt_items = $conn->prepare("SELECT i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo, r.clm_resultados_obs, r.clm_resultados_id_user, r.clm_resultado_estado, r.clm_resultado_dfecd, r.clm_rescheck_conductor1, r.clm_rescheck_porcentaje1, r.clm_rescheck_imagen, r.clm_resultado_fecharegistro,
+      if ($checklist_version_mode) {
+        $stmt_items = $conn->prepare("SELECT i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo, r.clm_resultados_obs, r.clm_resultados_id_user, r.clm_resultado_estado, r.clm_resultado_dfecd, r.clm_rescheck_conductor1, r.clm_rescheck_porcentaje1, r.clm_rescheck_imagen, r.clm_resultado_fecharegistro,
+              COALESCE(NULLIF(ureg.nombre, ''), ureg.usuario, r.clm_resultados_id_user) AS usuario_registro_nombre
+          FROM tb_items_checklist i
+          LEFT JOIN tb_resultados_checklist r
+          ON i.clm_item_id = r.clm_resultado_id_item AND r.clm_resultado_id_checklist = ?
+          LEFT JOIN tb_usuarios ureg ON ureg.id_usuario = r.clm_resultados_id_user
+          WHERE i.clm_item_id_categoria = ?
+          AND i.clm_item_idversion = ?
+          ORDER BY i.clm_item_id");
+        $stmt_items->bind_param("iii", $id_checklist, $cat['clm_categoria_id'], $checklist_version_id);
+      } else {
+        $stmt_items = $conn->prepare("SELECT i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo, r.clm_resultados_obs, r.clm_resultados_id_user, r.clm_resultado_estado, r.clm_resultado_dfecd, r.clm_rescheck_conductor1, r.clm_rescheck_porcentaje1, r.clm_rescheck_imagen, r.clm_resultado_fecharegistro,
               COALESCE(NULLIF(ureg.nombre, ''), ureg.usuario, r.clm_resultados_id_user) AS usuario_registro_nombre
           FROM tb_items_checklist i
           LEFT JOIN tb_resultados_checklist r
@@ -1526,8 +1566,10 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
           LEFT JOIN tb_usuarios ureg ON ureg.id_usuario = r.clm_resultados_id_user
           WHERE i.clm_item_id_categoria = ? 
           AND i.clm_item_estado = 'activo'
-          AND i.clm_item_idtipocheck = ?");
-      $stmt_items->bind_param("iii", $id_checklist, $cat['clm_categoria_id'], $datos['clm_checklist_idtipo']);
+          AND i.clm_item_idtipocheck = ?
+          ORDER BY i.clm_item_id");
+        $stmt_items->bind_param("iii", $id_checklist, $cat['clm_categoria_id'], $tipo_checklist_detalle);
+      }
 
       $stmt_items->execute();
       $res_items = $stmt_items->get_result();
