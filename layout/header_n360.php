@@ -291,6 +291,15 @@ function n360_render_header(array $options = []): void {
     $logoutUrl = $options['logout_url'] ?? n360_base_url('login/logout.php');
     $logoEmpresa = $options['logo_empresa'] ?? n360_base_url('img/norte360.png');
     $logoSistema = $options['logo_sistema'] ?? n360_base_url('img/completo.png');
+    $liveAllowed = false;
+    $liveLib = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'n360_live' . DIRECTORY_SEPARATOR . 'live_lib.php';
+    $liveIndex = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'n360_live' . DIRECTORY_SEPARATOR . 'index.php';
+
+    if (is_file($liveLib) && is_file($liveIndex)) {
+        require_once $liveLib;
+        $liveConn = (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof mysqli) ? $GLOBALS['conn'] : null;
+        $liveAllowed = function_exists('n360_live_can_access') && n360_live_can_access($liveConn);
+    }
     ?>
     <?php if (empty($GLOBALS['n360_header_critical_printed'])): $GLOBALS['n360_header_critical_printed'] = true; ?>
         <style id="n360HeaderCritical">
@@ -343,6 +352,14 @@ function n360_render_header(array $options = []): void {
             </a>
 
             <div class="n360-header__actions">
+                <?php if ($liveAllowed): ?>
+                    <a class="n360-live-link" href="<?= n360_header_h(n360_base_url('n360_live/index.php')) ?>">
+                        <span class="n360-live-link__pulse" aria-hidden="true"></span>
+                        <i class="bi bi-broadcast-pin"></i>
+                        <span>Live</span>
+                    </a>
+                <?php endif; ?>
+
                 <div class="n360-user-menu" data-n360-user-menu>
                     <button type="button" class="n360-user-trigger" data-n360-user-toggle aria-expanded="false" aria-controls="n360UserDropdown">
                         <span class="n360-user-avatar" aria-hidden="true">

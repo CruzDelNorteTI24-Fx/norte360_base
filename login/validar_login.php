@@ -65,6 +65,7 @@ $stmt = $conn->prepare("
         u.DNI,
         u.clm_usuarios_sede,
         u.web_rol,
+        u.prmso3nvivo,
         s.clm_sedes_name AS sede_nombre,
         u.clm_tra_imagen AS foto_usuario
     FROM tb_usuarios u
@@ -114,6 +115,9 @@ $_SESSION['clm_usuarios_sede'] = $fila['clm_usuarios_sede'];
 $_SESSION['clm_usuarios_sede_nombre'] = trim((string)($fila['sede_nombre'] ?? '')) !== ''
     ? $fila['sede_nombre']
     : $fila['clm_usuarios_sede'];
+$_SESSION['prmso3nvivo'] = (int)($fila['prmso3nvivo'] ?? 0) === 1 ? 1 : 0;
+$_SESSION['n360_live_perm'] = $_SESSION['prmso3nvivo'];
+$_SESSION['n360_live_perm_checked'] = true;
 
 $_SESSION['n360_user_photo_checked'] = true;
 $fotoPerfil = n360_login_photo_data_uri($fila['foto_usuario'] ?? null);

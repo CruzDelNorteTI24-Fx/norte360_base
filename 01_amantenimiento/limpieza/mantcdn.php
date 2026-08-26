@@ -38,6 +38,12 @@ require_once __DIR__ . '/../../layout/footer_n360.php';
 require_once __DIR__ . '/../../layout/content_n360.php';
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
+$mostrar_live_guide = false;
+$live_lib = __DIR__ . '/../../n360_live/live_lib.php';
+if (is_file($live_lib)) {
+    require_once $live_lib;
+    $mostrar_live_guide = function_exists('n360_live_can_access') && n360_live_can_access($conn);
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -47,6 +53,9 @@ unset($_SESSION['exito']);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="../../img/norte360.png">  
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <?php if ($mostrar_live_guide): ?>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <?php endif; ?>
     <style>
         body {
             background: #f0f2f5;
@@ -1065,6 +1074,9 @@ input[type=date] {
 <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
 <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
 <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
+<?php if ($mostrar_live_guide): ?>
+<link rel="stylesheet" href="<?= n360_asset('n360_live/n360_live.css') ?>">
+<?php endif; ?>
 </head>
 <body>
 <?php
@@ -1143,6 +1155,33 @@ $imagen_existe = file_exists($ruta_imagen);
     <h1 style="font-size: 36px; margin: 10px 0 5px 0;">Checklist de <?= $nombre_tipo ?></h1>
   </div>
 </div>
+<?php if ($mostrar_live_guide): ?>
+<section
+  class="n360-live-guide n360-live-guide--mantcdn"
+  data-n360-live-guide
+  data-live-endpoint="<?= htmlspecialchars(n360_base_url('n360_live/api.php'), ENT_QUOTES, 'UTF-8') ?>"
+>
+  <div class="n360-live-guide__head">
+    <div>
+      <strong><i class="bi bi-broadcast-pin"></i> Guia de salidas Live</strong>
+      <span data-live-guide-stamp>Programacion operativa</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button type="button" data-live-refresh>
+        <i class="bi bi-arrow-clockwise"></i>
+        <span>Actualizar</span>
+      </button>
+      <a href="<?= htmlspecialchars(n360_base_url('n360_live/index.php'), ENT_QUOTES, 'UTF-8') ?>">
+        <i class="bi bi-box-arrow-up-right"></i>
+        <span>Abrir</span>
+      </a>
+    </div>
+  </div>
+  <div class="n360-live-guide__list" data-live-guide-list>
+    <div class="n360-live-empty">Cargando salidas proximas...</div>
+  </div>
+</section>
+<?php endif; ?>
   <h3>Buses - Checklist de hoy</h3>
   <div style="margin-bottom:20px;">
     <label for="fecha_select"><strong>Seleccionar fecha:</strong></label>
@@ -1214,6 +1253,9 @@ function filtrarBuses() {
   });
 }
 </script>
+<?php if ($mostrar_live_guide): ?>
+<div class="n360-live-clear" aria-hidden="true"></div>
+<?php endif; ?>
   <form id="form-checklist" action="checklist/guardar_checklist.php" method="POST">
     <input type="hidden" name="id_tipo_checklist" value="<?= $id_tipo ?>">
     <input type="hidden" name="fecha_seleccionada" id="fecha_form" value="<?= date('Y-m-d') ?>">
@@ -1288,5 +1330,8 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
+<?php if ($mostrar_live_guide): ?>
+<script src="<?= n360_asset('n360_live/n360_live.js') ?>"></script>
+<?php endif; ?>
 </body>
 </html>
