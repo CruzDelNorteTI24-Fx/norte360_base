@@ -129,6 +129,36 @@ if ($tipo_checklist == 1) {
 
     $kpi_valor = number_format($porcentaje_c, 2) . "%";
 }
+if ($tipo_checklist == 5) {
+    // Tipo 5: Operaciones
+    $porcentaje_c = ($total_items > 0) ? ($total_c / $total_items) * 100 : 0;
+    $kpi_titulo = "Estado de Operación";
+
+    if ($porcentaje_c > 70) {
+        $kpi_texto = "EXCELENTE";
+    } elseif ($porcentaje_c >= 50) {
+        $kpi_texto = "ACEPTABLE";
+    } else {
+        $kpi_texto = "DEFICIENTE";
+    }
+
+    $kpi_valor = number_format($porcentaje_c, 2) . "%";
+}
+if ($tipo_checklist == 6) {
+    // Tipo 6: Limpieza Semanal
+    $porcentaje_c = ($total_items > 0) ? ($total_c / $total_items) * 100 : 0;
+    $kpi_titulo = "Estado de Limpieza Semanal de la Unidad";
+
+    if ($porcentaje_c > 70) {
+        $kpi_texto = "EXCELENTE";
+    } elseif ($porcentaje_c >= 50) {
+        $kpi_texto = "ACEPTABLE";
+    } else {
+        $kpi_texto = "DEFICIENTE";
+    }
+
+    $kpi_valor = number_format($porcentaje_c, 2) . "%";
+}
 
 elseif ($tipo_checklist == 2) {
     // Tipo 2: SAB ahora Embarque

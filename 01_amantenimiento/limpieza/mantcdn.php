@@ -13,6 +13,7 @@ $permisosPorTipoChecklist = [
     3 => ['c-lalu'],          // Alcoholimetro
     4 => ['c-lalu'],          // Fumigacion
     5 => ['c-lalu'],          // Operación
+    6 => ['c-limp', 'c-lalu'],          // Limpieza Semanal
 ];
 if (!array_key_exists($id_tipo, $permisosPorTipoChecklist)) {
     header("Location: ../../login/none_permisos.php");

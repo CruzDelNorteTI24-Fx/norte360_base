@@ -201,6 +201,15 @@ function obtenerKPIChecklist($conn, $checklist_id, $tipo_id, $bus_id = null) {
         ];
     }
 
+    if ($tipo_id == 6) { // Limpieza Semanal
+        $porcentaje_c = ($total_items > 0) ? ($total_c / $total_items) * 100 : 0;
+        return [
+            "titulo" => "Estado de Limpieza Semanal",
+            "valor" => number_format($porcentaje_c, 2) . "%",
+            "texto" => ($porcentaje_c > 70) ? "EXCELENTE" : (($porcentaje_c >= 50) ? "ACEPTABLE" : "DEFICIENTE")
+        ];
+    }
+
     if ($tipo_id == 2) { // SAB
         $porcentaje_cSAB = ($total_items > 0) ? ($total_c / $total_items) * 100 : 0;
         return [

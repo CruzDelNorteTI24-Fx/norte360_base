@@ -31,6 +31,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     case 5:
       $corrtipocheck = 'OPR';
       break;
+    case 6:
+      $corrtipocheck = 'LSM';
+      break;
     }
 
 

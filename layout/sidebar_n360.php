@@ -298,6 +298,13 @@ function n360_menu_config(): array {
                                 'vistas' => ['c-lalu'],
                                 'modulo' => 5
                             ],
+                            [
+                                'titulo' => 'Nueva limpieza SEMANAL',
+                                'icono' => 'bi bi-droplet-fill',
+                                'url' => '01_amantenimiento/limpieza/mantcdn.php?id_tipo=6',
+                                'vistas' => ['c-limp', 'c-lalu'],
+                                'modulo' => 5
+                            ],                            
                         ]
                     ],
                     [

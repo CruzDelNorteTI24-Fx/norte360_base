@@ -49,9 +49,9 @@ unset($_SESSION['exito']);
     // Usuarios normales: filtro por tipo según su vista_redirect
 $vistaRedirectArray = $_SESSION['vistas'] ?? [];
 $tiposPorVistaChecklist = [
-    'c-limp' => [1],       // Limpieza
+    'c-limp' => [1,6],       // Limpieza
     'c-sab' => [2],        // Embarque
-    'c-lalu' => [1, 3, 4, 5], // Limpieza, alcoholimetro y fumigacion y operaciones
+    'c-lalu' => [1, 3, 4, 5, 6], // Limpieza, alcoholimetro y fumigacion y operaciones, limpieza semanal
 ];
 $tipoChecklist = [];
 foreach ($tiposPorVistaChecklist as $vistaChecklist => $tiposPermitidos) {
