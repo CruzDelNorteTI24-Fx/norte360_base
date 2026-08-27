@@ -22,13 +22,23 @@
     const h = Math.floor(abs / 60);
     const m = abs % 60;
     if (h <= 0) return `${m} min`;
-    if (m <= 0) return `${h}h`;
-    return `${h}h ${pad(m)}min`;
+    if (m <= 0) return `${h} h`;
+    return `${h} h ${pad(m)} min`;
   };
 
   const clockLabel = () => {
     const now = new Date();
     return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  };
+
+  const dateLabel = () => {
+    const now = new Date();
+    return new Intl.DateTimeFormat('es-PE', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(now);
   };
 
   const currentOperationalMinutes = () => {
@@ -63,7 +73,7 @@
     if (diff >= 0 && diff <= 15) {
       return {
         key: 'proximo',
-        label: 'Proximo en ruta',
+        label: 'Próxima salida',
         detail: diff <= 0 ? 'Salida inmediata' : `Sale en ${formatDuration(diff)}`,
         diff,
         sort: diff,
@@ -74,7 +84,7 @@
       return {
         key: 'ruta',
         label: 'En ruta',
-        detail: `Salio hace ${formatDuration(diff)}`,
+        detail: `Salió hace ${formatDuration(diff)}`,
         diff,
         sort: 1000 + Math.abs(diff),
       };
@@ -102,29 +112,55 @@
   const routeLabel = (row) => {
     const route = text(row.ruta, '');
     if (route) return route;
-    return `${text(row.origen)} -> ${text(row.destino)}`;
+    return `${text(row.origen)} → ${text(row.destino)}`;
   };
 
   const rowHtml = (row, compact = false) => {
     const live = evaluateRow(row);
+
+    if (compact) {
+      return `
+        <article class="n360-live-row is-${esc(live.key)} is-compact">
+          <div class="n360-live-row__time">
+            <small>Hora</small>
+            <strong>${esc(text(row.hora_salida, '--:--'))}</strong>
+          </div>
+          <div class="n360-live-row__unit">
+            <small>Unidad</small>
+            <strong>${esc(text(row.bus, 'SIN ASIGNAR'))}</strong>
+            <span>${esc(text(row.origen))} → ${esc(text(row.destino))}</span>
+          </div>
+          <div class="n360-live-row__status">
+            <span class="n360-live-chip is-${esc(live.key)}"><i></i>${esc(live.label)}</span>
+          </div>
+        </article>
+      `;
+    }
+
     return `
       <article class="n360-live-row is-${esc(live.key)}">
         <div class="n360-live-row__time">
           <small>Hora</small>
           <strong>${esc(text(row.hora_salida, '--:--'))}</strong>
         </div>
-        <div class="n360-live-row__main">
+        <div class="n360-live-row__unit">
           <small>Unidad</small>
           <strong>${esc(text(row.bus, 'SIN ASIGNAR'))}</strong>
-          <span>${esc(text(row.origen))} -> ${esc(text(row.destino))}</span>
+        </div>
+        <div class="n360-live-row__origin">
+          <small>Origen</small>
+          <strong>${esc(text(row.origen))}</strong>
+        </div>
+        <div class="n360-live-row__destination">
+          <small>Destino</small>
+          <strong>${esc(text(row.destino))}</strong>
         </div>
         <div class="n360-live-row__route">
-          <small>${compact ? 'Ruta' : 'Recorrido'}</small>
+          <small>Recorrido</small>
           <strong title="${esc(routeLabel(row))}">${esc(routeLabel(row))}</strong>
-          <span>${esc(text(row.origen))} -> ${esc(text(row.destino))}</span>
         </div>
         <div class="n360-live-row__status">
-          <span class="n360-live-chip is-${esc(live.key)}">${esc(live.label)}</span>
+          <span class="n360-live-chip is-${esc(live.key)}"><i></i>${esc(live.label)}</span>
           <small>${esc(live.detail)}</small>
         </div>
       </article>
@@ -133,10 +169,12 @@
 
   const viewerHtml = (viewer) => `
     <article class="n360-live-viewer">
-      <i class="bi ${viewer.dispositivo === 'Celular' ? 'bi-phone' : viewer.dispositivo === 'Tablet' ? 'bi-tablet' : 'bi-pc-display'}"></i>
-      <div>
+      <div class="n360-live-viewer__icon">
+        <i class="bi ${viewer.dispositivo === 'Celular' ? 'bi-phone' : viewer.dispositivo === 'Tablet' ? 'bi-tablet' : 'bi-pc-display'}"></i>
+      </div>
+      <div class="n360-live-viewer__body">
         <strong>${esc(text(viewer.usuario || viewer.nombre, 'Usuario'))}</strong>
-        <span>${esc(text(viewer.dispositivo, 'Dispositivo'))} | IP ${esc(text(viewer.ip))}</span>
+        <span>${esc(text(viewer.dispositivo, 'Dispositivo'))} · IP ${esc(text(viewer.ip))}</span>
         <small>${esc(text(viewer.last_seen_label, 'Activo recientemente'))}</small>
       </div>
     </article>
@@ -203,14 +241,14 @@
     const list = root.querySelector('[data-live-list]');
     const next = root.querySelector('[data-live-next]');
 
-    if (summary) summary.textContent = `${total} horarios activos en pizarra`;
-    if (totalNode) totalNode.textContent = `${total} horarios`;
+    if (summary) summary.textContent = `${total} ${total === 1 ? 'salida activa' : 'salidas activas'} en pizarra`;
+    if (totalNode) totalNode.textContent = `${total} ${total === 1 ? 'horario' : 'horarios'}`;
 
     const snapshot = state.snapshot || {};
     if (cache) {
       const cacheMsg = snapshot.cache_hit
-        ? `Cache reutilizado hace ${snapshot.cache_age || 0}s. Generado ${snapshot.generated_label || ''}.`
-        : `Snapshot generado ${snapshot.generated_label || ''}.`;
+        ? `Datos en caché · hace ${snapshot.cache_age || 0}s · ${snapshot.generated_label || ''}`
+        : `Última actualización · ${snapshot.generated_label || ''}`;
       cache.textContent = cacheMsg.trim();
     }
 
@@ -231,37 +269,56 @@
         || rows[0];
 
       if (!candidate) {
-        next.innerHTML = '<div class="n360-live-empty">No hay proxima salida disponible.</div>';
+        next.innerHTML = '<div class="n360-live-empty">No hay próxima salida disponible.</div>';
       } else {
         const item = candidate.row;
         const live = candidate.live;
         next.innerHTML = `
-          <article class="n360-live-next-card is-${esc(live.key === 'proximo' ? 'warning' : live.key)}">
-            <div class="n360-live-next-main">
-              <div class="n360-live-next-terminal">
-                <span><i class="bi bi-signpost-split-fill"></i> Proxima salida</span>
-                <strong>Gate N360</strong>
+          <div class="n360-live-next-card is-${esc(live.key)}">
+            <div class="n360-live-next-accent"></div>
+
+            <div class="n360-live-next-heading">
+              <span class="n360-live-next-kicker">PRÓXIMA SALIDA</span>
+              <strong>Servicio programado</strong>
+            </div>
+
+            <div class="n360-live-next-time">
+              <span>HORA</span>
+              <strong>${esc(text(item.hora_salida, '--:--'))}</strong>
+              <small>${esc(live.detail)}</small>
+            </div>
+
+            <div class="n360-live-next-trip">
+              <div class="n360-live-next-unit">
+                <span>UNIDAD</span>
+                <strong>${esc(text(item.bus, 'SIN ASIGNAR'))}</strong>
               </div>
-              <div class="n360-live-next-time">${esc(text(item.hora_salida, '--:--'))}</div>
-              <h2>${esc(text(item.bus, 'SIN ASIGNAR'))}</h2>
+
               <div class="n360-live-next-route">
-                <article>
-                  <span>Origen</span>
+                <div>
+                  <span>ORIGEN</span>
                   <strong>${esc(text(item.origen))}</strong>
-                </article>
-                <article>
-                  <span>Destino</span>
+                </div>
+                <div class="n360-live-next-route__line" aria-hidden="true">
+                  <i class="bi bi-arrow-right"></i>
+                </div>
+                <div>
+                  <span>DESTINO</span>
                   <strong>${esc(text(item.destino))}</strong>
-                </article>
+                </div>
               </div>
-              <p>${esc(routeLabel(item))}</p>
+
+              <p title="${esc(routeLabel(item))}">${esc(routeLabel(item))}</p>
             </div>
-            <div class="n360-live-next-status">
-              <strong>${esc(live.label)}</strong>
-              <span>${esc(live.detail)}</span>
-              <small>Actualiza manualmente cuando quieras refrescar la programacion.</small>
+
+            <div class="n360-live-next-state">
+              <span>ESTADO</span>
+              <div class="n360-live-status-block is-${esc(live.key)}">
+                <i></i>
+                <strong>${esc(live.label)}</strong>
+              </div>
             </div>
-          </article>
+          </div>
         `;
       }
     }
@@ -293,9 +350,15 @@
     const isGuide = root.hasAttribute('data-n360-live-guide');
     const state = { rows: [], viewers: [], snapshot: null };
 
-    const render = () => {
+    const renderClock = () => {
       const clock = root.querySelector('[data-live-clock]');
+      const date = root.querySelector('[data-live-date]');
       if (clock) clock.textContent = clockLabel();
+      if (date) date.textContent = dateLabel();
+    };
+
+    const render = () => {
+      renderClock();
       if (isGuide) renderGuide(root, state);
       else renderFull(root, state);
     };
@@ -321,7 +384,11 @@
 
     load(false);
     render();
-    window.setInterval(render, 30000);
+    window.setInterval(renderClock, 1000);
+    window.setInterval(() => {
+      if (isGuide) renderGuide(root, state);
+      else renderFull(root, state);
+    }, 30000);
 
     window.setInterval(async () => {
       const data = await postLive(endpoint, 'heartbeat');
