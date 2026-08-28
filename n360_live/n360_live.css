@@ -363,7 +363,8 @@
 
 .n360-live-next-card.is-proximo .n360-live-next-accent { background: var(--live-yellow); }
 .n360-live-next-card.is-ruta .n360-live-next-accent { background: var(--live-green); }
-.n360-live-next-card.is-fuera .n360-live-next-accent { background: #96a3af; }
+.n360-live-next-card.is-fuera .n360-live-next-accent,
+.n360-live-next-card.is-salido .n360-live-next-accent { background: #96a3af; }
 
 .n360-live-next-heading,
 .n360-live-next-time,
@@ -563,7 +564,8 @@
     color: var(--live-green);
 }
 
-.n360-live-status-block.is-fuera {
+.n360-live-status-block.is-fuera,
+.n360-live-status-block.is-salido {
     border-color: #d9e0e6;
     background: #f1f4f6;
     color: #6f7d89;
@@ -687,6 +689,7 @@
 .n360-live-row.is-programado::before { background: var(--live-blue); }
 .n360-live-row.is-proximo::before { background: var(--live-yellow); }
 .n360-live-row.is-ruta::before { background: var(--live-green); }
+.n360-live-row.is-salido::before { background: #96a3af; }
 
 .n360-live-row__time,
 .n360-live-row__unit,
@@ -786,7 +789,8 @@
     color: var(--live-green);
 }
 
-.n360-live-chip.is-fuera {
+.n360-live-chip.is-fuera,
+.n360-live-chip.is-salido {
     border-color: #d9e0e6;
     background: #f1f4f6;
     color: #6f7d89;

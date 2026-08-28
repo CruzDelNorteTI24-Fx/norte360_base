@@ -155,7 +155,7 @@ if (!function_exists('n360_live_presence_file')) {
 if (!function_exists('n360_live_fetch_snapshot')) {
     function n360_live_fetch_snapshot(mysqli $conn, bool $force = false): array {
         $ttl = 180;
-        $cacheVersion = 2;
+        $cacheVersion = 3;
         $file = n360_live_snapshot_file();
         $now = time();
         $cached = n360_live_read_json($file);
@@ -169,15 +169,6 @@ if (!function_exists('n360_live_fetch_snapshot')) {
             return $cached;
         }
 
-        $currentOperationalSeconds = "
-            (
-                CASE
-                    WHEN CURTIME() >= '05:00:00' THEN TIME_TO_SEC(CURTIME())
-                    ELSE TIME_TO_SEC(CURTIME()) + 86400
-                END
-            )
-        ";
-
         $sql = "
             SELECT
                 COALESCE(bus, 'SIN ASIGNAR') AS bus,
@@ -189,7 +180,6 @@ if (!function_exists('n360_live_fetch_snapshot')) {
                 DATE_FORMAT(ultima_actualizacion, '%d/%m/%Y %H:%i') AS ultima_actualizacion
             FROM vw_progbuses_n360live
             WHERE bus IS NOT NULL AND bus != 'SIN ASIGNAR'
-            AND CAST(orden_operativo AS UNSIGNED) >= ({$currentOperationalSeconds} - 28800)
             ORDER BY orden_operativo ASC, bus ASC
         ";
 

@@ -101,9 +101,9 @@
     }
 
     return {
-      key: 'fuera',
-      label: 'Fuera de ventana',
-      detail: `Hace ${formatDuration(diff)}`,
+      key: 'salido',
+      label: 'Ya salio',
+      detail: `Salio hace ${formatDuration(diff)}`,
       diff,
       sort: 9000 + Math.abs(diff),
     };
@@ -279,7 +279,7 @@
 
             <div class="n360-live-next-heading">
               <span class="n360-live-next-kicker">PRÓXIMA SALIDA</span>
-              <strong>Servicio programado</strong>
+              <strong>${live.key === 'ruta' ? 'Servicio en ruta' : live.key === 'salido' ? 'Servicio ya salido' : 'Servicio programado'}</strong>
             </div>
 
             <div class="n360-live-next-time">
