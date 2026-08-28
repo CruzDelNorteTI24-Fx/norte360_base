@@ -169,9 +169,10 @@
     const year = Number(match[1]);
     const month = Number(match[2]);
     const lastDay = new Date(year, month, 0).getDate();
+    const lastDayText = String(lastDay).padStart(2, '0');
     return {
       from: `${match[1]}-${match[2]}-01`,
-      to: `${match[1]}-${match[2]}-${pad(String(lastDay))}`
+      to: `${match[1]}-${match[2]}-${lastDayText}`
     };
   }
 
