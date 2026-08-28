@@ -155,17 +155,28 @@ if (!function_exists('n360_live_presence_file')) {
 if (!function_exists('n360_live_fetch_snapshot')) {
     function n360_live_fetch_snapshot(mysqli $conn, bool $force = false): array {
         $ttl = 180;
+        $cacheVersion = 2;
         $file = n360_live_snapshot_file();
         $now = time();
         $cached = n360_live_read_json($file);
         $cachedAt = (int)($cached['cached_at'] ?? 0);
+        $cachedVersion = (int)($cached['cache_version'] ?? 0);
 
-        if (!$force && $cached && $cachedAt > 0 && ($now - $cachedAt) < $ttl) {
+        if (!$force && $cached && $cachedVersion === $cacheVersion && $cachedAt > 0 && ($now - $cachedAt) < $ttl) {
             $cached['cache_hit'] = true;
             $cached['cache_age'] = $now - $cachedAt;
             $cached['cache_ttl'] = $ttl;
             return $cached;
         }
+
+        $currentOperationalSeconds = "
+            (
+                CASE
+                    WHEN CURTIME() >= '05:00:00' THEN TIME_TO_SEC(CURTIME())
+                    ELSE TIME_TO_SEC(CURTIME()) + 86400
+                END
+            )
+        ";
 
         $sql = "
             SELECT
@@ -178,7 +189,7 @@ if (!function_exists('n360_live_fetch_snapshot')) {
                 DATE_FORMAT(ultima_actualizacion, '%d/%m/%Y %H:%i') AS ultima_actualizacion
             FROM vw_progbuses_n360live
             WHERE bus IS NOT NULL AND bus != 'SIN ASIGNAR'
-            AND hora_salida >= CURTIME()
+            AND CAST(orden_operativo AS UNSIGNED) >= ({$currentOperationalSeconds} - 28800)
             ORDER BY orden_operativo ASC, bus ASC
         ";
 
@@ -204,6 +215,7 @@ if (!function_exists('n360_live_fetch_snapshot')) {
 
         $generatedAt = n360_live_now();
         $payload = [
+            'cache_version' => $cacheVersion,
             'cached_at' => $now,
             'cache_hit' => false,
             'cache_age' => 0,

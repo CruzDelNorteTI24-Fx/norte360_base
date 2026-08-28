@@ -1358,7 +1358,7 @@
       const totals = paymentTotals(rows);
       const doc = await window.N360PDF.createDocument({
         orientation: 'landscape',
-        title: 'REPORTE DE PAGOS DE CONDUCTORES',
+        title: 'REPORTE DE CONDUCTORES',
         secondTitle: cfg.monthLabel || cfg.month || 'Control mensual',
         description: 'Pagos de conductores segun las unidades visibles en pantalla.',
         docCode: 'FLOTA_PAGOS_CONDUCTORES',
@@ -1383,7 +1383,7 @@
               x: left,
               y,
               width,
-              title: 'Pagos visibles en pantalla',
+              title: 'Importes de conductores',
               rows: [
                 { label: 'Mes operativo', value: cfg.monthLabel || cfg.month || '-' },
                 { label: 'Unidades visibles', value: totals.unidades.toLocaleString('es-PE') },
@@ -1444,7 +1444,7 @@
           doc.setTextColor(15, 42, 64);
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(11);
-          doc.text('Detalle de pagos visibles', left, y);
+          doc.text('Detalle', left, y);
           y += 5;
 
           doc.autoTable({
@@ -1513,7 +1513,7 @@
 
     const summary = paymentSummaryRows(rows);
     const detailAoa = [
-      ['Fecha', 'Hora', 'Unidad', 'Ruta', 'Ida/Vuelta', 'Conductor', 'Rol', 'Estado pago', 'Importe S/', 'Observacion', 'Estado revision'],
+      ['Fecha', 'Hora', 'Unidad', 'Ruta', 'Ida/Vuelta', 'Conductor', 'Rol', 'Estado', 'Importe S/', 'Observacion', 'Estado revision'],
       ...rows.map((row) => [
         row.fecha || '-',
         row.hora || '-',
