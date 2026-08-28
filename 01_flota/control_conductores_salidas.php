@@ -901,6 +901,8 @@ $monthLabel = fcc_month_label($monthStart);
             <div class="fcc-hero-actions">
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-driver-summary><i class="bi bi-people-fill"></i> Resumen conductores</button>
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-canceled-summary><i class="bi bi-slash-circle"></i> Anulados <span data-fcc-canceled-count><?= number_format($kpis['anulados']) ?></span></button>
+                <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-payments-pdf><i class="bi bi-cash-coin"></i> PDF pagos</button>
+                <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-payments-excel><i class="bi bi-file-earmark-spreadsheet"></i> Excel pagos</button>
                 <button type="button" class="fcc-btn fcc-btn--primary" data-fcc-export-all><i class="bi bi-file-earmark-pdf"></i> PDF consolidado</button>
                 <a class="fcc-btn fcc-btn--soft" href="consolidado_salidas_buses.php"><i class="bi bi-arrow-left"></i> Consolidado</a>
             </div>
@@ -1472,6 +1474,7 @@ window.N360_FCC = {
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>

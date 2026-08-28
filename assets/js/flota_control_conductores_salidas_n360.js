@@ -97,6 +97,29 @@
     return raw ? `S/ ${moneyDisplayValue(raw)}` : '-';
   }
 
+  function moneyNumber(value) {
+    const raw = normalizeMoneyValue(value);
+    if (!raw || !/^\d+(?:\.\d+)?$/.test(raw)) return 0;
+    const amount = Number(raw);
+    return Number.isFinite(amount) ? amount : 0;
+  }
+
+  function formatMoneyAmount(amount) {
+    const value = Number(amount || 0);
+    if (!Number.isFinite(value)) return '0.00';
+    const rounded4 = Math.round(value * 10000) / 10000;
+    const rounded2 = Math.round(rounded4 * 100) / 100;
+    const maxDecimals = Math.abs(rounded4 - rounded2) > 0.000001 ? 4 : 2;
+    return rounded4.toLocaleString('es-PE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: maxDecimals
+    });
+  }
+
+  function moneyReportText(value) {
+    return `S/ ${formatMoneyAmount(moneyNumber(value))}`;
+  }
+
   function hojaRutaStateText(trip) {
     const hojaRuta = compact(trip?.hoja_ruta || '');
     if (!hojaRuta) return 'PENDIENTE';
@@ -1159,6 +1182,385 @@
     return rows;
   }
 
+  function paymentDetailRows(units) {
+    const rows = [];
+    units.forEach((unit) => {
+      const unitName = compact(unit.title || 'Unidad');
+      (unit.rows || []).forEach((row) => {
+        if (!row || !row.id || row.id === '0') return;
+        if (row.anulado || isCanceledRevision(row.revision)) return;
+        if (row.retorno || isReturnTrip(row.idaVuelta)) return;
+
+        const workDate = driverDateFromRow(row);
+        [
+          {
+            role: 'Conductor 1',
+            name: row.cond1,
+            estado: row.cond1Estado,
+            importe: row.cond1Importe,
+            obs: row.cond1Obs
+          },
+          {
+            role: 'Conductor 2',
+            name: row.cond2,
+            estado: row.cond2Estado,
+            importe: row.cond2Importe,
+            obs: row.cond2Obs
+          }
+        ].forEach((driver) => {
+          const name = compact(driver.name);
+          if (!name || name === '-') return;
+          const amount = moneyNumber(driver.importe);
+          rows.push({
+            dateKey: workDate.key || row.date || '',
+            fecha: workDate.label || formatDateValue(row.date),
+            hora: row.hora || '-',
+            unidad: unitName || '-',
+            ruta: row.rutaSimple || '-',
+            idaVuelta: tripDirection(row.idaVuelta),
+            conductor: name,
+            rol: driver.role,
+            estado: driverStateText(driver.estado),
+            estadoRaw: compact(driver.estado).toUpperCase(),
+            importe: amount,
+            importeTexto: moneyReportText(driver.importe),
+            observacion: compact(driver.obs) || '-',
+            revision: row.revision || '-'
+          });
+        });
+      });
+    });
+
+    return rows.sort((a, b) => {
+      const dateCompare = String(a.dateKey || '').localeCompare(String(b.dateKey || ''));
+      if (dateCompare !== 0) return dateCompare;
+      const timeCompare = String(a.hora || '').localeCompare(String(b.hora || ''));
+      if (timeCompare !== 0) return timeCompare;
+      const unitCompare = String(a.unidad || '').localeCompare(String(b.unidad || ''));
+      if (unitCompare !== 0) return unitCompare;
+      return String(a.rol || '').localeCompare(String(b.rol || ''));
+    });
+  }
+
+  function paymentSummaryRows(rows) {
+    const map = new Map();
+    rows.forEach((row) => {
+      const key = keyText(row.conductor);
+      if (!map.has(key)) {
+        map.set(key, {
+          conductor: row.conductor,
+          registros: 0,
+          ok: 0,
+          pendientes: 0,
+          total: 0,
+          unidades: new Set()
+        });
+      }
+      const item = map.get(key);
+      item.registros += 1;
+      item.total += Number(row.importe || 0);
+      item.unidades.add(keyText(row.unidad));
+      if (row.estadoRaw === 'PAGADO' || row.estado === 'OK') {
+        item.ok += 1;
+      } else {
+        item.pendientes += 1;
+      }
+    });
+
+    return Array.from(map.values()).map((item) => ({
+      conductor: item.conductor,
+      registros: item.registros,
+      ok: item.ok,
+      pendientes: item.pendientes,
+      total: item.total,
+      unidades: item.unidades.size
+    })).sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      if (b.registros !== a.registros) return b.registros - a.registros;
+      return a.conductor.localeCompare(b.conductor);
+    });
+  }
+
+  function paymentTotals(rows) {
+    const drivers = new Set();
+    const units = new Set();
+    return rows.reduce((acc, row) => {
+      const conductor = keyText(row.conductor);
+      const unidad = keyText(row.unidad);
+      if (conductor) drivers.add(conductor);
+      if (unidad) units.add(unidad);
+      acc.registros += 1;
+      acc.total += Number(row.importe || 0);
+      if (row.estadoRaw === 'PAGADO' || row.estado === 'OK') {
+        acc.ok += 1;
+      } else {
+        acc.pendientes += 1;
+      }
+      acc.conductores = drivers.size;
+      acc.unidades = units.size;
+      return acc;
+    }, { registros: 0, conductores: 0, unidades: 0, ok: 0, pendientes: 0, total: 0 });
+  }
+
+  function paymentPdfSummaryBody(summary) {
+    return summary.map((item) => [
+      item.conductor || '-',
+      Number(item.registros || 0).toLocaleString('es-PE'),
+      Number(item.ok || 0).toLocaleString('es-PE'),
+      Number(item.pendientes || 0).toLocaleString('es-PE'),
+      moneyReportText(item.total),
+      Number(item.unidades || 0).toLocaleString('es-PE')
+    ]);
+  }
+
+  function paymentPdfDetailBody(rows) {
+    return rows.map((row) => [
+      row.fecha || '-',
+      row.hora || '-',
+      row.unidad || '-',
+      row.ruta || '-',
+      row.conductor || '-',
+      row.rol || '-',
+      row.estado || '-',
+      moneyReportText(row.importe),
+      row.observacion || '-'
+    ]);
+  }
+
+  function excelSafeSheetName(name) {
+    return compact(name).replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'Hoja';
+  }
+
+  function autoWidthFromAoa(rows, fallback) {
+    const widths = [];
+    rows.forEach((row) => {
+      row.forEach((cell, index) => {
+        const length = String(cell ?? '').length;
+        widths[index] = Math.max(widths[index] || 0, Math.min(42, length + 3));
+      });
+    });
+    return (fallback || widths).map((width, index) => ({ wch: Math.max(widths[index] || 0, Number(width || 10)) }));
+  }
+
+  async function exportPaymentsPdf() {
+    const rows = paymentDetailRows(visibleUnits());
+    if (!rows.length) {
+      showNotice('No hay pagos visibles para exportar.', false);
+      return;
+    }
+    if (!window.N360PDF || !window.jspdf || !window.jspdf.jsPDF) {
+      showNotice('No se pudo cargar el generador PDF.', false);
+      return;
+    }
+
+    try {
+      const summary = paymentSummaryRows(rows);
+      const totals = paymentTotals(rows);
+      const doc = await window.N360PDF.createDocument({
+        orientation: 'landscape',
+        title: 'REPORTE DE PAGOS DE CONDUCTORES',
+        secondTitle: cfg.monthLabel || cfg.month || 'Control mensual',
+        description: 'Pagos de conductores segun las unidades visibles en pantalla.',
+        docCode: 'FLOTA_PAGOS_CONDUCTORES',
+        userName: report.generatedBy || '',
+        dni: report.dni || '',
+        logoLeft: report.logoLeft,
+        logoRight: report.logoRight,
+        useCover: false,
+        content: function (doc) {
+          if (typeof doc.autoTable !== 'function') {
+            throw new Error('No se pudo cargar jsPDF AutoTable.');
+          }
+
+          const left = 12.7;
+          const right = 12.7;
+          const pageW = doc.internal.pageSize.getWidth();
+          const width = pageW - left - right;
+          let y = 34;
+
+          if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
+            y = window.N360PDF.drawReportSummary(doc, {
+              x: left,
+              y,
+              width,
+              title: 'Pagos visibles en pantalla',
+              rows: [
+                { label: 'Mes operativo', value: cfg.monthLabel || cfg.month || '-' },
+                { label: 'Unidades visibles', value: totals.unidades.toLocaleString('es-PE') },
+                { label: 'Conductores', value: totals.conductores.toLocaleString('es-PE') },
+                { label: 'Registros', value: totals.registros.toLocaleString('es-PE') },
+                { label: 'OK / Pendientes', value: `${totals.ok.toLocaleString('es-PE')} / ${totals.pendientes.toLocaleString('es-PE')}` },
+                { label: 'Total visible', value: moneyReportText(totals.total) }
+              ],
+              columns: 3,
+              bottomGap: 7
+            });
+          } else {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y);
+            doc.text(`Total visible: ${moneyReportText(totals.total)}`, left + width, y, { align: 'right' });
+            y += 10;
+          }
+
+          doc.setTextColor(15, 42, 64);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.text('Resumen por conductor', left, y);
+          y += 5;
+
+          doc.autoTable({
+            head: [['Conductor', 'Registros', 'OK', 'Pend.', 'Total S/', 'Unid.']],
+            body: paymentPdfSummaryBody(summary),
+            startY: y,
+            margin: { left, right, top: 32, bottom: 22 },
+            rowPageBreak: 'avoid',
+            styles: {
+              fontSize: 7.2,
+              cellPadding: 1.5,
+              overflow: 'linebreak',
+              valign: 'middle',
+              lineColor: [226, 232, 240],
+              lineWidth: 0.08
+            },
+            headStyles: {
+              fillColor: [20, 38, 61],
+              textColor: 255,
+              fontStyle: 'bold',
+              halign: 'center'
+            },
+            alternateRowStyles: { fillColor: [249, 251, 253] },
+            columnStyles: {
+              0: { cellWidth: 76 },
+              1: { cellWidth: 22, halign: 'center' },
+              2: { cellWidth: 18, halign: 'center' },
+              3: { cellWidth: 20, halign: 'center' },
+              4: { cellWidth: 30, halign: 'right' },
+              5: { cellWidth: 18, halign: 'center' }
+            }
+          });
+
+          y = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : y) + 10;
+          doc.setTextColor(15, 42, 64);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.text('Detalle de pagos visibles', left, y);
+          y += 5;
+
+          doc.autoTable({
+            head: [['Fecha', 'Hora', 'Unidad', 'Ruta', 'Conductor', 'Rol', 'Estado', 'Importe', 'Observacion']],
+            body: paymentPdfDetailBody(rows),
+            startY: y,
+            margin: { left, right, top: 32, bottom: 22 },
+            rowPageBreak: 'avoid',
+            styles: {
+              fontSize: 6.2,
+              cellPadding: 1.2,
+              overflow: 'linebreak',
+              valign: 'middle',
+              lineColor: [226, 232, 240],
+              lineWidth: 0.08
+            },
+            headStyles: {
+              fillColor: [20, 38, 61],
+              textColor: 255,
+              fontStyle: 'bold',
+              halign: 'center'
+            },
+            alternateRowStyles: { fillColor: [249, 251, 253] },
+            columnStyles: {
+              0: { cellWidth: 19, halign: 'center' },
+              1: { cellWidth: 14, halign: 'center' },
+              2: { cellWidth: 31 },
+              3: { cellWidth: 44 },
+              4: { cellWidth: 43 },
+              5: { cellWidth: 23, halign: 'center' },
+              6: { cellWidth: 17, halign: 'center' },
+              7: { cellWidth: 24, halign: 'right' },
+              8: { cellWidth: width - 215 }
+            },
+            didParseCell: function (data) {
+              if (data.section !== 'body' || data.column.index !== 6) return;
+              const raw = String(data.cell.raw || '').toUpperCase();
+              data.cell.styles.fontStyle = 'bold';
+              if (raw === 'OK') {
+                data.cell.styles.textColor = [5, 112, 68];
+              } else {
+                data.cell.styles.textColor = [146, 64, 14];
+              }
+            }
+          });
+        }
+      });
+
+      doc.save(`${report.fileBase || 'control_conductores'}_pagos_${stamp()}.pdf`);
+    } catch (error) {
+      console.error(error);
+      showNotice('No se pudo generar el PDF de pagos.', false);
+    }
+  }
+
+  function exportPaymentsExcel() {
+    const rows = paymentDetailRows(visibleUnits());
+    if (!rows.length) {
+      showNotice('No hay pagos visibles para exportar.', false);
+      return;
+    }
+    if (!window.XLSX) {
+      showNotice('No se pudo cargar el generador Excel.', false);
+      return;
+    }
+
+    const summary = paymentSummaryRows(rows);
+    const detailAoa = [
+      ['Fecha', 'Hora', 'Unidad', 'Ruta', 'Ida/Vuelta', 'Conductor', 'Rol', 'Estado pago', 'Importe S/', 'Observacion', 'Estado revision'],
+      ...rows.map((row) => [
+        row.fecha || '-',
+        row.hora || '-',
+        row.unidad || '-',
+        row.ruta || '-',
+        row.idaVuelta || '-',
+        row.conductor || '-',
+        row.rol || '-',
+        row.estado || '-',
+        Number(row.importe || 0),
+        row.observacion || '-',
+        row.revision || '-'
+      ])
+    ];
+    const summaryAoa = [
+      ['Conductor', 'Registros', 'OK', 'Pendientes', 'Total S/', 'Unidades visibles'],
+      ...summary.map((item) => [
+        item.conductor || '-',
+        Number(item.registros || 0),
+        Number(item.ok || 0),
+        Number(item.pendientes || 0),
+        Number(item.total || 0),
+        Number(item.unidades || 0)
+      ])
+    ];
+
+    const wb = window.XLSX.utils.book_new();
+    const detailSheet = window.XLSX.utils.aoa_to_sheet(detailAoa);
+    const summarySheet = window.XLSX.utils.aoa_to_sheet(summaryAoa);
+    detailSheet['!cols'] = autoWidthFromAoa(detailAoa, [12, 9, 24, 34, 12, 30, 14, 13, 13, 34, 18]);
+    summarySheet['!cols'] = autoWidthFromAoa(summaryAoa, [32, 12, 10, 12, 13, 16]);
+
+    for (let r = 2; r <= detailAoa.length; r += 1) {
+      const cell = detailSheet[`I${r}`];
+      if (cell) cell.z = '"S/ "#,##0.00##';
+    }
+    for (let r = 2; r <= summaryAoa.length; r += 1) {
+      const cell = summarySheet[`E${r}`];
+      if (cell) cell.z = '"S/ "#,##0.00##';
+    }
+
+    window.XLSX.utils.book_append_sheet(wb, summarySheet, excelSafeSheetName('Resumen'));
+    window.XLSX.utils.book_append_sheet(wb, detailSheet, excelSafeSheetName('Pagos visibles'));
+    window.XLSX.writeFile(wb, `${report.fileBase || 'control_conductores'}_pagos_${stamp()}.xlsx`);
+    showNotice('Excel de pagos generado.', true);
+  }
+
   function drawDriverSummaryPage(doc, left, y, width, summary) {
     const totals = driverSummaryTotals(summary);
 
@@ -1386,6 +1788,16 @@
     const allButton = document.querySelector('[data-fcc-export-all]');
     if (allButton) {
       allButton.addEventListener('click', () => exportPdf(visibleUnits(), 'consolidado'));
+    }
+
+    const paymentsPdfButton = document.querySelector('[data-fcc-export-payments-pdf]');
+    if (paymentsPdfButton) {
+      paymentsPdfButton.addEventListener('click', exportPaymentsPdf);
+    }
+
+    const paymentsExcelButton = document.querySelector('[data-fcc-export-payments-excel]');
+    if (paymentsExcelButton) {
+      paymentsExcelButton.addEventListener('click', exportPaymentsExcel);
     }
   }
 
