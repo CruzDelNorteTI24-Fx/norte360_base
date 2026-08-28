@@ -5,6 +5,7 @@
   const report = cfg.report || {};
   const tripMap = new Map();
   const rowBaselines = new Map();
+  let pendingPaymentExport = '';
   let bulkMode = false;
 
   const clean = (value) => String(value || '').replace(/[ \t]+/g, ' ').replace(/\n\s+/g, '\n').trim();
@@ -155,6 +156,79 @@
     const raw = compact(value);
     const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     return match ? `${match[3]}/${match[2]}/${match[1]}` : (raw || '-');
+  }
+
+  function normalizeDateKey(value) {
+    const raw = compact(value);
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+  }
+
+  function selectedMonthBounds() {
+    const match = String(cfg.month || '').match(/^(\d{4})-(\d{2})$/);
+    if (!match) return { from: '', to: '' };
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const lastDay = new Date(year, month, 0).getDate();
+    return {
+      from: `${match[1]}-${match[2]}-01`,
+      to: `${match[1]}-${match[2]}-${pad(String(lastDay))}`
+    };
+  }
+
+  function visiblePaymentDateBounds(units) {
+    const dates = [];
+    (units || []).forEach((unit) => {
+      (unit.rows || []).forEach((row) => {
+        if (!row || !row.id || row.id === '0') return;
+        const date = normalizeDateKey(row.date);
+        if (date) dates.push(date);
+      });
+    });
+    dates.sort();
+    return { from: dates[0] || '', to: dates[dates.length - 1] || '' };
+  }
+
+  function paymentRangeDefaults(units) {
+    const month = selectedMonthBounds();
+    const visible = visiblePaymentDateBounds(units);
+    return {
+      from: month.from || visible.from,
+      to: month.to || visible.to,
+      min: month.from || visible.from,
+      max: month.to || visible.to
+    };
+  }
+
+  function dateInRange(value, from, to) {
+    const date = normalizeDateKey(value);
+    if (!date) return false;
+    if (from && date < from) return false;
+    if (to && date > to) return false;
+    return true;
+  }
+
+  function filterUnitsByPaymentRange(units, range) {
+    const from = normalizeDateKey(range?.from);
+    const to = normalizeDateKey(range?.to);
+    return (units || []).map((unit) => ({
+      ...unit,
+      rows: (unit.rows || []).filter((row) => dateInRange(row.date, from, to))
+    })).filter((unit) => (unit.rows || []).length > 0);
+  }
+
+  function paymentRangeLabel(range) {
+    const from = normalizeDateKey(range?.from);
+    const to = normalizeDateKey(range?.to);
+    if (!from && !to) return cfg.monthLabel || cfg.month || '-';
+    if (from && to) return `${formatDateValue(from)} al ${formatDateValue(to)}`;
+    if (from) return `Desde ${formatDateValue(from)}`;
+    return `Hasta ${formatDateValue(to)}`;
+  }
+
+  function paymentRangeFileSuffix(range) {
+    const from = normalizeDateKey(range?.from).replace(/-/g, '');
+    const to = normalizeDateKey(range?.to).replace(/-/g, '');
+    return from && to ? `${from}_${to}` : 'rango';
   }
 
   function formatDateTimeValue(value) {
@@ -1342,8 +1416,8 @@
     return (fallback || widths).map((width, index) => ({ wch: Math.max(widths[index] || 0, Number(width || 10)) }));
   }
 
-  async function exportPaymentsPdf() {
-    const rows = paymentDetailRows(visibleUnits());
+  async function exportPaymentsPdf(units, range) {
+    const rows = paymentDetailRows(units || visibleUnits());
     if (!rows.length) {
       showNotice('No hay pagos visibles para exportar.', false);
       return;
@@ -1386,6 +1460,7 @@
               title: 'Importes de conductores',
               rows: [
                 { label: 'Mes operativo', value: cfg.monthLabel || cfg.month || '-' },
+                { label: 'Rango', value: paymentRangeLabel(range) },
                 { label: 'Unidades visibles', value: totals.unidades.toLocaleString('es-PE') },
                 { label: 'Conductores', value: totals.conductores.toLocaleString('es-PE') },
                 { label: 'Registros', value: totals.registros.toLocaleString('es-PE') },
@@ -1399,8 +1474,9 @@
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(10);
             doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y);
+            doc.text(`Rango: ${paymentRangeLabel(range)}`, left, y + 5);
             doc.text(`Total visible: ${moneyReportText(totals.total)}`, left + width, y, { align: 'right' });
-            y += 10;
+            y += 14;
           }
 
           doc.setTextColor(15, 42, 64);
@@ -1493,15 +1569,15 @@
         }
       });
 
-      doc.save(`${report.fileBase || 'control_conductores'}_pagos_${stamp()}.pdf`);
+      doc.save(`${report.fileBase || 'control_conductores'}_pagos_${paymentRangeFileSuffix(range)}_${stamp()}.pdf`);
     } catch (error) {
       console.error(error);
       showNotice('No se pudo generar el PDF de pagos.', false);
     }
   }
 
-  function exportPaymentsExcel() {
-    const rows = paymentDetailRows(visibleUnits());
+  function exportPaymentsExcel(units, range) {
+    const rows = paymentDetailRows(units || visibleUnits());
     if (!rows.length) {
       showNotice('No hay pagos visibles para exportar.', false);
       return;
@@ -1529,6 +1605,8 @@
       ])
     ];
     const summaryAoa = [
+      ['Rango', paymentRangeLabel(range), '', '', '', ''],
+      [],
       ['Conductor', 'Registros', 'OK', 'Pendientes', 'Total S/', 'Unidades visibles'],
       ...summary.map((item) => [
         item.conductor || '-',
@@ -1550,15 +1628,111 @@
       const cell = detailSheet[`I${r}`];
       if (cell) cell.z = '"S/ "#,##0.00##';
     }
-    for (let r = 2; r <= summaryAoa.length; r += 1) {
+    for (let r = 4; r <= summaryAoa.length; r += 1) {
       const cell = summarySheet[`E${r}`];
       if (cell) cell.z = '"S/ "#,##0.00##';
     }
 
     window.XLSX.utils.book_append_sheet(wb, summarySheet, excelSafeSheetName('Resumen'));
     window.XLSX.utils.book_append_sheet(wb, detailSheet, excelSafeSheetName('Pagos visibles'));
-    window.XLSX.writeFile(wb, `${report.fileBase || 'control_conductores'}_pagos_${stamp()}.xlsx`);
+    window.XLSX.writeFile(wb, `${report.fileBase || 'control_conductores'}_pagos_${paymentRangeFileSuffix(range)}_${stamp()}.xlsx`);
     showNotice('Excel de pagos generado.', true);
+  }
+
+  function openPaymentRangeModal(type) {
+    const modalEl = document.getElementById('fccPaymentRangeModal');
+    if (!modalEl) {
+      if (type === 'pdf') exportPaymentsPdf(visibleUnits(), null);
+      else exportPaymentsExcel(visibleUnits(), null);
+      return;
+    }
+
+    pendingPaymentExport = type;
+    const units = visibleUnits();
+    const defaults = paymentRangeDefaults(units);
+    const inputFrom = modalEl.querySelector('[data-fcc-payment-from]');
+    const inputTo = modalEl.querySelector('[data-fcc-payment-to]');
+    const title = modalEl.querySelector('#fccPaymentRangeTitle');
+    const confirm = modalEl.querySelector('[data-fcc-payment-confirm]');
+
+    if (title) title.textContent = type === 'pdf' ? 'Exportar pagos en PDF' : 'Exportar pagos en Excel';
+    if (confirm) confirm.innerHTML = type === 'pdf'
+      ? '<i class="bi bi-file-earmark-pdf"></i> Descargar PDF'
+      : '<i class="bi bi-file-earmark-spreadsheet"></i> Descargar Excel';
+
+    if (inputFrom) {
+      inputFrom.min = defaults.min || '';
+      inputFrom.max = defaults.max || '';
+      inputFrom.value = defaults.from || '';
+    }
+    if (inputTo) {
+      inputTo.min = defaults.min || '';
+      inputTo.max = defaults.max || '';
+      inputTo.value = defaults.to || '';
+    }
+
+    const modal = window.bootstrap && window.bootstrap.Modal
+      ? window.bootstrap.Modal.getOrCreateInstance(modalEl)
+      : null;
+    if (modal) {
+      modal.show();
+    } else {
+      modalEl.classList.add('show');
+      modalEl.style.display = 'block';
+    }
+  }
+
+  function confirmPaymentRange() {
+    const modalEl = document.getElementById('fccPaymentRangeModal');
+    if (!modalEl || !pendingPaymentExport) return;
+
+    const inputFrom = modalEl.querySelector('[data-fcc-payment-from]');
+    const inputTo = modalEl.querySelector('[data-fcc-payment-to]');
+    const range = {
+      from: normalizeDateKey(inputFrom?.value),
+      to: normalizeDateKey(inputTo?.value)
+    };
+
+    if (!range.from || !range.to) {
+      showNotice('Selecciona fecha desde y hasta.', false);
+      return;
+    }
+    if (range.from > range.to) {
+      showNotice('La fecha desde no puede ser mayor que hasta.', false);
+      return;
+    }
+
+    const units = filterUnitsByPaymentRange(visibleUnits(), range);
+    const modal = window.bootstrap && window.bootstrap.Modal
+      ? window.bootstrap.Modal.getOrCreateInstance(modalEl)
+      : null;
+    if (modal) modal.hide();
+    else modalEl.style.display = 'none';
+
+    if (pendingPaymentExport === 'pdf') {
+      exportPaymentsPdf(units, range);
+    } else {
+      exportPaymentsExcel(units, range);
+    }
+    pendingPaymentExport = '';
+  }
+
+  function setupPaymentRangeModal() {
+    const modalEl = document.getElementById('fccPaymentRangeModal');
+    if (!modalEl) return;
+
+    modalEl.querySelector('[data-fcc-payment-confirm]')?.addEventListener('click', confirmPaymentRange);
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      pendingPaymentExport = '';
+    });
+    modalEl.querySelectorAll('[data-fcc-payment-from], [data-fcc-payment-to]').forEach((input) => {
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          confirmPaymentRange();
+        }
+      });
+    });
   }
 
   function drawDriverSummaryPage(doc, left, y, width, summary) {
@@ -1792,12 +1966,12 @@
 
     const paymentsPdfButton = document.querySelector('[data-fcc-export-payments-pdf]');
     if (paymentsPdfButton) {
-      paymentsPdfButton.addEventListener('click', exportPaymentsPdf);
+      paymentsPdfButton.addEventListener('click', () => openPaymentRangeModal('pdf'));
     }
 
     const paymentsExcelButton = document.querySelector('[data-fcc-export-payments-excel]');
     if (paymentsExcelButton) {
-      paymentsExcelButton.addEventListener('click', exportPaymentsExcel);
+      paymentsExcelButton.addEventListener('click', () => openPaymentRangeModal('excel'));
     }
   }
 
@@ -1823,6 +1997,7 @@
   setupBulkEdit();
   setupSearch();
   setupPdfButtons();
+  setupPaymentRangeModal();
   setupDriverSummaryModal();
   setupTripDetailModal();
   setupCanceledTripsModal();

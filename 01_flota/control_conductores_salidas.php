@@ -1342,6 +1342,42 @@ $monthLabel = fcc_month_label($monthStart);
 </div>
 
 
+<div class="modal fade fcc-driver-modal fcc-payment-range-modal" id="fccPaymentRangeModal" tabindex="-1" aria-labelledby="fccPaymentRangeTitle" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="fcc-modal-eyebrow"><i class="bi bi-calendar-range-fill"></i> Pagos visibles</span>
+                    <h2 class="modal-title" id="fccPaymentRangeTitle">Exportar pagos</h2>
+                    <p>Selecciona el rango que se aplicara sobre las unidades visibles en pantalla.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="fcc-payment-range-grid">
+                    <label>
+                        <span>Desde</span>
+                        <input type="date" data-fcc-payment-from>
+                    </label>
+                    <label>
+                        <span>Hasta</span>
+                        <input type="date" data-fcc-payment-to>
+                    </label>
+                </div>
+                <div class="fcc-payment-range-help">
+                    <i class="bi bi-info-circle"></i>
+                    <span>Solo se exportan pagos visibles, no anulados y que no sean retorno.</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="fcc-btn fcc-btn--soft" data-bs-dismiss="modal"><i class="bi bi-x-circle"></i> Cancelar</button>
+                <button type="button" class="fcc-btn fcc-btn--primary" data-fcc-payment-confirm><i class="bi bi-download"></i> Descargar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <div class="modal fade fcc-trip-modal" id="fccTripDetailModal" tabindex="-1" aria-labelledby="fccTripDetailTitle" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">

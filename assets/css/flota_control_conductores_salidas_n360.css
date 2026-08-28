@@ -1085,6 +1085,56 @@ body.fcc-bulk-mode .fcc-action-buttons {
     display: none;
 }
 
+.fcc-payment-range-modal .modal-footer {
+    padding: 14px 20px 18px;
+    border-top: 1px solid #d7e4f2;
+    background: #fff;
+}
+
+.fcc-payment-range-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.fcc-payment-range-grid label span {
+    display: block;
+    margin-bottom: 7px;
+    color: #5c718a;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.fcc-payment-range-grid input {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid #c7d9eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #0b2740;
+    font-weight: 800;
+}
+
+.fcc-payment-range-help {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 13px;
+    padding: 11px 12px;
+    border: 1px solid #cfe3f4;
+    border-radius: 8px;
+    background: #eef8ff;
+    color: #345772;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.fcc-payment-range-help i {
+    color: #1988d2;
+}
+
 .fcc-canceled-table {
     min-width: 980px;
 }
@@ -1135,6 +1185,9 @@ body.fcc-bulk-mode .fcc-action-buttons {
     }
     .fcc-driver-kpis {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .fcc-payment-range-grid {
+        grid-template-columns: 1fr;
     }
     .fcc-driver-modal .modal-header {
         padding: 18px;
