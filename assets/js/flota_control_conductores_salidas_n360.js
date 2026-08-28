@@ -1721,7 +1721,12 @@
     const modalEl = document.getElementById('fccPaymentRangeModal');
     if (!modalEl) return;
 
-    modalEl.querySelector('[data-fcc-payment-confirm]')?.addEventListener('click', confirmPaymentRange);
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('[data-fcc-payment-confirm]')) return;
+      event.preventDefault();
+      confirmPaymentRange();
+    });
+
     modalEl.addEventListener('hidden.bs.modal', () => {
       pendingPaymentExport = '';
     });
@@ -1963,16 +1968,17 @@
     if (allButton) {
       allButton.addEventListener('click', () => exportPdf(visibleUnits(), 'consolidado'));
     }
+  }
 
-    const paymentsPdfButton = document.querySelector('[data-fcc-export-payments-pdf]');
-    if (paymentsPdfButton) {
-      paymentsPdfButton.addEventListener('click', () => openPaymentRangeModal('pdf'));
-    }
+  function setupPaymentExportButtons() {
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-fcc-export-payments-pdf], [data-fcc-export-payments-excel]');
+      if (!button) return;
 
-    const paymentsExcelButton = document.querySelector('[data-fcc-export-payments-excel]');
-    if (paymentsExcelButton) {
-      paymentsExcelButton.addEventListener('click', () => openPaymentRangeModal('excel'));
-    }
+      event.preventDefault();
+      event.stopPropagation();
+      openPaymentRangeModal(button.matches('[data-fcc-export-payments-pdf]') ? 'pdf' : 'excel');
+    });
   }
 
   document.querySelectorAll('[data-fcc-save]').forEach((button) => {
@@ -1997,6 +2003,7 @@
   setupBulkEdit();
   setupSearch();
   setupPdfButtons();
+  setupPaymentExportButtons();
   setupPaymentRangeModal();
   setupDriverSummaryModal();
   setupTripDetailModal();
