@@ -338,6 +338,579 @@ function enc_validate_pdf_upload(array $file): array {
     ]];
 }
 
+function enc_ascii_fold(string $value): string {
+    $plain = function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value) : false;
+    if ($plain === false) {
+        $plain = $value;
+    }
+    return strtolower($plain);
+}
+
+function enc_pdf_clean_token(string $value): string {
+    if ($value !== '' && !preg_match('//u', $value)) {
+        $converted = function_exists('iconv') ? @iconv('Windows-1252', 'UTF-8//IGNORE', $value) : false;
+        if (is_string($converted) && $converted !== '') {
+            $value = $converted;
+        }
+    }
+    $value = str_replace("\0", '', $value);
+    $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]+/', ' ', $value) ?? $value;
+    $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+    return trim($value);
+}
+
+function enc_pdf_decode_utf16be(string $bytes): string {
+    if (function_exists('mb_convert_encoding')) {
+        $decoded = @mb_convert_encoding($bytes, 'UTF-8', 'UTF-16BE');
+        if (is_string($decoded) && $decoded !== '') {
+            return $decoded;
+        }
+    }
+    $decoded = function_exists('iconv') ? @iconv('UTF-16BE', 'UTF-8//IGNORE', $bytes) : false;
+    return is_string($decoded) ? $decoded : $bytes;
+}
+
+function enc_pdf_decode_literal_string(string $value): string {
+    $out = '';
+    $len = strlen($value);
+    for ($i = 0; $i < $len; $i++) {
+        $char = $value[$i];
+        if ($char !== '\\') {
+            $out .= $char;
+            continue;
+        }
+        if ($i + 1 >= $len) {
+            break;
+        }
+        $next = $value[++$i];
+        if ($next === "\r" || $next === "\n") {
+            if ($next === "\r" && $i + 1 < $len && $value[$i + 1] === "\n") {
+                $i++;
+            }
+            continue;
+        }
+        $map = [
+            'n' => "\n",
+            'r' => "\r",
+            't' => "\t",
+            'b' => "\b",
+            'f' => "\f",
+            '(' => '(',
+            ')' => ')',
+            '\\' => '\\',
+        ];
+        if (isset($map[$next])) {
+            $out .= $map[$next];
+            continue;
+        }
+        if ($next >= '0' && $next <= '7') {
+            $octal = $next;
+            for ($j = 0; $j < 2 && $i + 1 < $len && $value[$i + 1] >= '0' && $value[$i + 1] <= '7'; $j++) {
+                $octal .= $value[++$i];
+            }
+            $out .= chr(octdec($octal));
+            continue;
+        }
+        $out .= $next;
+    }
+
+    if (substr($out, 0, 2) === "\xFE\xFF") {
+        $out = enc_pdf_decode_utf16be(substr($out, 2));
+    }
+
+    return enc_pdf_clean_token($out);
+}
+
+function enc_pdf_decode_hex_string(string $hex): string {
+    $hex = preg_replace('/\s+/', '', $hex) ?? '';
+    if ($hex === '') {
+        return '';
+    }
+    if (strlen($hex) % 2 === 1) {
+        $hex .= '0';
+    }
+    $bytes = @hex2bin($hex);
+    if (!is_string($bytes)) {
+        return '';
+    }
+    if (substr($bytes, 0, 2) === "\xFE\xFF") {
+        $bytes = enc_pdf_decode_utf16be(substr($bytes, 2));
+    }
+    return enc_pdf_clean_token($bytes);
+}
+
+function enc_pdf_extract_strings_from_chunk(string $chunk): array {
+    $strings = [];
+    $len = strlen($chunk);
+
+    for ($i = 0; $i < $len; $i++) {
+        if ($chunk[$i] !== '(') {
+            continue;
+        }
+        $depth = 1;
+        $raw = '';
+        for ($i++; $i < $len; $i++) {
+            $char = $chunk[$i];
+            if ($char === '\\') {
+                $raw .= $char;
+                if ($i + 1 < $len) {
+                    $raw .= $chunk[++$i];
+                }
+                continue;
+            }
+            if ($char === '(') {
+                $depth++;
+                $raw .= $char;
+                continue;
+            }
+            if ($char === ')') {
+                $depth--;
+                if ($depth === 0) {
+                    break;
+                }
+                $raw .= $char;
+                continue;
+            }
+            $raw .= $char;
+        }
+        $decoded = enc_pdf_decode_literal_string($raw);
+        if ($decoded !== '') {
+            $strings[] = $decoded;
+        }
+    }
+
+    if (preg_match_all('/(?<!<)<([0-9A-Fa-f\s]{4,})>(?!>)/', $chunk, $matches)) {
+        foreach ($matches[1] as $hex) {
+            $decoded = enc_pdf_decode_hex_string($hex);
+            if ($decoded !== '') {
+                $strings[] = $decoded;
+            }
+        }
+    }
+
+    return $strings;
+}
+
+function enc_pdf_decode_stream_candidates(string $stream): array {
+    $raw = preg_replace('/^\r?\n|\r?\n$/', '', $stream) ?? $stream;
+    $candidates = [];
+
+    $decoded = @gzuncompress($raw);
+    if (is_string($decoded) && $decoded !== '') {
+        $candidates[] = $decoded;
+    }
+
+    $decoded = @gzdecode($raw);
+    if (is_string($decoded) && $decoded !== '') {
+        $candidates[] = $decoded;
+    }
+
+    if (strlen($raw) > 6) {
+        $decoded = @gzinflate(substr($raw, 2, -4));
+        if (is_string($decoded) && $decoded !== '') {
+            $candidates[] = $decoded;
+        }
+    }
+
+    if (!$candidates) {
+        $candidates[] = $raw;
+    }
+
+    return array_values(array_unique($candidates));
+}
+
+function enc_pdf_extract_text_tokens(string $content): array {
+    $plainObjects = preg_replace('/stream\r?\n?.*?\r?\n?endstream/s', '', $content) ?? $content;
+    $tokens = enc_pdf_extract_strings_from_chunk($plainObjects);
+
+    if (preg_match_all('/stream\r?\n?(.*?)\r?\n?endstream/s', $content, $matches)) {
+        foreach ($matches[1] as $stream) {
+            foreach (enc_pdf_decode_stream_candidates($stream) as $candidate) {
+                foreach (enc_pdf_extract_strings_from_chunk($candidate) as $token) {
+                    $tokens[] = $token;
+                }
+            }
+        }
+    }
+
+    $clean = [];
+    foreach ($tokens as $token) {
+        $token = enc_pdf_clean_token($token);
+        if ($token !== '' && strlen($token) <= 2000) {
+            $clean[] = $token;
+        }
+    }
+    return $clean;
+}
+
+function enc_pdf_extract_text(string $content): string {
+    return enc_pdf_clean_token(implode("\n", enc_pdf_extract_text_tokens($content)));
+}
+
+function enc_pdf_contains_manifest_title(string $content): bool {
+    $text = enc_ascii_fold(enc_pdf_extract_text($content));
+    return strpos($text, 'manifiesto de encomiendas') !== false;
+}
+
+function enc_manifest_doc_codes(string $value): array {
+    if (!preg_match_all('/\b(?:[A-Z]{1,4}\d{0,4}|V\d{2,4}|\d{3,4})-\d{4,}\b/i', $value, $matches)) {
+        return [];
+    }
+    return array_values(array_unique(array_map('strtoupper', $matches[0])));
+}
+
+function enc_manifest_is_doc_token(string $value): bool {
+    return (bool)enc_manifest_doc_codes($value);
+}
+
+function enc_manifest_is_number_token(string $value): bool {
+    return (bool)preg_match('/^-?\d+(?:[.,]\d+)?$/', trim($value));
+}
+
+function enc_manifest_decimal(?string $value): ?float {
+    $value = trim((string)$value);
+    if ($value === '' || !enc_manifest_is_number_token($value)) {
+        return null;
+    }
+    return (float)str_replace(',', '.', $value);
+}
+
+function enc_manifest_is_payment_token(string $value): bool {
+    $fold = enc_ascii_fold(trim($value));
+    $payments = ['efectivo', 'yape', 'plin', 'transferencia', 'deposito', 'tarjeta', 'credito', 'por cobrar', 'gratis'];
+    return in_array($fold, $payments, true);
+}
+
+function enc_manifest_label_key(string $value): string {
+    $value = enc_ascii_fold($value);
+    $value = preg_replace('/[^a-z0-9]+/', ' ', $value) ?? $value;
+    return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
+}
+
+function enc_manifest_token_is_label_like(string $value): bool {
+    $key = enc_manifest_label_key($value);
+    if ($key === '') {
+        return true;
+    }
+    $labels = [
+        'origen',
+        'destino',
+        'bus nro',
+        'bus',
+        'placa',
+        'marca',
+        'brevete',
+        'piloto',
+        'copiloto',
+        'certificado',
+        'documento',
+        'asistente',
+        'manifiesto de encomiendas',
+        'empresa de trans cruz del norte sac compania de bus',
+    ];
+    return in_array($key, $labels, true);
+}
+
+function enc_manifest_next_value(array $tokens, array $labels): ?string {
+    $labelKeys = array_map('enc_manifest_label_key', $labels);
+    $count = count($tokens);
+    for ($i = 0; $i < $count; $i++) {
+        $token = trim((string)$tokens[$i]);
+        $key = enc_manifest_label_key($token);
+        foreach ($labelKeys as $labelKey) {
+            if ($key === $labelKey && isset($tokens[$i + 1])) {
+                $next = enc_pdf_clean_token((string)$tokens[$i + 1]);
+                if (!enc_manifest_token_is_label_like($next)) {
+                    return $next;
+                }
+                $previous = isset($tokens[$i - 1]) ? enc_pdf_clean_token((string)$tokens[$i - 1]) : '';
+                if ($previous !== '' && !enc_manifest_token_is_label_like($previous)) {
+                    if ($labelKey !== 'placa' || preg_match('/^[A-Z0-9]{2,5}-[A-Z0-9]{2,5}$/i', $previous)) {
+                        return $previous;
+                    }
+                }
+            }
+            if (strncmp($key, $labelKey . ' ', strlen($labelKey) + 1) === 0) {
+                $value = preg_replace('/^.*?:\s*/', '', $token, 1) ?? $token;
+                if ($value !== '') {
+                    return enc_pdf_clean_token($value);
+                }
+            }
+        }
+    }
+    return null;
+}
+
+function enc_manifest_parse_items(array $tokens): array {
+    $start = 0;
+    $end = count($tokens);
+    foreach ($tokens as $idx => $token) {
+        $fold = enc_ascii_fold($token);
+        if (strpos($fold, 'guia de remision') !== false || strpos($fold, 'guia de remision') !== false) {
+            $start = $idx + 1;
+        }
+        if ($idx > $start && (strpos($fold, 'totales') !== false || strpos($fold, 'recibi conforme') !== false || strpos($fold, 'entregue conforme') !== false)) {
+            $end = $idx;
+            break;
+        }
+    }
+
+    $rowStarts = [];
+    for ($i = $start; $i < $end; $i++) {
+        $token = (string)$tokens[$i];
+        if (!enc_manifest_is_doc_token($token)) {
+            continue;
+        }
+        $looksLikeRowDocument = (bool)preg_match('/-\s*$/', trim($token)) || strpos($token, ' - ') !== false;
+        if (!$looksLikeRowDocument) {
+            $previous = '';
+            for ($j = $i - 1; $j >= $start; $j--) {
+                $previous = trim((string)$tokens[$j]);
+                if ($previous !== '') {
+                    break;
+                }
+            }
+            if ($previous !== '' && (enc_manifest_is_doc_token($previous) || enc_manifest_is_number_token($previous) || enc_manifest_is_payment_token($previous))) {
+                continue;
+            }
+        }
+        $next = '';
+        for ($j = $i + 1; $j < $end; $j++) {
+            $next = trim((string)$tokens[$j]);
+            if ($next !== '') {
+                if (enc_manifest_is_doc_token($next)) {
+                    continue;
+                }
+                break;
+            }
+        }
+        if ($next === '' || enc_manifest_is_doc_token($next) || enc_manifest_is_number_token($next) || enc_manifest_is_payment_token($next)) {
+            continue;
+        }
+        $rowStarts[] = $i;
+    }
+
+    $items = [];
+    foreach ($rowStarts as $pos => $rowStart) {
+        $rowEnd = $rowStarts[$pos + 1] ?? $end;
+        $segment = array_values(array_filter(array_map('enc_pdf_clean_token', array_slice($tokens, $rowStart, $rowEnd - $rowStart)), static fn($value) => $value !== ''));
+        if (!$segment) {
+            continue;
+        }
+
+        $documento = $segment[0];
+        $documentDocLimit = 0;
+        if (isset($segment[1]) && enc_manifest_is_doc_token($segment[1])) {
+            $documento = trim($documento . ' ' . $segment[1]);
+            $documentDocLimit = 1;
+        }
+        $numberIndexes = [];
+        $paymentIndex = null;
+        $guideRemision = null;
+        foreach ($segment as $idx => $value) {
+            if ($idx > $documentDocLimit && enc_manifest_is_doc_token($value)) {
+                $codes = enc_manifest_doc_codes($value);
+                $guideRemision = end($codes) ?: $value;
+            }
+            if (enc_manifest_is_number_token($value)) {
+                $numberIndexes[] = $idx;
+            }
+            if ($paymentIndex === null && enc_manifest_is_payment_token($value)) {
+                $paymentIndex = $idx;
+            }
+        }
+
+        $peso = null;
+        $importe = null;
+        if ($numberIndexes) {
+            $importe = enc_manifest_decimal($segment[$numberIndexes[0]] ?? null);
+            $peso = enc_manifest_decimal($segment[end($numberIndexes)] ?? null);
+        }
+
+        $firstNumberIndex = $numberIndexes[0] ?? count($segment);
+        $textBeforeNumbers = [];
+        for ($idx = 1; $idx < count($segment); $idx++) {
+            $value = $segment[$idx];
+            if ($idx >= $firstNumberIndex) {
+                break;
+            }
+            if (enc_manifest_is_number_token($value) || enc_manifest_is_payment_token($value) || enc_manifest_is_doc_token($value)) {
+                continue;
+            }
+            $textBeforeNumbers[] = $value;
+        }
+
+        $consignado = $textBeforeNumbers ? (string)array_pop($textBeforeNumbers) : '';
+        $referencia = $textBeforeNumbers;
+
+        $tipoPago = $paymentIndex !== null ? $segment[$paymentIndex] : '';
+        $items[] = [
+            'orden' => count($items) + 1,
+            'documento' => $documento,
+            'consignado' => $consignado,
+            'referencia_envio' => implode(' ', $referencia),
+            'peso' => $peso,
+            'tipo_pago' => $tipoPago,
+            'importe_cobrado' => $importe,
+            'guia_remision' => $guideRemision,
+            'estado' => 'PENDIENTE',
+            'observacion' => '',
+        ];
+    }
+
+    return $items;
+}
+
+function enc_manifest_code_from_tokens(array $tokens): ?string {
+    foreach ($tokens as $token) {
+        if (preg_match('/^\s*(\d{4})\s*-\s*(\d{4,})\s*$/', (string)$token, $matches)) {
+            return $matches[1] . '-' . $matches[2];
+        }
+    }
+    return null;
+}
+
+function enc_manifest_text_after_label(array $tokens, string $labelKey): ?string {
+    foreach ($tokens as $token) {
+        $token = enc_pdf_clean_token((string)$token);
+        if ($token === '') {
+            continue;
+        }
+        $key = enc_manifest_label_key($token);
+        if ($key === $labelKey || strncmp($key, $labelKey . ' ', strlen($labelKey) + 1) === 0) {
+            $value = preg_replace('/^.*?:\s*/', '', $token, 1) ?? '';
+            $value = enc_pdf_clean_token($value);
+            return $value !== '' && $value !== $token ? $value : null;
+        }
+    }
+    return null;
+}
+
+function enc_manifest_split_pages(array $tokens): array {
+    $starts = [];
+    $total = count($tokens);
+    for ($i = 0; $i < $total; $i++) {
+        if (!preg_match('/^\s*\d{4}\s*-\s*\d{4,}\s*$/', (string)$tokens[$i])) {
+            continue;
+        }
+        $hasTitleAhead = false;
+        for ($j = $i; $j < min($total, $i + 45); $j++) {
+            if (strpos(enc_ascii_fold((string)$tokens[$j]), 'manifiesto de encomiendas') !== false) {
+                $hasTitleAhead = true;
+                break;
+            }
+        }
+        if ($hasTitleAhead) {
+            $starts[] = $i;
+        }
+    }
+
+    if (!$starts) {
+        for ($i = 0; $i < $total; $i++) {
+            if (strpos(enc_ascii_fold((string)$tokens[$i]), 'manifiesto de encomiendas') !== false) {
+                $starts[] = max(0, $i - 25);
+            }
+        }
+    }
+
+    $starts = array_values(array_unique($starts));
+    sort($starts);
+    if (!$starts && $tokens) {
+        $starts = [0];
+    }
+
+    $pages = [];
+    foreach ($starts as $idx => $start) {
+        $end = $starts[$idx + 1] ?? $total;
+        $slice = array_slice($tokens, $start, max(0, $end - $start));
+        $sliceText = enc_ascii_fold(implode(' ', $slice));
+        if (strpos($sliceText, 'manifiesto de encomiendas') === false) {
+            continue;
+        }
+        $pages[] = $slice;
+    }
+
+    return $pages;
+}
+
+function enc_manifest_parse_page(array $tokens, int $sheetOrder): array {
+    $text = enc_pdf_clean_token(implode("\n", $tokens));
+    $code = enc_manifest_code_from_tokens($tokens);
+    if ($code === null && preg_match('/\b(\d{4})\s*-\s*(\d{4,})\b/', $text, $matches)) {
+        $code = $matches[1] . '-' . $matches[2];
+    }
+
+    $items = enc_manifest_parse_items($tokens);
+    foreach ($items as $idx => $item) {
+        $items[$idx]['orden_hoja'] = $sheetOrder;
+    }
+
+    return [
+        'orden_hoja' => $sheetOrder,
+        'title_ok' => strpos(enc_ascii_fold($text), 'manifiesto de encomiendas') !== false,
+        'tokens' => $tokens,
+        'text' => $text,
+        'meta' => [
+            'codigo_manifiesto' => $code,
+            'origen' => enc_manifest_next_value($tokens, ['Origen']),
+            'destino' => enc_manifest_next_value($tokens, ['Destino']),
+            'oficina_destino' => enc_manifest_text_after_label($tokens, 'ciudad oficina de destino'),
+            'bus' => enc_manifest_next_value($tokens, ['Bus Nro', 'Bus']),
+            'placa' => enc_manifest_next_value($tokens, ['Placa']),
+            'fecha_viaje' => enc_manifest_next_value($tokens, ['Fecha de viaje', 'Fecha Viaje']),
+        ],
+        'items' => $items,
+    ];
+}
+
+function enc_parse_manifest_pdf_pages(string $content): array {
+    $tokens = enc_pdf_extract_text_tokens($content);
+    $slices = enc_manifest_split_pages($tokens);
+    $pages = [];
+    foreach ($slices as $slice) {
+        $page = enc_manifest_parse_page($slice, count($pages) + 1);
+        if ($page['title_ok']) {
+            $pages[] = $page;
+        }
+    }
+    if (!$pages && enc_pdf_contains_manifest_title($content)) {
+        $pages[] = enc_manifest_parse_page($tokens, 1);
+    }
+    return $pages;
+}
+
+function enc_parse_manifest_pdf(string $content): array {
+    $tokens = enc_pdf_extract_text_tokens($content);
+    $text = enc_pdf_extract_text($content);
+    $pages = enc_parse_manifest_pdf_pages($content);
+    $items = [];
+    foreach ($pages as $page) {
+        foreach ($page['items'] as $item) {
+            $item['orden_hoja'] = (int)$page['orden_hoja'];
+            $item['hoja_label'] = 'Hoja ' . str_pad((string)(int)$page['orden_hoja'], 2, '0', STR_PAD_LEFT);
+            $items[] = $item;
+        }
+    }
+    $firstMeta = $pages[0]['meta'] ?? [];
+
+    return [
+        'title_ok' => enc_pdf_contains_manifest_title($content),
+        'tokens' => $tokens,
+        'text' => $text,
+        'pages' => $pages,
+        'meta' => [
+            'codigo_manifiesto' => $firstMeta['codigo_manifiesto'] ?? enc_manifest_code_from_tokens($tokens),
+            'origen' => $firstMeta['origen'] ?? enc_manifest_next_value($tokens, ['Origen']),
+            'destino' => $firstMeta['destino'] ?? enc_manifest_next_value($tokens, ['Destino']),
+            'oficina_destino' => $firstMeta['oficina_destino'] ?? enc_manifest_text_after_label($tokens, 'ciudad oficina de destino'),
+            'bus' => $firstMeta['bus'] ?? enc_manifest_next_value($tokens, ['Bus Nro', 'Bus']),
+            'placa' => $firstMeta['placa'] ?? enc_manifest_next_value($tokens, ['Placa']),
+            'fecha_viaje' => $firstMeta['fecha_viaje'] ?? enc_manifest_next_value($tokens, ['Fecha de viaje', 'Fecha Viaje']),
+        ],
+        'items' => $items,
+    ];
+}
+
 function enc_log(Throwable $e): void {
     error_log('[N360 Encomiendas] ' . $e->getMessage());
 }
@@ -374,6 +947,12 @@ function enc_db_message(Throwable $e): string {
         'El archivo adjuntado no contiene una firma PDF valida',
         'El archivo PDF no puede estar vacio',
         'Debes indicar el usuario que realiza la modificacion',
+        'Pendiente ejecutar la migracion de revisiones de manifiestos',
+        'Pendiente ejecutar la migracion de revisiones de manifiestos por hoja',
+        'El PDF guardado no contiene "Manifiesto de Encomiendas"',
+        'Manifiesto no identificado',
+        'No se encontro el manifiesto solicitado',
+        'No hay items del manifiesto para guardar',
     ];
     foreach ($knownBusinessMessages as $businessMessage) {
         if (stripos($message, $businessMessage) !== false || stripos($plainMessage, $businessMessage) !== false) {

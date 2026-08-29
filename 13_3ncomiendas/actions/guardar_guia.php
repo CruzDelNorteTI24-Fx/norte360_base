@@ -128,7 +128,7 @@ try {
 
     $conn->commit();
 
-    $guideCode = (string)($created['clm_enc_guia'] ?? ('GN-' . str_pad((string)$id, 6, '0', STR_PAD_LEFT)));
+    $guideCode = (string)($created['clm_enc_guia'] ?? ('CE-' . str_pad((string)$id, 6, '0', STR_PAD_LEFT)));
     enc_json(true, 'Control Encomienda registrada correctamente.', [
         'id' => $id,
         'guia' => $guideCode,

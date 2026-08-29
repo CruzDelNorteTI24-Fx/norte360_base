@@ -123,6 +123,7 @@ function enc_manifest_status(array $row): string {
                     <?php if (enc_can_view('enc-register')): ?>
                         <a class="stock-btn stock-btn--primary" href="registro.php"><i class="bi bi-plus-circle"></i> Nueva Control Encomienda</a>
                     <?php endif; ?>
+                    <a class="stock-btn stock-btn--soft" href="rezagados.php"><i class="bi bi-list-check"></i> Rezagados</a>
                     <button class="stock-btn stock-btn--soft" type="button" data-enc-pdf-tracking><i class="bi bi-filetype-pdf"></i> PDF consolidado</button>
                 </div>
             </section>
@@ -165,7 +166,7 @@ function enc_manifest_status(array $row): string {
                         <div><strong>Busqueda principal</strong><span>Control Encomienda, documento o texto libre.</span></div>
                     </div>
                     <div class="enc-filter-group__fields">
-                        <label class="stock-field"><span>Control Encomienda</span><input type="text" name="guia" value="<?= enc_h($filters['guia']) ?>" placeholder="GN-000001" autocomplete="off"></label>
+                        <label class="stock-field"><span>Control Encomienda</span><input type="text" name="guia" value="<?= enc_h($filters['guia']) ?>" placeholder="CE-000001" autocomplete="off"></label>
                         <label class="stock-field"><span>Documento legal</span><input type="text" name="documento" value="<?= enc_h($filters['documento']) ?>" placeholder="Factura, boleta, recibo o PDF" autocomplete="off"></label>
                         <label class="stock-field stock-field--search"><span>Buscar</span><i class="bi bi-search"></i><input type="text" name="buscar" value="<?= enc_h($filters['buscar']) ?>" placeholder="Guia, ruta, unidad u observacion..." autocomplete="off"></label>
                     </div>

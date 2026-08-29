@@ -77,6 +77,105 @@ function enc_schema_has_guias_norte(mysqli $conn): bool {
     }
 }
 
+function enc_schema_has_manifest_reviews(mysqli $conn, bool $requireView = false): bool {
+    static $cache = [];
+    $key = spl_object_id($conn) . ':' . ($requireView ? 'view' : 'tables');
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    try {
+        $names = $requireView
+            ? ['tb_enc_manifiesto_revisiones', 'tb_enc_manifiesto_revision_items', 'vw_enc_rezagados_encomienda']
+            : ['tb_enc_manifiesto_revisiones', 'tb_enc_manifiesto_revision_items'];
+        $placeholders = implode(',', array_fill(0, count($names), '?'));
+        $row = enc_fetch_one($conn, "
+            SELECT COUNT(*) AS total
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME IN ($placeholders)
+        ", str_repeat('s', count($names)), $names);
+        $cache[$key] = (int)($row['total'] ?? 0) === count($names);
+    } catch (Throwable $e) {
+        enc_log($e);
+        $cache[$key] = false;
+    }
+
+    return $cache[$key];
+}
+
+function enc_schema_has_manifest_review_pages(mysqli $conn): bool {
+    static $cache = [];
+    $key = spl_object_id($conn);
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    try {
+        if (!enc_schema_has_manifest_reviews($conn)) {
+            $cache[$key] = false;
+            return false;
+        }
+        $column = enc_fetch_one($conn, "
+            SELECT COUNT(*) AS total
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'tb_enc_manifiesto_revisiones'
+              AND COLUMN_NAME = 'clm_encrev_orden_hoja'
+        ");
+        $newIndex = enc_fetch_one($conn, "
+            SELECT COUNT(*) AS total
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'tb_enc_manifiesto_revisiones'
+              AND INDEX_NAME = 'uq_encrev_documento_hoja'
+        ");
+        $oldIndex = enc_fetch_one($conn, "
+            SELECT COUNT(*) AS total
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'tb_enc_manifiesto_revisiones'
+              AND INDEX_NAME = 'uq_encrev_documento'
+        ");
+        $cache[$key] = (int)($column['total'] ?? 0) === 1
+            && (int)($newIndex['total'] ?? 0) >= 2
+            && (int)($oldIndex['total'] ?? 0) === 0;
+    } catch (Throwable $e) {
+        enc_log($e);
+        $cache[$key] = false;
+    }
+
+    return $cache[$key];
+}
+
+function enc_schema_has_rezagados_view_pages(mysqli $conn): bool {
+    static $cache = [];
+    $key = spl_object_id($conn);
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    try {
+        if (!enc_schema_has_manifest_review_pages($conn) || !enc_schema_has_manifest_reviews($conn, true)) {
+            $cache[$key] = false;
+            return false;
+        }
+        $column = enc_fetch_one($conn, "
+            SELECT COUNT(*) AS total
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'vw_enc_rezagados_encomienda'
+              AND COLUMN_NAME = 'clm_encrev_orden_hoja'
+        ");
+        $cache[$key] = (int)($column['total'] ?? 0) === 1;
+    } catch (Throwable $e) {
+        enc_log($e);
+        $cache[$key] = false;
+    }
+
+    return $cache[$key];
+}
+
 function enc_current_filters(): array {
     $today = date('Y-m-d');
     $first = date('Y-m-01');
@@ -324,6 +423,41 @@ function enc_fetch_route_points(mysqli $conn, int $guideId): array {
 }
 
 function enc_fetch_documents(mysqli $conn, int $guideId): array {
+    $hasReviews = enc_schema_has_manifest_reviews($conn);
+    $reviewSelect = $hasReviews ? "
+               rv.manifiesto_revision_id,
+               rv.manifiesto_revision_estado,
+               rv.manifiesto_revision_hojas,
+               rv.manifiesto_revision_items,
+               rv.manifiesto_revision_rezagados,
+               rv.manifiesto_revision_actualizada,
+" : "
+               NULL AS manifiesto_revision_id,
+               NULL AS manifiesto_revision_estado,
+               0 AS manifiesto_revision_hojas,
+               NULL AS manifiesto_revision_items,
+               NULL AS manifiesto_revision_rezagados,
+               NULL AS manifiesto_revision_actualizada,
+";
+    $reviewJoin = $hasReviews ? "
+        LEFT JOIN (
+            SELECT clm_encrev_iddocumento,
+                   MIN(clm_encrev_id) AS manifiesto_revision_id,
+                   CASE
+                       WHEN SUM(clm_encrev_estado = 'EN_REVISION') > 0 THEN 'EN_REVISION'
+                       WHEN SUM(clm_encrev_estado = 'GENERADO') > 0 THEN 'GENERADO'
+                       ELSE 'CERRADO'
+                   END AS manifiesto_revision_estado,
+                   COUNT(*) AS manifiesto_revision_hojas,
+                   SUM(clm_encrev_total_items) AS manifiesto_revision_items,
+                   SUM(clm_encrev_total_rezagados) AS manifiesto_revision_rezagados,
+                   MAX(COALESCE(clm_encrev_datetimeupdated, clm_encrev_fechacreated)) AS manifiesto_revision_actualizada
+            FROM tb_enc_manifiesto_revisiones
+            WHERE clm_encrev_activo = 1
+            GROUP BY clm_encrev_iddocumento
+        ) rv ON rv.clm_encrev_iddocumento = d.clm_encdoc_id
+" : "";
+
     return enc_fetch_all($conn, "
         SELECT d.clm_encdoc_id,
                d.clm_encdoc_idguia,
@@ -345,11 +479,13 @@ function enc_fetch_documents(mysqli $conn, int $guideId): array {
                p.clm_encpunto_orden,
                p.clm_encpunto_tipo,
                s.clm_sedes_name AS punto_sede,
+               $reviewSelect
                COALESCE(NULLIF(TRIM(uc.usuario), ''), NULLIF(TRIM(uc.nombre), ''), CONCAT('Usuario ', uc.id_usuario)) AS usuario_carga,
                COALESCE(NULLIF(TRIM(ua.usuario), ''), NULLIF(TRIM(ua.nombre), ''), CONCAT('Usuario ', ua.id_usuario)) AS usuario_actualiza
         FROM tb_enc_documentos d
         LEFT JOIN tb_enc_guia_puntos p ON p.clm_encpunto_id = d.clm_encdoc_idpunto
         LEFT JOIN tb_sedes s ON s.clm_sedes_id = p.clm_encpunto_idsede
+        $reviewJoin
         LEFT JOIN tb_usuarios uc ON uc.id_usuario = d.clm_encdoc_idusuario_carga
         LEFT JOIN tb_usuarios ua ON ua.id_usuario = d.clm_encdoc_idusuario_actualiza
         WHERE d.clm_encdoc_idguia = ?
@@ -359,6 +495,137 @@ function enc_fetch_documents(mysqli $conn, int $guideId): array {
                  d.clm_encdoc_fechacarga DESC,
                  d.clm_encdoc_id DESC
     ", 'i', [$guideId]);
+}
+
+function enc_fetch_manifest_document(mysqli $conn, int $docId): ?array {
+    return enc_fetch_one($conn, "
+        SELECT d.clm_encdoc_id,
+               d.clm_encdoc_idguia,
+               d.clm_encdoc_idpunto,
+               d.clm_encdoc_tipo,
+               d.clm_encdoc_nombre,
+               d.clm_encdoc_mime,
+               d.clm_encdoc_size,
+               d.clm_encdoc_archivo,
+               d.clm_encdoc_fechacarga,
+               g.clm_enc_guia,
+               p.clm_encpunto_id,
+               p.clm_encpunto_orden,
+               p.clm_encpunto_tipo,
+               s.clm_sedes_name AS punto_sede
+        FROM tb_enc_documentos d
+        INNER JOIN tb_enc_guias g ON g.clm_enc_id = d.clm_encdoc_idguia
+        LEFT JOIN tb_enc_guia_puntos p ON p.clm_encpunto_id = d.clm_encdoc_idpunto
+        LEFT JOIN tb_sedes s ON s.clm_sedes_id = p.clm_encpunto_idsede
+        WHERE d.clm_encdoc_id = ?
+          AND d.clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS'
+          AND d.clm_encdoc_estado = 1
+        LIMIT 1
+    ", 'i', [$docId]);
+}
+
+function enc_fetch_manifest_review(mysqli $conn, int $docId): ?array {
+    if (!enc_schema_has_manifest_reviews($conn)) {
+        return null;
+    }
+    return enc_fetch_one($conn, "
+        SELECT *
+        FROM tb_enc_manifiesto_revisiones
+        WHERE clm_encrev_iddocumento = ?
+          AND clm_encrev_activo = 1
+        LIMIT 1
+    ", 'i', [$docId]);
+}
+
+function enc_fetch_manifest_reviews(mysqli $conn, int $docId): array {
+    if (!enc_schema_has_manifest_reviews($conn)) {
+        return [];
+    }
+    $sheetSelect = enc_schema_has_manifest_review_pages($conn)
+        ? 'r.clm_encrev_orden_hoja'
+        : '1 AS clm_encrev_orden_hoja';
+    $orderSql = enc_schema_has_manifest_review_pages($conn)
+        ? 'r.clm_encrev_orden_hoja ASC, r.clm_encrev_id ASC'
+        : 'r.clm_encrev_id ASC';
+
+    return enc_fetch_all($conn, "
+        SELECT r.*,
+               $sheetSelect
+        FROM tb_enc_manifiesto_revisiones r
+        WHERE r.clm_encrev_iddocumento = ?
+          AND r.clm_encrev_activo = 1
+        ORDER BY $orderSql
+    ", 'i', [$docId]);
+}
+
+function enc_fetch_manifest_review_items(mysqli $conn, int $reviewId): array {
+    if (!enc_schema_has_manifest_reviews($conn)) {
+        return [];
+    }
+    return enc_fetch_all($conn, "
+        SELECT *
+        FROM tb_enc_manifiesto_revision_items
+        WHERE clm_encrevitem_idrevision = ?
+          AND clm_encrevitem_activo = 1
+        ORDER BY clm_encrevitem_orden ASC, clm_encrevitem_id ASC
+    ", 'i', [$reviewId]);
+}
+
+function enc_current_rezagados_filters(): array {
+    return [
+        'estado' => strtoupper(trim((string)($_GET['estado'] ?? 'REZAGADO'))),
+        'buscar' => trim((string)($_GET['buscar'] ?? '')),
+        'desde' => enc_nullable_date($_GET['desde'] ?? '') ?? date('Y-m-01'),
+        'hasta' => enc_nullable_date($_GET['hasta'] ?? '') ?? date('Y-m-d'),
+    ];
+}
+
+function enc_fetch_rezagados_encomienda(mysqli $conn, array $filters): array {
+    if (!enc_schema_has_rezagados_view_pages($conn)) {
+        return [];
+    }
+
+    $where = ['1=1'];
+    $types = '';
+    $params = [];
+    $estado = strtoupper((string)($filters['estado'] ?? ''));
+    if (in_array($estado, ['PENDIENTE', 'OK', 'REZAGADO', 'OBSERVADO'], true)) {
+        $where[] = 'clm_encrevitem_estado = ?';
+        $types .= 's';
+        $params[] = $estado;
+    }
+    if (($filters['desde'] ?? '') !== '') {
+        $where[] = 'DATE(clm_encrev_fechacreated) >= ?';
+        $types .= 's';
+        $params[] = $filters['desde'];
+    }
+    if (($filters['hasta'] ?? '') !== '') {
+        $where[] = 'DATE(clm_encrev_fechacreated) <= ?';
+        $types .= 's';
+        $params[] = $filters['hasta'];
+    }
+    if (($filters['buscar'] ?? '') !== '') {
+        $where[] = '(' . implode(' OR ', [
+            enc_like_expr('clm_enc_guia'),
+            enc_like_expr('manifiesto_pdf'),
+            enc_like_expr('clm_encrevitem_documento'),
+            enc_like_expr('clm_encrevitem_consignado'),
+            enc_like_expr('clm_encrevitem_referencia_envio'),
+            enc_like_expr('clm_encrevitem_guia_remision'),
+        ]) . ')';
+        $types .= 'ssssss';
+        for ($i = 0; $i < 6; $i++) {
+            $params[] = $filters['buscar'];
+        }
+    }
+
+    return enc_fetch_all($conn, "
+        SELECT *
+        FROM vw_enc_rezagados_encomienda
+        WHERE " . implode(' AND ', $where) . "
+        ORDER BY clm_encrev_fechacreated DESC, clm_enc_guia DESC, clm_encrev_orden_hoja ASC, clm_encrevitem_orden ASC
+        LIMIT 1200
+    ", $types, $params);
 }
 
 function enc_fetch_document_blob(mysqli $conn, int $docId): ?array {
@@ -391,6 +658,29 @@ function enc_fetch_history(mysqli $conn, int $guideId): array {
 }
 
 function enc_missing_required_manifests(mysqli $conn, int $guideId): array {
+    if (enc_schema_has_manifest_reviews($conn)) {
+        $coverage = enc_fetch_one($conn, "
+            SELECT COUNT(DISTINCT r.clm_encrev_id) AS hojas
+            FROM tb_enc_documentos d
+            INNER JOIN tb_enc_manifiesto_revisiones r
+                    ON r.clm_encrev_iddocumento = d.clm_encdoc_id
+                   AND r.clm_encrev_activo = 1
+            WHERE d.clm_encdoc_idguia = ?
+              AND d.clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS'
+              AND d.clm_encdoc_estado = 1
+        ", 'i', [$guideId]);
+        $required = enc_fetch_one($conn, "
+            SELECT COUNT(*) AS total
+            FROM tb_enc_guia_puntos
+            WHERE clm_encpunto_idguia = ?
+              AND clm_encpunto_activo = 1
+              AND clm_encpunto_manifiesto_obligatorio = 1
+        ", 'i', [$guideId]);
+        if ((int)($required['total'] ?? 0) > 0 && (int)($coverage['hojas'] ?? 0) >= (int)$required['total']) {
+            return [];
+        }
+    }
+
     return enc_fetch_all($conn, "
         SELECT p.clm_encpunto_id,
                p.clm_encpunto_orden,

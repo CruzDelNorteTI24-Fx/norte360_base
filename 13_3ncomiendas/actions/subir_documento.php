@@ -54,6 +54,9 @@ if (!isset($_FILES['documento']) || !is_array($_FILES['documento'])) {
 if (!$valid || !$pdf) {
     enc_json(false, $error, [], 422);
 }
+if ($tipo === 'MANIFIESTO_ENCOMIENDAS' && !enc_pdf_contains_manifest_title($pdf['content'])) {
+    enc_json(false, 'El PDF no parece ser un manifiesto de encomiendas. Debe contener "Manifiesto de Encomiendas".', [], 422);
+}
 
 try {
     $guia = enc_fetch_guia($conn, $id);
@@ -101,7 +104,9 @@ try {
     }
 
     $conn->begin_transaction();
+    $storedDocId = 0;
     if ($existing) {
+        $storedDocId = (int)$existing['clm_encdoc_id'];
         enc_execute($conn, "
             UPDATE tb_enc_documentos
                SET clm_encdoc_nombre = ?,
@@ -127,7 +132,7 @@ try {
             $fechaComprobante,
             $docObs,
             $userId,
-            (int)$existing['clm_encdoc_id'],
+            $storedDocId,
         ]);
     } else {
         enc_execute($conn, "
@@ -163,6 +168,11 @@ try {
             $pdf['content'],
             $userId,
         ]);
+        $storedDocId = (int)$conn->insert_id;
+    }
+
+    if ($existing && $tipo === 'MANIFIESTO_ENCOMIENDAS' && $storedDocId > 0 && enc_schema_has_manifest_reviews($conn)) {
+        enc_execute($conn, "DELETE FROM tb_enc_manifiesto_revisiones WHERE clm_encrev_iddocumento = ?", 'i', [$storedDocId]);
     }
 
     if ($tipo === 'MANIFIESTO_ENCOMIENDAS' && $pointId) {

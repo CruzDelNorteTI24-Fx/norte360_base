@@ -168,7 +168,7 @@
       useCover: false,
       title: 'GUIA NORTE DE ENCOMIENDAS',
       secondTitle: safe(guide.clm_enc_guia, 'Control Encomienda'),
-      docCode: safe(guide.clm_enc_guia, 'ENC-GN'),
+      docCode: safe(guide.clm_enc_guia, 'ENC-CE'),
       userName: safe(user.name || root.dataset.reportUser, 'Usuario'),
       dni: safe(user.dni || root.dataset.reportDni, 'No registrado'),
       logoLeft: '../img/icon.png',

@@ -530,7 +530,7 @@ function n360_menu_config(): array {
                         'titulo' => 'Operación de encomiendas',
                         'items' => [
                             [
-                                'titulo' => 'Registro de guía',
+                                'titulo' => 'Registro control encomienda',
                                 'icono' => 'bi bi-send-plus-fill',
                                 'url' => '13_3ncomiendas/registro.php',
                                 'modulo' => 13,
@@ -540,6 +540,13 @@ function n360_menu_config(): array {
                                 'titulo' => 'Tracking',
                                 'icono' => 'bi bi-signpost-split-fill',
                                 'url' => '13_3ncomiendas/tracking.php',
+                                'modulo' => 13,
+                                'vista' => 'enc-tracking'
+                            ],
+                            [
+                                'titulo' => 'Rezagados',
+                                'icono' => 'bi bi-list-check',
+                                'url' => '13_3ncomiendas/rezagados.php',
                                 'modulo' => 13,
                                 'vista' => 'enc-tracking'
                             ],

@@ -101,6 +101,24 @@ function enc_doc_action_links(array $doc): string {
         . '</div>';
 }
 
+function enc_manifest_review_action(array $doc): string {
+    if (($doc['clm_encdoc_tipo'] ?? '') !== 'MANIFIESTO_ENCOMIENDAS') {
+        return '';
+    }
+    $id = (int)$doc['clm_encdoc_id'];
+    $reviewId = (int)($doc['manifiesto_revision_id'] ?? 0);
+    $label = $reviewId > 0 ? 'Continuar revision' : 'Generar revision';
+    $icon = $reviewId > 0 ? 'bi-clipboard-check' : 'bi-clipboard-plus';
+    $hojas = (int)($doc['manifiesto_revision_hojas'] ?? 0);
+    $items = (int)($doc['manifiesto_revision_items'] ?? 0);
+    $rezagados = (int)($doc['manifiesto_revision_rezagados'] ?? 0);
+    $meta = $reviewId > 0 ? '<small>' . enc_h($hojas . ' hojas / ' . $items . ' items' . ($rezagados > 0 ? ' / ' . $rezagados . ' rezagados' : '')) . '</small>' : '';
+
+    return '<a class="stock-btn stock-btn--soft stock-btn--sm enc-manifest-review-action" href="revision_manifiesto.php?documento=' . enc_h($id) . '">'
+        . '<i class="bi ' . enc_h($icon) . '"></i><span>' . enc_h($label) . $meta . '</span>'
+        . '</a>';
+}
+
 function enc_doc_file_summary(?array $doc): string {
     if (!$doc) {
         return '<div class="enc-doc-file enc-doc-file--empty">'
@@ -146,7 +164,19 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
     foreach ($points as $point) {
         if ((int)($point['clm_encpunto_manifiesto_obligatorio'] ?? 1) === 1) $requiredManifests++;
     }
-    $readyManifests = count($manifestDocsByPoint);
+    $reviewSheets = 0;
+    $consolidatedDoc = null;
+    foreach ($manifestDocsByPoint as $doc) {
+        $docSheets = (int)($doc['manifiesto_revision_hojas'] ?? 0);
+        $reviewSheets += $docSheets;
+        if ($docSheets > 1) {
+            $consolidatedDoc = $doc;
+        }
+    }
+    $readyManifests = max(count($manifestDocsByPoint), $reviewSheets);
+    if ($requiredManifests > 0) {
+        $readyManifests = min($readyManifests, $requiredManifests);
+    }
     $manifestDone = $requiredManifests > 0 && $readyManifests >= $requiredManifests;
     $canDocs = enc_can_view('enc-docs');
     $canEmbarque = enc_can_view('enc-embarque');
@@ -239,21 +269,29 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
                 <?php else: ?>
                     <?php foreach ($points as $point): ?>
                         <?php $doc = $manifestDocsByPoint[(int)$point['clm_encpunto_id']] ?? null; ?>
-                        <article class="enc-route-manifest-row <?= $doc ? 'has-doc' : 'is-pending' ?>">
+                        <?php $coveredByConsolidated = !$doc && $consolidatedDoc && $reviewSheets >= (int)$point['clm_encpunto_orden']; ?>
+                        <article class="enc-route-manifest-row <?= ($doc || $coveredByConsolidated) ? 'has-doc' : 'is-pending' ?>">
                             <div class="enc-route-manifest-main">
                                 <span class="enc-route-step"><?= enc_h(str_pad((string)(int)$point['clm_encpunto_orden'], 2, '0', STR_PAD_LEFT)) ?></span>
                                 <div>
                                     <div class="enc-route-manifest-title">
                                         <span class="enc-mini-chip"><i class="bi bi-geo-alt"></i><?= enc_h(enc_route_type_label($point['clm_encpunto_tipo'] ?? 'RUTA')) ?></span>
-                                        <?= $doc ? '<span class="enc-manifest-pill enc-manifest-pill--ok"><i class="bi bi-check2-circle"></i>PDF listo</span>' : '<span class="enc-manifest-pill enc-manifest-pill--pending"><i class="bi bi-hourglass-split"></i>Pendiente</span>' ?>
+                                        <?php if ($doc): ?>
+                                            <span class="enc-manifest-pill enc-manifest-pill--ok"><i class="bi bi-check2-circle"></i>PDF listo</span>
+                                        <?php elseif ($coveredByConsolidated): ?>
+                                            <span class="enc-manifest-pill enc-manifest-pill--ok"><i class="bi bi-collection"></i>Incluido</span>
+                                        <?php else: ?>
+                                            <span class="enc-manifest-pill enc-manifest-pill--pending"><i class="bi bi-hourglass-split"></i>Pendiente</span>
+                                        <?php endif; ?>
                                     </div>
                                     <h4><?= enc_h($point['sede_nombre']) ?></h4>
                                 </div>
                             </div>
-                            <?= enc_doc_file_summary($doc) ?>
+                            <?= enc_doc_file_summary($doc ?: ($coveredByConsolidated ? $consolidatedDoc : null)) ?>
                             <div class="enc-route-manifest-actions">
-                                <?php if ($doc): ?>
-                                    <?= enc_doc_action_links($doc) ?>
+                                <?php if ($doc || $coveredByConsolidated): ?>
+                                    <?= enc_doc_action_links($doc ?: $consolidatedDoc) ?>
+                                    <?= enc_manifest_review_action($doc ?: $consolidatedDoc) ?>
                                 <?php endif; ?>
                                 <?php if (!$isAnulada && $canDocs): ?>
                                     <form class="enc-upload-form enc-upload-form--compact enc-ajax-form" action="actions/subir_documento.php" method="post" enctype="multipart/form-data" data-confirm="<?= $doc ? 'Reemplazar manifiesto de este punto.' : 'Subir manifiesto de este punto.' ?>">

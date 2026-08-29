@@ -95,7 +95,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                 <span>Control Encomienda</span>
                                 <h2>Datos base del viaje</h2>
                             </div>
-                            <span class="enc-auto-guide"><i class="bi bi-magic"></i> Correlativo automatico GN-000001</span>
+                            <span class="enc-auto-guide"><i class="bi bi-magic"></i> Correlativo automatico CE-000001</span>
                         </div>
 
                         <div class="enc-form-grid enc-form-grid--guide">
