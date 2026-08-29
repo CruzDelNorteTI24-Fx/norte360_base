@@ -386,7 +386,7 @@
 
 .fcc-table {
     width: 100%;
-    min-width: 1840px;
+    min-width: 2060px;
     border-collapse: collapse;
     font-size: 13px;
 }
@@ -509,6 +509,14 @@ body.fcc-bulk-mode .fcc-action-buttons {
 
 .fcc-table td[data-fcc-col="viaje_importe"] {
     min-width: 190px;
+}
+
+.fcc-table td[data-fcc-col="viaje_comentario"] {
+    min-width: 220px;
+}
+
+.fcc-trip-comment-cell textarea {
+    min-width: 220px;
 }
 
 .fcc-route-line {

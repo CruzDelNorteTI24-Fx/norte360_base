@@ -275,6 +275,7 @@
     if (!trip || !row) return trip;
     const idaVuelta = row.querySelector('[data-fcc-field="ida_vuelta"]');
     const viajeImporte = row.querySelector('[data-fcc-field="viaje_importe"]');
+    const viajeComentario = row.querySelector('[data-fcc-field="viaje_comentario"]');
     const cond1Estado = row.querySelector('[data-fcc-field="cond1_estado"]');
     const cond1Importe = row.querySelector('[data-fcc-field="cond1_importe"]');
     const cond1Obs = row.querySelector('[data-fcc-field="cond1_observacion"]');
@@ -283,6 +284,7 @@
     const cond2Obs = row.querySelector('[data-fcc-field="cond2_observacion"]');
     if (idaVuelta) trip.ida_vuelta = tripDirection(idaVuelta.value);
     if (viajeImporte) trip.viaje_importe = moneyInputRaw(viajeImporte);
+    if (viajeComentario) trip.viaje_comentario = viajeComentario.value;
     if (cond1Estado) trip.cond1_estado = cond1Estado.value;
     if (cond1Importe) trip.cond1_importe = moneyInputRaw(cond1Importe);
     if (cond1Obs) trip.cond1_observacion = cond1Obs.value;
@@ -326,6 +328,7 @@
     return {
       ida_vuelta: row.querySelector('[data-fcc-field="ida_vuelta"]'),
       viaje_importe: row.querySelector('[data-fcc-field="viaje_importe"]'),
+      viaje_comentario: row.querySelector('[data-fcc-field="viaje_comentario"]'),
       cond1_estado: row.querySelector('[data-fcc-field="cond1_estado"]'),
       cond1_importe: row.querySelector('[data-fcc-field="cond1_importe"]'),
       cond1_observacion: row.querySelector('[data-fcc-field="cond1_observacion"]'),
@@ -341,6 +344,7 @@
       id: row.dataset.fccRow || '',
       ida_vuelta: tripDirection(fields.ida_vuelta?.value),
       viaje_importe: moneyInputRaw(fields.viaje_importe),
+      viaje_comentario: fields.viaje_comentario?.value || '',
       cond1_estado: fields.cond1_estado?.value || '',
       cond1_importe: moneyInputRaw(fields.cond1_importe),
       cond1_observacion: fields.cond1_observacion?.value || '',
@@ -354,6 +358,7 @@
     return {
       ida_vuelta: tripDirection(values.ida_vuelta),
       viaje_importe: normalizeMoneyValue(values.viaje_importe),
+      viaje_comentario: String(values.viaje_comentario || ''),
       cond1_estado: compact(values.cond1_estado).toUpperCase(),
       cond1_importe: normalizeMoneyValue(values.cond1_importe),
       cond1_observacion: String(values.cond1_observacion || ''),
@@ -550,6 +555,7 @@
     const fields = rowFields(row);
     if (fields.ida_vuelta && data && Object.prototype.hasOwnProperty.call(data, 'ida_vuelta')) fields.ida_vuelta.value = tripDirection(data.ida_vuelta);
     if (fields.viaje_importe) setMoneyInputValue(fields.viaje_importe, data?.viaje_importe ?? moneyInputRaw(fields.viaje_importe), false);
+    if (fields.viaje_comentario && data && Object.prototype.hasOwnProperty.call(data, 'viaje_comentario')) fields.viaje_comentario.value = data.viaje_comentario || '';
     if (fields.cond1_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond1_estado')) fields.cond1_estado.value = data.cond1_estado || '';
     if (fields.cond1_importe) setMoneyInputValue(fields.cond1_importe, data?.cond1_importe ?? moneyInputRaw(fields.cond1_importe), false);
     if (fields.cond2_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond2_estado')) fields.cond2_estado.value = data.cond2_estado || '';
@@ -563,6 +569,7 @@
       syncTripFromRow(savedTrip, row);
       savedTrip.ida_vuelta = data && Object.prototype.hasOwnProperty.call(data, 'ida_vuelta') ? tripDirection(data.ida_vuelta) : savedTrip.ida_vuelta;
       savedTrip.viaje_importe = data?.viaje_importe ?? savedTrip.viaje_importe;
+      savedTrip.viaje_comentario = data && Object.prototype.hasOwnProperty.call(data, 'viaje_comentario') ? (data.viaje_comentario || '') : savedTrip.viaje_comentario;
       savedTrip.cond1_estado = data && Object.prototype.hasOwnProperty.call(data, 'cond1_estado') ? (data.cond1_estado || '') : savedTrip.cond1_estado;
       savedTrip.cond1_importe = data?.cond1_importe ?? savedTrip.cond1_importe;
       savedTrip.cond2_estado = data && Object.prototype.hasOwnProperty.call(data, 'cond2_estado') ? (data.cond2_estado || '') : savedTrip.cond2_estado;
@@ -594,6 +601,7 @@
     fd.append('id', id);
     fd.append('ida_vuelta', tripDirection(row.querySelector('[data-fcc-field="ida_vuelta"]')?.value));
     fd.append('viaje_importe', moneyInputRaw(row.querySelector('[data-fcc-field="viaje_importe"]')));
+    fd.append('viaje_comentario', row.querySelector('[data-fcc-field="viaje_comentario"]')?.value || '');
     fd.append('cond1_estado', row.querySelector('[data-fcc-field="cond1_estado"]')?.value || '');
     fd.append('cond1_importe', moneyInputRaw(row.querySelector('[data-fcc-field="cond1_importe"]')));
     fd.append('cond1_observacion', row.querySelector('[data-fcc-field="cond1_observacion"]')?.value || '');
@@ -639,7 +647,7 @@
     }
 
     const items = rows.map(rowValues);
-    const ok = window.confirm(`Deseas actualizar ${items.length} registro${items.length === 1 ? '' : 's'} de estados, pagos y observaciones?`);
+    const ok = window.confirm(`Deseas actualizar ${items.length} registro${items.length === 1 ? '' : 's'} de estados, pagos, comentarios y observaciones?`);
     if (!ok) return;
 
     const fd = new FormData();
@@ -794,6 +802,7 @@
         destino,
         rutaSimple,
         viajeImporte: moneyInputRaw(row.querySelector('[data-fcc-field="viaje_importe"]')),
+        viajeComentario: cellText(row, '[data-fcc-field="viaje_comentario"]'),
         cond1: cellText(row, '[data-fcc-col="cond1"]'),
         cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
         cond1Importe: moneyInputRaw(row.querySelector('[data-fcc-field="cond1_importe"]')),
@@ -1048,6 +1057,7 @@
     setTripField('comentario_horario', trip.comentario_horario);
     setTripField('viaje_importe', moneyText(trip.viaje_importe));
     setTripField('viaje_importe_estado', totalStatusFromTrip(trip));
+    setTripField('viaje_comentario', trip.viaje_comentario);
     setTripField('cond1', trip.cond1);
     setTripField('cond1_estado', driverStateText(trip.cond1_estado));
     setTripField('cond1_importe', moneyText(trip.cond1_importe));
