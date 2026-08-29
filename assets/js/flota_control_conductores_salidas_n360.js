@@ -121,6 +121,13 @@
     return `S/ ${formatMoneyAmount(moneyNumber(value))}`;
   }
 
+  function signedMoneyReportText(value) {
+    const amount = Number(value || 0);
+    if (!Number.isFinite(amount)) return 'S/ 0.00';
+    const sign = amount < 0 ? '-' : '';
+    return `${sign}S/ ${formatMoneyAmount(Math.abs(amount))}`;
+  }
+
   function hojaRutaStateText(trip) {
     const hojaRuta = compact(trip?.hoja_ruta || '');
     if (!hojaRuta) return 'PENDIENTE';
@@ -267,6 +274,7 @@
   function syncTripFromRow(trip, row) {
     if (!trip || !row) return trip;
     const idaVuelta = row.querySelector('[data-fcc-field="ida_vuelta"]');
+    const viajeImporte = row.querySelector('[data-fcc-field="viaje_importe"]');
     const cond1Estado = row.querySelector('[data-fcc-field="cond1_estado"]');
     const cond1Importe = row.querySelector('[data-fcc-field="cond1_importe"]');
     const cond1Obs = row.querySelector('[data-fcc-field="cond1_observacion"]');
@@ -274,6 +282,7 @@
     const cond2Importe = row.querySelector('[data-fcc-field="cond2_importe"]');
     const cond2Obs = row.querySelector('[data-fcc-field="cond2_observacion"]');
     if (idaVuelta) trip.ida_vuelta = tripDirection(idaVuelta.value);
+    if (viajeImporte) trip.viaje_importe = moneyInputRaw(viajeImporte);
     if (cond1Estado) trip.cond1_estado = cond1Estado.value;
     if (cond1Importe) trip.cond1_importe = moneyInputRaw(cond1Importe);
     if (cond1Obs) trip.cond1_observacion = cond1Obs.value;
@@ -316,6 +325,7 @@
   function rowFields(row) {
     return {
       ida_vuelta: row.querySelector('[data-fcc-field="ida_vuelta"]'),
+      viaje_importe: row.querySelector('[data-fcc-field="viaje_importe"]'),
       cond1_estado: row.querySelector('[data-fcc-field="cond1_estado"]'),
       cond1_importe: row.querySelector('[data-fcc-field="cond1_importe"]'),
       cond1_observacion: row.querySelector('[data-fcc-field="cond1_observacion"]'),
@@ -330,6 +340,7 @@
     return {
       id: row.dataset.fccRow || '',
       ida_vuelta: tripDirection(fields.ida_vuelta?.value),
+      viaje_importe: moneyInputRaw(fields.viaje_importe),
       cond1_estado: fields.cond1_estado?.value || '',
       cond1_importe: moneyInputRaw(fields.cond1_importe),
       cond1_observacion: fields.cond1_observacion?.value || '',
@@ -342,6 +353,7 @@
   function comparableRowValues(values) {
     return {
       ida_vuelta: tripDirection(values.ida_vuelta),
+      viaje_importe: normalizeMoneyValue(values.viaje_importe),
       cond1_estado: compact(values.cond1_estado).toUpperCase(),
       cond1_importe: normalizeMoneyValue(values.cond1_importe),
       cond1_observacion: String(values.cond1_observacion || ''),
@@ -349,6 +361,58 @@
       cond2_importe: normalizeMoneyValue(values.cond2_importe),
       cond2_observacion: String(values.cond2_observacion || '')
     };
+  }
+
+  function updateTripTotalState(row) {
+    if (!row) return;
+    const fields = rowFields(row);
+    const totalInput = fields.viaje_importe;
+    const diff = row.querySelector('[data-fcc-total-diff]');
+    const wrapper = totalInput?.closest('.fcc-money-field');
+    const retorno = row.dataset.fccRetorno === '1' || isReturnTrip(fields.ida_vuelta?.value);
+    const skip = row.dataset.fccAnulado === '1' || !totalInput || retorno;
+
+    row.classList.remove('is-total-mismatch', 'is-total-match');
+    wrapper?.classList.remove('is-mismatch', 'is-match');
+    if (diff) diff.classList.remove('is-bad', 'is-ok');
+
+    if (skip) {
+      if (diff) diff.textContent = retorno ? 'Retorno sin pagos' : '';
+      return;
+    }
+
+    const rawTotal = moneyInputRaw(totalInput);
+    const rawCond1 = moneyInputRaw(fields.cond1_importe);
+    const rawCond2 = moneyInputRaw(fields.cond2_importe);
+    const hasAnyAmount = rawTotal !== '' || rawCond1 !== '' || rawCond2 !== '';
+    const total = moneyNumber(rawTotal);
+    const condSum = moneyNumber(rawCond1) + moneyNumber(rawCond2);
+    const balance = Math.round((total - condSum) * 10000) / 10000;
+    const mismatch = hasAnyAmount && Math.abs(balance) >= 0.0001;
+    const match = hasAnyAmount && !mismatch;
+
+    row.classList.toggle('is-total-mismatch', mismatch);
+    row.classList.toggle('is-total-match', match);
+    wrapper?.classList.toggle('is-mismatch', mismatch);
+    wrapper?.classList.toggle('is-match', match);
+
+    if (diff) {
+      diff.classList.toggle('is-bad', mismatch);
+      diff.classList.toggle('is-ok', match);
+      diff.textContent = !hasAnyAmount ? 'Esperando pagos' : (mismatch ? `Dif. ${signedMoneyReportText(balance)}` : 'Cuadra');
+    }
+  }
+
+  function totalStatusFromTrip(trip) {
+    if (!trip) return '-';
+    if (isReturnTrip(trip.ida_vuelta)) return 'Retorno sin pagos';
+    const rawTotal = normalizeMoneyValue(trip.viaje_importe);
+    const rawCond1 = normalizeMoneyValue(trip.cond1_importe);
+    const rawCond2 = normalizeMoneyValue(trip.cond2_importe);
+    const hasAnyAmount = rawTotal !== '' || rawCond1 !== '' || rawCond2 !== '';
+    if (!hasAnyAmount) return 'Esperando pagos';
+    const balance = Math.round((moneyNumber(rawTotal) - moneyNumber(rawCond1) - moneyNumber(rawCond2)) * 10000) / 10000;
+    return Math.abs(balance) >= 0.0001 ? `Diferencia ${signedMoneyReportText(balance)}` : 'Cuadra';
   }
 
   function rememberRow(row) {
@@ -367,6 +431,7 @@
     Object.entries(baseline).forEach(([name, value]) => {
       if (fields[name]) fields[name].value = value;
     });
+    setMoneyInputValue(fields.viaje_importe, baseline.viaje_importe || '', false);
     setMoneyInputValue(fields.cond1_importe, baseline.cond1_importe || '', false);
     setMoneyInputValue(fields.cond2_importe, baseline.cond2_importe || '', false);
     applyRoundTripState(row, false);
@@ -418,6 +483,7 @@
     });
 
     row.querySelectorAll('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]').forEach(syncSelectClass);
+    updateTripTotalState(row);
   }
 
   function dirtyRows() {
@@ -446,6 +512,7 @@
   }
 
   function markRowChange(row) {
+    updateTripTotalState(row);
     if (!row || !bulkMode) return;
     const id = row.dataset.fccRow || '';
     if (!id || id === '0') return;
@@ -466,7 +533,7 @@
   }
 
   function validateAndNormalizeRow(row) {
-    const amountInputs = Array.from(row.querySelectorAll('[data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]'));
+    const amountInputs = Array.from(row.querySelectorAll('[data-fcc-field="viaje_importe"], [data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]'));
     const invalidAmount = amountInputs.find((input) => !input.disabled && !input.checkValidity());
     if (invalidAmount) {
       invalidAmount.reportValidity();
@@ -482,6 +549,7 @@
     if (!row) return;
     const fields = rowFields(row);
     if (fields.ida_vuelta && data && Object.prototype.hasOwnProperty.call(data, 'ida_vuelta')) fields.ida_vuelta.value = tripDirection(data.ida_vuelta);
+    if (fields.viaje_importe) setMoneyInputValue(fields.viaje_importe, data?.viaje_importe ?? moneyInputRaw(fields.viaje_importe), false);
     if (fields.cond1_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond1_estado')) fields.cond1_estado.value = data.cond1_estado || '';
     if (fields.cond1_importe) setMoneyInputValue(fields.cond1_importe, data?.cond1_importe ?? moneyInputRaw(fields.cond1_importe), false);
     if (fields.cond2_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond2_estado')) fields.cond2_estado.value = data.cond2_estado || '';
@@ -494,6 +562,7 @@
     if (savedTrip) {
       syncTripFromRow(savedTrip, row);
       savedTrip.ida_vuelta = data && Object.prototype.hasOwnProperty.call(data, 'ida_vuelta') ? tripDirection(data.ida_vuelta) : savedTrip.ida_vuelta;
+      savedTrip.viaje_importe = data?.viaje_importe ?? savedTrip.viaje_importe;
       savedTrip.cond1_estado = data && Object.prototype.hasOwnProperty.call(data, 'cond1_estado') ? (data.cond1_estado || '') : savedTrip.cond1_estado;
       savedTrip.cond1_importe = data?.cond1_importe ?? savedTrip.cond1_importe;
       savedTrip.cond2_estado = data && Object.prototype.hasOwnProperty.call(data, 'cond2_estado') ? (data.cond2_estado || '') : savedTrip.cond2_estado;
@@ -524,6 +593,7 @@
     fd.append('action', 'update_driver_status');
     fd.append('id', id);
     fd.append('ida_vuelta', tripDirection(row.querySelector('[data-fcc-field="ida_vuelta"]')?.value));
+    fd.append('viaje_importe', moneyInputRaw(row.querySelector('[data-fcc-field="viaje_importe"]')));
     fd.append('cond1_estado', row.querySelector('[data-fcc-field="cond1_estado"]')?.value || '');
     fd.append('cond1_importe', moneyInputRaw(row.querySelector('[data-fcc-field="cond1_importe"]')));
     fd.append('cond1_observacion', row.querySelector('[data-fcc-field="cond1_observacion"]')?.value || '');
@@ -634,6 +704,7 @@
     document.querySelectorAll('[data-fcc-row]').forEach((row) => {
       applyRoundTripState(row, false);
       rememberRow(row);
+      updateTripTotalState(row);
     });
 
     const toggle = document.querySelector('[data-fcc-bulk-toggle]');
@@ -660,6 +731,7 @@
           applyRoundTripState(row, true);
         }
         if (field.matches('select')) syncSelectClass(field);
+        updateTripTotalState(row);
         markRowChange(row);
       });
     });
@@ -721,6 +793,7 @@
         origen,
         destino,
         rutaSimple,
+        viajeImporte: moneyInputRaw(row.querySelector('[data-fcc-field="viaje_importe"]')),
         cond1: cellText(row, '[data-fcc-col="cond1"]'),
         cond1Estado: cellText(row, '[data-fcc-field="cond1_estado"]'),
         cond1Importe: moneyInputRaw(row.querySelector('[data-fcc-field="cond1_importe"]')),
@@ -973,6 +1046,8 @@
     setTripField('hoja_ruta_estado', hojaRutaStateText(trip));
     setTripField('ruta_texto', trip.ruta_texto);
     setTripField('comentario_horario', trip.comentario_horario);
+    setTripField('viaje_importe', moneyText(trip.viaje_importe));
+    setTripField('viaje_importe_estado', totalStatusFromTrip(trip));
     setTripField('cond1', trip.cond1);
     setTripField('cond1_estado', driverStateText(trip.cond1_estado));
     setTripField('cond1_importe', moneyText(trip.cond1_importe));
@@ -1989,12 +2064,13 @@
     syncSelectClass(select);
     select.addEventListener('change', () => syncSelectClass(select));
   });
-  document.querySelectorAll('[data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]').forEach((input) => {
+  document.querySelectorAll('[data-fcc-field="viaje_importe"], [data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]').forEach((input) => {
     setMoneyInputValue(input, input.value, false);
     input.addEventListener('focus', () => editMoneyInput(input));
     input.addEventListener('input', () => {
       input.dataset.fccMoneyDisplay = input.value;
       input.dataset.fccMoneyRaw = normalizeMoneyValue(input.value);
+      updateTripTotalState(input.closest('[data-fcc-row]'));
     });
     input.addEventListener('blur', () => {
       if (input.checkValidity()) displayMoneyInput(input);

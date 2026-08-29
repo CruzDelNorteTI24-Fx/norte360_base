@@ -449,6 +449,7 @@ function fcc_driver_update_payload(array $data): array {
     $idaVuelta = fcc_ida_vuelta($data['ida_vuelta'] ?? 'PENDIENTE');
     $cond1Estado = fcc_conductor_estado($data['cond1_estado'] ?? '', true);
     $cond2Estado = fcc_conductor_estado($data['cond2_estado'] ?? '', true);
+    $viajeImporte = fcc_importe_nullable($data['viaje_importe'] ?? '', 'Importe total del viaje');
     $cond1Importe = fcc_importe_nullable($data['cond1_importe'] ?? '', 'Pago del conductor 1');
     $cond2Importe = fcc_importe_nullable($data['cond2_importe'] ?? '', 'Pago del conductor 2');
     $cond1Obs = trim((string)($data['cond1_observacion'] ?? ''));
@@ -466,6 +467,7 @@ function fcc_driver_update_payload(array $data): array {
     return [
         'id' => $id,
         'ida_vuelta' => $idaVuelta,
+        'viaje_importe' => $viajeImporte,
         'cond1_estado' => $cond1Estado,
         'cond1_importe' => $cond1Importe,
         'cond1_observacion' => $cond1Obs,
@@ -479,6 +481,7 @@ function fcc_prepare_driver_update(mysqli $conn): mysqli_stmt {
     $stmt = $conn->prepare('
         UPDATE tb_progbuses_salida_consolidado
            SET clm_salprog_estadoidavuelta = ?,
+               clm_salprog_imtotaldelviaje = NULLIF(?, \'\'),
                clm_salprog_cond1_estado = NULLIF(?, \'\'),
                clm_salprog_imtotalcond1 = NULLIF(?, \'\'),
                clm_salprog_cond1_observacion = NULLIF(?, \'\'),
@@ -502,6 +505,7 @@ $isAdmin = n360_is_admin();
 $tableReady = isset($conn) && $conn instanceof mysqli && fcc_table_exists($conn, 'tb_progbuses_salida_consolidado');
 $driverColumns = [
     'clm_salprog_estadoidavuelta',
+    'clm_salprog_imtotaldelviaje',
     'clm_salprog_cond1_estado',
     'clm_salprog_cond1_observacion',
     'clm_salprog_imtotalcond1',
@@ -521,7 +525,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fcc_json(false, [], 'La tabla del consolidado todavia no esta disponible.', 500);
     }
     if (!$driverColumnsReady) {
-        fcc_json(false, [], 'Faltan columnas de ida/vuelta, estado, observacion o importe de conductores. Ejecuta la query ALTER.', 500);
+        fcc_json(false, [], 'Faltan columnas de ida/vuelta, importe total, estado, observacion o importe de conductores. Ejecuta la query ALTER.', 500);
     }
     if (!hash_equals($csrfToken, (string)($_POST['csrf'] ?? ''))) {
         fcc_json(false, [], 'Sesion invalida. Actualiza la pagina.', 419);
@@ -549,12 +553,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $transactionStarted = true;
 
             $stmt = fcc_prepare_driver_update($conn);
-            $idaVuelta = $cond1Estado = $cond1Importe = $cond1Obs = $cond2Estado = $cond2Importe = $cond2Obs = '';
+            $idaVuelta = $viajeImporte = $cond1Estado = $cond1Importe = $cond1Obs = $cond2Estado = $cond2Importe = $cond2Obs = '';
             $id = 0;
-            $stmt->bind_param('sssssssi', $idaVuelta, $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
+            $stmt->bind_param('ssssssssi', $idaVuelta, $viajeImporte, $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
 
             foreach ($payloads as $payload) {
                 $idaVuelta = $payload['ida_vuelta'];
+                $viajeImporte = $payload['viaje_importe'];
                 $cond1Estado = $payload['cond1_estado'];
                 $cond1Importe = $payload['cond1_importe'];
                 $cond1Obs = $payload['cond1_observacion'];
@@ -596,6 +601,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = fcc_prepare_driver_update($conn);
 
         $idaVuelta = $payload['ida_vuelta'];
+        $viajeImporte = $payload['viaje_importe'];
         $cond1Estado = $payload['cond1_estado'];
         $cond1Importe = $payload['cond1_importe'];
         $cond1Obs = $payload['cond1_observacion'];
@@ -603,7 +609,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cond2Importe = $payload['cond2_importe'];
         $cond2Obs = $payload['cond2_observacion'];
         $id = $payload['id'];
-        $stmt->bind_param('sssssssi', $idaVuelta, $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
+        $stmt->bind_param('ssssssssi', $idaVuelta, $viajeImporte, $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
 
         if (!$stmt->execute()) {
             throw new RuntimeException($stmt->error ?: 'No se pudo guardar la gestion del conductor.');
@@ -614,6 +620,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         fcc_json(true, [
             'ida_vuelta' => $payload['ida_vuelta'],
+            'viaje_importe' => $payload['viaje_importe'],
             'cond1_estado' => $payload['cond1_estado'],
             'cond1_importe' => $payload['cond1_importe'],
             'cond2_estado' => $payload['cond2_estado'],
@@ -747,6 +754,7 @@ foreach ($plates as $plateId => $plate) {
                 'datetime_revision' => '',
                 'usuario_creacion' => null,
                 'fecha_creacion' => '',
+                'viaje_importe' => '',
                 'cond1' => '',
                 'cond1_estado' => '',
                 'cond1_importe' => '',
@@ -842,6 +850,7 @@ foreach ($plates as $plateId => $plate) {
                 'datetime_revision' => (string)($row['clm_salprog_datetime_revision'] ?? ''),
                 'usuario_creacion' => isset($row['clm_salprog_usuario_creacion']) ? (int)$row['clm_salprog_usuario_creacion'] : null,
                 'fecha_creacion' => (string)($row['clm_salprog_fecha_creacion'] ?? ''),
+                'viaje_importe' => fcc_importe_input($row['clm_salprog_imtotaldelviaje'] ?? null),
                 'cond1' => $cond1,
                 'cond1_estado' => $isRetorno ? '' : $cond1Estado,
                 'cond1_importe' => $isRetorno ? '' : fcc_importe_input($row['clm_salprog_imtotalcond1'] ?? null),
@@ -883,7 +892,7 @@ $monthLabel = fcc_month_label($monthStart);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=pagos-rango-3', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=importe-viaje-1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -1011,6 +1020,7 @@ $monthLabel = fcc_month_label($monthStart);
                                         <th>Estado trabajo</th>
                                         <th>Ida/Vuelta</th>
                                         <th>Ruta</th>
+                                        <th>Importe viaje</th>
                                         <th>Cond. 1</th>
                                         <th>Estado cond. 1</th>
                                         <th>Pago cond. 1</th>
@@ -1042,6 +1052,7 @@ $monthLabel = fcc_month_label($monthStart);
                                             $cond2Enabled = $hasSchedule && !$isAnulado && !$isRetorno && $unitRow['cond2'] !== '' && $driverColumnsReady;
                                             $cond1ObsEnabled = $hasSchedule && !$isAnulado && $unitRow['cond1'] !== '' && $driverColumnsReady;
                                             $cond2ObsEnabled = $hasSchedule && !$isAnulado && $unitRow['cond2'] !== '' && $driverColumnsReady;
+                                            $viajeImporteEnabled = $hasSchedule && !$isAnulado && $driverColumnsReady;
 
                                             $fccDateKey = (string)($unitRow['date'] ?? '');
                                             $fccShowDate = !isset($fccRenderedDates[$fccDateKey]);
@@ -1158,6 +1169,17 @@ $monthLabel = fcc_month_label($monthStart);
                                                     </span>
                                                 <?php else: ?>
                                                     <span class="fcc-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td data-fcc-col="viaje_importe" class="fcc-total-cell">
+                                                <?php if ($isAnulado): ?>
+                                                    <span class="fcc-muted">-</span>
+                                                <?php else: ?>
+                                                    <label class="fcc-money-field fcc-total-field">
+                                                        <span><strong>S/</strong><small>VIAJE</small></span>
+                                                        <input type="number" min="0" max="9999999999999999.9999" step="0.0001" inputmode="decimal" aria-label="Importe total del viaje en soles" data-fcc-field="viaje_importe" value="<?= fcc_h($unitRow['viaje_importe']) ?>" placeholder="0.00" <?= $viajeImporteEnabled ? '' : 'disabled' ?>>
+                                                    </label>
+                                                    <small class="fcc-total-diff" data-fcc-total-diff>Esperando pagos</small>
                                                 <?php endif; ?>
                                             </td>
                                             <td data-fcc-col="cond1"><?= (!$isAnulado && $unitRow['cond1'] !== '') ? fcc_h($unitRow['cond1']) : '<span class="fcc-muted">-</span>' ?></td>
@@ -1452,6 +1474,13 @@ $monthLabel = fcc_month_label($monthStart);
                     </div>
                     <div class="fcc-trip-drivers">
                         <article>
+                            <div class="fcc-trip-driver-head"><span>Total del viaje</span><strong data-fcc-trip-field="viaje_importe">-</strong></div>
+                            <div class="fcc-trip-driver-meta">
+                                <span>Debe cuadrar con la suma de conductores</span>
+                            </div>
+                            <p data-fcc-trip-field="viaje_importe_estado">-</p>
+                        </article>
+                        <article>
                             <div class="fcc-trip-driver-head"><span>Conductor 1</span><strong data-fcc-trip-field="cond1">-</strong></div>
                             <div class="fcc-trip-driver-meta">
                                 <span>Estado: <strong data-fcc-trip-field="cond1_estado">-</strong></span>
@@ -1515,7 +1544,7 @@ window.N360_FCC = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=pagos-rango-3', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=importe-viaje-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>

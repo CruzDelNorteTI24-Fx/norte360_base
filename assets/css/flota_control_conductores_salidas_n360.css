@@ -386,7 +386,7 @@
 
 .fcc-table {
     width: 100%;
-    min-width: 1660px;
+    min-width: 1840px;
     border-collapse: collapse;
     font-size: 13px;
 }
@@ -470,6 +470,14 @@ body.fcc-bulk-mode .fcc-action-buttons {
     box-shadow: inset 4px 0 0 #f59e0b;
 }
 
+.fcc-table tbody tr.is-total-mismatch:not(.is-anulado) td {
+    background: #fffafa !important;
+}
+
+.fcc-table tbody tr.is-total-mismatch:not(.is-anulado) td:first-child {
+    box-shadow: inset 5px 0 0 #dc2626;
+}
+
 .fcc-table td[data-fcc-col="dia"] {
     width: 64px;
     text-align: center;
@@ -497,6 +505,10 @@ body.fcc-bulk-mode .fcc-action-buttons {
 
 .fcc-table td[data-fcc-col="ruta"] {
     min-width: 210px;
+}
+
+.fcc-table td[data-fcc-col="viaje_importe"] {
+    min-width: 190px;
 }
 
 .fcc-route-line {
@@ -751,6 +763,57 @@ body.fcc-bulk-mode .fcc-action-buttons {
 
 .fcc-money-field:has(input:disabled) > span small {
     color: #8aa0b6;
+}
+
+.fcc-total-field {
+    border-color: #9bc4e6;
+    background: #f8fbff;
+}
+
+.fcc-total-field > span {
+    min-width: 58px;
+    border-right-color: #cfe3f4;
+    background: #eaf6ff;
+    color: #075985;
+}
+
+.fcc-total-field > span small {
+    color: #4f82a8;
+}
+
+.fcc-total-field.is-match {
+    border-color: #16a34a;
+    background: #fbfffd;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.09);
+}
+
+.fcc-total-field.is-mismatch {
+    border-color: #dc2626;
+    background: #fff7f7;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.fcc-total-field.is-mismatch > span {
+    border-right-color: #fecaca;
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.fcc-total-diff {
+    display: block;
+    margin-top: 5px !important;
+    color: #6d8097;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    line-height: 1.2;
+}
+
+.fcc-total-diff.is-ok {
+    color: #0f6b42 !important;
+}
+
+.fcc-total-diff.is-bad {
+    color: #b42318 !important;
 }
 
 .fcc-table select:disabled,
