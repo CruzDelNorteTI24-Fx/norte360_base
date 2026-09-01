@@ -1527,6 +1527,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <span><i class="bi bi-calendar2-check"></i> <?= csb_h($periodoOperativoLabel) ?></span>
                 <span><i class="bi bi-clock-history"></i> Cierre (Pe) 04:59am</span>
                 <button type="button" class="csb-btn csb-btn--hero" data-csb-export-pdf><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+                <button type="button" class="csb-btn csb-btn--hero" data-csb-export-route-pdf><i class="bi bi-file-earmark-richtext"></i> PDF Hoja de Ruta</button>
                 <?php if ($isAdmin): ?>
                     <button type="button" class="csb-btn csb-btn--hero-soft" data-csb-manual-open><i class="bi bi-plus-circle"></i> Viaje manual</button>
                     <button type="button" class="csb-btn csb-btn--hero-soft" data-csb-calendar-open><i class="bi bi-calendar3"></i> Calendario</button>
@@ -2287,9 +2288,7 @@ window.N360_CSB = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/flota_consolidado_salidas_n360.js') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=route-pdf-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>
-
-

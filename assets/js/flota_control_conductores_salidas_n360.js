@@ -783,6 +783,7 @@
       const retorno = row.dataset.fccRetorno === '1' || isReturnTrip(idaVuelta);
       const origen = compact(row.dataset.fccOrigen || '');
       const destino = compact(row.dataset.fccDestino || '');
+      const hojaRuta = compact(row.dataset.fccHojaruta || '');
       const rutaSimple = (origen || destino) ? `${origen || '-'} -> ${destino || '-'}` : '-';
 
       return {
@@ -800,6 +801,8 @@
         retorno,
         origen,
         destino,
+        hojaRuta,
+        hoja_ruta: hojaRuta,
         rutaSimple,
         viajeImporte: moneyInputRaw(row.querySelector('[data-fcc-field="viaje_importe"]')),
         viajeComentario: cellText(row, '[data-fcc-field="viaje_comentario"]'),
@@ -1351,6 +1354,9 @@
         if (row.anulado || isCanceledRevision(row.revision)) return;
         if (row.retorno || isReturnTrip(row.idaVuelta)) return;
 
+        const detail = tripMap.get(String(row.id || '')) || {};
+        const idViaje = compact(row.id || detail.id || '');
+        const hojaRuta = compact(row.hojaRuta || row.hoja_ruta || detail.hoja_ruta || detail.hojaRuta || '');
         const workDate = driverDateFromRow(row);
         [
           {
@@ -1375,6 +1381,8 @@
             dateKey: workDate.key || row.date || '',
             fecha: workDate.label || formatDateValue(row.date),
             hora: row.hora || '-',
+            idViaje: idViaje || '-',
+            hojaRuta: hojaRuta || '-',
             unidad: unitName || '-',
             ruta: row.rutaSimple || '-',
             idaVuelta: tripDirection(row.idaVuelta),
@@ -1477,6 +1485,8 @@
     return rows.map((row) => [
       row.fecha || '-',
       row.hora || '-',
+      row.idViaje || '-',
+      row.hojaRuta || '-',
       row.unidad || '-',
       row.ruta || '-',
       row.conductor || '-',
@@ -1610,13 +1620,13 @@
           y += 5;
 
           doc.autoTable({
-            head: [['Fecha', 'Hora', 'Unidad', 'Ruta', 'Conductor', 'Rol', 'Estado', 'Importe', 'Observacion']],
+            head: [['Fecha', 'Hora', 'ID viaje', 'Hoja ruta', 'Unidad', 'Ruta', 'Conductor', 'Rol', 'Estado', 'Importe', 'Observacion']],
             body: paymentPdfDetailBody(rows),
             startY: y,
             margin: { left, right, top: 32, bottom: 22 },
             rowPageBreak: 'avoid',
             styles: {
-              fontSize: 6.2,
+              fontSize: 5.8,
               cellPadding: 1.2,
               overflow: 'linebreak',
               valign: 'middle',
@@ -1631,18 +1641,20 @@
             },
             alternateRowStyles: { fillColor: [249, 251, 253] },
             columnStyles: {
-              0: { cellWidth: 19, halign: 'center' },
-              1: { cellWidth: 14, halign: 'center' },
-              2: { cellWidth: 31 },
-              3: { cellWidth: 44 },
-              4: { cellWidth: 43 },
-              5: { cellWidth: 23, halign: 'center' },
-              6: { cellWidth: 17, halign: 'center' },
-              7: { cellWidth: 24, halign: 'right' },
-              8: { cellWidth: width - 215 }
+              0: { cellWidth: 18, halign: 'center' },
+              1: { cellWidth: 12, halign: 'center' },
+              2: { cellWidth: 17, halign: 'center' },
+              3: { cellWidth: 22, halign: 'center' },
+              4: { cellWidth: 27 },
+              5: { cellWidth: 38 },
+              6: { cellWidth: 36 },
+              7: { cellWidth: 20, halign: 'center' },
+              8: { cellWidth: 16, halign: 'center' },
+              9: { cellWidth: 22, halign: 'right' },
+              10: { cellWidth: width - 228 }
             },
             didParseCell: function (data) {
-              if (data.section !== 'body' || data.column.index !== 6) return;
+              if (data.section !== 'body' || data.column.index !== 8) return;
               const raw = String(data.cell.raw || '').toUpperCase();
               data.cell.styles.fontStyle = 'bold';
               if (raw === 'OK') {
@@ -1675,10 +1687,12 @@
 
     const summary = paymentSummaryRows(rows);
     const detailAoa = [
-      ['Fecha', 'Hora', 'Unidad', 'Ruta', 'Ida/Vuelta', 'Conductor', 'Rol', 'Estado', 'Importe S/', 'Observacion', 'Estado revision'],
+      ['Fecha', 'Hora', 'ID viaje', 'Hoja ruta', 'Unidad', 'Ruta', 'Ida/Vuelta', 'Conductor', 'Rol', 'Estado', 'Importe S/', 'Observacion', 'Estado revision'],
       ...rows.map((row) => [
         row.fecha || '-',
         row.hora || '-',
+        row.idViaje || '-',
+        row.hojaRuta || '-',
         row.unidad || '-',
         row.ruta || '-',
         row.idaVuelta || '-',
@@ -1707,11 +1721,11 @@
     const wb = window.XLSX.utils.book_new();
     const detailSheet = window.XLSX.utils.aoa_to_sheet(detailAoa);
     const summarySheet = window.XLSX.utils.aoa_to_sheet(summaryAoa);
-    detailSheet['!cols'] = autoWidthFromAoa(detailAoa, [12, 9, 24, 34, 12, 30, 14, 13, 13, 34, 18]);
+    detailSheet['!cols'] = autoWidthFromAoa(detailAoa, [12, 9, 12, 16, 24, 34, 12, 30, 14, 13, 13, 34, 18]);
     summarySheet['!cols'] = autoWidthFromAoa(summaryAoa, [32, 12, 10, 12, 13, 16]);
 
     for (let r = 2; r <= detailAoa.length; r += 1) {
-      const cell = detailSheet[`I${r}`];
+      const cell = detailSheet[`K${r}`];
       if (cell) cell.z = '"S/ "#,##0.00##';
     }
     for (let r = 4; r <= summaryAoa.length; r += 1) {

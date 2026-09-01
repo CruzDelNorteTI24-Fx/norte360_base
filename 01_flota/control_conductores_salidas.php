@@ -1567,7 +1567,7 @@ window.N360_FCC = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=comentario-viaje-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=pagos-id-hr-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>
