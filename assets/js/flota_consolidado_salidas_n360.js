@@ -1188,6 +1188,176 @@
     };
   }
 
+  function normalizeDriverHistoryPayload(value) {
+    let data = value;
+    if (typeof value === 'string') {
+      try {
+        data = JSON.parse(value || '{}');
+      } catch (error) {
+        data = {};
+      }
+    }
+
+    if (Array.isArray(data)) {
+      return {
+        captura_original: data,
+        historial_ediciones: []
+      };
+    }
+
+    if (!data || typeof data !== 'object') {
+      return {
+        captura_original: [],
+        historial_ediciones: []
+      };
+    }
+
+    return {
+      captura_original: Array.isArray(data.captura_original) ? data.captura_original : [],
+      historial_ediciones: Array.isArray(data.historial_ediciones) ? data.historial_ediciones : []
+    };
+  }
+
+  function driverHistoryPayload(row) {
+    return normalizeDriverHistoryPayload(row?.dataset?.csbDriverHistory || '{}');
+  }
+
+  function driverHistoryCountFromPayload(payload) {
+    return normalizeDriverHistoryPayload(payload).historial_ediciones.length;
+  }
+
+  function setDriverHistoryPayload(row, payload) {
+    if (!row) return;
+    const normalized = normalizeDriverHistoryPayload(payload);
+    row.dataset.csbDriverHistory = JSON.stringify(normalized);
+    syncDriverHistoryButton(row, normalized);
+  }
+
+  function syncDriverHistoryButton(row, payload) {
+    if (!row) return;
+    const button = row.querySelector('[data-csb-driver-history-open]');
+    const countEl = row.querySelector('[data-csb-driver-history-count]');
+    const count = driverHistoryCountFromPayload(payload || driverHistoryPayload(row));
+    if (countEl) countEl.textContent = new Intl.NumberFormat('es-PE').format(count);
+    if (button) {
+      button.disabled = count <= 0;
+      button.title = count > 0
+        ? 'Ver historial de cambios de conductor'
+        : 'Sin cambios de conductor registrados';
+    }
+  }
+
+  function formatHistoryDate(value) {
+    const text = compact(value || '');
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?/);
+    if (!match) return text || '-';
+    const time = match[4] ? ` ${match[4]}:${match[5]}` : '';
+    return `${match[3]}/${match[2]}/${match[1]}${time}`;
+  }
+
+  function driverHistoryAction(value) {
+    const action = compact(value || '').toLowerCase();
+    if (action.includes('agregar')) return 'Agrego conductor';
+    if (action.includes('edicion') || action.includes('editar')) return 'Edito conductor';
+    return action ? action.replace(/_/g, ' ') : 'Cambio de conductor';
+  }
+
+  function originalDriverLabel(item, index) {
+    if (typeof item === 'string') return compact(item) || `Conductor ${index + 1}`;
+    if (!item || typeof item !== 'object') return `Conductor ${index + 1}`;
+    const title = compact(item.label || item.conductor || item.nombre || item.nombres || item.texto || '');
+    const meta = [
+      compact(item.dni || item.DNI || ''),
+      compact(item.licencia || item.nlicencia || item.clm_tra_nlicenciaconducir || '')
+    ].filter(Boolean).join(' · ');
+    if (title && meta) return `${title} (${meta})`;
+    if (title) return title;
+    return compact(JSON.stringify(item)) || `Conductor ${index + 1}`;
+  }
+
+  function renderOriginalDrivers(payload) {
+    const original = normalizeDriverHistoryPayload(payload).captura_original;
+    if (!original.length) return 'Sin captura original disponible.';
+    return original.map((item, index) => `<span>${escapeHtml(originalDriverLabel(item, index))}</span>`).join('');
+  }
+
+  function setupDriverHistoryModal() {
+    const modalEl = document.getElementById('csbDriverHistoryModal');
+    if (!modalEl || !window.bootstrap) return;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    const tripEl = modalEl.querySelector('[data-csb-driver-history-trip]');
+    const unitEl = modalEl.querySelector('[data-csb-driver-history-unit]');
+    const routeEl = modalEl.querySelector('[data-csb-driver-history-route]');
+    const originalEl = modalEl.querySelector('[data-csb-driver-history-original]');
+    const listEl = modalEl.querySelector('[data-csb-driver-history-list]');
+
+    const renderHistory = (row) => {
+      const payload = driverHistoryPayload(row);
+      const entries = payload.historial_ediciones;
+      const fecha = formatIsoDate(row.dataset.csbTransferDate || '');
+      const hora = compact(row.dataset.csbTransferHour || '');
+      const origin = compact(row.dataset.csbTransferOrigin || '');
+      const destination = compact(row.dataset.csbTransferDestination || '');
+      const extra = compact(row.dataset.csbTransferRoute || '');
+
+      if (tripEl) tripEl.textContent = `#${row.dataset.csbRow || '-'} · ${[fecha, hora].filter(Boolean).join(' ') || '-'}`;
+      if (unitEl) unitEl.textContent = compact(row.dataset.csbTransferUnit || '-') || '-';
+      if (routeEl) routeEl.textContent = `${origin || '-'} -> ${destination || '-'}${extra ? ` · ${extra}` : ''}`;
+      if (originalEl) originalEl.innerHTML = renderOriginalDrivers(payload);
+
+      if (!listEl) return;
+      if (!entries.length) {
+        listEl.innerHTML = '<div class="csb-driver-history-empty">No hay cambios de conductor registrados para este viaje.</div>';
+        return;
+      }
+
+      listEl.innerHTML = entries.slice().reverse().map((entry, index) => `
+        <article class="csb-driver-history-item">
+          <div class="csb-driver-history-item-head">
+            <span>${escapeHtml(driverHistoryAction(entry.accion))}</span>
+            <strong>${escapeHtml(formatHistoryDate(entry.fecha))}</strong>
+          </div>
+          <div class="csb-driver-history-grid">
+            <div>
+              <span>Usuario</span>
+              <strong>${escapeHtml(compact(entry.usuario || `Usuario #${entry.usuario_id || '-'}`) || '-')}</strong>
+            </div>
+            <div>
+              <span>Conductor afectado</span>
+              <strong>${escapeHtml(compact(entry.conductor_label || '-') || '-')}</strong>
+            </div>
+            <div>
+              <span>Posicion</span>
+              <strong>${escapeHtml(String(Number(entry.conductor_index ?? index) + 1).padStart(2, '0'))}</strong>
+            </div>
+          </div>
+          <div class="csb-driver-history-change">
+            <div>
+              <span>Antes</span>
+              <p>${escapeHtml(compact(entry.texto_anterior || '-') || '-')}</p>
+            </div>
+            <div>
+              <span>Despues</span>
+              <p>${escapeHtml(compact(entry.texto_nuevo || '-') || '-')}</p>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    };
+
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-csb-driver-history-open]');
+      if (!button || button.disabled) return;
+      const row = button.closest('[data-csb-row]');
+      if (!row) return;
+      renderHistory(row);
+      modal.show();
+    });
+
+    rows.forEach((row) => syncDriverHistoryButton(row));
+  }
+
   function setupDriverEditor() {
     const modalEl = document.getElementById('csbDriverModal');
     if (!modalEl || !window.bootstrap) return;
@@ -1381,6 +1551,9 @@
         }
 
         syncStateButtons(state.row, state.row.dataset.csbDbRevision || 'OBSERVADO');
+        if (json.data?.driver_history) {
+          setDriverHistoryPayload(state.row, json.data.driver_history);
+        }
         showNotice(json.message || (state.mode === 'add' ? 'Conductor agregado.' : 'Conductor actualizado.'), true);
         modal.hide();
       } catch (error) {
@@ -1789,6 +1962,7 @@
   setupHojaRutaSort();
   setupHojaRutaList();
   setupOperationalSummary();
+  setupDriverHistoryModal();
   setupDriverEditor();
   setupTransferTrip();
   setupManualTrip();

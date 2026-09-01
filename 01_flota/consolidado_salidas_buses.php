@@ -477,6 +477,35 @@ function csb_build_driver_history(?string $rawJson, string $oldText, string $new
     return json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
+function csb_driver_history_payload(?string $rawJson): array {
+    $decoded = json_decode((string)$rawJson, true);
+    if (!is_array($decoded)) {
+        return [
+            'captura_original' => [],
+            'historial_ediciones' => [],
+        ];
+    }
+
+    if (csb_array_is_list_compat($decoded)) {
+        return [
+            'captura_original' => array_values($decoded),
+            'historial_ediciones' => [],
+        ];
+    }
+
+    $original = isset($decoded['captura_original']) && is_array($decoded['captura_original'])
+        ? array_values($decoded['captura_original'])
+        : [];
+    $history = isset($decoded['historial_ediciones']) && is_array($decoded['historial_ediciones'])
+        ? array_values($decoded['historial_ediciones'])
+        : [];
+
+    return [
+        'captura_original' => $original,
+        'historial_ediciones' => $history,
+    ];
+}
+
 function csb_row_groups(array $row, array $sedeGroups): array {
     if (!$sedeGroups) {
         return [];
@@ -652,6 +681,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'driver_label' => $driver['label'],
                 'conductores_texto' => $newText,
                 'conductores_lineas' => $driverLines,
+                'driver_history' => csb_driver_history_payload($newJson),
             ], 'Conductor actualizado y guardado en historial.');
         } catch (Throwable $e) {
             $conn->rollback();
@@ -748,6 +778,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'driver_label' => $driver['label'],
                 'conductores_texto' => $newText,
                 'conductores_lineas' => $driverLines,
+                'driver_history' => csb_driver_history_payload($newJson),
             ], 'Segundo conductor agregado y guardado en historial.');
         } catch (Throwable $e) {
             $conn->rollback();
@@ -1508,7 +1539,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/flota_consolidado_salidas_n360.css') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=driver-history-1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -1741,6 +1772,12 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 $unidadLabel = $busLabel !== '' && $placaLabel !== '' ? "{$busLabel} ({$placaLabel})" : ($busLabel ?: ($placaLabel ?: '-'));
                                 $rowGroups = $rowGroupsById[$id] ?? [];
                                 $conductoresLineas = csb_conductores_lineas($row['clm_salprog_conductores_texto'] ?? '');
+                                $driverHistory = csb_driver_history_payload($row['clm_salprog_conductores_json'] ?? '');
+                                $driverHistoryCount = count($driverHistory['historial_ediciones'] ?? []);
+                                $driverHistoryJson = json_encode($driverHistory, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                                if (!is_string($driverHistoryJson)) {
+                                    $driverHistoryJson = '{"captura_original":[],"historial_ediciones":[]}';
+                                }
                                 $hojaRuta = trim((string)($row['clm_salprog_hojaruta'] ?? ''));
                                 $tieneHojaRuta = $hojaRuta !== '';
                                 $hojaRutaDuplicada = $tieneHojaRuta && isset($duplicateHojaRutaKeys[csb_hojaruta_key($hojaRuta)]);
@@ -1766,6 +1803,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 data-csb-transfer-destination="<?= csb_h($row['clm_salprog_destino'] ?? '') ?>"
                                 data-csb-transfer-ruta-ids="<?= csb_h($row['clm_salprog_ruta_ids'] ?? '') ?>"
                                 data-csb-transfer-route="<?= csb_h($row['clm_salprog_ruta_texto'] ?? '') ?>"
+                                data-csb-driver-history="<?= csb_h($driverHistoryJson) ?>"
                             >
                                 <td class="csb-date-cell">
                                     <strong><?= csb_h(csb_date_label($row['clm_salprog_fecha_operativa'] ?? '')) ?></strong>
@@ -1835,6 +1873,18 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                             </button>
                                         <?php endif; ?>
                                     </div>
+                                    <button
+                                        type="button"
+                                        class="csb-driver-history-btn"
+                                        data-csb-driver-history-open
+                                        title="Ver historial de cambios de conductor"
+                                        aria-label="Ver historial de cambios de conductor"
+                                        <?= $driverHistoryCount > 0 ? '' : 'disabled' ?>
+                                    >
+                                        <i class="bi bi-clock-history"></i>
+                                        <span>Historial</span>
+                                        <b data-csb-driver-history-count><?= number_format($driverHistoryCount) ?></b>
+                                    </button>
                                     <small>Asignacion capturada del modulo Conductores</small>
                                 </td>
                                 <td>
@@ -2019,6 +2069,48 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <button type="button" class="csb-btn csb-btn--primary" data-csb-driver-save disabled>
                     <i class="bi bi-check2"></i> <span data-csb-driver-save-label>Guardar conductor</span>
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade csb-driver-history-modal" id="csbDriverHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="csb-modal-head">
+                <div>
+                    <span><i class="bi bi-clock-history"></i> Trazabilidad de conductores</span>
+                    <h2>Historial de cambios de conductor</h2>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="csb-driver-history-summary">
+                    <article>
+                        <span>Viaje</span>
+                        <strong data-csb-driver-history-trip>-</strong>
+                    </article>
+                    <article>
+                        <span>Unidad</span>
+                        <strong data-csb-driver-history-unit>-</strong>
+                    </article>
+                    <article>
+                        <span>Ruta</span>
+                        <strong data-csb-driver-history-route>-</strong>
+                    </article>
+                </div>
+
+                <section class="csb-driver-history-original">
+                    <span>Captura original</span>
+                    <div data-csb-driver-history-original>Sin captura original disponible.</div>
+                </section>
+
+                <section class="csb-driver-history-list" data-csb-driver-history-list>
+                    <div class="csb-driver-history-empty">No hay cambios de conductor registrados para este viaje.</div>
+                </section>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -2288,7 +2380,7 @@ window.N360_CSB = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=route-pdf-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=driver-history-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>

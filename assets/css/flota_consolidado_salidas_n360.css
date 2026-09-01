@@ -611,6 +611,51 @@
     display: none !important;
 }
 
+.csb-driver-history-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 28px;
+    margin-top: 7px;
+    padding: 5px 9px;
+    color: #0b5f97;
+    background: #eef7ff;
+    border: 1px solid #c8d9ea;
+    border-radius: 8px;
+    font: inherit;
+    font-size: .72rem;
+    font-weight: 900;
+    cursor: pointer;
+    transition: background .16s ease, color .16s ease, border-color .16s ease, opacity .16s ease;
+}
+
+.csb-driver-history-btn b {
+    min-width: 20px;
+    padding: 2px 6px;
+    color: #fff;
+    background: #258ed1;
+    border-radius: 999px;
+    font-size: .68rem;
+    line-height: 1.15;
+}
+
+.csb-driver-history-btn:hover:not(:disabled) {
+    color: #fff;
+    background: #258ed1;
+    border-color: #258ed1;
+}
+
+.csb-driver-history-btn:hover:not(:disabled) b {
+    color: #0b5f97;
+    background: #fff;
+}
+
+.csb-driver-history-btn:disabled {
+    cursor: not-allowed;
+    opacity: .52;
+}
+
 
 
 /* Viaje revisado: ya cuenta con Hoja de Ruta digitada */
@@ -944,6 +989,7 @@
 }
 
 .csb-driver-modal .modal-content,
+.csb-driver-history-modal .modal-content,
 .csb-manual-modal .modal-content,
 .csb-transfer-modal .modal-content,
 .csb-calendar-modal .modal-content,
@@ -1623,6 +1669,152 @@
     font-weight: 700;
 }
 
+.csb-driver-history-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.csb-driver-history-summary article,
+.csb-driver-history-original,
+.csb-driver-history-item {
+    background: #fff;
+    border: 1px solid #d5e3ef;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 35, 55, .06);
+}
+
+.csb-driver-history-summary article {
+    min-height: 76px;
+    padding: 13px 14px;
+}
+
+.csb-driver-history-summary span,
+.csb-driver-history-original > span,
+.csb-driver-history-grid span,
+.csb-driver-history-change span {
+    display: block;
+    color: #536a83;
+    font-size: .72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.csb-driver-history-summary strong {
+    display: block;
+    margin-top: 6px;
+    color: #061b32;
+    font-size: .96rem;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.csb-driver-history-original {
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    background: #f8fbfe;
+}
+
+.csb-driver-history-original div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 9px;
+}
+
+.csb-driver-history-original div > span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 6px 9px;
+    color: #08213a;
+    background: #fff;
+    border: 1px solid #d5e3ef;
+    border-radius: 8px;
+    font-size: .78rem;
+    font-weight: 900;
+    text-transform: none;
+}
+
+.csb-driver-history-list {
+    display: grid;
+    gap: 12px;
+    max-height: 420px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.csb-driver-history-item {
+    overflow: hidden;
+}
+
+.csb-driver-history-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 14px;
+    color: #fff;
+    background: #14364f;
+}
+
+.csb-driver-history-item-head span,
+.csb-driver-history-item-head strong {
+    color: #fff;
+    font-size: .82rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.csb-driver-history-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1.6fr .6fr;
+    gap: 10px;
+    padding: 13px 14px 0;
+}
+
+.csb-driver-history-grid strong {
+    display: block;
+    margin-top: 5px;
+    color: #061b32;
+    font-size: .86rem;
+    font-weight: 900;
+}
+
+.csb-driver-history-change {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 13px 14px 14px;
+}
+
+.csb-driver-history-change div {
+    min-height: 72px;
+    padding: 10px 12px;
+    background: #f8fbfe;
+    border: 1px solid #d5e3ef;
+    border-radius: 8px;
+}
+
+.csb-driver-history-change p {
+    margin: 6px 0 0;
+    color: #08213a;
+    font-size: .86rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.csb-driver-history-empty {
+    padding: 22px;
+    color: #60758a;
+    background: #f8fbfe;
+    border: 1px dashed #c8d9ea;
+    border-radius: 8px;
+    font-weight: 900;
+    text-align: center;
+}
+
 .csb-calendar-toolbar {
     display: flex;
     align-items: end;
@@ -1816,7 +2008,13 @@
     }
 
     .csb-route-list-summary,
-    .csb-general-summary-kpis {
+    .csb-general-summary-kpis,
+    .csb-driver-history-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .csb-driver-history-grid,
+    .csb-driver-history-change {
         grid-template-columns: 1fr;
     }
 

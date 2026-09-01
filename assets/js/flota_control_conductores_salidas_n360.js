@@ -408,6 +408,31 @@
     }
   }
 
+  function splitTripAmountToDrivers(row) {
+    if (!row) return;
+    const fields = rowFields(row);
+    if (!fields.viaje_importe) return;
+    if (row.dataset.fccAnulado === '1') return;
+    if (row.dataset.fccRetorno === '1' || isReturnTrip(fields.ida_vuelta?.value)) return;
+
+    const driverAmounts = [fields.cond1_importe, fields.cond2_importe]
+      .filter((input) => input && !input.disabled);
+    if (driverAmounts.length !== 2) return;
+
+    const rawTotal = moneyInputRaw(fields.viaje_importe);
+    if (rawTotal === '') {
+      driverAmounts.forEach((input) => setMoneyInputValue(input, '', false));
+      return;
+    }
+    if (!/^\d+(?:\.\d+)?$/.test(rawTotal)) return;
+
+    const total = moneyNumber(rawTotal);
+    const half = Math.round((total / 2) * 10000) / 10000;
+    const halfText = half.toFixed(4);
+    const halfDisplay = halfText.replace(/(\.\d{2,4}?)0+$/, '$1');
+    driverAmounts.forEach((input) => setMoneyInputValue(input, halfText, false, halfDisplay));
+  }
+
   function totalStatusFromTrip(trip) {
     if (!trip) return '-';
     if (isReturnTrip(trip.ida_vuelta)) return 'Retorno sin pagos';
@@ -2094,7 +2119,11 @@
     input.addEventListener('input', () => {
       input.dataset.fccMoneyDisplay = input.value;
       input.dataset.fccMoneyRaw = normalizeMoneyValue(input.value);
+      if (input.matches('[data-fcc-field="viaje_importe"]')) {
+        splitTripAmountToDrivers(input.closest('[data-fcc-row]'));
+      }
       updateTripTotalState(input.closest('[data-fcc-row]'));
+      markRowChange(input.closest('[data-fcc-row]'));
     });
     input.addEventListener('blur', () => {
       if (input.checkValidity()) displayMoneyInput(input);
