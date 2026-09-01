@@ -166,7 +166,7 @@
     const doc = await window.N360PDF.createDocument({
       orientation: 'portrait',
       useCover: false,
-      title: 'GUIA NORTE DE ENCOMIENDAS',
+      title: 'CONTROL ENCOMIENDA',
       secondTitle: safe(guide.clm_enc_guia, 'Control Encomienda'),
       docCode: safe(guide.clm_enc_guia, 'ENC-CE'),
       userName: safe(user.name || root.dataset.reportUser, 'Usuario'),
@@ -256,7 +256,7 @@
         });
       }
     });
-    doc.save(`guia_norte_${safe(guide.clm_enc_guia, guide.clm_enc_id).replace(/[^A-Za-z0-9_-]+/g, '_')}.pdf`);
+    doc.save(`control_encomienda_${safe(guide.clm_enc_guia, guide.clm_enc_id).replace(/[^A-Za-z0-9_-]+/g, '_')}.pdf`);
   };
 
   const buildTrackingPdf = async (payload) => {

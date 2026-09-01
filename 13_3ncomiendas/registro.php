@@ -77,7 +77,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
         <?php if (!$schemaReady): ?>
             <div class="stock-alert stock-alert--warning enc-schema-warning">
                 <i class="bi bi-database-fill-gear"></i>
-                Ejecuta manualmente <strong>C:\00_core_norte360\DOCS\sql\norte360\querysnuevas_encomiendas_unificado.sql</strong> para activar correlativos GN, puntos de ruta y la referencia opcional a pizarra.
+                Ejecuta manualmente <strong>C:\00_core_norte360\DOCS\sql\norte360\querysnuevas_encomiendas_unificado.sql</strong> para activar correlativos CE, puntos de ruta y la referencia opcional a pizarra.
             </div>
         <?php endif; ?>
 

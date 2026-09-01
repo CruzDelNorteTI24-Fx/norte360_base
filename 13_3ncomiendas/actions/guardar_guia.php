@@ -70,6 +70,7 @@ try {
     enc_execute($conn, "
         INSERT INTO tb_enc_guias (
             clm_enc_guia,
+            clm_enc_serie,
             clm_enc_fecha_guia,
             clm_enc_horario_operativo,
             clm_enc_idprogbus,
@@ -86,8 +87,8 @@ try {
             clm_enc_estado_desembarque,
             clm_enc_observacion,
             clm_enc_activo
-        ) VALUES ('', ?, ?, ?, ?, NULL, NULL, NULL, ?, NOW(), ?, ?, ?, 'PENDIENTE', 'PENDIENTE', ?, 1)
-    ", 'ssissiiis', [
+        ) VALUES ('', 'CE', ?, ?, ?, ?, NULL, NULL, NULL, ?, NOW(), ?, ?, ?, 'PENDIENTE', 'PENDIENTE', ?, 1)
+    ", 'ssisiiiis', [
         $fechaGuia,
         $horario,
         $idProgbus,
