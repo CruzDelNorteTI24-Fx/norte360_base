@@ -5,18 +5,23 @@ require_once __DIR__ . '/../layout/security_n360.php';
 n360_send_security_headers();
 n360_start_secure_session();
 
+require_once __DIR__ . '/live_lib.php';
+
 if (empty($_SESSION['usuario'])) {
+    n360_live_log_denied_once('sin_sesion', 'index');
     header('Location: ../login/login.php');
     exit();
 }
 
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
-require_once __DIR__ . '/live_lib.php';
 
 if (!n360_live_can_access($conn, false)) {
+    n360_live_log_denied_once('sin_permiso', 'index');
     header('Location: ../login/none_permisos.php');
     exit();
 }
+
+n360_live_log_enter_once('index');
 
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');

@@ -152,6 +152,91 @@ if (!function_exists('n360_live_presence_file')) {
     }
 }
 
+if (!function_exists('n360_live_history_file')) {
+    function n360_live_history_file(): string {
+        return n360_live_cache_dir() . DIRECTORY_SEPARATOR . 'access_history.jsonl';
+    }
+}
+
+if (!function_exists('n360_live_request_user_agent')) {
+    function n360_live_request_user_agent(): string {
+        $agent = trim((string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+        $agent = preg_replace('/[[:cntrl:]]/', ' ', $agent) ?? '';
+
+        if (strlen($agent) > 350) {
+            $agent = substr($agent, 0, 350);
+        }
+
+        return $agent;
+    }
+}
+
+if (!function_exists('n360_live_log_access')) {
+    function n360_live_log_access(string $event, array $extra = []): void {
+        $event = strtoupper(preg_replace('/[^A-Z0-9_]/', '', $event) ?: 'EVENTO');
+        $now = n360_live_now();
+        $username = trim((string)($_SESSION['usuario'] ?? 'SIN_SESION'));
+        $name = trim((string)($_SESSION['nombre'] ?? $username));
+        $sessionId = session_status() === PHP_SESSION_ACTIVE ? session_id() : '';
+
+        $row = [
+            'event' => $event,
+            'fecha' => $now->format(DateTimeInterface::ATOM),
+            'fecha_label' => $now->format('d/m/Y H:i:s'),
+            'usuario_id' => n360_live_uid(),
+            'usuario' => $username !== '' ? $username : 'SIN_SESION',
+            'nombre' => $name !== '' ? $name : 'SIN_SESION',
+            'rol' => trim((string)($_SESSION['web_rol'] ?? '')),
+            'ip' => n360_live_client_ip(),
+            'dispositivo' => n360_live_device_label(),
+            'session_hash' => $sessionId !== '' ? hash('sha256', $sessionId) : '',
+            'user_agent' => n360_live_request_user_agent(),
+            'path' => (string)($_SERVER['REQUEST_URI'] ?? ''),
+            'method' => (string)($_SERVER['REQUEST_METHOD'] ?? ''),
+        ];
+
+        foreach ($extra as $key => $value) {
+            $safeKey = preg_replace('/[^A-Za-z0-9_]/', '', (string)$key);
+            if ($safeKey !== '') {
+                $row[$safeKey] = is_scalar($value) || $value === null ? $value : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+        }
+
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+        if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+            $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
+        }
+
+        @file_put_contents(n360_live_history_file(), json_encode($row, $flags) . PHP_EOL, FILE_APPEND | LOCK_EX);
+    }
+}
+
+if (!function_exists('n360_live_log_enter_once')) {
+    function n360_live_log_enter_once(string $source = 'live'): void {
+        if (!empty($_SESSION['n360_live_history_enter_logged'])) {
+            return;
+        }
+
+        $_SESSION['n360_live_history_enter_logged'] = true;
+        n360_live_log_access('ENTER', ['source' => $source]);
+    }
+}
+
+if (!function_exists('n360_live_log_denied_once')) {
+    function n360_live_log_denied_once(string $reason, string $source = 'live'): void {
+        $key = 'n360_live_history_denied_' . md5($source . '|' . $reason);
+        if (!empty($_SESSION[$key])) {
+            return;
+        }
+
+        $_SESSION[$key] = true;
+        n360_live_log_access('DENIED', [
+            'source' => $source,
+            'reason' => $reason,
+        ]);
+    }
+}
+
 if (!function_exists('n360_live_fetch_snapshot')) {
     function n360_live_fetch_snapshot(mysqli $conn, bool $force = false): array {
         $ttl = 180;

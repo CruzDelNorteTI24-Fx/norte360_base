@@ -19,6 +19,7 @@ function n360_live_api_json(bool $ok, array $data = [], string $message = '', in
 }
 
 if (empty($_SESSION['usuario'])) {
+    n360_live_log_denied_once('sin_sesion', 'api');
     n360_live_api_json(false, [], 'No autorizado.', 401);
 }
 
@@ -34,10 +35,14 @@ if ($needsDb) {
 try {
     $usePermissionCache = $action !== 'snapshot';
     if (!n360_live_can_access($conn, $usePermissionCache)) {
+        n360_live_log_denied_once('sin_permiso', 'api');
         n360_live_api_json(false, [], 'No tienes permiso para visualizar Norte360 Live.', 403);
     }
 
+    n360_live_log_enter_once('api');
+
     if ($action === 'leave') {
+        n360_live_log_access('LEAVE', ['source' => 'api']);
         n360_live_api_json(true, [
             'viewers' => n360_live_leave_presence(),
         ]);
