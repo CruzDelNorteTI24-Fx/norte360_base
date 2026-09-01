@@ -2,6 +2,13 @@
 define('N360_ADMIN_CATALOG', true);
 require_once __DIR__ . '/_admin_catalogos.php';
 
+$permisoLiveSelect = n360_admin_has_column($conn, 'tb_usuarios', 'prmso3nvivo')
+    ? 'COALESCE(u.prmso3nvivo, 0)'
+    : '0';
+$permisoUnidadesSelect = n360_admin_has_column($conn, 'tb_usuarios', 'prmso3nunidades')
+    ? 'COALESCE(u.prmso3nunidades, 0)'
+    : '0';
+
 $usuarios = n360_admin_query_all($conn, "
     SELECT
         u.id_usuario,
@@ -11,6 +18,8 @@ $usuarios = n360_admin_query_all($conn, "
         u.web_rol,
         u.clm_usuarios_sede,
         u.clm_tra_imagen AS foto_usuario,
+        {$permisoLiveSelect} AS prmso3nvivo,
+        {$permisoUnidadesSelect} AS prmso3nunidades,
         s.clm_sedes_name AS sede_nombre,
         (
             SELECT t2.clm_tra_imagen
@@ -85,6 +94,13 @@ n360_admin_render_head('Usuarios');
                         $photo = n360_admin_photo_data_uri($usuario['foto_usuario'] ?: ($usuario['foto_trabajador'] ?? ''));
                         $isAdmin = (string)($usuario['web_rol'] ?? '') === 'Admin';
                         $permisos = $permisosPorUsuario[$userId] ?? [];
+                        $permisosDirectos = [];
+                        if ((int)($usuario['prmso3nvivo'] ?? 0) === 1) {
+                            $permisosDirectos[] = 'Norte360 Live';
+                        }
+                        if ((int)($usuario['prmso3nunidades'] ?? 0) === 1) {
+                            $permisosDirectos[] = 'Unidades activas';
+                        }
                         ?>
                         <tr>
                             <td>
@@ -118,6 +134,9 @@ n360_admin_render_head('Usuarios');
                                             </span>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
+                                    <?php foreach ($permisosDirectos as $permisoDirecto): ?>
+                                        <span class="admin-cat-chip"><?= n360_admin_h($permisoDirecto) ?></span>
+                                    <?php endforeach; ?>
                                 </div>
                             </td>
                         </tr>

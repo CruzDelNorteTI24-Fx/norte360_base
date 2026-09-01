@@ -30,6 +30,32 @@ function n360_login_redirect_error(string $usuario = '', string $error = '1'): v
     exit();
 }
 
+function n360_login_column_exists(mysqli $conn, string $table, string $column): bool {
+    $stmt = $conn->prepare("
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+        LIMIT 1
+    ");
+
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('ss', $table, $column);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return false;
+    }
+
+    $exists = $stmt->get_result()->num_rows > 0;
+    $stmt->close();
+
+    return $exists;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: login.php');
     exit();
@@ -55,6 +81,9 @@ if (!empty($rateStatus['blocked'])) {
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 
 $claveHash = hash('sha256', $clave);
+$permisoUnidadesSelect = n360_login_column_exists($conn, 'tb_usuarios', 'prmso3nunidades')
+    ? 'u.prmso3nunidades'
+    : '0';
 
 $stmt = $conn->prepare("
     SELECT
@@ -66,6 +95,7 @@ $stmt = $conn->prepare("
         u.clm_usuarios_sede,
         u.web_rol,
         u.prmso3nvivo,
+        {$permisoUnidadesSelect} AS prmso3nunidades,
         s.clm_sedes_name AS sede_nombre,
         u.clm_tra_imagen AS foto_usuario
     FROM tb_usuarios u
@@ -118,6 +148,9 @@ $_SESSION['clm_usuarios_sede_nombre'] = trim((string)($fila['sede_nombre'] ?? ''
 $_SESSION['prmso3nvivo'] = (int)($fila['prmso3nvivo'] ?? 0) === 1 ? 1 : 0;
 $_SESSION['n360_live_perm'] = $_SESSION['prmso3nvivo'];
 $_SESSION['n360_live_perm_checked'] = true;
+$_SESSION['prmso3nunidades'] = (int)($fila['prmso3nunidades'] ?? 0) === 1 ? 1 : 0;
+$_SESSION['n360_units_perm'] = $_SESSION['prmso3nunidades'];
+$_SESSION['n360_units_perm_checked'] = true;
 
 $_SESSION['n360_user_photo_checked'] = true;
 $fotoPerfil = n360_login_photo_data_uri($fila['foto_usuario'] ?? null);

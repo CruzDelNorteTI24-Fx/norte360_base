@@ -292,13 +292,22 @@ function n360_render_header(array $options = []): void {
     $logoEmpresa = $options['logo_empresa'] ?? n360_base_url('img/norte360.png');
     $logoSistema = $options['logo_sistema'] ?? n360_base_url('img/completo.png');
     $liveAllowed = false;
+    $unitsAllowed = false;
     $liveLib = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'n360_live' . DIRECTORY_SEPARATOR . 'live_lib.php';
     $liveIndex = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'n360_live' . DIRECTORY_SEPARATOR . 'index.php';
+    $unitsLib = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'n360_unidades' . DIRECTORY_SEPARATOR . 'unidades_lib.php';
+    $unitsApi = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'n360_unidades' . DIRECTORY_SEPARATOR . 'api.php';
 
     if (is_file($liveLib) && is_file($liveIndex)) {
         require_once $liveLib;
         $liveConn = (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof mysqli) ? $GLOBALS['conn'] : null;
         $liveAllowed = function_exists('n360_live_can_access') && n360_live_can_access($liveConn);
+    }
+
+    if (is_file($unitsLib) && is_file($unitsApi)) {
+        require_once $unitsLib;
+        $unitsConn = (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof mysqli) ? $GLOBALS['conn'] : null;
+        $unitsAllowed = function_exists('n360_units_can_access') && n360_units_can_access($unitsConn);
     }
     ?>
     <?php if (empty($GLOBALS['n360_header_critical_printed'])): $GLOBALS['n360_header_critical_printed'] = true; ?>
@@ -352,6 +361,13 @@ function n360_render_header(array $options = []): void {
             </a>
 
             <div class="n360-header__actions">
+                <?php if ($unitsAllowed): ?>
+                    <button type="button" class="n360-live-link n360-units-link" data-n360-units-open>
+                        <i class="bi bi-bus-front-fill"></i>
+                        <span>Unidades</span>
+                    </button>
+                <?php endif; ?>
+
                 <?php if ($liveAllowed): ?>
                     <a class="n360-live-link" href="<?= n360_header_h(n360_base_url('n360_live/index.php')) ?>">
                         <span class="n360-live-link__pulse" aria-hidden="true"></span>
@@ -424,5 +440,37 @@ function n360_render_header(array $options = []): void {
             </div>
         </div>
     </header>
+    <?php if ($unitsAllowed): ?>
+        <div class="n360-units-modal" hidden data-n360-units-modal data-endpoint="<?= n360_header_h(n360_base_url('n360_unidades/api.php')) ?>">
+            <div class="n360-units-modal__backdrop" data-n360-units-close></div>
+            <section class="n360-units-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="n360UnitsTitle">
+                <div class="n360-units-modal__head">
+                    <div>
+                        <span><i class="bi bi-bus-front-fill"></i> Flota activa</span>
+                        <h2 id="n360UnitsTitle">Relacion de unidades</h2>
+                        <p>BUS y ENCOMIENDAS activos</p>
+                    </div>
+                    <button type="button" class="n360-units-modal__close" data-n360-units-close aria-label="Cerrar">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <div class="n360-units-modal__tools">
+                    <label class="n360-units-search">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input type="search" placeholder="Buscar unidad, placa o servicio..." data-n360-units-search>
+                    </label>
+                    <div class="n360-units-summary" data-n360-units-summary>
+                        <span>Total</span>
+                        <strong>0</strong>
+                    </div>
+                </div>
+
+                <div class="n360-units-modal__body" data-n360-units-content>
+                    <div class="n360-units-state">Cargando unidades...</div>
+                </div>
+            </section>
+        </div>
+    <?php endif; ?>
     <?php
 }
