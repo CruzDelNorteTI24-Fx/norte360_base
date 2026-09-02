@@ -326,6 +326,66 @@ function csb_conductores_lineas(?string $value): array {
     }));
 }
 
+function csb_driver_dni_from_label(?string $value): string {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (!preg_match('/\(([^()]*)\)\s*$/', $value, $match)) {
+        return '';
+    }
+
+    return preg_replace('/\D+/', '', (string)$match[1]) ?: '';
+}
+
+function csb_driver_dnis_from_rows(array $rows): array {
+    $dnis = [];
+    foreach ($rows as $row) {
+        foreach (csb_conductores_lineas($row['clm_salprog_conductores_texto'] ?? '') as $driverLine) {
+            $dni = csb_driver_dni_from_label($driverLine);
+            if ($dni !== '') {
+                $dnis[$dni] = true;
+            }
+        }
+    }
+
+    return array_keys($dnis);
+}
+
+function csb_fetch_driver_licenses_by_dni(mysqli $conn, array $dnis): array {
+    $dnis = array_values(array_unique(array_filter(array_map(static function ($dni) {
+        return preg_replace('/\D+/', '', (string)$dni) ?: '';
+    }, $dnis))));
+
+    if (!$dnis
+        || !csb_table_exists($conn, 'tb_trabajador')
+        || !csb_column_exists($conn, 'tb_trabajador', 'clm_tra_dni')
+        || !csb_column_exists($conn, 'tb_trabajador', 'clm_tra_nlicenciaconducir')
+    ) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($dnis), '?'));
+    $rows = csb_fetch_all($conn, "
+        SELECT
+            TRIM(IFNULL(clm_tra_dni, '')) AS dni,
+            TRIM(IFNULL(clm_tra_nlicenciaconducir, '')) AS licencia
+        FROM tb_trabajador
+        WHERE TRIM(IFNULL(clm_tra_dni, '')) IN ({$placeholders})
+    ", str_repeat('s', count($dnis)), $dnis);
+
+    $map = [];
+    foreach ($rows as $row) {
+        $dni = preg_replace('/\D+/', '', (string)($row['dni'] ?? '')) ?: '';
+        if ($dni !== '') {
+            $map[$dni] = trim((string)($row['licencia'] ?? ''));
+        }
+    }
+
+    return $map;
+}
+
 function csb_array_is_list_compat(array $array): bool {
     $expected = 0;
     foreach (array_keys($array) as $key) {
@@ -679,6 +739,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'driver_index' => $driverIndex,
                 'driver_id' => $driverId,
                 'driver_label' => $driver['label'],
+                'driver_dni' => $driver['dni'] ?? '',
+                'driver_license' => $driver['licencia'] ?? '',
                 'conductores_texto' => $newText,
                 'conductores_lineas' => $driverLines,
                 'driver_history' => csb_driver_history_payload($newJson),
@@ -776,6 +838,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'driver_index' => $driverIndex,
                 'driver_id' => $driverId,
                 'driver_label' => $driver['label'],
+                'driver_dni' => $driver['dni'] ?? '',
+                'driver_license' => $driver['licencia'] ?? '',
                 'conductores_texto' => $newText,
                 'conductores_lineas' => $driverLines,
                 'driver_history' => csb_driver_history_payload($newJson),
@@ -1345,6 +1409,7 @@ $sedeGroups = [];
 $rowGroupsById = [];
 $groupCounters = [];
 $conductoresActivos = [];
+$driverLicensesByDni = [];
 $manualCatalog = ['placas' => [], 'sedes' => []];
 $kpis = [
     'registros' => 0,
@@ -1433,6 +1498,7 @@ if ($tableReady) {
             WHERE " . implode(' AND ', $where) . "
             ORDER BY clm_salprog_fecha_operativa ASC, clm_salprog_hora_orden ASC, clm_salprog_horasalida ASC, clm_salprog_bus ASC, clm_salprog_id ASC
         ", $types, $params);
+        $driverLicensesByDni = csb_fetch_driver_licenses_by_dni($conn, csb_driver_dnis_from_rows($rows));
 
         $duplicateRows = csb_fetch_all($conn, "
             SELECT LOWER(TRIM(clm_salprog_hojaruta)) AS hoja_key, COUNT(*) AS total
@@ -1844,7 +1910,17 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                             </span>
                                         <?php endif; ?>
                                         <?php foreach ($conductoresLineas as $indexConductor => $conductor): ?>
-                                            <span class="csb-driver-line" data-csb-driver-line data-csb-driver-index="<?= (int)$indexConductor ?>">
+                                            <?php
+                                                $conductorDni = csb_driver_dni_from_label($conductor);
+                                                $conductorLicencia = $conductorDni !== '' ? ($driverLicensesByDni[$conductorDni] ?? '') : '';
+                                            ?>
+                                            <span
+                                                class="csb-driver-line"
+                                                data-csb-driver-line
+                                                data-csb-driver-index="<?= (int)$indexConductor ?>"
+                                                data-csb-driver-dni="<?= csb_h($conductorDni) ?>"
+                                                data-csb-driver-license="<?= csb_h($conductorLicencia) ?>"
+                                            >
                                                 <span data-csb-driver-text><?= csb_h($conductor) ?></span>
                                                 <button
                                                     type="button"

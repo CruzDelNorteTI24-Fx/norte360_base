@@ -78,14 +78,20 @@
   }
 
   function rowDriversList(row) {
-    return Array.from(row.querySelectorAll('[data-csb-driver-text]'))
-      .map((span) => compact(span.textContent))
-      .filter((value) => value && value.toLowerCase() !== 'sin conductor asignado');
+    return Array.from(row.querySelectorAll('[data-csb-driver-line]'))
+      .map((line) => {
+        const name = compact(line.querySelector('[data-csb-driver-text]')?.textContent || '');
+        return {
+          name,
+          license: compact(line.dataset.csbDriverLicense || '')
+        };
+      })
+      .filter((driver) => driver.name && driver.name.toLowerCase() !== 'sin conductor asignado');
   }
 
   function rowDriversText(row) {
     const drivers = rowDriversList(row);
-    return drivers.length ? drivers.join('\n') : '-';
+    return drivers.length ? drivers.map((driver) => driver.name).join('\n') : '-';
   }
 
   function rowRevisionText(row) {
@@ -453,8 +459,10 @@
         destino,
         rutaExtra,
         hojaRuta,
-        conductor1: conductores[0] || '',
-        conductor2: conductores[1] || '',
+        conductor1: conductores[0]?.name || '',
+        licencia1: conductores[0]?.license || '',
+        conductor2: conductores[1]?.name || '',
+        licencia2: conductores[1]?.license || '',
         revision,
         duplicate,
         estadoHojaRuta: duplicate ? 'DUPLICADA' : (hojaRuta ? 'REGISTRADA' : 'PENDIENTE')
@@ -526,7 +534,9 @@
         excelSafe(item.unidad),
         excelSafe(item.servicio),
         excelSafe(item.conductor1),
+        excelSafe(item.licencia1),
         excelSafe(item.conductor2),
+        excelSafe(item.licencia2),
         excelSafe(item.origen),
         excelSafe(item.destino),
         excelSafe(item.rutaExtra),
@@ -540,7 +550,7 @@
         ['Periodo operativo', excelSafe(report.period || '-')],
         ['Viajes visibles', data.length, 'Con Hoja de Ruta', completas, 'Pendientes', pendientes],
         [],
-        ['N°', 'Fecha operativa', 'Hora', 'Unidad', 'Servicio', 'Conductor 1', 'Conductor 2', 'Origen', 'Destino', 'Ruta intermedia', 'Hoja de Ruta', 'Estado H.R.', 'Revisión'],
+        ['N°', 'Fecha operativa', 'Hora', 'Unidad', 'Servicio', 'Conductor 1', 'Licencia 1', 'Conductor 2', 'Licencia 2', 'Origen', 'Destino', 'Ruta intermedia', 'Hoja de Ruta', 'Estado H.R.', 'Revisión'],
         ...table
       ];
 
@@ -554,7 +564,9 @@
         { wch: 24 },
         { wch: 22 },
         { wch: 32 },
+        { wch: 18 },
         { wch: 32 },
+        { wch: 18 },
         { wch: 22 },
         { wch: 22 },
         { wch: 34 },
@@ -564,7 +576,7 @@
       ];
 
       ws['!autofilter'] = {
-        ref: `A5:M${Math.max(5, table.length + 5)}`
+        ref: `A5:O${Math.max(5, table.length + 5)}`
       };
 
       const wb = window.XLSX.utils.book_new();
@@ -1534,6 +1546,8 @@
         }
 
         const driverLabel = json.data?.driver_label || state.selected.label || state.selected.conductor || '';
+        const driverDni = compact(json.data?.driver_dni || state.selected.dni || '');
+        const driverLicense = compact(json.data?.driver_license || state.selected.licencia || '');
 
         if (state.mode === 'add') {
           const driversBox = state.row.querySelector('[data-csb-drivers]');
@@ -1544,6 +1558,8 @@
             line.className = 'csb-driver-line';
             line.dataset.csbDriverLine = '';
             line.dataset.csbDriverIndex = String(index);
+            line.dataset.csbDriverDni = driverDni;
+            line.dataset.csbDriverLicense = driverLicense;
             line.innerHTML = `
               <span data-csb-driver-text>${escapeHtml(driverLabel)}</span>
               <button type="button" class="csb-driver-edit" data-csb-driver-edit data-csb-driver-index="${index}" title="Editar conductor" aria-label="Editar conductor">
@@ -1559,6 +1575,8 @@
         } else {
           const target = state.line.querySelector('[data-csb-driver-text]');
           if (target) target.textContent = driverLabel;
+          state.line.dataset.csbDriverDni = driverDni;
+          state.line.dataset.csbDriverLicense = driverLicense;
         }
 
         syncStateButtons(state.row, state.row.dataset.csbDbRevision || 'OBSERVADO');
