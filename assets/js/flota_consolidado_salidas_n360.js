@@ -77,10 +77,14 @@
     return match ? `${match[3]}/${match[2]}/${match[1]}` : compact(value || '-');
   }
 
-  function rowDriversText(row) {
-    const drivers = Array.from(row.querySelectorAll('[data-csb-driver-text]'))
+  function rowDriversList(row) {
+    return Array.from(row.querySelectorAll('[data-csb-driver-text]'))
       .map((span) => compact(span.textContent))
       .filter((value) => value && value.toLowerCase() !== 'sin conductor asignado');
+  }
+
+  function rowDriversText(row) {
+    const drivers = rowDriversList(row);
     return drivers.length ? drivers.join('\n') : '-';
   }
 
@@ -438,6 +442,7 @@
       const hojaRuta = compact(row.querySelector('[data-csb-field="hojaruta"]')?.value || '');
       const revision = compact(row.dataset.csbDbRevision || row.querySelector('[data-csb-field="estado"]')?.value || '');
       const duplicate = row.dataset.csbHojarutaDuplicate === '1';
+      const conductores = rowDriversList(row);
 
       return {
         fecha,
@@ -448,6 +453,8 @@
         destino,
         rutaExtra,
         hojaRuta,
+        conductor1: conductores[0] || '',
+        conductor2: conductores[1] || '',
         revision,
         duplicate,
         estadoHojaRuta: duplicate ? 'DUPLICADA' : (hojaRuta ? 'REGISTRADA' : 'PENDIENTE')
@@ -518,6 +525,8 @@
         excelSafe(item.hora),
         excelSafe(item.unidad),
         excelSafe(item.servicio),
+        excelSafe(item.conductor1),
+        excelSafe(item.conductor2),
         excelSafe(item.origen),
         excelSafe(item.destino),
         excelSafe(item.rutaExtra),
@@ -531,7 +540,7 @@
         ['Periodo operativo', excelSafe(report.period || '-')],
         ['Viajes visibles', data.length, 'Con Hoja de Ruta', completas, 'Pendientes', pendientes],
         [],
-        ['N°', 'Fecha operativa', 'Hora', 'Unidad', 'Servicio', 'Origen', 'Destino', 'Ruta intermedia', 'Hoja de Ruta', 'Estado H.R.', 'Revisión'],
+        ['N°', 'Fecha operativa', 'Hora', 'Unidad', 'Servicio', 'Conductor 1', 'Conductor 2', 'Origen', 'Destino', 'Ruta intermedia', 'Hoja de Ruta', 'Estado H.R.', 'Revisión'],
         ...table
       ];
 
@@ -544,6 +553,8 @@
         { wch: 10 },
         { wch: 24 },
         { wch: 22 },
+        { wch: 32 },
+        { wch: 32 },
         { wch: 22 },
         { wch: 22 },
         { wch: 34 },
@@ -553,7 +564,7 @@
       ];
 
       ws['!autofilter'] = {
-        ref: `A5:K${Math.max(5, table.length + 5)}`
+        ref: `A5:M${Math.max(5, table.length + 5)}`
       };
 
       const wb = window.XLSX.utils.book_new();
