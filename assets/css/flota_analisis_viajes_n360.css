@@ -25,8 +25,8 @@
     color: #fff;
     border-radius: 8px;
     background:
-        linear-gradient(135deg, rgba(18, 50, 73, .98) 0%, rgba(20, 104, 130, .95) 62%, rgba(31, 150, 219, .9) 100%),
-        #123249;
+    radial-gradient(circle at 94% 12%, rgba(33, 139, 208, .20), transparent 27%),
+            linear-gradient(135deg, #132238 0%, #203f61 100%);
     box-shadow: 0 20px 42px rgba(15, 35, 55, .18);
 }
 
@@ -342,7 +342,7 @@
     position: absolute;
     right: 12px;
     bottom: 10px;
-    color: rgba(31, 150, 219, .13);
+    color: #172033!important;
     font-size: 2rem;
 }
 

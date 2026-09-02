@@ -564,7 +564,7 @@ function n360_menu_config(): array {
                         'titulo' => 'Programación',
                         'items' => [
                             [
-                                'titulo' => 'Programación de conductores',
+                                'titulo' => 'Relación de conductores',
                                 'icono' => 'bi bi-person-vcard-fill',
                                 'url' => '01_flota/programacion_condt.php',
                                 'vista' => 'f-progcond'
@@ -574,12 +574,6 @@ function n360_menu_config(): array {
                                 'icono' => 'bi bi-calendar2-week-fill',
                                 'url' => '01_flota/programacion_horarios.php',
                                 'vista' => 'f-proghor'
-                            ],
-                            [
-                                'titulo' => 'Historial gerencial',
-                                'icono' => 'bi bi-bar-chart-line-fill',
-                                'url' => '01_flota/gest_prog_horarios.php',
-                                'vista' => 'f-proghist'
                             ],
                             [
                                 'titulo' => 'Consolidado de salidas',
@@ -594,6 +588,17 @@ function n360_menu_config(): array {
                                 'url' => '01_flota/control_conductores_salidas.php',
                                 'vistas' => ['f-consalbus', 'f-proghist'],
                                 'modulo' => 10
+                            ],
+                        ]
+                    ],
+                    [
+                        'titulo' => 'Analisis gerencial',
+                        'items' => [
+                            [
+                                'titulo' => 'Historial gerencial',
+                                'icono' => 'bi bi-bar-chart-line-fill',
+                                'url' => '01_flota/gest_prog_horarios.php',
+                                'vista' => 'f-proghist'
                             ],
                             [
                                 'titulo' => 'Analisis de viajes',

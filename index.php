@@ -954,7 +954,7 @@ if (n360_puede_vista('f-progcond')) {
   <div class="product-card">
     <img src="img/icons/roles.png" alt="Roles">
     <h4>Conductores</h4>
-    <p>Programación de Conductores</p>
+    <p>Relación de Conductores</p>
     <a href="01_flota/programacion_condt.php" class="btn-validar">Ingresar</a>
   </div>';
 }

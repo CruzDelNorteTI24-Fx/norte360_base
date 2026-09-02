@@ -3009,7 +3009,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
       <div class="condt-header">
   <div class="row g-3 align-items-center">
     <div class="col-lg-7">
-      <h2><i class="bi bi-bus-front-fill me-2"></i>Programación de Conductores</h2>
+      <h2><i class="bi bi-bus-front-fill me-2"></i>Relación de Conductores</h2>
       <p>Cada unidad muestra sus cabinas de conductor según la configuración actual.</p>
     </div>
     <div class="col-lg-5">
