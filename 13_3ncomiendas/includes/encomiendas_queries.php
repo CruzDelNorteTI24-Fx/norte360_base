@@ -20,6 +20,7 @@ function enc_fetch_placas(mysqli $conn): array {
                clm_placas_BUS AS bus,
                clm_placas_PLACA AS placa
         FROM tb_placas
+        WHERE clm_placas_ESTADO = 'Activo'
         ORDER BY CAST(clm_placas_BUS AS UNSIGNED) ASC, clm_placas_BUS ASC, clm_placas_PLACA ASC
     ");
 }
@@ -39,8 +40,11 @@ function enc_fetch_active_programaciones(mysqli $conn): array {
         FROM tb_progbuses pb
         LEFT JOIN tb_sedes so ON so.clm_sedes_id = pb.clm_progbuses_idoficina_origen
         LEFT JOIN tb_sedes sd ON sd.clm_sedes_id = pb.clm_progbuses_idoficina_destino
-        LEFT JOIN tb_placas p ON p.clm_placas_id = pb.clm_progbuses_idplaca
+        INNER JOIN tb_placas p ON p.clm_placas_id = pb.clm_progbuses_idplaca
         WHERE pb.clm_progbuses_estado = 1
+          AND pb.clm_progbuses_idplaca > 0
+          AND NULLIF(TRIM(IFNULL(p.clm_placas_BUS, '')), '') IS NOT NULL
+          AND UPPER(TRIM(IFNULL(p.clm_placas_BUS, ''))) <> 'SIN ASIGNAR'
         ORDER BY pb.clm_progbuses_horasalida ASC, so.clm_sedes_name ASC, sd.clm_sedes_name ASC, pb.clm_progbuses_progid ASC
         LIMIT 300
     ");

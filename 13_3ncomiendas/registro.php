@@ -128,6 +128,9 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                             $progHour = trim((string)($prog['hora'] ?? ''));
                                             $progUnit = trim((string)($prog['bus'] ?? ''));
                                             $progPlate = trim((string)($prog['placa'] ?? ''));
+                                            if ($progUnit === '' || strcasecmp($progUnit, 'SIN ASIGNAR') === 0) {
+                                                continue;
+                                            }
                                             $progLabel = trim(($progHour !== '' ? $progHour . ' | ' : '') . ($prog['origen'] ?? 'Origen') . ' -> ' . ($prog['destino'] ?? 'Destino') . ($progUnit !== '' ? ' | ' . $progUnit : '') . ($progPlate !== '' ? ' - ' . $progPlate : ''));
                                             ?>
                                             <option value="<?= enc_h($prog['id']) ?>"><?= enc_h($progLabel) ?></option>
