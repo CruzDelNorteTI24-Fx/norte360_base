@@ -595,6 +595,13 @@ function n360_menu_config(): array {
                                 'vistas' => ['f-consalbus', 'f-proghist'],
                                 'modulo' => 10
                             ],
+                            [
+                                'titulo' => 'Analisis de viajes',
+                                'icono' => 'bi bi-clipboard-data-fill',
+                                'url' => '01_flota/analisis_viajes.php',
+                                'vistas' => ['f-consalbus', 'f-proghist'],
+                                'modulo' => 10
+                            ],
                         ]
                     ],
                     [
