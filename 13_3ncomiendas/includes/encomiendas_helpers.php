@@ -563,6 +563,28 @@ function enc_manifest_is_doc_token(string $value): bool {
     return (bool)enc_manifest_doc_codes($value);
 }
 
+function enc_manifest_is_primary_doc_code(string $code): bool {
+    $code = strtoupper(trim($code));
+    if ($code === '' || preg_match('/^V\d{2,4}-/i', $code) || preg_match('/^\d{3,4}-/', $code)) {
+        return false;
+    }
+    return (bool)preg_match('/^[A-Z]{1,4}\d{0,4}-\d{4,}$/i', $code);
+}
+
+function enc_manifest_is_primary_doc_token(string $value): bool {
+    $codes = enc_manifest_doc_codes($value);
+    return $codes ? enc_manifest_is_primary_doc_code((string)$codes[0]) : false;
+}
+
+function enc_manifest_guide_code_from_value(string $value): ?string {
+    foreach (enc_manifest_doc_codes($value) as $code) {
+        if (preg_match('/^V\d{2,4}-/i', $code)) {
+            return $code;
+        }
+    }
+    return null;
+}
+
 function enc_manifest_is_number_token(string $value): bool {
     return (bool)preg_match('/^-?\d+(?:[.,]\d+)?$/', trim($value));
 }
@@ -642,18 +664,7 @@ function enc_manifest_next_value(array $tokens, array $labels): ?string {
 }
 
 function enc_manifest_parse_items(array $tokens): array {
-    $start = 0;
-    $end = count($tokens);
-    foreach ($tokens as $idx => $token) {
-        $fold = enc_ascii_fold($token);
-        if (strpos($fold, 'guia de remision') !== false || strpos($fold, 'guia de remision') !== false) {
-            $start = $idx + 1;
-        }
-        if ($idx > $start && (strpos($fold, 'totales') !== false || strpos($fold, 'recibi conforme') !== false || strpos($fold, 'entregue conforme') !== false)) {
-            $end = $idx;
-            break;
-        }
-    }
+    [$start, $end] = enc_manifest_table_bounds($tokens);
 
     $rowStarts = [];
     for ($i = $start; $i < $end; $i++) {
@@ -661,24 +672,16 @@ function enc_manifest_parse_items(array $tokens): array {
         if (!enc_manifest_is_doc_token($token)) {
             continue;
         }
+        $isPrimaryDocument = enc_manifest_is_primary_doc_token($token);
         $looksLikeRowDocument = (bool)preg_match('/-\s*$/', trim($token)) || strpos($token, ' - ') !== false;
-        if (!$looksLikeRowDocument) {
-            $previous = '';
-            for ($j = $i - 1; $j >= $start; $j--) {
-                $previous = trim((string)$tokens[$j]);
-                if ($previous !== '') {
-                    break;
-                }
-            }
-            if ($previous !== '' && (enc_manifest_is_doc_token($previous) || enc_manifest_is_number_token($previous) || enc_manifest_is_payment_token($previous))) {
-                continue;
-            }
+        if (!$isPrimaryDocument && !$looksLikeRowDocument) {
+            continue;
         }
         $next = '';
         for ($j = $i + 1; $j < $end; $j++) {
             $next = trim((string)$tokens[$j]);
             if ($next !== '') {
-                if (enc_manifest_is_doc_token($next)) {
+                if (enc_manifest_is_doc_token($next) && !enc_manifest_is_primary_doc_token($next)) {
                     continue;
                 }
                 break;
@@ -700,17 +703,19 @@ function enc_manifest_parse_items(array $tokens): array {
 
         $documento = $segment[0];
         $documentDocLimit = 0;
-        if (isset($segment[1]) && enc_manifest_is_doc_token($segment[1])) {
+        if (isset($segment[1]) && enc_manifest_is_doc_token($segment[1]) && !enc_manifest_is_primary_doc_token($segment[1])) {
             $documento = trim($documento . ' ' . $segment[1]);
             $documentDocLimit = 1;
         }
         $numberIndexes = [];
         $paymentIndex = null;
-        $guideRemision = null;
+        $guideRemision = enc_manifest_guide_code_from_value($documento);
         foreach ($segment as $idx => $value) {
             if ($idx > $documentDocLimit && enc_manifest_is_doc_token($value)) {
-                $codes = enc_manifest_doc_codes($value);
-                $guideRemision = end($codes) ?: $value;
+                $guide = enc_manifest_guide_code_from_value($value);
+                if ($guide !== null) {
+                    $guideRemision = $guide;
+                }
             }
             if (enc_manifest_is_number_token($value)) {
                 $numberIndexes[] = $idx;
@@ -771,16 +776,73 @@ function enc_manifest_code_from_tokens(array $tokens): ?string {
 }
 
 function enc_manifest_text_after_label(array $tokens, string $labelKey): ?string {
-    foreach ($tokens as $token) {
+    foreach ($tokens as $idx => $token) {
         $token = enc_pdf_clean_token((string)$token);
         if ($token === '') {
             continue;
         }
         $key = enc_manifest_label_key($token);
+        if ($key === $labelKey && isset($tokens[$idx + 1])) {
+            $next = enc_pdf_clean_token((string)$tokens[$idx + 1]);
+            if ($next !== '' && !enc_manifest_token_is_label_like($next)) {
+                return $next;
+            }
+        }
         if ($key === $labelKey || strncmp($key, $labelKey . ' ', strlen($labelKey) + 1) === 0) {
             $value = preg_replace('/^.*?:\s*/', '', $token, 1) ?? '';
             $value = enc_pdf_clean_token($value);
             return $value !== '' && $value !== $token ? $value : null;
+        }
+    }
+    return null;
+}
+
+function enc_manifest_table_bounds(array $tokens): array {
+    $start = 0;
+    $end = count($tokens);
+    foreach ($tokens as $idx => $token) {
+        $fold = enc_ascii_fold((string)$token);
+        if (strpos($fold, 'guia de remision') !== false) {
+            $start = $idx + 1;
+        }
+        if ($idx > $start && (strpos($fold, 'totales') !== false || strpos($fold, 'recibi conforme') !== false || strpos($fold, 'entregue conforme') !== false)) {
+            $end = $idx;
+            break;
+        }
+    }
+    return [$start, $end];
+}
+
+function enc_manifest_expected_details(array $tokens): ?int {
+    $start = null;
+    $end = count($tokens);
+    foreach ($tokens as $idx => $token) {
+        $key = enc_manifest_label_key((string)$token);
+        if ($start === null && strpos($key, 'totales') !== false) {
+            $start = $idx;
+        }
+        if ($start !== null && $idx > $start && (strpos($key, 'recibi conforme') !== false || strpos($key, 'entregue conforme') !== false)) {
+            $end = $idx;
+            break;
+        }
+    }
+    if ($start === null) {
+        return null;
+    }
+
+    $tail = array_values(array_filter(array_map('enc_pdf_clean_token', array_slice($tokens, $start, max(0, $end - $start))), static fn($value) => $value !== ''));
+    foreach ($tail as $idx => $token) {
+        $key = enc_manifest_label_key((string)$token);
+        if ($key !== 'detalles' && strpos($key, 'detalles ') !== 0) {
+            continue;
+        }
+        if (preg_match('/\bdetalles\s*:?\s*(\d+)\b/i', (string)$token, $matches)) {
+            return (int)$matches[1];
+        }
+        for ($j = $idx + 1; $j < min(count($tail), $idx + 5); $j++) {
+            if (preg_match('/^\d+$/', (string)$tail[$j])) {
+                return (int)$tail[$j];
+            }
         }
     }
     return null;
@@ -841,6 +903,7 @@ function enc_manifest_parse_page(array $tokens, int $sheetOrder): array {
     }
 
     $items = enc_manifest_parse_items($tokens);
+    $expectedDetails = enc_manifest_expected_details($tokens);
     foreach ($items as $idx => $item) {
         $items[$idx]['orden_hoja'] = $sheetOrder;
     }
@@ -848,6 +911,8 @@ function enc_manifest_parse_page(array $tokens, int $sheetOrder): array {
     return [
         'orden_hoja' => $sheetOrder,
         'title_ok' => strpos(enc_ascii_fold($text), 'manifiesto de encomiendas') !== false,
+        'detalles_pdf' => $expectedDetails,
+        'parse_warning' => $expectedDetails !== null && $expectedDetails !== count($items),
         'tokens' => $tokens,
         'text' => $text,
         'meta' => [

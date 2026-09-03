@@ -109,8 +109,18 @@ try {
     if (!$doc) {
         enc_json(false, 'El manifiesto no existe o ya no esta disponible.', [], 404);
     }
-    if (!enc_pdf_contains_manifest_title((string)$doc['clm_encdoc_archivo'])) {
+    $parsedManifest = enc_parse_manifest_pdf((string)$doc['clm_encdoc_archivo']);
+    if (!$parsedManifest['title_ok']) {
         enc_json(false, 'El PDF guardado no contiene "Manifiesto de Encomiendas".', [], 422);
+    }
+    $expectedDetailsBySheet = [];
+    $parsedItemsBySheet = [];
+    foreach (($parsedManifest['pages'] ?? []) as $idx => $page) {
+        $order = (int)($page['orden_hoja'] ?? $idx + 1);
+        if (($page['detalles_pdf'] ?? null) !== null) {
+            $expectedDetailsBySheet[$order] = (int)$page['detalles_pdf'];
+        }
+        $parsedItemsBySheet[$order] = count($page['items'] ?? []);
     }
 
     $routePoints = enc_fetch_route_points($conn, (int)$doc['clm_encdoc_idguia']);
@@ -124,6 +134,7 @@ try {
         if (!is_array($rawSheet)) {
             continue;
         }
+        $sheetOrder = max(1, (int)($rawSheet['orden_hoja'] ?? $sheetIdx + 1));
         $rawItems = $rawSheet['items'] ?? [];
         if (!is_array($rawItems)) {
             continue;
@@ -141,6 +152,14 @@ try {
         }
         if (!$items) {
             continue;
+        }
+        $expectedDetails = $expectedDetailsBySheet[$sheetOrder] ?? null;
+        if ($expectedDetails !== null && count($items) !== $expectedDetails) {
+            enc_json(false, 'La hoja ' . str_pad((string)$sheetOrder, 2, '0', STR_PAD_LEFT) . ' tiene ' . count($items) . ' items, pero el PDF indica ' . $expectedDetails . ' detalles.', [], 422);
+        }
+        $parsedItems = $parsedItemsBySheet[$sheetOrder] ?? null;
+        if ($parsedItems !== null && count($items) !== $parsedItems) {
+            enc_json(false, 'La hoja ' . str_pad((string)$sheetOrder, 2, '0', STR_PAD_LEFT) . ' no coincide con la lectura actual del PDF.', [], 422);
         }
 
         $pointId = enc_id_or_null($rawSheet['idpunto'] ?? null);
@@ -160,7 +179,7 @@ try {
         }
 
         $sheets[] = [
-            'orden_hoja' => max(1, (int)($rawSheet['orden_hoja'] ?? $sheetIdx + 1)),
+            'orden_hoja' => $sheetOrder,
             'idpunto' => $pointId,
             'codigo_manifiesto' => enc_manifest_review_text($rawSheet['codigo_manifiesto'] ?? '', 80),
             'origen' => enc_manifest_review_text($rawSheet['origen'] ?? '', 160),

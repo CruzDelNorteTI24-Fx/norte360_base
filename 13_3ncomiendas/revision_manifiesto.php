@@ -66,6 +66,43 @@ function enc_review_item_from_row(array $row): array {
     ];
 }
 
+function enc_review_item_key(array $item): string {
+    $documento = strtoupper(trim(preg_replace('/\s+/', ' ', (string)($item['documento'] ?? '')) ?? ''));
+    return $documento;
+}
+
+function enc_review_merge_saved_items(array $parsedItems, array $savedItems): array {
+    $savedByDocument = [];
+    foreach ($savedItems as $savedItem) {
+        $key = enc_review_item_key($savedItem);
+        if ($key !== '' && !isset($savedByDocument[$key])) {
+            $savedByDocument[$key] = $savedItem;
+        }
+    }
+
+    foreach ($parsedItems as $idx => $item) {
+        $key = enc_review_item_key($item);
+        if ($key === '' || !isset($savedByDocument[$key])) {
+            continue;
+        }
+        $parsedItems[$idx]['estado'] = $savedByDocument[$key]['estado'] ?? ($item['estado'] ?? 'PENDIENTE');
+        $parsedItems[$idx]['observacion'] = $savedByDocument[$key]['observacion'] ?? ($item['observacion'] ?? '');
+    }
+
+    return $parsedItems;
+}
+
+function enc_review_sheet_pdf_destination(array $sheet, array $sheetMeta): string {
+    $value = trim((string)($sheetMeta['oficina_destino'] ?? ''));
+    if ($value === '') {
+        $value = trim((string)($sheetMeta['destino'] ?? ''));
+    }
+    if ($value === '') {
+        $value = trim((string)($sheet['punto_sede'] ?? ''));
+    }
+    return $value !== '' ? $value : 'Ruta del manifiesto';
+}
+
 try {
     $schemaReady = enc_schema_has_guias_norte($conn) && enc_schema_has_manifest_review_pages($conn);
     if (!$schemaReady) {
@@ -87,63 +124,72 @@ try {
     }
 
     $reviews = enc_fetch_manifest_reviews($conn, $documentId);
-    if ($reviews) {
-        foreach ($reviews as $review) {
-            $pointId = enc_id_or_null($review['clm_encrev_idpunto'] ?? null);
-            $point = $pointId ? ($routePointsById[$pointId] ?? null) : null;
-            $items = [];
-            foreach (enc_fetch_manifest_review_items($conn, (int)$review['clm_encrev_id']) as $row) {
-                $items[] = enc_review_item_from_row($row);
-            }
-            $sheets[] = [
-                'review_id' => (int)$review['clm_encrev_id'],
-                'orden_hoja' => (int)($review['clm_encrev_orden_hoja'] ?? count($sheets) + 1),
-                'idpunto' => $pointId,
-                'punto_sede' => $point['sede_nombre'] ?? $doc['punto_sede'] ?? null,
-                'estado_revision' => $review['clm_encrev_estado'] ?? 'EN_REVISION',
-                'observacion_revision' => $review['clm_encrev_observacion'] ?? '',
-                'meta' => [
-                    'codigo_manifiesto' => $review['clm_encrev_codigo_manifiesto'] ?? null,
-                    'origen' => $review['clm_encrev_origen'] ?? null,
-                    'destino' => $review['clm_encrev_destino'] ?? null,
-                    'oficina_destino' => $point['sede_nombre'] ?? null,
-                    'bus' => $review['clm_encrev_bus'] ?? null,
-                    'placa' => $review['clm_encrev_placa'] ?? null,
-                    'fecha_viaje' => $review['clm_encrev_fecha_viaje'] ?? null,
-                ],
-                'items' => $items,
-            ];
+    $savedSheetsByOrder = [];
+    foreach ($reviews as $review) {
+        $order = (int)($review['clm_encrev_orden_hoja'] ?? count($savedSheetsByOrder) + 1);
+        $pointId = enc_id_or_null($review['clm_encrev_idpunto'] ?? null);
+        $point = $pointId ? ($routePointsById[$pointId] ?? null) : null;
+        $items = [];
+        foreach (enc_fetch_manifest_review_items($conn, (int)$review['clm_encrev_id']) as $row) {
+            $items[] = enc_review_item_from_row($row);
         }
-    } else {
-        $parsed = enc_parse_manifest_pdf((string)$doc['clm_encdoc_archivo']);
-        if (!$parsed['title_ok']) {
-            throw new RuntimeException('El PDF guardado no contiene "Manifiesto de Encomiendas".');
+        $savedSheetsByOrder[$order] = [
+            'review_id' => (int)$review['clm_encrev_id'],
+            'orden_hoja' => $order,
+            'idpunto' => $pointId,
+            'punto_sede' => $point['sede_nombre'] ?? $doc['punto_sede'] ?? null,
+            'estado_revision' => $review['clm_encrev_estado'] ?? 'EN_REVISION',
+            'observacion_revision' => $review['clm_encrev_observacion'] ?? '',
+            'items' => $items,
+        ];
+    }
+
+    $parsed = enc_parse_manifest_pdf((string)$doc['clm_encdoc_archivo']);
+    if (!$parsed['title_ok']) {
+        throw new RuntimeException('El PDF guardado no contiene "Manifiesto de Encomiendas".');
+    }
+    $pages = $parsed['pages'] ?: [[
+        'orden_hoja' => 1,
+        'detalles_pdf' => null,
+        'parse_warning' => false,
+        'meta' => $parsed['meta'],
+        'items' => $parsed['items'],
+    ]];
+
+    $multiPage = count($pages) > 1;
+    foreach ($pages as $idx => $page) {
+        $order = (int)($page['orden_hoja'] ?? $idx + 1);
+        $savedSheet = $savedSheetsByOrder[$order] ?? null;
+        $pointId = enc_id_or_null($savedSheet['idpunto'] ?? null);
+        $assignedPoint = null;
+        if ($pointId) {
+            $assignedPoint = $routePointsById[$pointId] ?? null;
         }
-        $pages = $parsed['pages'] ?: [[
-            'orden_hoja' => 1,
-            'meta' => $parsed['meta'],
-            'items' => $parsed['items'],
-        ]];
-        $multiPage = count($pages) > 1;
-        foreach ($pages as $idx => $page) {
-            $assignedPoint = null;
+        if (!$assignedPoint) {
             if ($multiPage) {
                 $assignedPoint = $routePoints[$idx] ?? null;
             } else {
-                $pointId = enc_id_or_null($doc['clm_encdoc_idpunto'] ?? null);
-                $assignedPoint = $pointId ? ($routePointsById[$pointId] ?? null) : null;
+                $docPointId = enc_id_or_null($doc['clm_encdoc_idpunto'] ?? null);
+                $assignedPoint = $docPointId ? ($routePointsById[$docPointId] ?? null) : null;
             }
-            $sheets[] = [
-                'review_id' => null,
-                'orden_hoja' => (int)($page['orden_hoja'] ?? $idx + 1),
-                'idpunto' => $assignedPoint ? (int)$assignedPoint['clm_encpunto_id'] : enc_id_or_null($doc['clm_encdoc_idpunto'] ?? null),
-                'punto_sede' => $assignedPoint['sede_nombre'] ?? $doc['punto_sede'] ?? null,
-                'estado_revision' => 'GENERADO',
-                'observacion_revision' => '',
-                'meta' => $page['meta'] ?? $parsed['meta'],
-                'items' => $page['items'] ?? [],
-            ];
         }
+
+        $items = $page['items'] ?? [];
+        if ($savedSheet) {
+            $items = enc_review_merge_saved_items($items, $savedSheet['items'] ?? []);
+        }
+        $sheets[] = [
+            'review_id' => $savedSheet['review_id'] ?? null,
+            'orden_hoja' => $order,
+            'idpunto' => $assignedPoint ? (int)$assignedPoint['clm_encpunto_id'] : enc_id_or_null($doc['clm_encdoc_idpunto'] ?? null),
+            'punto_sede' => $assignedPoint['sede_nombre'] ?? $doc['punto_sede'] ?? null,
+            'estado_revision' => $savedSheet['estado_revision'] ?? 'GENERADO',
+            'observacion_revision' => $savedSheet['observacion_revision'] ?? '',
+            'detalles_pdf' => $page['detalles_pdf'] ?? null,
+            'parse_warning' => $page['parse_warning'] ?? false,
+            'meta' => $page['meta'] ?? $parsed['meta'],
+            'items' => $items,
+        ];
     }
 } catch (Throwable $e) {
     enc_log($e);
@@ -160,6 +206,13 @@ require_once __DIR__ . '/../layout/content_n360.php';
 $counts = enc_review_counts($sheets);
 $modeLabel = $reviews ? 'Continuar revision' : 'Generar revision';
 $saved = isset($_GET['guardado']) && $_GET['guardado'] === '1';
+$hasParseMismatch = false;
+foreach ($sheets as $sheet) {
+    if (($sheet['detalles_pdf'] ?? null) !== null && (int)$sheet['detalles_pdf'] !== count($sheet['items'] ?? [])) {
+        $hasParseMismatch = true;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -206,6 +259,9 @@ $saved = isset($_GET['guardado']) && $_GET['guardado'] === '1';
             <?php if ($saved): ?>
                 <div class="stock-alert stock-alert--success"><i class="bi bi-check2-circle"></i> Revision guardada correctamente.</div>
             <?php endif; ?>
+            <?php if ($hasParseMismatch): ?>
+                <div class="stock-alert stock-alert--danger"><i class="bi bi-exclamation-triangle-fill"></i> El manifiesto no se puede guardar porque una hoja no cuadra con el total Detalles del PDF.</div>
+            <?php endif; ?>
 
             <?php if ($pageError !== '' || !$doc): ?>
                 <div class="stock-alert stock-alert--danger"><i class="bi bi-exclamation-triangle-fill"></i><?= enc_h($pageError ?: 'No se pudo cargar el manifiesto.') ?></div>
@@ -233,17 +289,24 @@ $saved = isset($_GET['guardado']) && $_GET['guardado'] === '1';
                                 $sheetOrder = (int)($sheet['orden_hoja'] ?? $sheetIdx + 1);
                                 $sheetMeta = $sheet['meta'] ?? [];
                                 $sheetItems = $sheet['items'] ?? [];
+                                $sheetPdfDestination = enc_review_sheet_pdf_destination($sheet, $sheetMeta);
+                                $sheetExpectedDetails = ($sheet['detalles_pdf'] ?? null) !== null ? (int)$sheet['detalles_pdf'] : null;
+                                $sheetHasMismatch = $sheetExpectedDetails !== null && $sheetExpectedDetails !== count($sheetItems);
                                 ?>
                                 <section class="enc-section enc-review-sheet" data-enc-review-sheet>
                                     <div class="enc-section__head enc-review-sheet__head">
                                         <div>
                                             <h3><?= enc_h(enc_review_sheet_label($sheetOrder)) ?></h3>
-                                            <span><?= enc_h(($sheetMeta['oficina_destino'] ?? '') ?: ($sheet['punto_sede'] ?? 'Ruta del manifiesto')) ?></span>
+                                            <span><?= enc_h($sheetPdfDestination) ?></span>
                                         </div>
                                         <span><?= enc_h(count($sheetItems)) ?> items</span>
                                     </div>
+                                    <?php if ($sheetHasMismatch): ?>
+                                        <div class="stock-alert stock-alert--danger enc-review-sheet__warning"><i class="bi bi-exclamation-triangle-fill"></i> Esta hoja tiene <?= enc_h(count($sheetItems)) ?> items leidos, pero el PDF indica <?= enc_h($sheetExpectedDetails) ?> detalles.</div>
+                                    <?php endif; ?>
 
                                     <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][orden_hoja]" value="<?= enc_h($sheetOrder) ?>">
+                                    <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][detalles_pdf]" value="<?= enc_h($sheetExpectedDetails ?? '') ?>">
                                     <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][idpunto]" value="<?= enc_h($sheet['idpunto'] ?? '') ?>">
                                     <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][codigo_manifiesto]" value="<?= enc_h($sheetMeta['codigo_manifiesto'] ?? '') ?>">
                                     <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][origen]" value="<?= enc_h($sheetMeta['origen'] ?? '') ?>">
@@ -315,7 +378,7 @@ $saved = isset($_GET['guardado']) && $_GET['guardado'] === '1';
                             <strong><span data-enc-review-count="OK"><?= enc_h($counts['OK']) ?></span> OK</strong>
                             <span><b data-enc-review-count="PENDIENTE"><?= enc_h($counts['PENDIENTE']) ?></b> pendientes / <b data-enc-review-count="OBSERVADO"><?= enc_h($counts['OBSERVADO']) ?></b> observados</span>
                         </div>
-                        <button class="stock-btn stock-btn--primary" type="submit" <?= $counts['TOTAL'] <= 0 ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Guardar cambios</button>
+                        <button class="stock-btn stock-btn--primary" type="submit" <?= $counts['TOTAL'] <= 0 || $hasParseMismatch ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Guardar cambios</button>
                     </section>
                 </form>
             <?php endif; ?>
