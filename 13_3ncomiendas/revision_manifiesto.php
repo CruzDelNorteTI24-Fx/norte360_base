@@ -68,25 +68,42 @@ function enc_review_item_from_row(array $row): array {
 
 function enc_review_item_key(array $item): string {
     $documento = strtoupper(trim(preg_replace('/\s+/', ' ', (string)($item['documento'] ?? '')) ?? ''));
-    return $documento;
+    if ($documento !== '') {
+        return 'DOC|' . $documento;
+    }
+    $guia = strtoupper(trim(preg_replace('/\s+/', ' ', (string)($item['guia_remision'] ?? '')) ?? ''));
+    return $guia !== '' ? 'GUIA|' . $guia : '';
 }
 
 function enc_review_merge_saved_items(array $parsedItems, array $savedItems): array {
     $savedByDocument = [];
-    foreach ($savedItems as $savedItem) {
+    $matchedSaved = [];
+    foreach ($savedItems as $savedIdx => $savedItem) {
         $key = enc_review_item_key($savedItem);
         if ($key !== '' && !isset($savedByDocument[$key])) {
-            $savedByDocument[$key] = $savedItem;
+            $savedByDocument[$key] = $savedIdx;
         }
     }
 
     foreach ($parsedItems as $idx => $item) {
+        $parsedItems[$idx]['manual'] = false;
         $key = enc_review_item_key($item);
         if ($key === '' || !isset($savedByDocument[$key])) {
             continue;
         }
-        $parsedItems[$idx]['estado'] = $savedByDocument[$key]['estado'] ?? ($item['estado'] ?? 'PENDIENTE');
-        $parsedItems[$idx]['observacion'] = $savedByDocument[$key]['observacion'] ?? ($item['observacion'] ?? '');
+        $savedIdx = $savedByDocument[$key];
+        $matchedSaved[$savedIdx] = true;
+        $parsedItems[$idx]['estado'] = $savedItems[$savedIdx]['estado'] ?? ($item['estado'] ?? 'PENDIENTE');
+        $parsedItems[$idx]['observacion'] = $savedItems[$savedIdx]['observacion'] ?? ($item['observacion'] ?? '');
+    }
+
+    foreach ($savedItems as $savedIdx => $savedItem) {
+        if (isset($matchedSaved[$savedIdx])) {
+            continue;
+        }
+        $savedItem['manual'] = true;
+        $savedItem['orden'] = count($parsedItems) + 1;
+        $parsedItems[] = $savedItem;
     }
 
     return $parsedItems;
@@ -208,7 +225,7 @@ $modeLabel = $reviews ? 'Continuar revision' : 'Generar revision';
 $saved = isset($_GET['guardado']) && $_GET['guardado'] === '1';
 $hasParseMismatch = false;
 foreach ($sheets as $sheet) {
-    if (($sheet['detalles_pdf'] ?? null) !== null && (int)$sheet['detalles_pdf'] !== count($sheet['items'] ?? [])) {
+    if (($sheet['detalles_pdf'] ?? null) !== null && count($sheet['items'] ?? []) < (int)$sheet['detalles_pdf']) {
         $hasParseMismatch = true;
         break;
     }
@@ -260,7 +277,7 @@ foreach ($sheets as $sheet) {
                 <div class="stock-alert stock-alert--success"><i class="bi bi-check2-circle"></i> Revision guardada correctamente.</div>
             <?php endif; ?>
             <?php if ($hasParseMismatch): ?>
-                <div class="stock-alert stock-alert--danger"><i class="bi bi-exclamation-triangle-fill"></i> El manifiesto no se puede guardar porque una hoja no cuadra con el total Detalles del PDF.</div>
+                <div class="stock-alert stock-alert--danger"><i class="bi bi-exclamation-triangle-fill"></i> Una hoja tiene menos items registrados que el total Detalles del PDF. Puedes agregar los faltantes manualmente antes de guardar.</div>
             <?php endif; ?>
 
             <?php if ($pageError !== '' || !$doc): ?>
@@ -291,18 +308,18 @@ foreach ($sheets as $sheet) {
                                 $sheetItems = $sheet['items'] ?? [];
                                 $sheetPdfDestination = enc_review_sheet_pdf_destination($sheet, $sheetMeta);
                                 $sheetExpectedDetails = ($sheet['detalles_pdf'] ?? null) !== null ? (int)$sheet['detalles_pdf'] : null;
-                                $sheetHasMismatch = $sheetExpectedDetails !== null && $sheetExpectedDetails !== count($sheetItems);
+                                $sheetHasMismatch = $sheetExpectedDetails !== null && count($sheetItems) < $sheetExpectedDetails;
                                 ?>
-                                <section class="enc-section enc-review-sheet" data-enc-review-sheet>
+                                <section class="enc-section enc-review-sheet" data-enc-review-sheet data-enc-review-sheet-index="<?= enc_h($sheetIdx) ?>" data-enc-review-next-index="<?= enc_h(count($sheetItems)) ?>">
                                     <div class="enc-section__head enc-review-sheet__head">
                                         <div>
                                             <h3><?= enc_h(enc_review_sheet_label($sheetOrder)) ?></h3>
                                             <span><?= enc_h($sheetPdfDestination) ?></span>
                                         </div>
-                                        <span><?= enc_h(count($sheetItems)) ?> items</span>
+                                        <span><b data-enc-review-sheet-count><?= enc_h(count($sheetItems)) ?></b> items</span>
                                     </div>
                                     <?php if ($sheetHasMismatch): ?>
-                                        <div class="stock-alert stock-alert--danger enc-review-sheet__warning"><i class="bi bi-exclamation-triangle-fill"></i> Esta hoja tiene <?= enc_h(count($sheetItems)) ?> items leidos, pero el PDF indica <?= enc_h($sheetExpectedDetails) ?> detalles.</div>
+                                        <div class="stock-alert stock-alert--danger enc-review-sheet__warning"><i class="bi bi-exclamation-triangle-fill"></i> Esta hoja tiene <?= enc_h(count($sheetItems)) ?> items registrados, pero el PDF indica <?= enc_h($sheetExpectedDetails) ?> detalles.</div>
                                     <?php endif; ?>
 
                                     <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][orden_hoja]" value="<?= enc_h($sheetOrder) ?>">
@@ -323,32 +340,54 @@ foreach ($sheets as $sheet) {
                                         <div><span>Fecha viaje</span><strong><?= enc_h(($sheetMeta['fecha_viaje'] ?? '') ?: '-') ?></strong></div>
                                     </div>
 
-                                    <?php if (!$sheetItems): ?>
-                                        <div class="stock-empty">Esta hoja no tiene items leidos del PDF.</div>
-                                    <?php else: ?>
-                                        <div class="enc-review-table">
-                                            <?php foreach ($sheetItems as $idx => $item): ?>
-                                                <?php $estado = strtoupper((string)($item['estado'] ?? 'PENDIENTE')); ?>
-                                                <article class="enc-review-row is-<?= enc_h(strtolower($estado)) ?>" data-enc-review-row>
-                                                    <div class="enc-review-row__num"><?= enc_h(str_pad((string)($idx + 1), 2, '0', STR_PAD_LEFT)) ?></div>
-                                                    <div class="enc-review-row__main">
-                                                        <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][documento]" value="<?= enc_h($item['documento'] ?? '') ?>">
-                                                        <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][consignado]" value="<?= enc_h($item['consignado'] ?? '') ?>">
-                                                        <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][referencia_envio]" value="<?= enc_h($item['referencia_envio'] ?? '') ?>">
-                                                        <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][peso]" value="<?= enc_h(enc_review_number($item['peso'] ?? null)) ?>">
-                                                        <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][tipo_pago]" value="<?= enc_h($item['tipo_pago'] ?? '') ?>">
-                                                        <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][importe_cobrado]" value="<?= enc_h(enc_review_number($item['importe_cobrado'] ?? null)) ?>">
-                                                        <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][guia_remision]" value="<?= enc_h($item['guia_remision'] ?? '') ?>">
+                                    <div class="enc-review-sheet__tools">
+                                        <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-review-add-item><i class="bi bi-plus-circle"></i> Agregar encomienda</button>
+                                    </div>
 
-                                                        <strong><?= enc_h(($item['documento'] ?? '') ?: 'Documento sin codigo') ?></strong>
-                                                        <span><?= enc_h(($item['consignado'] ?? '') ?: 'Sin consignado') ?></span>
-                                                        <p><?= enc_h(($item['referencia_envio'] ?? '') ?: '-') ?></p>
-                                                    </div>
-                                                    <div class="enc-review-row__money">
-                                                        <span>Peso <?= enc_h(($item['peso'] ?? '') !== '' && ($item['peso'] ?? null) !== null ? number_format((float)$item['peso'], 2) : '-') ?></span>
-                                                        <strong>S/ <?= enc_h(($item['importe_cobrado'] ?? '') !== '' && ($item['importe_cobrado'] ?? null) !== null ? number_format((float)$item['importe_cobrado'], 2) : '0.00') ?></strong>
-                                                        <small><?= enc_h(($item['tipo_pago'] ?? '') ?: '-') ?></small>
-                                                    </div>
+                                    <?php if (!$sheetItems): ?>
+                                        <div class="stock-empty" data-enc-review-empty>Esta hoja no tiene items leidos del PDF.</div>
+                                    <?php endif; ?>
+                                    <div class="enc-review-table" data-enc-review-list>
+                                        <?php if ($sheetItems): ?>
+                                            <?php foreach ($sheetItems as $idx => $item): ?>
+                                                <?php
+                                                $estado = strtoupper((string)($item['estado'] ?? 'PENDIENTE'));
+                                                $isManual = filter_var($item['manual'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                                                ?>
+                                                <article class="enc-review-row <?= $isManual ? 'enc-review-row--manual ' : '' ?>is-<?= enc_h(strtolower($estado)) ?>" data-enc-review-row>
+                                                    <div class="enc-review-row__num"><?= enc_h(str_pad((string)($idx + 1), 2, '0', STR_PAD_LEFT)) ?></div>
+                                                    <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][manual]" value="<?= $isManual ? '1' : '0' ?>">
+                                                    <?php if ($isManual): ?>
+                                                        <div class="enc-review-row__manual">
+                                                            <label><span>Documento</span><input type="text" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][documento]" value="<?= enc_h($item['documento'] ?? '') ?>" maxlength="100" autocomplete="off"></label>
+                                                            <label><span>Consignado</span><input type="text" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][consignado]" value="<?= enc_h($item['consignado'] ?? '') ?>" maxlength="255" autocomplete="off"></label>
+                                                            <label class="is-wide"><span>Referencia</span><input type="text" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][referencia_envio]" value="<?= enc_h($item['referencia_envio'] ?? '') ?>" maxlength="1000" autocomplete="off"></label>
+                                                            <label><span>Peso</span><input type="number" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][peso]" value="<?= enc_h(enc_review_number($item['peso'] ?? null)) ?>" step="0.0001" min="0" inputmode="decimal"></label>
+                                                            <label><span>Pago</span><input type="text" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][tipo_pago]" value="<?= enc_h($item['tipo_pago'] ?? '') ?>" maxlength="80" autocomplete="off"></label>
+                                                            <label><span>Importe</span><input type="number" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][importe_cobrado]" value="<?= enc_h(enc_review_number($item['importe_cobrado'] ?? null)) ?>" step="0.0001" min="0" inputmode="decimal"></label>
+                                                            <label><span>Guia remision</span><input type="text" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][guia_remision]" value="<?= enc_h($item['guia_remision'] ?? '') ?>" maxlength="100" autocomplete="off"></label>
+                                                        </div>
+                                                        <button class="stock-btn stock-btn--soft stock-btn--sm enc-review-row__remove" type="button" data-enc-review-remove-manual><i class="bi bi-trash3"></i> Quitar</button>
+                                                    <?php else: ?>
+                                                        <div class="enc-review-row__main">
+                                                            <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][documento]" value="<?= enc_h($item['documento'] ?? '') ?>">
+                                                            <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][consignado]" value="<?= enc_h($item['consignado'] ?? '') ?>">
+                                                            <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][referencia_envio]" value="<?= enc_h($item['referencia_envio'] ?? '') ?>">
+                                                            <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][peso]" value="<?= enc_h(enc_review_number($item['peso'] ?? null)) ?>">
+                                                            <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][tipo_pago]" value="<?= enc_h($item['tipo_pago'] ?? '') ?>">
+                                                            <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][importe_cobrado]" value="<?= enc_h(enc_review_number($item['importe_cobrado'] ?? null)) ?>">
+                                                            <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][guia_remision]" value="<?= enc_h($item['guia_remision'] ?? '') ?>">
+
+                                                            <strong><?= enc_h(($item['documento'] ?? '') ?: 'Documento sin codigo') ?></strong>
+                                                            <span><?= enc_h(($item['consignado'] ?? '') ?: 'Sin consignado') ?></span>
+                                                            <p><?= enc_h(($item['referencia_envio'] ?? '') ?: '-') ?></p>
+                                                        </div>
+                                                        <div class="enc-review-row__money">
+                                                            <span>Peso <?= enc_h(($item['peso'] ?? '') !== '' && ($item['peso'] ?? null) !== null ? number_format((float)$item['peso'], 2) : '-') ?></span>
+                                                            <strong>S/ <?= enc_h(($item['importe_cobrado'] ?? '') !== '' && ($item['importe_cobrado'] ?? null) !== null ? number_format((float)$item['importe_cobrado'], 2) : '0.00') ?></strong>
+                                                            <small><?= enc_h(($item['tipo_pago'] ?? '') ?: '-') ?></small>
+                                                        </div>
+                                                    <?php endif; ?>
                                                     <label class="stock-field enc-review-row__state">
                                                         <span>Estado</span>
                                                         <select name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][estado]" data-enc-review-state>
@@ -361,8 +400,8 @@ foreach ($sheets as $sheet) {
                                                     </label>
                                                 </article>
                                             <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
+                                        <?php endif; ?>
+                                    </div>
 
                                     <label class="stock-field stock-field--wide enc-review-sheet__obs">
                                         <span>Observacion de hoja</span>
@@ -378,7 +417,7 @@ foreach ($sheets as $sheet) {
                             <strong><span data-enc-review-count="OK"><?= enc_h($counts['OK']) ?></span> OK</strong>
                             <span><b data-enc-review-count="PENDIENTE"><?= enc_h($counts['PENDIENTE']) ?></b> pendientes / <b data-enc-review-count="OBSERVADO"><?= enc_h($counts['OBSERVADO']) ?></b> observados</span>
                         </div>
-                        <button class="stock-btn stock-btn--primary" type="submit" <?= $counts['TOTAL'] <= 0 || $hasParseMismatch ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Guardar cambios</button>
+                        <button class="stock-btn stock-btn--primary" type="submit" data-enc-review-submit <?= $counts['TOTAL'] <= 0 ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Guardar cambios</button>
                     </section>
                 </form>
             <?php endif; ?>

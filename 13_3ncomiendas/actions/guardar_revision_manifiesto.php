@@ -54,17 +54,19 @@ function enc_manifest_review_normalize_item(array $raw, int $order): ?array {
     $referencia = enc_manifest_review_text($raw['referencia_envio'] ?? '', 3000);
     $guiaRemision = enc_manifest_review_text($raw['guia_remision'] ?? '', 100);
     $tipoPago = enc_manifest_review_text($raw['tipo_pago'] ?? '', 80);
+    $manual = filter_var($raw['manual'] ?? false, FILTER_VALIDATE_BOOLEAN);
     $estado = strtoupper(trim((string)($raw['estado'] ?? 'PENDIENTE')));
     if (!in_array($estado, ['PENDIENTE', 'OK', 'REZAGADO', 'OBSERVADO'], true)) {
         $estado = 'PENDIENTE';
     }
 
-    if ($documento === null && $consignado === null && $referencia === null) {
+    if ($documento === null && $consignado === null && $referencia === null && $guiaRemision === null) {
         return null;
     }
 
     return [
         'orden' => $order,
+        'manual' => $manual,
         'documento' => $documento,
         'consignado' => $consignado,
         'referencia_envio' => $referencia,
@@ -153,12 +155,18 @@ try {
         if (!$items) {
             continue;
         }
+        $pdfItemsCount = 0;
+        foreach ($items as $item) {
+            if (!$item['manual']) {
+                $pdfItemsCount++;
+            }
+        }
         $expectedDetails = $expectedDetailsBySheet[$sheetOrder] ?? null;
-        if ($expectedDetails !== null && count($items) !== $expectedDetails) {
-            enc_json(false, 'La hoja ' . str_pad((string)$sheetOrder, 2, '0', STR_PAD_LEFT) . ' tiene ' . count($items) . ' items, pero el PDF indica ' . $expectedDetails . ' detalles.', [], 422);
+        if ($expectedDetails !== null && count($items) < $expectedDetails) {
+            enc_json(false, 'La hoja ' . str_pad((string)$sheetOrder, 2, '0', STR_PAD_LEFT) . ' tiene ' . count($items) . ' items registrados, pero el PDF indica ' . $expectedDetails . ' detalles.', [], 422);
         }
         $parsedItems = $parsedItemsBySheet[$sheetOrder] ?? null;
-        if ($parsedItems !== null && count($items) !== $parsedItems) {
+        if ($parsedItems !== null && $pdfItemsCount !== $parsedItems) {
             enc_json(false, 'La hoja ' . str_pad((string)$sheetOrder, 2, '0', STR_PAD_LEFT) . ' no coincide con la lectura actual del PDF.', [], 422);
         }
 

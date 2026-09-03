@@ -8,11 +8,13 @@ $filters = enc_current_rezagados_filters();
 $schemaReady = false;
 $pageError = '';
 $rows = [];
+$manualTargets = [];
 
 try {
     $schemaReady = enc_schema_has_rezagados_view_pages($conn);
     if ($schemaReady) {
         $rows = enc_fetch_rezagados_encomienda($conn, $filters);
+        $manualTargets = enc_fetch_rezagados_manual_targets($conn);
     }
 } catch (Throwable $e) {
     enc_log($e);
@@ -66,7 +68,7 @@ function enc_rezagado_estado_badge(string $state): string {
     <?php n360_render_content_separator('top'); ?>
 
     <main class="n360-content enc-content">
-        <div class="n360-main__inner enc-page enc-rezagados-page">
+        <div class="n360-main__inner enc-page enc-rezagados-page" data-enc-rezagados>
             <section class="stock-hero enc-hero enc-hero--rezagados">
                 <div class="enc-hero__icon"><i class="bi bi-list-check"></i></div>
                 <div class="enc-hero__text">
@@ -75,6 +77,9 @@ function enc_rezagado_estado_badge(string $state): string {
                     <p>Items revisados desde los manifiestos cargados.</p>
                 </div>
                 <div class="stock-hero-actions enc-hero__actions">
+                    <button class="stock-btn stock-btn--primary" type="button" data-bs-toggle="modal" data-bs-target="#encManualRezagadoModal" <?= (!$schemaReady || !$manualTargets) ? 'disabled' : '' ?>>
+                        <i class="bi bi-plus-circle"></i> Agregar manual
+                    </button>
                     <a class="stock-btn stock-btn--soft" href="tracking.php"><i class="bi bi-arrow-left"></i> Tracking</a>
                 </div>
             </section>
@@ -161,6 +166,81 @@ function enc_rezagado_estado_badge(string $state): string {
                     </table>
                 </div>
             </section>
+
+            <div class="modal fade enc-manual-modal" id="encManualRezagadoModal" tabindex="-1" aria-labelledby="encManualRezagadoTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-xl">
+                    <form class="modal-content" action="actions/agregar_rezagado_manual.php" method="post" data-enc-manual-form data-confirm="Se agregara esta encomienda manual a la revision seleccionada.">
+                        <input type="hidden" name="csrf_token" value="<?= enc_h(enc_csrf_token()) ?>">
+                        <div class="modal-header">
+                            <div>
+                                <span class="stock-eyebrow"><i class="bi bi-plus-square"></i> Registro manual</span>
+                                <h2 class="modal-title" id="encManualRezagadoTitle">Agregar encomienda rezagada</h2>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body enc-manual-modal__body">
+                            <label class="stock-field stock-field--wide">
+                                <span>Control / hoja</span>
+                                <select name="revision_id" required>
+                                    <option value="">Seleccionar revision...</option>
+                                    <?php foreach ($manualTargets as $target): ?>
+                                        <?php
+                                            $sheetLabel = 'Hoja ' . str_pad((string)(int)($target['clm_encrev_orden_hoja'] ?? 1), 2, '0', STR_PAD_LEFT);
+                                            $optionText = trim((string)$target['clm_enc_guia']) . ' - ' . $sheetLabel . ' - ' . trim((string)$target['punto_sede']);
+                                        ?>
+                                        <option value="<?= enc_h($target['clm_encrev_id']) ?>"><?= enc_h($optionText) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label class="stock-field">
+                                <span>Documento</span>
+                                <input type="text" name="documento" maxlength="100" autocomplete="off" placeholder="Codigo o comprobante">
+                            </label>
+                            <label class="stock-field">
+                                <span>Guia remision</span>
+                                <input type="text" name="guia_remision" maxlength="100" autocomplete="off" placeholder="Opcional">
+                            </label>
+                            <label class="stock-field stock-field--wide">
+                                <span>Consignado</span>
+                                <input type="text" name="consignado" maxlength="255" autocomplete="off" placeholder="Cliente o destinatario">
+                            </label>
+                            <label class="stock-field stock-field--wide">
+                                <span>Referencia</span>
+                                <input type="text" name="referencia_envio" maxlength="1000" autocomplete="off" placeholder="Detalle de encomienda">
+                            </label>
+                            <label class="stock-field">
+                                <span>Peso</span>
+                                <input type="number" name="peso" step="0.0001" min="0" inputmode="decimal" placeholder="0.00">
+                            </label>
+                            <label class="stock-field">
+                                <span>Tipo pago</span>
+                                <input type="text" name="tipo_pago" maxlength="80" autocomplete="off" placeholder="Efectivo, Yape...">
+                            </label>
+                            <label class="stock-field">
+                                <span>Importe</span>
+                                <input type="number" name="importe_cobrado" step="0.0001" min="0" inputmode="decimal" placeholder="0.00">
+                            </label>
+                            <label class="stock-field">
+                                <span>Estado</span>
+                                <select name="estado">
+                                    <option value="REZAGADO" selected>Rezagado</option>
+                                    <option value="PENDIENTE">Pendiente</option>
+                                    <option value="OBSERVADO">Observado</option>
+                                    <option value="OK">OK</option>
+                                </select>
+                            </label>
+                            <label class="stock-field stock-field--wide">
+                                <span>Observacion</span>
+                                <input type="text" name="observacion" maxlength="1000" autocomplete="off">
+                            </label>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="stock-btn stock-btn--soft" type="button" data-bs-dismiss="modal"><i class="bi bi-x-circle"></i> Cancelar</button>
+                            <button class="stock-btn stock-btn--primary" type="submit"><i class="bi bi-save2"></i> Guardar manual</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -173,5 +253,6 @@ function enc_rezagado_estado_badge(string $state): string {
 <script src="<?= enc_h(n360_asset('assets/js/dialog_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('assets/js/header_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('assets/js/sidebar_n360.js')) ?>"></script>
+<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/rezagados_encomienda.js')) ?>"></script>
 </body>
 </html>
