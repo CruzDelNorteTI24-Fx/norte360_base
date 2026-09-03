@@ -2,7 +2,12 @@
   const root = document.querySelector('[data-enc-rezagados]');
   if (!root) return;
 
-  const form = root.querySelector('[data-enc-manual-form]');
+  const modalNode = document.getElementById('encManualRezagadoModal');
+  if (modalNode && modalNode.parentElement !== document.body) {
+    document.body.appendChild(modalNode);
+  }
+
+  const form = document.querySelector('[data-enc-manual-form]');
 
   const parseJson = async (response) => {
     const text = await response.text();
@@ -34,7 +39,6 @@
   };
 
   const closeModal = () => {
-    const modalNode = document.getElementById('encManualRezagadoModal');
     if (!modalNode || !window.bootstrap) return;
     const modal = window.bootstrap.Modal.getInstance(modalNode);
     if (modal) modal.hide();

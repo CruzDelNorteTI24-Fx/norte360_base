@@ -3680,6 +3680,10 @@ body.enc-drawer-open {
   align-items: end;
 }
 
+.enc-manual-modal {
+  z-index: 1095;
+}
+
 .enc-manual-modal .modal-content {
   overflow: hidden;
   border: 0;
