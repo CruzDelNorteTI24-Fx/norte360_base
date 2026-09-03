@@ -22,6 +22,7 @@ if (!n360_live_can_access($conn, false)) {
 }
 
 n360_live_log_enter_once('index');
+$n360LiveIsAdmin = n360_live_is_admin();
 
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
@@ -85,10 +86,18 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 </div>
             </div>
 
-            <button class="n360-live-btn" type="button" data-live-refresh>
-                <i class="bi bi-arrow-clockwise"></i>
-                <span>Actualizar pizarra</span>
-            </button>
+            <div class="n360-live-controlbar__actions">
+                <?php if ($n360LiveIsAdmin): ?>
+                    <button class="n360-live-btn n360-live-btn--ghost" type="button" data-live-history-open>
+                        <i class="bi bi-shield-lock"></i>
+                        <span>Historial</span>
+                    </button>
+                <?php endif; ?>
+                <button class="n360-live-btn" type="button" data-live-refresh>
+                    <i class="bi bi-arrow-clockwise"></i>
+                    <span>Actualizar pizarra</span>
+                </button>
+            </div>
         </section>
 
         <section class="n360-live-kpis" aria-label="Resumen operativo">
@@ -157,6 +166,39 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 <p class="n360-live-empty">Sin visualizadores activos.</p>
             </div>
         </section>
+
+        <?php if ($n360LiveIsAdmin): ?>
+            <div class="n360-live-history-modal" hidden data-live-history-modal>
+                <div class="n360-live-history-modal__backdrop" data-live-history-close></div>
+                <section class="n360-live-history-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="n360LiveHistoryTitle">
+                    <header class="n360-live-history-modal__head">
+                        <div>
+                            <span>HISTORIAL ADMIN</span>
+                            <h2 id="n360LiveHistoryTitle">Accesos a Norte360 Live</h2>
+                            <p>Lectura protegida de access_history.jsonl.</p>
+                        </div>
+                        <button type="button" class="n360-live-history-modal__close" data-live-history-close aria-label="Cerrar historial">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </header>
+
+                    <div class="n360-live-history-modal__toolbar">
+                        <div>
+                            <strong data-live-history-summary>Listo para cargar historial.</strong>
+                            <span>Solo rol Admin puede consultar este archivo.</span>
+                        </div>
+                        <button type="button" class="n360-live-btn" data-live-history-refresh>
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Actualizar</span>
+                        </button>
+                    </div>
+
+                    <div class="n360-live-history-modal__body" data-live-history-list>
+                        <p class="n360-live-empty">Abre el historial para cargar registros.</p>
+                    </div>
+                </section>
+            </div>
+        <?php endif; ?>
     </section>
 
     <?php n360_render_content_separator('bottom'); ?>

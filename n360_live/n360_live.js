@@ -201,6 +201,22 @@
     return payload.data || {};
   };
 
+  const fetchHistory = async (endpoint) => {
+    const url = new URL(endpoint, window.location.href);
+    url.searchParams.set('action', 'history');
+    url.searchParams.set('limit', '300');
+
+    const res = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+    });
+    const payload = await res.json();
+    if (!res.ok || !payload.ok) {
+      throw new Error(payload.message || 'No se pudo cargar el historial del Live.');
+    }
+    return payload.data || {};
+  };
+
   const postLive = async (endpoint, action) => {
     const body = new URLSearchParams();
     body.set('action', action);
@@ -224,6 +240,125 @@
     list.innerHTML = viewers && viewers.length
       ? viewers.map(viewerHtml).join('')
       : '<p class="n360-live-empty">Sin visualizadores activos.</p>';
+  };
+
+  const historyEventLabel = (event) => {
+    const key = String(event || '').toUpperCase();
+    if (key === 'ENTER') return 'Ingreso';
+    if (key === 'LEAVE') return 'Salida';
+    if (key === 'DENIED') return 'Denegado';
+    if (key === 'HISTORY_VIEW') return 'Historial';
+    return key || 'Evento';
+  };
+
+  const historyEventClass = (event) => {
+    const key = String(event || '').toUpperCase();
+    if (key === 'DENIED') return 'denied';
+    if (key === 'LEAVE') return 'leave';
+    if (key === 'HISTORY_VIEW') return 'history';
+    return 'enter';
+  };
+
+  const historyHtml = (row) => {
+    const eventClass = historyEventClass(row.event);
+    const label = historyEventLabel(row.event);
+    const source = text(row.source, '');
+    const reason = text(row.reason, '');
+    const path = text(row.path, '-');
+    const meta = [text(row.dispositivo, 'Dispositivo'), text(row.rol, 'Sin rol')]
+      .filter(Boolean)
+      .map(esc)
+      .join(' &middot; ');
+
+    return `
+      <article class="n360-live-history-row is-${esc(eventClass)}">
+        <div class="n360-live-history-row__event">
+          <span>${esc(label)}</span>
+          <strong>${esc(text(row.fecha_label, 'Sin fecha'))}</strong>
+        </div>
+        <div class="n360-live-history-row__user">
+          <span>Usuario</span>
+          <strong>${esc(text(row.usuario || row.nombre, 'SIN_SESION'))}</strong>
+          <small title="${esc(text(row.nombre, ''))}">${esc(text(row.nombre, ''))}</small>
+        </div>
+        <div class="n360-live-history-row__ip">
+          <span>IP</span>
+          <strong>${esc(text(row.ip, '-'))}</strong>
+          <small>${meta}</small>
+        </div>
+        <div class="n360-live-history-row__path">
+          <span>${esc(text(row.method, 'REQ'))}${source ? ` &middot; ${esc(source)}` : ''}</span>
+          <strong title="${esc(path)}">${esc(path)}</strong>
+          ${reason ? `<small>${esc(reason)}</small>` : ''}
+        </div>
+      </article>
+    `;
+  };
+
+  const renderHistory = (modal, data) => {
+    const history = data.history || {};
+    const rows = Array.isArray(history.rows) ? history.rows : [];
+    const list = modal.querySelector('[data-live-history-list]');
+    const summary = modal.querySelector('[data-live-history-summary]');
+
+    if (summary) {
+      const label = rows.length === 1 ? 'registro reciente' : 'registros recientes';
+      summary.textContent = rows.length
+        ? `${rows.length} ${label} del historial Live.`
+        : 'No hay registros en el historial Live.';
+    }
+
+    if (list) {
+      list.innerHTML = rows.length
+        ? rows.map(historyHtml).join('')
+        : '<p class="n360-live-empty">Sin registros historicos para mostrar.</p>';
+    }
+  };
+
+  const setHistoryOpen = (modal, open) => {
+    modal.hidden = !open;
+    document.body.classList.toggle('n360-live-history-open', open);
+  };
+
+  const initHistory = (root, endpoint) => {
+    const openButton = root.querySelector('[data-live-history-open]');
+    const modal = root.querySelector('[data-live-history-modal]');
+    if (!openButton || !modal || modal.dataset.ready === '1') return;
+    modal.dataset.ready = '1';
+
+    const list = modal.querySelector('[data-live-history-list]');
+    const refresh = modal.querySelector('[data-live-history-refresh]');
+    let loaded = false;
+
+    const loadHistory = async () => {
+      if (refresh) refresh.disabled = true;
+      if (list) list.innerHTML = '<p class="n360-live-empty">Cargando historial...</p>';
+      try {
+        const data = await fetchHistory(endpoint);
+        renderHistory(modal, data);
+        loaded = true;
+      } catch (error) {
+        if (list) list.innerHTML = `<div class="n360-live-error">${esc(error.message)}</div>`;
+      } finally {
+        if (refresh) refresh.disabled = false;
+      }
+    };
+
+    const close = () => setHistoryOpen(modal, false);
+    const open = () => {
+      setHistoryOpen(modal, true);
+      if (!loaded) loadHistory();
+    };
+
+    openButton.addEventListener('click', open);
+    refresh?.addEventListener('click', loadHistory);
+    modal.querySelectorAll('[data-live-history-close]').forEach((button) => {
+      button.addEventListener('click', close);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !modal.hidden) close();
+    });
   };
 
   const renderFull = (root, state) => {
@@ -349,6 +484,7 @@
     const endpoint = root.dataset.liveEndpoint || 'api.php';
     const isGuide = root.hasAttribute('data-n360-live-guide');
     const state = { rows: [], viewers: [], snapshot: null };
+    if (!isGuide) initHistory(root, endpoint);
 
     const renderClock = () => {
       const clock = root.querySelector('[data-live-clock]');

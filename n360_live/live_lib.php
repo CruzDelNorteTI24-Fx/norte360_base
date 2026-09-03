@@ -20,6 +20,12 @@ if (!function_exists('n360_live_uid')) {
     }
 }
 
+if (!function_exists('n360_live_is_admin')) {
+    function n360_live_is_admin(): bool {
+        return (string)($_SESSION['web_rol'] ?? '') === 'Admin';
+    }
+}
+
 if (!function_exists('n360_live_client_ip')) {
     function n360_live_client_ip(): string {
         $candidates = [
@@ -155,6 +161,88 @@ if (!function_exists('n360_live_presence_file')) {
 if (!function_exists('n360_live_history_file')) {
     function n360_live_history_file(): string {
         return n360_live_cache_dir() . DIRECTORY_SEPARATOR . 'access_history.jsonl';
+    }
+}
+
+if (!function_exists('n360_live_tail_lines')) {
+    function n360_live_tail_lines(string $file, int $limit = 300): array {
+        $limit = max(1, min($limit, 1000));
+        if (!is_file($file) || !is_readable($file)) {
+            return [];
+        }
+
+        $handle = @fopen($file, 'rb');
+        if (!$handle) {
+            return [];
+        }
+
+        $buffer = '';
+        $chunkSize = 8192;
+        @fseek($handle, 0, SEEK_END);
+        $position = (int)@ftell($handle);
+
+        while ($position > 0 && substr_count($buffer, "\n") <= $limit) {
+            $read = min($chunkSize, $position);
+            $position -= $read;
+            @fseek($handle, $position);
+            $chunk = @fread($handle, $read);
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            $buffer = $chunk . $buffer;
+        }
+
+        @fclose($handle);
+
+        $parts = preg_split('/\r\n|\n|\r/', $buffer) ?: [];
+        $lines = [];
+        foreach ($parts as $line) {
+            $line = trim((string)$line);
+            if ($line !== '') {
+                $lines[] = $line;
+            }
+        }
+
+        return array_slice($lines, -$limit);
+    }
+}
+
+if (!function_exists('n360_live_history_payload')) {
+    function n360_live_history_payload(int $limit = 300): array {
+        $limit = max(1, min($limit, 1000));
+        $rows = [];
+        $lines = n360_live_tail_lines(n360_live_history_file(), $limit);
+
+        foreach (array_reverse($lines) as $line) {
+            $item = json_decode($line, true);
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $rows[] = [
+                'event' => trim((string)($item['event'] ?? 'EVENTO')),
+                'fecha' => trim((string)($item['fecha'] ?? '')),
+                'fecha_label' => trim((string)($item['fecha_label'] ?? '')),
+                'usuario_id' => (int)($item['usuario_id'] ?? 0),
+                'usuario' => trim((string)($item['usuario'] ?? '')),
+                'nombre' => trim((string)($item['nombre'] ?? '')),
+                'rol' => trim((string)($item['rol'] ?? '')),
+                'ip' => trim((string)($item['ip'] ?? '')),
+                'dispositivo' => trim((string)($item['dispositivo'] ?? '')),
+                'path' => trim((string)($item['path'] ?? '')),
+                'method' => trim((string)($item['method'] ?? '')),
+                'source' => trim((string)($item['source'] ?? '')),
+                'reason' => trim((string)($item['reason'] ?? '')),
+            ];
+        }
+
+        return [
+            'rows' => $rows,
+            'total' => count($rows),
+            'limit' => $limit,
+            'file_exists' => is_file(n360_live_history_file()),
+            'generated_label' => n360_live_now()->format('d/m/Y H:i:s'),
+        ];
     }
 }
 

@@ -41,6 +41,22 @@ try {
 
     n360_live_log_enter_once('api');
 
+    if ($action === 'history') {
+        if (!n360_live_is_admin()) {
+            n360_live_log_denied_once('historial_solo_admin', 'api');
+            n360_live_api_json(false, [], 'Solo los usuarios Admin pueden visualizar el historial del Live.', 403);
+        }
+
+        $limit = (int)($_GET['limit'] ?? $_POST['limit'] ?? 300);
+        $history = n360_live_history_payload($limit);
+        n360_live_log_access('HISTORY_VIEW', ['source' => 'api', 'limit' => $history['limit']]);
+
+        n360_live_api_json(true, [
+            'history' => $history,
+            'server_time' => n360_live_now()->format(DateTimeInterface::ATOM),
+        ]);
+    }
+
     if ($action === 'leave') {
         n360_live_log_access('LEAVE', ['source' => 'api']);
         n360_live_api_json(true, [
