@@ -632,43 +632,6 @@ function enc_fetch_rezagados_encomienda(mysqli $conn, array $filters): array {
     ", $types, $params);
 }
 
-function enc_fetch_rezagados_manual_targets(mysqli $conn, int $limit = 300): array {
-    if (!enc_schema_has_manifest_review_pages($conn)) {
-        return [];
-    }
-
-    $limit = max(20, min(800, $limit));
-    return enc_fetch_all($conn, "
-        SELECT r.clm_encrev_id,
-               r.clm_encrev_iddocumento,
-               r.clm_encrev_idguia,
-               r.clm_encrev_orden_hoja,
-               r.clm_encrev_total_items,
-               r.clm_encrev_total_rezagados,
-               r.clm_encrev_estado,
-               COALESCE(NULLIF(TRIM(g.clm_enc_guia), ''), CONCAT('CE-', r.clm_encrev_idguia)) AS clm_enc_guia,
-               d.clm_encdoc_nombre AS manifiesto_pdf,
-               COALESCE(NULLIF(TRIM(s.clm_sedes_name), ''), NULLIF(TRIM(r.clm_encrev_destino), ''), 'Hoja sin punto') AS punto_sede,
-               COALESCE(r.clm_encrev_datetimeupdated, r.clm_encrev_fechacreated) AS fecha_ref
-        FROM tb_enc_manifiesto_revisiones r
-        INNER JOIN tb_enc_documentos d
-                ON d.clm_encdoc_id = r.clm_encrev_iddocumento
-               AND d.clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS'
-               AND d.clm_encdoc_estado = 1
-        INNER JOIN tb_enc_guias g
-                ON g.clm_enc_id = r.clm_encrev_idguia
-        LEFT JOIN tb_enc_guia_puntos p
-               ON p.clm_encpunto_id = r.clm_encrev_idpunto
-              AND p.clm_encpunto_activo = 1
-        LEFT JOIN tb_sedes s
-               ON s.clm_sedes_id = p.clm_encpunto_idsede
-        WHERE r.clm_encrev_activo = 1
-        ORDER BY COALESCE(r.clm_encrev_datetimeupdated, r.clm_encrev_fechacreated) DESC,
-                 r.clm_encrev_id DESC
-        LIMIT ?
-    ", 'i', [$limit]);
-}
-
 function enc_fetch_document_blob(mysqli $conn, int $docId): ?array {
     return enc_fetch_one($conn, "
         SELECT d.clm_encdoc_id,

@@ -8,13 +8,11 @@ $filters = enc_current_rezagados_filters();
 $schemaReady = false;
 $pageError = '';
 $rows = [];
-$manualTargets = [];
 
 try {
     $schemaReady = enc_schema_has_rezagados_view_pages($conn);
     if ($schemaReady) {
         $rows = enc_fetch_rezagados_encomienda($conn, $filters);
-        $manualTargets = enc_fetch_rezagados_manual_targets($conn);
     }
 } catch (Throwable $e) {
     enc_log($e);
@@ -38,6 +36,10 @@ function enc_rezagado_estado_badge(string $state): string {
     ];
     [$label, $variant, $icon] = $map[$state] ?? [$state, 'muted', 'bi-circle'];
     return '<span class="enc-state enc-state--' . enc_h($variant) . '"><i class="bi ' . enc_h($icon) . '"></i>' . enc_h($label) . '</span>';
+}
+
+function enc_rezagado_is_manual_row(array $row): bool {
+    return stripos((string)($row['manifiesto_pdf'] ?? ''), 'rezagados_manual_') !== false;
 }
 ?>
 <!DOCTYPE html>
@@ -77,7 +79,7 @@ function enc_rezagado_estado_badge(string $state): string {
                     <p>Items revisados desde los manifiestos cargados.</p>
                 </div>
                 <div class="stock-hero-actions enc-hero__actions">
-                    <button class="stock-btn stock-btn--primary" type="button" data-bs-toggle="modal" data-bs-target="#encManualRezagadoModal" <?= (!$schemaReady || !$manualTargets) ? 'disabled' : '' ?>>
+                    <button class="stock-btn stock-btn--primary" type="button" data-bs-toggle="modal" data-bs-target="#encManualRezagadoModal" <?= !$schemaReady ? 'disabled' : '' ?>>
                         <i class="bi bi-plus-circle"></i> Agregar manual
                     </button>
                     <a class="stock-btn stock-btn--soft" href="tracking.php"><i class="bi bi-arrow-left"></i> Tracking</a>
@@ -102,7 +104,7 @@ function enc_rezagado_estado_badge(string $state): string {
                 </label>
                 <label class="stock-field"><span>Desde</span><input type="date" name="desde" value="<?= enc_h($filters['desde']) ?>"></label>
                 <label class="stock-field"><span>Hasta</span><input type="date" name="hasta" value="<?= enc_h($filters['hasta']) ?>"></label>
-                <label class="stock-field stock-field--search"><span>Buscar</span><i class="bi bi-search"></i><input type="text" name="buscar" value="<?= enc_h($filters['buscar']) ?>" placeholder="Guia, consignado, documento..." autocomplete="off"></label>
+                <label class="stock-field stock-field--search"><span>Buscar</span><i class="bi bi-search"></i><input type="text" name="buscar" value="<?= enc_h($filters['buscar']) ?>" placeholder="Control, manual, consignado..." autocomplete="off"></label>
                 <div class="stock-filter-actions">
                     <button class="stock-btn stock-btn--primary" type="submit"><i class="bi bi-funnel"></i> Filtrar</button>
                     <a class="stock-btn stock-btn--soft" href="rezagados.php"><i class="bi bi-x-circle"></i> Limpiar</a>
@@ -137,14 +139,15 @@ function enc_rezagado_estado_badge(string $state): string {
                             <tr><td colspan="9" class="stock-empty"><?= $schemaReady ? 'No hay items para los filtros actuales.' : 'Migracion pendiente.' ?></td></tr>
                         <?php else: ?>
                             <?php foreach ($rows as $row): ?>
+                                <?php $isManual = enc_rezagado_is_manual_row($row); ?>
                                 <tr>
                                     <td>
-                                        <strong><?= enc_h($row['clm_enc_guia']) ?></strong>
+                                        <strong><?= enc_h($isManual ? 'Manual' : $row['clm_enc_guia']) ?></strong>
                                         <small><?= enc_h(enc_fmt_datetime($row['clm_encrev_fechacreated'] ?? null)) ?></small>
                                     </td>
                                     <td>
-                                        <strong><?= enc_h(str_pad((string)(int)($row['clm_encrev_orden_hoja'] ?? 1), 2, '0', STR_PAD_LEFT)) ?></strong>
-                                        <small><?= enc_h($row['manifiesto_pdf'] ?: '') ?></small>
+                                        <strong><?= enc_h($isManual ? 'Manual' : str_pad((string)(int)($row['clm_encrev_orden_hoja'] ?? 1), 2, '0', STR_PAD_LEFT)) ?></strong>
+                                        <small><?= enc_h($isManual ? 'Registro directo' : ($row['manifiesto_pdf'] ?: '')) ?></small>
                                     </td>
                                     <td>
                                         <strong><?= enc_h($row['clm_encrevitem_documento'] ?: '-') ?></strong>
@@ -168,9 +171,10 @@ function enc_rezagado_estado_badge(string $state): string {
             </section>
 
             <div class="modal fade enc-manual-modal" id="encManualRezagadoModal" tabindex="-1" aria-labelledby="encManualRezagadoTitle" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-xl">
-                    <form class="modal-content" action="actions/agregar_rezagado_manual.php" method="post" data-enc-manual-form data-confirm="Se agregara esta encomienda manual a la revision seleccionada.">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <form class="modal-content" action="actions/agregar_rezagado_manual.php" method="post" data-enc-manual-form data-confirm="Se agregara esta encomienda manual como rezagado.">
                         <input type="hidden" name="csrf_token" value="<?= enc_h(enc_csrf_token()) ?>">
+                        <input type="hidden" name="estado" value="REZAGADO">
                         <div class="modal-header">
                             <div>
                                 <span class="stock-eyebrow"><i class="bi bi-plus-square"></i> Registro manual</span>
@@ -179,19 +183,6 @@ function enc_rezagado_estado_badge(string $state): string {
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                         </div>
                         <div class="modal-body enc-manual-modal__body">
-                            <label class="stock-field stock-field--wide">
-                                <span>Control / hoja</span>
-                                <select name="revision_id" required>
-                                    <option value="">Seleccionar revision...</option>
-                                    <?php foreach ($manualTargets as $target): ?>
-                                        <?php
-                                            $sheetLabel = 'Hoja ' . str_pad((string)(int)($target['clm_encrev_orden_hoja'] ?? 1), 2, '0', STR_PAD_LEFT);
-                                            $optionText = trim((string)$target['clm_enc_guia']) . ' - ' . $sheetLabel . ' - ' . trim((string)$target['punto_sede']);
-                                        ?>
-                                        <option value="<?= enc_h($target['clm_encrev_id']) ?>"><?= enc_h($optionText) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </label>
                             <label class="stock-field">
                                 <span>Documento</span>
                                 <input type="text" name="documento" maxlength="100" autocomplete="off" placeholder="Codigo o comprobante">
@@ -219,15 +210,6 @@ function enc_rezagado_estado_badge(string $state): string {
                             <label class="stock-field">
                                 <span>Importe</span>
                                 <input type="number" name="importe_cobrado" step="0.0001" min="0" inputmode="decimal" placeholder="0.00">
-                            </label>
-                            <label class="stock-field">
-                                <span>Estado</span>
-                                <select name="estado">
-                                    <option value="REZAGADO" selected>Rezagado</option>
-                                    <option value="PENDIENTE">Pendiente</option>
-                                    <option value="OBSERVADO">Observado</option>
-                                    <option value="OK">OK</option>
-                                </select>
                             </label>
                             <label class="stock-field stock-field--wide">
                                 <span>Observacion</span>

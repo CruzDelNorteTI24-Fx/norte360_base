@@ -3715,14 +3715,14 @@ body.enc-drawer-open {
 
 .enc-manual-modal__body {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   padding: 16px;
   background: #f6faff;
 }
 
 .enc-manual-modal__body .stock-field--wide {
-  grid-column: span 2;
+  grid-column: 1 / -1;
 }
 
 .enc-rezagados-table small {

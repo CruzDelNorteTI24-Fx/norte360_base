@@ -46,7 +46,7 @@
 
   document.addEventListener('shown.bs.modal', (event) => {
     if (event.target && event.target.id === 'encManualRezagadoModal') {
-      const first = event.target.querySelector('select[name="revision_id"]');
+      const first = event.target.querySelector('input[name="documento"]');
       if (first) first.focus();
     }
   });
