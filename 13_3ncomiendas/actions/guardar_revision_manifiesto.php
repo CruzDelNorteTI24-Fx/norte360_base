@@ -79,6 +79,25 @@ function enc_manifest_review_normalize_item(array $raw, int $order): ?array {
     ];
 }
 
+function enc_manifest_review_doc_is_manual(array $doc): bool {
+    $name = strtolower((string)($doc['clm_encdoc_nombre'] ?? ''));
+    $obs = strtoupper((string)($doc['clm_encdoc_observacion'] ?? ''));
+    return strpos($name, 'revision_manual_') === 0
+        || strpos($name, 'rezagados_manual_') === 0
+        || strpos($obs, '[REVISION_MANUAL]') !== false;
+}
+
+function enc_manifest_review_item_is_manual_placeholder(array $item): bool {
+    $documento = strtoupper(trim((string)($item['documento'] ?? '')));
+    $consignado = strtoupper(trim((string)($item['consignado'] ?? '')));
+    $referencia = strtoupper(trim((string)($item['referencia_envio'] ?? '')));
+
+    return strpos($documento, 'MANUAL-') === 0
+        && strpos($consignado, 'REVISION MANUAL') !== false
+        && strpos($referencia, 'ORIGEN') !== false
+        && strpos($referencia, 'DESTINO') !== false;
+}
+
 $documentId = max(0, (int)($_POST['documento_id'] ?? 0));
 $postedSheets = $_POST['sheets'] ?? [];
 $legacyItems = $_POST['items'] ?? [];
@@ -115,14 +134,17 @@ try {
     if (!$parsedManifest['title_ok']) {
         enc_json(false, 'El PDF guardado no contiene "Manifiesto de Encomiendas".', [], 422);
     }
+    $manualDocument = enc_manifest_review_doc_is_manual($doc);
     $expectedDetailsBySheet = [];
     $parsedItemsBySheet = [];
-    foreach (($parsedManifest['pages'] ?? []) as $idx => $page) {
-        $order = (int)($page['orden_hoja'] ?? $idx + 1);
-        if (($page['detalles_pdf'] ?? null) !== null) {
-            $expectedDetailsBySheet[$order] = (int)$page['detalles_pdf'];
+    if (!$manualDocument) {
+        foreach (($parsedManifest['pages'] ?? []) as $idx => $page) {
+            $order = (int)($page['orden_hoja'] ?? $idx + 1);
+            if (($page['detalles_pdf'] ?? null) !== null) {
+                $expectedDetailsBySheet[$order] = (int)$page['detalles_pdf'];
+            }
+            $parsedItemsBySheet[$order] = count($page['items'] ?? []);
         }
-        $parsedItemsBySheet[$order] = count($page['items'] ?? []);
     }
 
     $routePoints = enc_fetch_route_points($conn, (int)$doc['clm_encdoc_idguia']);
@@ -149,10 +171,15 @@ try {
             }
             $item = enc_manifest_review_normalize_item($rawItem, count($items) + 1);
             if ($item) {
+                if ($manualDocument && enc_manifest_review_item_is_manual_placeholder($item)) {
+                    continue;
+                }
                 $items[] = $item;
             }
         }
-        if (!$items) {
+        $expectedDetails = $expectedDetailsBySheet[$sheetOrder] ?? null;
+        $allowEmptyPdfSheet = !$manualDocument && $expectedDetails !== null && (int)$expectedDetails === 0;
+        if (!$items && !$allowEmptyPdfSheet) {
             continue;
         }
         $pdfItemsCount = 0;
@@ -161,7 +188,6 @@ try {
                 $pdfItemsCount++;
             }
         }
-        $expectedDetails = $expectedDetailsBySheet[$sheetOrder] ?? null;
         if ($expectedDetails !== null && count($items) < $expectedDetails) {
             enc_json(false, 'La hoja ' . str_pad((string)$sheetOrder, 2, '0', STR_PAD_LEFT) . ' tiene ' . count($items) . ' items registrados, pero el PDF indica ' . $expectedDetails . ' detalles.', [], 422);
         }

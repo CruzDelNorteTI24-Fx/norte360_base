@@ -280,6 +280,10 @@
         ? await window.N360Loader.during(task(), { button, title: 'Procesando Control Encomienda', detail: 'Actualizando trazabilidad...' })
         : await task();
       await showDialog(data.message || 'Operacion completada.', 'success', 'Listo');
+      if (data.redirect) {
+        window.location.href = data.redirect;
+        return;
+      }
 
       const guideId = data.id || form.dataset.guideId || currentGuideId;
       if (transportModalEl?.classList.contains('show')) {

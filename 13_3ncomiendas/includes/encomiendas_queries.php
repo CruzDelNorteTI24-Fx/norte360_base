@@ -309,7 +309,21 @@ function enc_build_tracking_where(array $filters): array {
     return ['where' => implode(' AND ', $where), 'types' => $types, 'params' => $params];
 }
 
-function enc_select_tracking_base(): string {
+function enc_select_tracking_base(mysqli $conn): string {
+    $hasReviewPages = enc_schema_has_manifest_review_pages($conn);
+    $reviewJoin = $hasReviewPages ? "
+            LEFT JOIN (
+                SELECT clm_encrev_iddocumento,
+                       COUNT(*) AS manifiesto_revision_hojas
+                FROM tb_enc_manifiesto_revisiones
+                WHERE clm_encrev_activo = 1
+                GROUP BY clm_encrev_iddocumento
+            ) rv ON rv.clm_encrev_iddocumento = d.clm_encdoc_id
+    " : "";
+    $reviewSheetsExpr = $hasReviewPages
+        ? "COALESCE(SUM(CASE WHEN d.clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS' THEN COALESCE(rv.manifiesto_revision_hojas, 0) ELSE 0 END), 0)"
+        : "0";
+
     return "
         FROM tb_enc_guias g
         INNER JOIN tb_sedes se ON se.clm_sedes_id = g.clm_enc_idsede_embarque
@@ -326,19 +340,27 @@ function enc_select_tracking_base(): string {
             GROUP BY clm_encpunto_idguia
         ) pts ON pts.clm_encpunto_idguia = g.clm_enc_id
         LEFT JOIN (
-            SELECT clm_encdoc_idguia,
-                   COUNT(DISTINCT CASE WHEN clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS' THEN clm_encdoc_idpunto END) AS manifiestos_ok,
-                   COUNT(CASE WHEN clm_encdoc_tipo = 'GUIA_TRANSPORTISTA' THEN clm_encdoc_id END) AS guias_transportista_total
-            FROM tb_enc_documentos
-            WHERE clm_encdoc_estado = 1
-            GROUP BY clm_encdoc_idguia
+            SELECT d.clm_encdoc_idguia,
+                   GREATEST(
+                       COUNT(DISTINCT CASE
+                           WHEN d.clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS'
+                            AND UPPER(COALESCE(d.clm_encdoc_observacion, '')) NOT LIKE '%[MANIFIESTO_MASIVO]%'
+                           THEN d.clm_encdoc_idpunto
+                       END),
+                       $reviewSheetsExpr
+                   ) AS manifiestos_ok,
+                   COUNT(DISTINCT CASE WHEN d.clm_encdoc_tipo = 'GUIA_TRANSPORTISTA' THEN d.clm_encdoc_id END) AS guias_transportista_total
+            FROM tb_enc_documentos d
+            $reviewJoin
+            WHERE d.clm_encdoc_estado = 1
+            GROUP BY d.clm_encdoc_idguia
         ) docs ON docs.clm_encdoc_idguia = g.clm_enc_id
     ";
 }
 
 function enc_count_tracking(mysqli $conn, array $filters): int {
     $build = enc_build_tracking_where($filters);
-    $row = enc_fetch_one($conn, 'SELECT COUNT(*) AS total ' . enc_select_tracking_base() . ' WHERE ' . $build['where'], $build['types'], $build['params']);
+    $row = enc_fetch_one($conn, 'SELECT COUNT(*) AS total ' . enc_select_tracking_base($conn) . ' WHERE ' . $build['where'], $build['types'], $build['params']);
     return (int)($row['total'] ?? 0);
 }
 
@@ -363,7 +385,7 @@ function enc_fetch_tracking(mysqli $conn, array $filters): array {
                COALESCE(pts.manifiestos_req, 0) AS manifiestos_req,
                COALESCE(docs.manifiestos_ok, 0) AS manifiestos_ok,
                COALESCE(docs.guias_transportista_total, 0) AS guias_transportista_total
-        " . enc_select_tracking_base() . "
+        " . enc_select_tracking_base($conn) . "
         WHERE {$build['where']}
         ORDER BY COALESCE(g.clm_enc_datetimeupdated, g.clm_enc_fechacreated) DESC, g.clm_enc_id DESC
         LIMIT ?, ?
@@ -380,7 +402,7 @@ function enc_fetch_kpis(mysqli $conn, array $filters): array {
                SUM(g.clm_enc_estado_general = 'OBSERVADA') AS observadas,
                SUM(g.clm_enc_activo = 0) AS anuladas,
                SUM(COALESCE(docs.manifiestos_ok, 0) >= COALESCE(pts.manifiestos_req, 0) AND COALESCE(pts.manifiestos_req, 0) > 0) AS con_manifiestos
-        " . enc_select_tracking_base() . "
+        " . enc_select_tracking_base($conn) . "
         WHERE {$build['where']}
     ", $build['types'], $build['params']);
     return array_map('intval', $row ?: []);
@@ -507,6 +529,7 @@ function enc_fetch_manifest_document(mysqli $conn, int $docId): ?array {
                d.clm_encdoc_idguia,
                d.clm_encdoc_idpunto,
                d.clm_encdoc_tipo,
+               d.clm_encdoc_observacion,
                d.clm_encdoc_nombre,
                d.clm_encdoc_mime,
                d.clm_encdoc_size,
@@ -725,7 +748,7 @@ function enc_fetch_tracking_report(mysqli $conn, array $filters, int $limit = 15
                COALESCE(pts.manifiestos_req, 0) AS manifiestos_req,
                COALESCE(docs.manifiestos_ok, 0) AS manifiestos_ok,
                COALESCE(docs.guias_transportista_total, 0) AS guias_transportista_total
-        " . enc_select_tracking_base() . "
+        " . enc_select_tracking_base($conn) . "
         WHERE {$build['where']}
         ORDER BY COALESCE(g.clm_enc_datetimeupdated, g.clm_enc_fechacreated) DESC, g.clm_enc_id DESC
         LIMIT ?

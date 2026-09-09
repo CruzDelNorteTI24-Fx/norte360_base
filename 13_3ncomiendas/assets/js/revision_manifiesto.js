@@ -85,6 +85,10 @@
     if (submit) {
       submit.disabled = rows.length <= 0;
     }
+    const pendingOkButton = root.querySelector('[data-enc-review-pending-ok]');
+    if (pendingOkButton) {
+      pendingOkButton.disabled = counts.PENDIENTE <= 0;
+    }
   };
 
   const manualRowHtml = (sheetIndex, itemIndex) => {
@@ -136,6 +140,17 @@
       refreshCounts();
       const firstInput = row.querySelector('input[name$="[documento]"]');
       if (firstInput) firstInput.focus();
+      return;
+    }
+
+    const pendingOkButton = event.target.closest('[data-enc-review-pending-ok]');
+    if (pendingOkButton) {
+      root.querySelectorAll('[data-enc-review-state]').forEach((select) => {
+        if (select.value === 'PENDIENTE') {
+          select.value = 'OK';
+        }
+      });
+      refreshCounts();
       return;
     }
 

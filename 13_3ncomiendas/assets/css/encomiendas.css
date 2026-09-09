@@ -2944,6 +2944,24 @@ body.enc-drawer-open {
   background: #fffdf7;
 }
 
+.enc-mass-manifest-card {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #cfe1f2;
+  border-radius: 8px;
+  background: #f7fbff;
+}
+
+.enc-mass-manifest-actions {
+  display: flex;
+  gap: 7px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .enc-route-manifest-main,
 .enc-doc-file {
   min-width: 0;
@@ -2997,6 +3015,15 @@ body.enc-drawer-open {
   color: #a36a00;
 }
 
+.enc-doc-file--manual {
+  border-color: #b8d9f2;
+  background: #f2f8ff;
+}
+
+.enc-doc-file--manual > i {
+  color: #0c71ad;
+}
+
 .enc-doc-file strong,
 .enc-doc-file span {
   display: block;
@@ -3025,6 +3052,16 @@ body.enc-drawer-open {
   display: grid;
   gap: 6px;
   justify-items: stretch;
+}
+
+.enc-manual-review-form {
+  min-width: 0;
+  display: grid;
+}
+
+.enc-manifest-pill--manual {
+  background: #e8f3ff;
+  color: #0c5384;
 }
 
 .enc-route-manifest-actions .enc-doc-actions {
@@ -3074,6 +3111,10 @@ body.enc-drawer-open {
   white-space: nowrap;
 }
 
+.enc-upload-form--bulk {
+  min-width: min(100%, 520px);
+}
+
 .enc-drawer__body .enc-route-manifest-list {
   gap: 7px;
 }
@@ -3118,12 +3159,16 @@ body.enc-drawer-open {
 @media (max-width: 760px) {
   .enc-route-manifest-row,
   .enc-drawer__body .enc-route-manifest-row,
-  .enc-route-manifest-actions {
+  .enc-route-manifest-actions,
+  .enc-mass-manifest-card,
+  .enc-upload-form--bulk {
     grid-template-columns: 1fr;
   }
 
   .enc-route-manifest-actions .enc-doc-actions,
-  .enc-route-manifest-actions .stock-btn {
+  .enc-route-manifest-actions .stock-btn,
+  .enc-mass-manifest-actions,
+  .enc-upload-form--bulk .stock-btn {
     width: 100%;
     justify-content: center;
   }
@@ -3182,6 +3227,30 @@ body.enc-drawer-open {
 
 .enc-section--manifests .enc-route-manifest-list {
   gap: 6px;
+}
+
+.enc-section--mass-manifest .enc-mass-manifest-card {
+  min-height: 54px;
+  padding: 7px 9px;
+  border-color: #cfe1f2;
+  background: #f7fbff;
+}
+
+.enc-section--mass-manifest .enc-upload-form--bulk {
+  grid-template-columns: minmax(180px, 1fr) auto;
+}
+
+.enc-section--mass-manifest .enc-upload-form--bulk input[type="file"] {
+  min-height: 30px;
+  padding: 3px 4px;
+  font-size: .68rem;
+  background: #f8fbff;
+}
+
+.enc-section--mass-manifest .enc-upload-form--bulk .stock-btn {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: .74rem;
 }
 
 .enc-section--manifests .enc-route-manifest-row {
@@ -3342,12 +3411,15 @@ body.enc-drawer-open {
 
   .enc-section--manifests .enc-route-manifest-row,
   .enc-drawer__body .enc-section--manifests .enc-route-manifest-row,
-  .enc-section--manifests .enc-route-manifest-actions {
+  .enc-section--manifests .enc-route-manifest-actions,
+  .enc-section--mass-manifest .enc-mass-manifest-card,
+  .enc-section--mass-manifest .enc-upload-form--bulk {
     grid-template-columns: 1fr;
   }
 
   .enc-section--manifests .enc-route-manifest-actions .enc-doc-actions,
-  .enc-section--manifests .enc-upload-form--compact {
+  .enc-section--manifests .enc-upload-form--compact,
+  .enc-section--mass-manifest .enc-mass-manifest-actions {
     justify-content: stretch;
   }
 }
@@ -3661,6 +3733,10 @@ body.enc-drawer-open {
   font-weight: 850;
 }
 
+.enc-review-footer__actions {
+  justify-content: flex-end;
+}
+
 .enc-review-footer > div strong {
   color: #0b6948;
   font-size: .95rem;
@@ -3807,6 +3883,14 @@ body.enc-drawer-open {
   }
 
   .enc-review-row__remove {
+    width: 100%;
+  }
+
+  .enc-review-footer__actions {
+    justify-content: stretch;
+  }
+
+  .enc-review-footer__actions .stock-btn {
     width: 100%;
   }
 }

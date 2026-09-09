@@ -119,11 +119,37 @@ function enc_manifest_review_action(array $doc): string {
         . '</a>';
 }
 
+function enc_doc_is_manual_manifest(array $doc): bool {
+    $name = strtolower((string)($doc['clm_encdoc_nombre'] ?? ''));
+    $obs = strtoupper((string)($doc['clm_encdoc_observacion'] ?? ''));
+    return strpos($name, 'revision_manual_') === 0
+        || strpos($name, 'rezagados_manual_') === 0
+        || strpos($obs, '[REVISION_MANUAL]') !== false;
+}
+
+function enc_doc_is_mass_manifest(array $doc): bool {
+    $obs = strtoupper((string)($doc['clm_encdoc_observacion'] ?? ''));
+    return strpos($obs, '[MANIFIESTO_MASIVO]') !== false
+        || (int)($doc['manifiesto_revision_hojas'] ?? 0) > 1;
+}
+
 function enc_doc_file_summary(?array $doc): string {
     if (!$doc) {
         return '<div class="enc-doc-file enc-doc-file--empty">'
             . '<i class="bi bi-file-earmark-pdf"></i>'
             . '<div><strong>Sin manifiesto PDF</strong><span>Pendiente de carga</span></div>'
+            . '</div>';
+    }
+
+    if (enc_doc_is_manual_manifest($doc)) {
+        $meta = array_filter([
+            enc_fmt_datetime($doc['clm_encdoc_fechacarga'] ?? null),
+            (string)($doc['usuario_carga'] ?? ''),
+        ], static fn($value) => trim((string)$value) !== '' && $value !== '-');
+
+        return '<div class="enc-doc-file enc-doc-file--manual">'
+            . '<i class="bi bi-clipboard2-plus"></i>'
+            . '<div><strong>Revision manual</strong><span>Sin PDF externo' . ($meta ? ' - ' . enc_h(implode(' - ', $meta)) : '') . '</span></div>'
             . '</div>';
     }
 
@@ -146,11 +172,18 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
         return;
     }
 
+    $manifestDocs = [];
     $manifestDocsByPoint = [];
     $transportDocs = [];
     foreach ($documents as $doc) {
         if (($doc['clm_encdoc_tipo'] ?? '') === 'MANIFIESTO_ENCOMIENDAS') {
-            $manifestDocsByPoint[(int)($doc['clm_encdoc_idpunto'] ?? 0)] = $doc;
+            $manifestDocs[] = $doc;
+            if (!enc_doc_is_mass_manifest($doc)) {
+                $pointKey = (int)($doc['clm_encdoc_idpunto'] ?? 0);
+                if (!isset($manifestDocsByPoint[$pointKey])) {
+                    $manifestDocsByPoint[$pointKey] = $doc;
+                }
+            }
         } elseif (($doc['clm_encdoc_tipo'] ?? '') === 'GUIA_TRANSPORTISTA') {
             $transportDocs[] = $doc;
         }
@@ -165,12 +198,20 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
         if ((int)($point['clm_encpunto_manifiesto_obligatorio'] ?? 1) === 1) $requiredManifests++;
     }
     $reviewSheets = 0;
-    $consolidatedDoc = null;
-    foreach ($manifestDocsByPoint as $doc) {
+    $massManifestDoc = null;
+    $consolidatedDoc = $massManifestDoc;
+    foreach ($manifestDocs as $doc) {
+        if (!$massManifestDoc && enc_doc_is_mass_manifest($doc)) {
+            $massManifestDoc = $doc;
+            $consolidatedDoc = $doc;
+        }
         $docSheets = (int)($doc['manifiesto_revision_hojas'] ?? 0);
         $reviewSheets += $docSheets;
         if ($docSheets > 1) {
             $consolidatedDoc = $doc;
+            if (!$massManifestDoc) {
+                $massManifestDoc = $doc;
+            }
         }
     }
     $readyManifests = max(count($manifestDocsByPoint), $reviewSheets);
@@ -261,6 +302,37 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
             </article>
         </section>
 
+        <section class="enc-section enc-section--mass-manifest">
+            <div class="enc-section__head enc-section__head--actions">
+                <div>
+                    <h3>Manifiesto masivo</h3>
+                    <span>Un PDF puede contener varias oficinas y generar las hojas de revision por ruta.</span>
+                </div>
+                <?php if (!$isAnulada && $canDocs): ?>
+                    <form class="enc-upload-form enc-upload-form--compact enc-upload-form--bulk enc-ajax-form" action="actions/subir_documento.php" method="post" enctype="multipart/form-data" data-confirm="<?= $massManifestDoc ? 'Reemplazar el manifiesto masivo de esta Control Encomienda.' : 'Subir manifiesto masivo para esta Control Encomienda.' ?>">
+                        <input type="hidden" name="csrf_token" value="<?= enc_h($csrf) ?>">
+                        <input type="hidden" name="id" value="<?= enc_h($guia['clm_enc_id']) ?>">
+                        <input type="hidden" name="tipo" value="MANIFIESTO_ENCOMIENDAS">
+                        <input type="hidden" name="masivo" value="1">
+                        <?php if ($massManifestDoc): ?><input type="hidden" name="documento_id" value="<?= enc_h($massManifestDoc['clm_encdoc_id']) ?>"><?php endif; ?>
+                        <input type="file" name="documento" accept="application/pdf,.pdf" required>
+                        <button class="stock-btn stock-btn--primary stock-btn--sm" type="submit"><i class="bi bi-collection"></i> <?= $massManifestDoc ? 'Reemplazar masivo' : 'Subir masivo' ?></button>
+                    </form>
+                <?php endif; ?>
+            </div>
+            <?php if ($massManifestDoc): ?>
+                <div class="enc-mass-manifest-card">
+                    <?= enc_doc_file_summary($massManifestDoc) ?>
+                    <div class="enc-mass-manifest-actions">
+                        <?= enc_doc_is_manual_manifest($massManifestDoc) ? '' : enc_doc_action_links($massManifestDoc) ?>
+                        <?= enc_manifest_review_action($massManifestDoc) ?>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="enc-doc-guidance"><i class="bi bi-info-circle"></i> Si el manifiesto trae varias oficinas, cargalo aqui para revisar cada hoja en una sola pantalla.</div>
+            <?php endif; ?>
+        </section>
+
         <section class="enc-section enc-section--manifests">
             <div class="enc-section__head"><h3>Ruta y manifiestos</h3><span><?= enc_h($readyManifests . '/' . $requiredManifests) ?> manifiestos</span></div>
             <div class="enc-route-manifest-list">
@@ -270,13 +342,16 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
                     <?php foreach ($points as $point): ?>
                         <?php $doc = $manifestDocsByPoint[(int)$point['clm_encpunto_id']] ?? null; ?>
                         <?php $coveredByConsolidated = !$doc && $consolidatedDoc && $reviewSheets >= (int)$point['clm_encpunto_orden']; ?>
-                        <article class="enc-route-manifest-row <?= ($doc || $coveredByConsolidated) ? 'has-doc' : 'is-pending' ?>">
+                        <?php $manualDoc = $doc ? enc_doc_is_manual_manifest($doc) : false; ?>
+                        <article class="enc-route-manifest-row <?= ($doc || $coveredByConsolidated) ? 'has-doc' : 'is-pending' ?> <?= $manualDoc ? 'has-manual-review' : '' ?>">
                             <div class="enc-route-manifest-main">
                                 <span class="enc-route-step"><?= enc_h(str_pad((string)(int)$point['clm_encpunto_orden'], 2, '0', STR_PAD_LEFT)) ?></span>
                                 <div>
                                     <div class="enc-route-manifest-title">
                                         <span class="enc-mini-chip"><i class="bi bi-geo-alt"></i><?= enc_h(enc_route_type_label($point['clm_encpunto_tipo'] ?? 'RUTA')) ?></span>
-                                        <?php if ($doc): ?>
+                                        <?php if ($manualDoc): ?>
+                                            <span class="enc-manifest-pill enc-manifest-pill--manual"><i class="bi bi-clipboard2-plus"></i>Manual</span>
+                                        <?php elseif ($doc): ?>
                                             <span class="enc-manifest-pill enc-manifest-pill--ok"><i class="bi bi-check2-circle"></i>PDF listo</span>
                                         <?php elseif ($coveredByConsolidated): ?>
                                             <span class="enc-manifest-pill enc-manifest-pill--ok"><i class="bi bi-collection"></i>Incluido</span>
@@ -290,10 +365,18 @@ function enc_render_detail_content(?array $guia, array $points, array $documents
                             <?= enc_doc_file_summary($doc ?: ($coveredByConsolidated ? $consolidatedDoc : null)) ?>
                             <div class="enc-route-manifest-actions">
                                 <?php if ($doc || $coveredByConsolidated): ?>
-                                    <?= enc_doc_action_links($doc ?: $consolidatedDoc) ?>
+                                    <?= enc_doc_is_manual_manifest($doc ?: $consolidatedDoc) ? '' : enc_doc_action_links($doc ?: $consolidatedDoc) ?>
                                     <?= enc_manifest_review_action($doc ?: $consolidatedDoc) ?>
                                 <?php endif; ?>
                                 <?php if (!$isAnulada && $canDocs): ?>
+                                    <?php if (!$doc && !$coveredByConsolidated): ?>
+                                        <form class="enc-manual-review-form enc-ajax-form" action="actions/generar_revision_manual.php" method="post" data-confirm="Generar revision manual para esta ruta sin PDF externo.">
+                                            <input type="hidden" name="csrf_token" value="<?= enc_h($csrf) ?>">
+                                            <input type="hidden" name="id" value="<?= enc_h($guia['clm_enc_id']) ?>">
+                                            <input type="hidden" name="idpunto" value="<?= enc_h($point['clm_encpunto_id']) ?>">
+                                            <button class="stock-btn stock-btn--primary stock-btn--sm" type="submit"><i class="bi bi-clipboard2-plus"></i> Revision manual</button>
+                                        </form>
+                                    <?php endif; ?>
                                     <form class="enc-upload-form enc-upload-form--compact enc-ajax-form" action="actions/subir_documento.php" method="post" enctype="multipart/form-data" data-confirm="<?= $doc ? 'Reemplazar manifiesto de este punto.' : 'Subir manifiesto de este punto.' ?>">
                                         <input type="hidden" name="csrf_token" value="<?= enc_h($csrf) ?>">
                                         <input type="hidden" name="id" value="<?= enc_h($guia['clm_enc_id']) ?>">

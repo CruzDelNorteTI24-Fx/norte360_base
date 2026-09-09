@@ -66,6 +66,25 @@ function enc_review_item_from_row(array $row): array {
     ];
 }
 
+function enc_review_doc_is_manual(array $doc): bool {
+    $name = strtolower((string)($doc['clm_encdoc_nombre'] ?? ''));
+    $obs = strtoupper((string)($doc['clm_encdoc_observacion'] ?? ''));
+    return strpos($name, 'revision_manual_') === 0
+        || strpos($name, 'rezagados_manual_') === 0
+        || strpos($obs, '[REVISION_MANUAL]') !== false;
+}
+
+function enc_review_item_is_manual_placeholder(array $item): bool {
+    $documento = strtoupper(trim((string)($item['documento'] ?? '')));
+    $consignado = strtoupper(trim((string)($item['consignado'] ?? '')));
+    $referencia = strtoupper(trim((string)($item['referencia_envio'] ?? '')));
+
+    return strpos($documento, 'MANUAL-') === 0
+        && strpos($consignado, 'REVISION MANUAL') !== false
+        && strpos($referencia, 'ORIGEN') !== false
+        && strpos($referencia, 'DESTINO') !== false;
+}
+
 function enc_review_item_key(array $item): string {
     $documento = strtoupper(trim(preg_replace('/\s+/', ' ', (string)($item['documento'] ?? '')) ?? ''));
     if ($documento !== '') {
@@ -120,6 +139,15 @@ function enc_review_sheet_pdf_destination(array $sheet, array $sheetMeta): strin
     return $value !== '' ? $value : 'Ruta del manifiesto';
 }
 
+function enc_review_meta_fallback(array $primary, array $fallback): array {
+    foreach ($fallback as $key => $value) {
+        if (trim((string)($primary[$key] ?? '')) === '' && trim((string)$value) !== '') {
+            $primary[$key] = $value;
+        }
+    }
+    return $primary;
+}
+
 try {
     $schemaReady = enc_schema_has_guias_norte($conn) && enc_schema_has_manifest_review_pages($conn);
     if (!$schemaReady) {
@@ -133,6 +161,7 @@ try {
     if (!$doc) {
         throw new RuntimeException('No se encontro el manifiesto solicitado.');
     }
+    $manualDocument = enc_review_doc_is_manual($doc);
 
     $routePoints = enc_fetch_route_points($conn, (int)$doc['clm_encdoc_idguia']);
     $routePointsById = [];
@@ -148,7 +177,11 @@ try {
         $point = $pointId ? ($routePointsById[$pointId] ?? null) : null;
         $items = [];
         foreach (enc_fetch_manifest_review_items($conn, (int)$review['clm_encrev_id']) as $row) {
-            $items[] = enc_review_item_from_row($row);
+            $item = enc_review_item_from_row($row);
+            if ($manualDocument && enc_review_item_is_manual_placeholder($item)) {
+                continue;
+            }
+            $items[] = $item;
         }
         $savedSheetsByOrder[$order] = [
             'review_id' => (int)$review['clm_encrev_id'],
@@ -157,6 +190,14 @@ try {
             'punto_sede' => $point['sede_nombre'] ?? $doc['punto_sede'] ?? null,
             'estado_revision' => $review['clm_encrev_estado'] ?? 'EN_REVISION',
             'observacion_revision' => $review['clm_encrev_observacion'] ?? '',
+            'meta' => [
+                'codigo_manifiesto' => $review['clm_encrev_codigo_manifiesto'] ?? '',
+                'origen' => $review['clm_encrev_origen'] ?? '',
+                'destino' => $review['clm_encrev_destino'] ?? '',
+                'bus' => $review['clm_encrev_bus'] ?? '',
+                'placa' => $review['clm_encrev_placa'] ?? '',
+                'fecha_viaje' => $review['clm_encrev_fecha_viaje'] ?? '',
+            ],
             'items' => $items,
         ];
     }
@@ -164,6 +205,14 @@ try {
     $parsed = enc_parse_manifest_pdf((string)$doc['clm_encdoc_archivo']);
     if (!$parsed['title_ok']) {
         throw new RuntimeException('El PDF guardado no contiene "Manifiesto de Encomiendas".');
+    }
+    if ($manualDocument) {
+        foreach ($parsed['pages'] as $idx => $page) {
+            $parsed['pages'][$idx]['items'] = [];
+            $parsed['pages'][$idx]['detalles_pdf'] = null;
+            $parsed['pages'][$idx]['parse_warning'] = false;
+        }
+        $parsed['items'] = [];
     }
     $pages = $parsed['pages'] ?: [[
         'orden_hoja' => 1,
@@ -191,6 +240,13 @@ try {
             }
         }
 
+        $sheetMeta = $page['meta'] ?? $parsed['meta'];
+        if ($savedSheet) {
+            $sheetMeta = enc_review_meta_fallback($sheetMeta, $savedSheet['meta'] ?? []);
+        }
+        if (!empty($page['physical_only']) && $assignedPoint) {
+            $sheetMeta['oficina_destino'] = $assignedPoint['sede_nombre'] ?? ($sheetMeta['oficina_destino'] ?? null);
+        }
         $items = $page['items'] ?? [];
         if ($savedSheet) {
             $items = enc_review_merge_saved_items($items, $savedSheet['items'] ?? []);
@@ -204,7 +260,8 @@ try {
             'observacion_revision' => $savedSheet['observacion_revision'] ?? '',
             'detalles_pdf' => $page['detalles_pdf'] ?? null,
             'parse_warning' => $page['parse_warning'] ?? false,
-            'meta' => $page['meta'] ?? $parsed['meta'],
+            'physical_only' => !empty($page['physical_only']),
+            'meta' => $sheetMeta,
             'items' => $items,
         ];
     }
@@ -309,6 +366,7 @@ foreach ($sheets as $sheet) {
                                 $sheetPdfDestination = enc_review_sheet_pdf_destination($sheet, $sheetMeta);
                                 $sheetExpectedDetails = ($sheet['detalles_pdf'] ?? null) !== null ? (int)$sheet['detalles_pdf'] : null;
                                 $sheetHasMismatch = $sheetExpectedDetails !== null && count($sheetItems) < $sheetExpectedDetails;
+                                $sheetPhysicalOnly = !empty($sheet['physical_only']);
                                 ?>
                                 <section class="enc-section enc-review-sheet" data-enc-review-sheet data-enc-review-sheet-index="<?= enc_h($sheetIdx) ?>" data-enc-review-next-index="<?= enc_h(count($sheetItems)) ?>">
                                     <div class="enc-section__head enc-review-sheet__head">
@@ -345,7 +403,7 @@ foreach ($sheets as $sheet) {
                                     </div>
 
                                     <?php if (!$sheetItems): ?>
-                                        <div class="stock-empty" data-enc-review-empty>Esta hoja no tiene items leidos del PDF.</div>
+                                        <div class="stock-empty" data-enc-review-empty><?= $sheetPhysicalOnly ? 'Esta hoja existe en el PDF, pero no contiene encomiendas legibles.' : 'Esta hoja no tiene items leidos del PDF.' ?></div>
                                     <?php endif; ?>
                                     <div class="enc-review-table" data-enc-review-list>
                                         <?php if ($sheetItems): ?>
@@ -417,7 +475,10 @@ foreach ($sheets as $sheet) {
                             <strong><span data-enc-review-count="OK"><?= enc_h($counts['OK']) ?></span> OK</strong>
                             <span><b data-enc-review-count="PENDIENTE"><?= enc_h($counts['PENDIENTE']) ?></b> pendientes / <b data-enc-review-count="OBSERVADO"><?= enc_h($counts['OBSERVADO']) ?></b> observados</span>
                         </div>
-                        <button class="stock-btn stock-btn--primary" type="submit" data-enc-review-submit <?= $counts['TOTAL'] <= 0 ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Guardar cambios</button>
+                        <div class="enc-review-footer__actions">
+                            <button class="stock-btn stock-btn--soft" type="button" data-enc-review-pending-ok <?= $counts['PENDIENTE'] <= 0 ? 'disabled' : '' ?>><i class="bi bi-check2-all"></i> Pendientes a OK</button>
+                            <button class="stock-btn stock-btn--primary" type="submit" data-enc-review-submit <?= $counts['TOTAL'] <= 0 ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Guardar cambios</button>
+                        </div>
                     </section>
                 </form>
             <?php endif; ?>

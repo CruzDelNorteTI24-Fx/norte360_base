@@ -565,10 +565,10 @@ function enc_manifest_is_doc_token(string $value): bool {
 
 function enc_manifest_is_primary_doc_code(string $code): bool {
     $code = strtoupper(trim($code));
-    if ($code === '' || preg_match('/^V\d{2,4}-/i', $code) || preg_match('/^\d{3,4}-/', $code)) {
+    if ($code === '' || preg_match('/^V\d{2,4}-/i', $code)) {
         return false;
     }
-    return (bool)preg_match('/^[A-Z]{1,4}\d{0,4}-\d{4,}$/i', $code);
+    return (bool)preg_match('/^(?:[A-Z]{1,4}\d{0,4}|\d{3,4})-\d{4,}$/i', $code);
 }
 
 function enc_manifest_is_primary_doc_token(string $value): bool {
@@ -895,6 +895,46 @@ function enc_manifest_split_pages(array $tokens): array {
     return $pages;
 }
 
+function enc_pdf_page_count(string $content): int {
+    $counts = [];
+    if (preg_match_all('/\/Type\s*\/Pages\b(?:(?!endobj).)*?\/Count\s+(\d+)/s', $content, $matches)) {
+        foreach ($matches[1] as $value) {
+            $counts[] = (int)$value;
+        }
+    }
+    if (preg_match_all('/JR_PAGE_ANCHOR_\d+_(\d+)/', $content, $matches)) {
+        foreach ($matches[1] as $value) {
+            $counts[] = (int)$value;
+        }
+    }
+    if (preg_match_all('/\/Type\s*\/Page\b(?!s)/', $content, $matches)) {
+        $counts[] = count($matches[0]);
+    }
+    return $counts ? max($counts) : 0;
+}
+
+function enc_manifest_blank_page(int $sheetOrder, array $fallbackMeta = []): array {
+    return [
+        'orden_hoja' => $sheetOrder,
+        'title_ok' => true,
+        'detalles_pdf' => 0,
+        'parse_warning' => false,
+        'tokens' => [],
+        'text' => '',
+        'meta' => [
+            'codigo_manifiesto' => $fallbackMeta['codigo_manifiesto'] ?? null,
+            'origen' => $fallbackMeta['origen'] ?? null,
+            'destino' => $fallbackMeta['destino'] ?? null,
+            'oficina_destino' => null,
+            'bus' => $fallbackMeta['bus'] ?? null,
+            'placa' => $fallbackMeta['placa'] ?? null,
+            'fecha_viaje' => $fallbackMeta['fecha_viaje'] ?? null,
+        ],
+        'items' => [],
+        'physical_only' => true,
+    ];
+}
+
 function enc_manifest_parse_page(array $tokens, int $sheetOrder): array {
     $text = enc_pdf_clean_token(implode("\n", $tokens));
     $code = enc_manifest_code_from_tokens($tokens);
@@ -940,6 +980,13 @@ function enc_parse_manifest_pdf_pages(string $content): array {
     }
     if (!$pages && enc_pdf_contains_manifest_title($content)) {
         $pages[] = enc_manifest_parse_page($tokens, 1);
+    }
+    $pageCount = enc_pdf_page_count($content);
+    if ($pageCount > count($pages) && enc_pdf_contains_manifest_title($content)) {
+        $fallbackMeta = $pages[0]['meta'] ?? [];
+        for ($order = count($pages) + 1; $order <= $pageCount; $order++) {
+            $pages[] = enc_manifest_blank_page($order, $fallbackMeta);
+        }
     }
     return $pages;
 }

@@ -15,6 +15,7 @@ $id = max(0, (int)($_POST['id'] ?? 0));
 $tipo = strtoupper(trim((string)($_POST['tipo'] ?? '')));
 $docId = max(0, (int)($_POST['documento_id'] ?? 0));
 $pointId = enc_id_or_null($_POST['idpunto'] ?? null);
+$isMassManifest = $tipo === 'MANIFIESTO_ENCOMIENDAS' && (int)($_POST['masivo'] ?? 0) === 1;
 $tipoComprobante = strtoupper(trim((string)($_POST['tipo_comprobante'] ?? '')));
 $numeroComprobante = enc_nullable_string($_POST['numero_comprobante'] ?? '');
 $fechaComprobante = enc_nullable_date($_POST['fecha_comprobante'] ?? '');
@@ -27,7 +28,7 @@ if ($id <= 0 || !enc_validate_doc_type($tipo)) {
 if ($userId <= 0) {
     enc_json(false, 'No se pudo identificar al usuario de la sesion.', [], 401);
 }
-if ($tipo === 'MANIFIESTO_ENCOMIENDAS' && !$pointId) {
+if ($tipo === 'MANIFIESTO_ENCOMIENDAS' && !$isMassManifest && !$pointId) {
     enc_json(false, 'Selecciona el punto de ruta al que pertenece el manifiesto.', [], 422);
 }
 if ($tipo === 'GUIA_TRANSPORTISTA') {
@@ -41,6 +42,10 @@ if ($tipo === 'GUIA_TRANSPORTISTA') {
         $fechaComprobante = null;
     }
 } else {
+    if ($isMassManifest) {
+        $pointId = null;
+        $docObs = $docObs ?: '[MANIFIESTO_MASIVO] Manifiesto masivo de la Control Encomienda.';
+    }
     $tipoComprobante = null;
     $numeroComprobante = null;
     $fechaComprobante = null;
@@ -64,26 +69,64 @@ try {
     if ((int)$guia['clm_enc_activo'] === 0) enc_json(false, 'La Control Encomienda esta anulada.', [], 409);
 
     if ($tipo === 'MANIFIESTO_ENCOMIENDAS') {
-        $point = enc_fetch_one($conn, "
-            SELECT clm_encpunto_id
-            FROM tb_enc_guia_puntos
-            WHERE clm_encpunto_id = ?
-              AND clm_encpunto_idguia = ?
-              AND clm_encpunto_activo = 1
-            LIMIT 1
-        ", 'ii', [$pointId, $id]);
-        if (!$point) {
-            enc_json(false, 'El punto de ruta no pertenece a esta Control Encomienda.', [], 422);
+        if ($isMassManifest) {
+            $massPoint = enc_fetch_one($conn, "
+                SELECT clm_encpunto_id
+                FROM tb_enc_guia_puntos
+                WHERE clm_encpunto_idguia = ?
+                  AND clm_encpunto_activo = 1
+                ORDER BY clm_encpunto_orden ASC, clm_encpunto_id ASC
+                LIMIT 1
+            ", 'i', [$id]);
+            if (!$massPoint) {
+                enc_json(false, 'La Control Encomienda no tiene rutas activas para asociar el manifiesto masivo.', [], 422);
+            }
+            $pointId = (int)$massPoint['clm_encpunto_id'];
+
+            if ($docId > 0) {
+                $existing = enc_fetch_one($conn, "
+                    SELECT clm_encdoc_id
+                    FROM tb_enc_documentos
+                    WHERE clm_encdoc_id = ?
+                      AND clm_encdoc_idguia = ?
+                      AND clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS'
+                      AND clm_encdoc_estado = 1
+                    LIMIT 1
+                ", 'ii', [$docId, $id]);
+            } else {
+                $existing = enc_fetch_one($conn, "
+                    SELECT clm_encdoc_id
+                    FROM tb_enc_documentos
+                    WHERE clm_encdoc_idguia = ?
+                      AND clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS'
+                      AND UPPER(COALESCE(clm_encdoc_observacion, '')) LIKE '%[MANIFIESTO_MASIVO]%'
+                      AND clm_encdoc_estado = 1
+                    LIMIT 1
+                ", 'i', [$id]);
+            }
+        } else {
+            $point = enc_fetch_one($conn, "
+                SELECT clm_encpunto_id
+                FROM tb_enc_guia_puntos
+                WHERE clm_encpunto_id = ?
+                  AND clm_encpunto_idguia = ?
+                  AND clm_encpunto_activo = 1
+                LIMIT 1
+            ", 'ii', [$pointId, $id]);
+            if (!$point) {
+                enc_json(false, 'El punto de ruta no pertenece a esta Control Encomienda.', [], 422);
+            }
+            $existing = enc_fetch_one($conn, "
+                SELECT clm_encdoc_id
+                FROM tb_enc_documentos
+                WHERE clm_encdoc_idguia = ?
+                  AND clm_encdoc_idpunto = ?
+                  AND clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS'
+                  AND UPPER(COALESCE(clm_encdoc_observacion, '')) NOT LIKE '%[MANIFIESTO_MASIVO]%'
+                  AND clm_encdoc_estado = 1
+                LIMIT 1
+            ", 'ii', [$id, $pointId]);
         }
-        $existing = enc_fetch_one($conn, "
-            SELECT clm_encdoc_id
-            FROM tb_enc_documentos
-            WHERE clm_encdoc_idguia = ?
-              AND clm_encdoc_idpunto = ?
-              AND clm_encdoc_tipo = 'MANIFIESTO_ENCOMIENDAS'
-              AND clm_encdoc_estado = 1
-            LIMIT 1
-        ", 'ii', [$id, $pointId]);
     } else {
         $pointId = null;
         $existing = null;
@@ -175,7 +218,7 @@ try {
         enc_execute($conn, "DELETE FROM tb_enc_manifiesto_revisiones WHERE clm_encrev_iddocumento = ?", 'i', [$storedDocId]);
     }
 
-    if ($tipo === 'MANIFIESTO_ENCOMIENDAS' && $pointId) {
+    if ($tipo === 'MANIFIESTO_ENCOMIENDAS' && $pointId && !$isMassManifest) {
         enc_execute($conn, "
             UPDATE tb_enc_guia_puntos
                SET clm_encpunto_estado = 'RECIBIDO',
@@ -189,7 +232,14 @@ try {
     enc_execute($conn, "UPDATE tb_enc_guias SET clm_enc_idusuario_actualiza = ? WHERE clm_enc_id = ?", 'ii', [$userId, $id]);
     $conn->commit();
 
-    enc_json(true, $tipo === 'MANIFIESTO_ENCOMIENDAS' ? 'Manifiesto cargado correctamente.' : 'Guia de transportista cargada correctamente.', ['id' => $id]);
+    $response = ['id' => $id];
+    if ($isMassManifest && $storedDocId > 0) {
+        $response['redirect'] = 'revision_manifiesto.php?documento=' . $storedDocId;
+    }
+    $message = $tipo === 'MANIFIESTO_ENCOMIENDAS'
+        ? ($isMassManifest ? 'Manifiesto masivo cargado correctamente.' : 'Manifiesto cargado correctamente.')
+        : 'Guia de transportista cargada correctamente.';
+    enc_json(true, $message, $response);
 } catch (Throwable $e) {
     $conn->rollback();
     enc_log($e);
