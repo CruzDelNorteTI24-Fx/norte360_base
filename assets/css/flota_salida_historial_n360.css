@@ -1,0 +1,393 @@
+.n360-salprog-history-modal .modal-content {
+    overflow: hidden;
+    border: 0;
+    border-radius: 8px;
+    box-shadow: 0 24px 64px rgba(8, 27, 45, .28);
+}
+
+.n360-salprog-history-modal .modal-body {
+    padding: 18px;
+    background: #f4f7fa;
+}
+
+.n360-salprog-history-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px 22px;
+    color: #fff;
+    background: #14364f;
+}
+
+.n360-salprog-history-head span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #9ed8f5;
+    font-size: .72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-salprog-history-head h2 {
+    margin: 4px 0 0;
+    color: #fff;
+    font-size: 1.35rem;
+    font-weight: 900;
+    letter-spacing: 0;
+}
+
+.n360-salprog-history-head p {
+    margin: 5px 0 0;
+    color: #d7e6f0;
+    font-size: .82rem;
+    font-weight: 800;
+}
+
+.n360-salprog-history-toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(150px, 190px) 120px;
+    align-items: end;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.n360-salprog-history-toolbar label > span,
+.n360-salprog-history-total > span {
+    display: block;
+    margin-bottom: 6px;
+    color: #526982;
+    font-size: .7rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-salprog-history-toolbar input,
+.n360-salprog-history-toolbar select {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 11px;
+    color: #102c44;
+    background: #fff;
+    border: 1px solid #bfd0df;
+    border-radius: 6px;
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 750;
+}
+
+.n360-salprog-history-toolbar input:focus,
+.n360-salprog-history-toolbar select:focus {
+    border-color: #258ed1;
+    box-shadow: 0 0 0 3px rgba(37, 142, 209, .14);
+    outline: 0;
+}
+
+.n360-salprog-history-total {
+    min-height: 42px;
+    padding: 7px 12px;
+    background: #fff;
+    border: 1px solid #bfd0df;
+    border-radius: 6px;
+}
+
+.n360-salprog-history-total > span {
+    margin: 0;
+}
+
+.n360-salprog-history-total strong {
+    display: block;
+    margin-top: 1px;
+    color: #14364f;
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.n360-salprog-history-list {
+    display: grid;
+    gap: 10px;
+}
+
+.n360-salprog-history-item {
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #cedbe6;
+    border-left: 4px solid #258ed1;
+    border-radius: 8px;
+}
+
+.n360-salprog-history-item--insert { border-left-color: #16855f; }
+.n360-salprog-history-item--delete { border-left-color: #c84444; }
+
+.n360-salprog-history-item summary {
+    display: grid;
+    grid-template-columns: 112px minmax(180px, 1.25fr) minmax(170px, .9fr) 40px 18px;
+    align-items: center;
+    gap: 12px;
+    min-height: 68px;
+    padding: 11px 14px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.n360-salprog-history-item summary::-webkit-details-marker {
+    display: none;
+}
+
+.n360-salprog-history-item summary:hover {
+    background: #f8fbfd;
+}
+
+.n360-salprog-history-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 5px 8px;
+    color: #075986;
+    background: #eaf6fd;
+    border: 1px solid #b9dced;
+    border-radius: 6px;
+    font-size: .7rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-salprog-history-item--insert .n360-salprog-history-action {
+    color: #0f6743;
+    background: #e9f7f0;
+    border-color: #b8dfcc;
+}
+
+.n360-salprog-history-item--delete .n360-salprog-history-action {
+    color: #a12727;
+    background: #fff0f0;
+    border-color: #ecc1c1;
+}
+
+.n360-salprog-history-unit,
+.n360-salprog-history-actor {
+    min-width: 0;
+}
+
+.n360-salprog-history-unit strong,
+.n360-salprog-history-actor strong {
+    display: block;
+    overflow: hidden;
+    color: #102c44;
+    font-size: .86rem;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.n360-salprog-history-unit small,
+.n360-salprog-history-actor small {
+    display: block;
+    margin-top: 4px;
+    overflow: hidden;
+    color: #687d90;
+    font-size: .72rem;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.n360-salprog-history-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 28px;
+    color: #fff;
+    background: #526982;
+    border-radius: 6px;
+    font-size: .75rem;
+    font-weight: 900;
+}
+
+.n360-salprog-history-item summary > i {
+    color: #526982;
+    transition: transform .16s ease;
+}
+
+.n360-salprog-history-item[open] summary > i {
+    transform: rotate(180deg);
+}
+
+.n360-salprog-history-body {
+    border-top: 1px solid #dbe5ed;
+}
+
+.n360-salprog-history-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    background: #edf3f7;
+    border-bottom: 1px solid #dbe5ed;
+}
+
+.n360-salprog-history-meta > span {
+    min-width: 0;
+    padding: 10px 14px;
+    border-right: 1px solid #d3dfe8;
+}
+
+.n360-salprog-history-meta > span:last-child {
+    border-right: 0;
+}
+
+.n360-salprog-history-meta small {
+    display: block;
+    color: #687d90;
+    font-size: .66rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-salprog-history-meta strong {
+    display: block;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+    color: #102c44;
+    font-size: .78rem;
+    font-weight: 850;
+}
+
+.n360-salprog-history-change {
+    padding: 13px 14px;
+    border-bottom: 1px solid #e1e9ef;
+}
+
+.n360-salprog-history-change:last-child {
+    border-bottom: 0;
+}
+
+.n360-salprog-history-change h4 {
+    margin: 0 0 8px;
+    color: #102c44;
+    font-size: .78rem;
+    font-weight: 900;
+}
+
+.n360-salprog-history-change > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.n360-salprog-history-change article {
+    min-width: 0;
+}
+
+.n360-salprog-history-change article > span {
+    display: block;
+    margin-bottom: 4px;
+    color: #687d90;
+    font-size: .66rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.n360-salprog-history-change pre {
+    min-height: 42px;
+    max-height: 220px;
+    margin: 0;
+    overflow: auto;
+    padding: 9px 10px;
+    color: #20384e;
+    background: #f6f8fa;
+    border: 1px solid #dce5ec;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: .76rem;
+    font-weight: 750;
+    line-height: 1.4;
+    letter-spacing: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.n360-salprog-history-state {
+    padding: 24px;
+    color: #60758a;
+    background: #fff;
+    border: 1px dashed #b9cada;
+    border-radius: 8px;
+    font-size: .88rem;
+    font-weight: 850;
+    text-align: center;
+}
+
+.n360-salprog-history-state--error {
+    color: #9e2929;
+    background: #fff5f5;
+    border-color: #e2afaf;
+}
+
+@media (max-width: 820px) {
+    .n360-salprog-history-toolbar {
+        grid-template-columns: minmax(0, 1fr) minmax(130px, .65fr);
+    }
+
+    .n360-salprog-history-total {
+        grid-column: 1 / -1;
+    }
+
+    .n360-salprog-history-item summary {
+        grid-template-columns: 96px minmax(0, 1fr) 34px 16px;
+    }
+
+    .n360-salprog-history-actor {
+        grid-column: 2 / 3;
+    }
+
+    .n360-salprog-history-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .n360-salprog-history-meta > span {
+        border-right: 0;
+        border-bottom: 1px solid #d3dfe8;
+    }
+
+    .n360-salprog-history-meta > span:last-child {
+        border-bottom: 0;
+    }
+}
+
+@media (max-width: 560px) {
+    .n360-salprog-history-head {
+        padding: 17px;
+    }
+
+    .n360-salprog-history-head h2 {
+        font-size: 1.12rem;
+    }
+
+    .n360-salprog-history-toolbar,
+    .n360-salprog-history-change > div {
+        grid-template-columns: 1fr;
+    }
+
+    .n360-salprog-history-item summary {
+        grid-template-columns: 1fr 32px 16px;
+        gap: 8px;
+    }
+
+    .n360-salprog-history-action,
+    .n360-salprog-history-unit,
+    .n360-salprog-history-actor {
+        grid-column: 1 / 2;
+    }
+
+    .n360-salprog-history-count {
+        grid-column: 2 / 3;
+        grid-row: 1 / 2;
+    }
+
+    .n360-salprog-history-item summary > i {
+        grid-column: 3 / 4;
+        grid-row: 1 / 2;
+    }
+}

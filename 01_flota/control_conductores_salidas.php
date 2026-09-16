@@ -39,6 +39,23 @@ function fcc_uid(): int {
     return 1;
 }
 
+function fcc_set_salprog_audit_context(mysqli $conn, string $origen): void {
+    $uid = fcc_uid();
+    $usuario = trim((string)($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? ''));
+    $origen = substr(trim($origen), 0, 120);
+
+    $stmt = $conn->prepare(
+        'SET @n360_salprog_usuario_id = ?, @n360_salprog_usuario = ?, @n360_salprog_origen = ?'
+    );
+    if (!$stmt) {
+        return;
+    }
+
+    $stmt->bind_param('iss', $uid, $usuario, $origen);
+    $stmt->execute();
+    $stmt->close();
+}
+
 function fcc_json(bool $ok, array $data = [], string $message = '', int $status = 200): void {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -75,6 +92,51 @@ function fcc_fetch_all(mysqli $conn, string $sql, string $types = '', array $par
     $result = $stmt->get_result();
     $rows = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
     $stmt->close();
+    return $rows;
+}
+
+function fcc_valid_date($value, string $fallback): string {
+    $value = trim((string)$value);
+    $date = DateTime::createFromFormat('Y-m-d', $value);
+    return ($date && $date->format('Y-m-d') === $value) ? $value : $fallback;
+}
+
+function fcc_fetch_salprog_history(mysqli $conn, string $fechaInicio, string $fechaFin): array {
+    $rows = fcc_fetch_all($conn, '
+        SELECT
+            clm_hist_salprog_id AS historial_id,
+            clm_hist_salprog_accion AS accion,
+            clm_hist_salprog_fechaevento AS fecha_evento,
+            clm_salprog_id AS salprog_id,
+            clm_salprog_fecha_operativa AS fecha_operativa,
+            clm_salprog_horasalida AS hora_salida,
+            clm_salprog_idplaca AS idplaca,
+            clm_salprog_bus AS bus,
+            clm_salprog_placa AS placa,
+            clm_salprog_revision_estado AS revision_estado,
+            clm_hist_salprog_usuario_id AS usuario_id,
+            clm_hist_salprog_usuario AS usuario,
+            clm_hist_salprog_db_user AS db_user,
+            clm_hist_salprog_origen AS origen_evento,
+            clm_hist_salprog_campos_modificados AS campos_modificados,
+            clm_hist_salprog_snapshot_old AS snapshot_old,
+            clm_hist_salprog_snapshot_new AS snapshot_new
+        FROM tb_hist_progbuses_salida_consolidado
+        WHERE clm_salprog_fecha_operativa BETWEEN ? AND ?
+        ORDER BY clm_hist_salprog_id DESC
+        LIMIT 300
+    ', 'ss', [$fechaInicio, $fechaFin]);
+
+    foreach ($rows as &$row) {
+        $row['campos_modificados'] = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string)($row['campos_modificados'] ?? ''))
+        )));
+        $row['snapshot_old'] = json_decode((string)($row['snapshot_old'] ?? ''), true) ?: [];
+        $row['snapshot_new'] = json_decode((string)($row['snapshot_new'] ?? ''), true) ?: [];
+    }
+    unset($row);
+
     return $rows;
 }
 
@@ -507,6 +569,7 @@ if (empty($_SESSION['fcc_token'])) {
 $csrfToken = $_SESSION['fcc_token'];
 $isAdmin = n360_is_admin();
 $tableReady = isset($conn) && $conn instanceof mysqli && fcc_table_exists($conn, 'tb_progbuses_salida_consolidado');
+$historyTableReady = isset($conn) && $conn instanceof mysqli && fcc_table_exists($conn, 'tb_hist_progbuses_salida_consolidado');
 $driverColumns = [
     'clm_salprog_estadoidavuelta',
     'clm_salprog_imtotaldelviaje',
@@ -529,17 +592,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$tableReady) {
         fcc_json(false, [], 'La tabla del consolidado todavia no esta disponible.', 500);
     }
-    if (!$driverColumnsReady) {
-        fcc_json(false, [], 'Faltan columnas de ida/vuelta, importe total, comentario, estado, observacion o importe de conductores. Ejecuta la query ALTER.', 500);
-    }
     if (!hash_equals($csrfToken, (string)($_POST['csrf'] ?? ''))) {
         fcc_json(false, [], 'Sesion invalida. Actualiza la pagina.', 419);
     }
 
     $action = (string)($_POST['action'] ?? '');
+
+    if ($action === 'audit_history') {
+        if (!$historyTableReady) {
+            fcc_json(false, [], 'La tabla de historial aun no esta instalada. Ejecuta el script de auditoria.', 409);
+        }
+
+        $defaultHistoryStart = date('Y-m-01');
+        $defaultHistoryEnd = date('Y-m-t');
+        $historyStart = fcc_valid_date($_POST['fecha_inicio'] ?? '', $defaultHistoryStart);
+        $historyEnd = fcc_valid_date($_POST['fecha_fin'] ?? '', $defaultHistoryEnd);
+        if ($historyEnd < $historyStart) {
+            [$historyStart, $historyEnd] = [$historyEnd, $historyStart];
+        }
+
+        try {
+            $historyRows = fcc_fetch_salprog_history($conn, $historyStart, $historyEnd);
+            fcc_json(true, [
+                'rows' => $historyRows,
+                'total' => count($historyRows),
+                'limit' => 300,
+                'fecha_inicio' => $historyStart,
+                'fecha_fin' => $historyEnd,
+            ]);
+        } catch (Throwable $e) {
+            fcc_json(false, [], $e->getMessage(), 500);
+        }
+    }
+
     if (!in_array($action, ['update_driver_status', 'bulk_update_driver_status'], true)) {
         fcc_json(false, [], 'Accion no reconocida.', 400);
     }
+    if (!$driverColumnsReady) {
+        fcc_json(false, [], 'Faltan columnas de ida/vuelta, importe total, comentario, estado, observacion o importe de conductores. Ejecuta la query ALTER.', 500);
+    }
+
+    fcc_set_salprog_audit_context($conn, 'control_conductores_salidas:' . $action);
 
     if ($action === 'bulk_update_driver_status') {
         $items = json_decode((string)($_POST['items'] ?? '[]'), true);
@@ -903,6 +996,7 @@ $monthLabel = fcc_month_label($monthStart);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=comentario-viaje-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -922,6 +1016,7 @@ $monthLabel = fcc_month_label($monthStart);
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-canceled-summary><i class="bi bi-slash-circle"></i> Anulados <span data-fcc-canceled-count><?= number_format($kpis['anulados']) ?></span></button>
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-payments-pdf><i class="bi bi-cash-coin"></i> PDF pagos</button>
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-payments-excel><i class="bi bi-file-earmark-spreadsheet"></i> Excel pagos</button>
+                <button type="button" class="fcc-btn fcc-btn--soft" data-salprog-history-open><i class="bi bi-clock-history"></i> Historial</button>
                 <button type="button" class="fcc-btn fcc-btn--primary" data-fcc-export-all><i class="bi bi-file-earmark-pdf"></i> PDF consolidado</button>
                 <a class="fcc-btn fcc-btn--soft" href="consolidado_salidas_buses.php"><i class="bi bi-arrow-left"></i> Consolidado</a>
             </div>
@@ -1541,6 +1636,48 @@ $monthLabel = fcc_month_label($monthStart);
     </div>
 </div>
 
+<div class="modal fade n360-salprog-history-modal" id="n360SalprogHistoryModal" tabindex="-1" aria-labelledby="n360SalprogHistoryTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+        <div class="modal-content">
+            <div class="n360-salprog-history-head">
+                <div>
+                    <span><i class="bi bi-clock-history"></i> Auditoria operativa</span>
+                    <h2 id="n360SalprogHistoryTitle">Historial de cambios</h2>
+                    <p data-salprog-history-period><?= fcc_h($monthLabel) ?></p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="n360-salprog-history-toolbar">
+                    <label>
+                        <span>Buscar</span>
+                        <input type="search" placeholder="Placa, bus, usuario o campo" data-salprog-history-search>
+                    </label>
+                    <label>
+                        <span>Accion</span>
+                        <select data-salprog-history-action>
+                            <option value="TODOS">Todas</option>
+                            <option value="INSERT">Creaciones</option>
+                            <option value="UPDATE">Actualizaciones</option>
+                            <option value="DELETE">Eliminaciones</option>
+                        </select>
+                    </label>
+                    <div class="n360-salprog-history-total">
+                        <span>Movimientos</span>
+                        <strong data-salprog-history-total>0</strong>
+                    </div>
+                </div>
+                <div class="n360-salprog-history-list" data-salprog-history-list>
+                    <div class="n360-salprog-history-state">Cargando historial...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="fcc-btn fcc-btn--soft" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 window.N360_FCC = {
     csrf: <?= json_encode($csrfToken) ?>,
@@ -1559,6 +1696,13 @@ window.N360_FCC = {
         fileBase: <?= json_encode('control_conductores_' . str_replace('-', '', $month)) ?>
     }
 };
+window.N360_SALPROG_HISTORY = {
+    endpoint: 'control_conductores_salidas.php',
+    csrf: <?= json_encode($csrfToken) ?>,
+    fechaInicio: <?= json_encode($monthStart) ?>,
+    fechaFin: <?= json_encode($monthEnd) ?>,
+    ready: <?= $historyTableReady ? 'true' : 'false' ?>
+};
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1568,6 +1712,7 @@ window.N360_FCC = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=split-viaje-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>
