@@ -238,7 +238,11 @@ foreach ($permisos as $index => $modulo) {
         if ($vista == 'c-lalu') {
             header('Location: ../01_amantenimiento/lista_cheklist.php');
             exit();
-        }      
+        }
+        if ($vista == 'check-datafecha') {
+            header('Location: ../01_amantenimiento/checklist_datafecha.php');
+            exit();
+        }
     } elseif ($modulo == 4) {
         header('Location: ../24_peajes/index.php');
         exit();        

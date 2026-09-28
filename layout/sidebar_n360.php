@@ -318,6 +318,13 @@ function n360_menu_config(): array {
                                 'modulo' => 5
                             ],
                             [
+                                'titulo' => 'Fechas de checklist',
+                                'icono' => 'bi bi-calendar2-event-fill',
+                                'url' => '01_amantenimiento/checklist_datafecha.php',
+                                'vistas' => ['check-datafecha'],
+                                'modulo' => 5
+                            ],
+                            [
                                 'titulo' => 'Reportes por unidad',
                                 'icono' => 'bi bi-file-earmark-pdf-fill',
                                 'url' => '01_amantenimiento/checklist_reportes.php',
