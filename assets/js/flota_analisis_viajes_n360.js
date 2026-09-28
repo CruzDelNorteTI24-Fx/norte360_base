@@ -2,6 +2,8 @@
   const rows = Array.from(document.querySelectorAll('[data-fav-row]'));
   const textFilter = document.querySelector('[data-fav-filter-text]');
   const selects = Array.from(document.querySelectorAll('[data-fav-filter]'));
+  const multiPickers = Array.from(document.querySelectorAll('[data-fav-multi]'));
+  const buttonFilters = Array.from(document.querySelectorAll('[data-fav-button-filter]'));
   const clearFilters = document.querySelector('[data-fav-clear-filters]');
   const visibleLabel = document.querySelector('[data-fav-visible-label]');
   const busSearch = document.querySelector('[data-fav-bus-search]');
@@ -15,6 +17,7 @@
   const visualTotal = document.querySelector('[data-fav-visual-total]');
   const topUnits = document.querySelector('[data-fav-top-units]');
   const moneyBars = document.querySelector('[data-fav-money-bars]');
+  const dailyTable = document.querySelector('[data-fav-daily-table]');
   const charts = {
     daily: document.querySelector('[data-fav-chart="daily"]'),
     states: document.querySelector('[data-fav-chart="states"]'),
@@ -82,6 +85,49 @@
     select.value = Array.from(select.options).some(option => option.value === current) ? current : '';
   }
 
+  function hydrateMulti(name, values) {
+    const picker = document.querySelector(`[data-fav-multi="${name}"]`);
+    const list = picker?.querySelector('[data-fav-multi-list]');
+    if (!picker || !list) return;
+    const checked = new Set(Array.from(list.querySelectorAll('input:checked')).map(input => input.value));
+    const options = uniqueSorted(values);
+    list.innerHTML = options.length
+      ? options.map(value => `<label class="fav-multi-option" data-fav-multi-option>
+          <input type="checkbox" value="${escapeAttr(value)}"${checked.has(value) ? ' checked' : ''}>
+          <span>${escapeHtml(value)}</span>
+        </label>`).join('')
+      : '<span class="fav-multi-empty">Sin opciones disponibles</span>';
+    syncMultiPicker(picker);
+  }
+
+  function selectedMultiValues(name) {
+    const picker = document.querySelector(`[data-fav-multi="${name}"]`);
+    return new Set(Array.from(picker?.querySelectorAll('input[type="checkbox"]:checked') || [])
+      .map(input => input.value));
+  }
+
+  function syncMultiPicker(picker) {
+    if (!picker) return;
+    const checked = Array.from(picker.querySelectorAll('input[type="checkbox"]:checked'));
+    const count = picker.querySelector('[data-fav-multi-count]');
+    if (count) {
+      count.textContent = checked.length === 0
+        ? 'Todos'
+        : checked.length === 1
+          ? checked[0].value
+          : `${checked.length} seleccionados`;
+    }
+    picker.classList.toggle('has-value', checked.length > 0);
+  }
+
+  function filterMultiOptions(picker) {
+    if (!picker) return;
+    const query = normalize(picker.querySelector('[data-fav-multi-search]')?.value || '');
+    picker.querySelectorAll('[data-fav-multi-option]').forEach(option => {
+      option.classList.toggle('is-hidden', query !== '' && !normalize(option.textContent).includes(query));
+    });
+  }
+
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, char => ({
       '&': '&amp;',
@@ -100,6 +146,12 @@
     const parts = String(value || '').split('-');
     if (parts.length !== 3) return value || '-';
     return `${parts[2]}/${parts[1]}`;
+  }
+
+  function fullDateLabel(value) {
+    const parts = String(value || '').split('-');
+    if (parts.length !== 3) return value || '-';
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
 
   function textEllipsis(ctx, text, maxWidth) {
@@ -206,6 +258,41 @@
         ctx.fillText(labelDate(item.label), x + barW / 2, height - 12);
       }
     });
+  }
+
+  function renderDailyTable(rowsVisible) {
+    if (!dailyTable) return;
+    const entries = countBy(rowsVisible, row => row.dataset.favFecha)
+      .sort((a, b) => a.label.localeCompare(b.label));
+    if (!entries.length) {
+      dailyTable.innerHTML = '<div class="fav-visual-empty">Sin datos visibles</div>';
+      return;
+    }
+
+    const total = rowsVisible.length;
+    const max = Math.max(...entries.map(item => item.value), 1);
+    const topLabels = new Set([...entries]
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+      .slice(0, 3)
+      .map(item => item.label));
+
+    dailyTable.innerHTML = `<div class="fav-daily-table__scroll">
+      <table>
+        <thead><tr><th>Fecha</th><th>Viajes</th><th>% del total</th></tr></thead>
+        <tbody>${entries.map(item => {
+          const percentage = total > 0 ? item.value * 100 / total : 0;
+          const barWidth = Math.max(3, Math.round(item.value * 100 / max));
+          const rowClass = item.value === max ? 'is-peak' : (topLabels.has(item.label) ? 'is-high' : '');
+          return `<tr class="${rowClass}">
+            <td><strong>${escapeHtml(fullDateLabel(item.label))}</strong></td>
+            <td><b>${item.value.toLocaleString('es-PE')}</b></td>
+            <td>
+              <div class="fav-daily-share"><span>${percentage.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span><i><b style="width:${barWidth}%"></b></i></div>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
   }
 
   function renderLegend(container, entries, colors, filterType) {
@@ -335,6 +422,7 @@
     const states = countBy(visibleRows, row => row.dataset.favEstado || 'PENDIENTE');
     const directions = countBy(visibleRows, row => row.dataset.favIda || 'PENDIENTE');
     drawDailyChart(visibleRows);
+    renderDailyTable(visibleRows);
     drawDonut(charts.states, states, stateColors, 'viajes');
     drawDonut(charts.directions, directions, directionColors, 'viajes');
     drawRoutesChart(visibleRows);
@@ -345,11 +433,12 @@
   }
 
   function hydrateFilters() {
-    fillSelect('estado', rows.map(row => row.dataset.favEstado || 'PENDIENTE'));
     fillSelect('ida', rows.map(row => row.dataset.favIda || 'PENDIENTE'));
-    fillSelect('origen', rows.map(row => row.dataset.favOrigen || ''));
-    fillSelect('destino', rows.map(row => row.dataset.favDestino || ''));
-    fillSelect('conductor', rows.flatMap(drivers));
+    hydrateMulti('estado', rows.map(row => row.dataset.favEstado || 'PENDIENTE'));
+    hydrateMulti('origen', rows.map(row => row.dataset.favOrigen || ''));
+    hydrateMulti('destino', rows.map(row => row.dataset.favDestino || ''));
+    hydrateMulti('conductor', rows.flatMap(drivers));
+    hydrateMulti('hoja-ruta', rows.map(row => row.dataset.favHojaRuta || ''));
   }
 
   function paymentState(row) {
@@ -364,27 +453,39 @@
     return states.every(state => state === 'PAGADO') ? 'ok' : 'pendiente';
   }
 
-  function matches(row) {
-    const query = normalize(textFilter?.value || '');
-    if (query && !normalize(row.dataset.favSearch || '').includes(query)) return false;
+  function buttonFilterValue(name) {
+    const group = document.querySelector(`[data-fav-button-filter="${name}"]`);
+    return group?.querySelector('[data-fav-button-value].is-active')?.dataset.favButtonValue || '';
+  }
 
-    for (const select of selects) {
-      const value = select.value;
-      if (!value) continue;
-      const type = select.dataset.favFilter;
+  function currentFilters() {
+    return {
+      query: normalize(textFilter?.value || ''),
+      selects: Object.fromEntries(selects.map(select => [select.dataset.favFilter, select.value])),
+      estados: selectedMultiValues('estado'),
+      origenes: selectedMultiValues('origen'),
+      destinos: selectedMultiValues('destino'),
+      conductores: selectedMultiValues('conductor'),
+      hojasRuta: selectedMultiValues('hoja-ruta'),
+      hoja: buttonFilterValue('hoja'),
+      balance: buttonFilterValue('balance'),
+      pagos: buttonFilterValue('pagos')
+    };
+  }
 
-      if (type === 'estado' && (row.dataset.favEstado || '') !== value) return false;
-      if (type === 'ida' && (row.dataset.favIda || '') !== value) return false;
-      if (type === 'origen' && (row.dataset.favOrigen || '') !== value) return false;
-      if (type === 'destino' && (row.dataset.favDestino || '') !== value) return false;
-      if (type === 'conductor' && !drivers(row).includes(value)) return false;
-      if (type === 'hoja' && value === 'con' && row.dataset.favHoja !== '1') return false;
-      if (type === 'hoja' && value === 'sin' && row.dataset.favHoja === '1') return false;
-      if (type === 'balance' && value === 'ok' && Math.abs(money(row.dataset.favDiferencia)) > 0.009) return false;
-      if (type === 'balance' && value === 'diff' && Math.abs(money(row.dataset.favDiferencia)) <= 0.009) return false;
-      if (type === 'pagos' && paymentState(row) !== value) return false;
-    }
-
+  function matches(row, filters) {
+    if (filters.query && !normalize(row.dataset.favSearch || '').includes(filters.query)) return false;
+    if (filters.selects.ida && (row.dataset.favIda || '') !== filters.selects.ida) return false;
+    if (filters.estados.size && !filters.estados.has(row.dataset.favEstado || '')) return false;
+    if (filters.origenes.size && !filters.origenes.has(row.dataset.favOrigen || '')) return false;
+    if (filters.destinos.size && !filters.destinos.has(row.dataset.favDestino || '')) return false;
+    if (filters.conductores.size && !drivers(row).some(driver => filters.conductores.has(driver))) return false;
+    if (filters.hojasRuta.size && !filters.hojasRuta.has(row.dataset.favHojaRuta || '')) return false;
+    if (filters.hoja === 'con' && row.dataset.favHoja !== '1') return false;
+    if (filters.hoja === 'sin' && row.dataset.favHoja === '1') return false;
+    if (filters.balance === 'ok' && Math.abs(money(row.dataset.favDiferencia)) > 0.009) return false;
+    if (filters.balance === 'diff' && Math.abs(money(row.dataset.favDiferencia)) <= 0.009) return false;
+    if (filters.pagos && paymentState(row) !== filters.pagos) return false;
     return true;
   }
 
@@ -424,8 +525,9 @@
 
   function applyFilters() {
     const visibleRows = [];
+    const filters = currentFilters();
     rows.forEach(row => {
-      const ok = matches(row);
+      const ok = matches(row, filters);
       row.hidden = !ok;
       if (ok) visibleRows.push(row);
     });
@@ -444,6 +546,34 @@
     busPicker.classList.toggle('is-open', open);
     busToggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) setTimeout(() => busSearch?.focus(), 50);
+  }
+
+  function closeMultiPickers(except = null) {
+    multiPickers.forEach(picker => {
+      if (picker === except) return;
+      picker.classList.remove('is-open');
+      picker.querySelector('[data-fav-multi-toggle]')?.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function toggleMultiPicker(picker) {
+    if (!picker) return;
+    const open = !picker.classList.contains('is-open');
+    closeMultiPickers(picker);
+    closeBusPicker();
+    picker.classList.toggle('is-open', open);
+    picker.querySelector('[data-fav-multi-toggle]')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) setTimeout(() => picker.querySelector('[data-fav-multi-search]')?.focus(), 50);
+  }
+
+  function activateButtonFilter(button) {
+    const group = button?.closest('[data-fav-button-filter]');
+    if (!group || !button) return;
+    group.querySelectorAll('[data-fav-button-value]').forEach(option => {
+      const active = option === button;
+      option.classList.toggle('is-active', active);
+      option.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
   }
 
   function toggleFilterBody() {
@@ -468,6 +598,10 @@
   }
 
   hydrateFilters();
+  buttonFilters.forEach(group => {
+    const active = group.querySelector('[data-fav-button-value].is-active') || group.querySelector('[data-fav-button-value]');
+    if (active) activateButtonFilter(active);
+  });
   applyFilters();
   syncBusCount();
 
@@ -475,9 +609,37 @@
   selects.forEach(select => select.addEventListener('change', applyFilters));
   busToggle?.addEventListener('click', toggleBusPicker);
   filterToggle?.addEventListener('click', toggleFilterBody);
+  multiPickers.forEach(picker => {
+    picker.querySelector('[data-fav-multi-toggle]')?.addEventListener('click', () => toggleMultiPicker(picker));
+    picker.querySelector('[data-fav-multi-search]')?.addEventListener('input', () => filterMultiOptions(picker));
+    picker.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.addEventListener('change', () => {
+        syncMultiPicker(picker);
+        applyFilters();
+      });
+    });
+  });
+  document.querySelectorAll('[data-fav-button-value]').forEach(button => {
+    button.addEventListener('click', () => {
+      activateButtonFilter(button);
+      applyFilters();
+    });
+  });
   clearFilters?.addEventListener('click', () => {
     if (textFilter) textFilter.value = '';
     selects.forEach(select => { select.value = ''; });
+    multiPickers.forEach(picker => {
+      picker.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
+      const search = picker.querySelector('[data-fav-multi-search]');
+      if (search) search.value = '';
+      filterMultiOptions(picker);
+      syncMultiPicker(picker);
+    });
+    buttonFilters.forEach(group => {
+      const allButton = Array.from(group.querySelectorAll('[data-fav-button-value]'))
+        .find(button => button.dataset.favButtonValue === '');
+      if (allButton) activateButtonFilter(allButton);
+    });
     applyFilters();
   });
 
@@ -496,6 +658,16 @@
     if (!legendButton) return;
     const type = legendButton.dataset.favLegendFilter || '';
     const value = legendButton.dataset.favLegendValue || '';
+    const picker = document.querySelector(`[data-fav-multi="${type}"]`);
+    if (picker) {
+      const checkbox = Array.from(picker.querySelectorAll('input[type="checkbox"]'))
+        .find(input => input.value === value);
+      if (!checkbox) return;
+      checkbox.checked = !checkbox.checked;
+      syncMultiPicker(picker);
+      applyFilters();
+      return;
+    }
     const select = document.querySelector(`[data-fav-filter="${type}"]`);
     if (!select) return;
     select.value = select.value === value ? '' : value;
@@ -503,9 +675,13 @@
   });
   document.addEventListener('click', event => {
     if (busPicker && !busPicker.contains(event.target)) closeBusPicker();
+    if (!event.target.closest('[data-fav-multi]')) closeMultiPickers();
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') closeBusPicker();
+    if (event.key === 'Escape') {
+      closeBusPicker();
+      closeMultiPickers();
+    }
   });
   window.addEventListener('resize', () => {
     window.clearTimeout(window.__favResizeTimer);

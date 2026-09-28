@@ -395,54 +395,106 @@ $selectedLabel = $selectedUnitIds ? count($selectedUnitIds) . ' unidad(es)' : 'T
                 </div>
             </div>
             <div class="fav-filter-grid" data-fav-filter-body>
-                <label class="fav-field fav-field--wide">
+                <label class="fav-field fav-filter-search">
                     <span>Buscar en pantalla</span>
                     <input type="search" data-fav-filter-text placeholder="Bus, ruta, conductor, hoja de ruta, comentario...">
                 </label>
-                <label class="fav-field">
-                    <span>Revision</span>
-                    <select data-fav-filter="estado"><option value="">Todos</option></select>
-                </label>
-                <label class="fav-field">
-                    <span>Ida / retorno</span>
-                    <select data-fav-filter="ida"><option value="">Todos</option></select>
-                </label>
-                <label class="fav-field">
-                    <span>Origen</span>
-                    <select data-fav-filter="origen"><option value="">Todos</option></select>
-                </label>
-                <label class="fav-field">
-                    <span>Destino</span>
-                    <select data-fav-filter="destino"><option value="">Todos</option></select>
-                </label>
-                <label class="fav-field">
-                    <span>Conductor</span>
-                    <select data-fav-filter="conductor"><option value="">Todos</option></select>
-                </label>
-                <label class="fav-field">
-                    <span>Hoja de ruta</span>
-                    <select data-fav-filter="hoja">
-                        <option value="">Todos</option>
-                        <option value="con">Con hoja</option>
-                        <option value="sin">Sin hoja</option>
-                    </select>
-                </label>
-                <label class="fav-field">
-                    <span>Importes</span>
-                    <select data-fav-filter="balance">
-                        <option value="">Todos</option>
-                        <option value="ok">Cuadrados</option>
-                        <option value="diff">Con diferencia</option>
-                    </select>
-                </label>
-                <label class="fav-field">
-                    <span>Pagos</span>
-                    <select data-fav-filter="pagos">
-                        <option value="">Todos</option>
-                        <option value="ok">Conductores OK</option>
-                        <option value="pendiente">Con pendiente</option>
-                    </select>
-                </label>
+
+                <section class="fav-filter-group">
+                    <div class="fav-filter-group__title">
+                        <i class="bi bi-signpost-split"></i>
+                        <div><span>Ruta</span><strong>Origen y destino</strong></div>
+                    </div>
+                    <div class="fav-filter-group__body fav-filter-group__body--route">
+                        <div class="fav-field fav-multi-picker" data-fav-multi="origen">
+                            <span>Origen</span>
+                            <button type="button" class="fav-multi-trigger" data-fav-multi-toggle aria-expanded="false">
+                                <strong data-fav-multi-count>Todos</strong><i class="bi bi-chevron-down"></i>
+                            </button>
+                            <div class="fav-multi-box"><div class="fav-multi-list" data-fav-multi-list></div></div>
+                        </div>
+                        <div class="fav-field fav-multi-picker" data-fav-multi="destino">
+                            <span>Destino</span>
+                            <button type="button" class="fav-multi-trigger" data-fav-multi-toggle aria-expanded="false">
+                                <strong data-fav-multi-count>Todos</strong><i class="bi bi-chevron-down"></i>
+                            </button>
+                            <div class="fav-multi-box"><div class="fav-multi-list" data-fav-multi-list></div></div>
+                        </div>
+                        <label class="fav-field">
+                            <span>Ida / retorno</span>
+                            <select data-fav-filter="ida"><option value="">Todos</option></select>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="fav-filter-group">
+                    <div class="fav-filter-group__title">
+                        <i class="bi bi-sliders"></i>
+                        <div><span>Control</span><strong>Revision y estados</strong></div>
+                    </div>
+                    <div class="fav-filter-group__body fav-filter-group__body--control">
+                        <div class="fav-field fav-multi-picker" data-fav-multi="estado">
+                            <span>Revision</span>
+                            <button type="button" class="fav-multi-trigger" data-fav-multi-toggle aria-expanded="false">
+                                <strong data-fav-multi-count>Todos</strong><i class="bi bi-chevron-down"></i>
+                            </button>
+                            <div class="fav-multi-box"><div class="fav-multi-list" data-fav-multi-list></div></div>
+                        </div>
+                        <div class="fav-field">
+                            <span>Hojas de ruta</span>
+                            <div class="fav-filter-buttons" data-fav-button-filter="hoja">
+                                <button type="button" class="is-active" data-fav-button-value="">Todos</button>
+                                <button type="button" data-fav-button-value="con"><i class="bi bi-file-earmark-check"></i> Con</button>
+                                <button type="button" data-fav-button-value="sin"><i class="bi bi-file-earmark-x"></i> Sin</button>
+                            </div>
+                        </div>
+                        <div class="fav-field">
+                            <span>Importes</span>
+                            <div class="fav-filter-buttons" data-fav-button-filter="balance">
+                                <button type="button" class="is-active" data-fav-button-value="">Todos</button>
+                                <button type="button" data-fav-button-value="ok"><i class="bi bi-check-circle"></i> Cuadrados</button>
+                                <button type="button" data-fav-button-value="diff"><i class="bi bi-exclamation-circle"></i> Diferencia</button>
+                            </div>
+                        </div>
+                        <div class="fav-field">
+                            <span>Pagos</span>
+                            <div class="fav-filter-buttons" data-fav-button-filter="pagos">
+                                <button type="button" class="is-active" data-fav-button-value="">Todos</button>
+                                <button type="button" data-fav-button-value="ok"><i class="bi bi-check-circle"></i> Pagados</button>
+                                <button type="button" data-fav-button-value="pendiente"><i class="bi bi-clock"></i> Pendientes</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="fav-filter-group">
+                    <div class="fav-filter-group__title">
+                        <i class="bi bi-person-vcard"></i>
+                        <div><span>Personas y documentos</span><strong>Busqueda multiple</strong></div>
+                    </div>
+                    <div class="fav-filter-group__body fav-filter-group__body--people">
+                        <div class="fav-field fav-multi-picker" data-fav-multi="conductor">
+                            <span>Conductor</span>
+                            <button type="button" class="fav-multi-trigger" data-fav-multi-toggle aria-expanded="false">
+                                <strong data-fav-multi-count>Todos</strong><i class="bi bi-chevron-down"></i>
+                            </button>
+                            <div class="fav-multi-box">
+                                <input type="search" class="fav-multi-search" data-fav-multi-search placeholder="Buscar conductor...">
+                                <div class="fav-multi-list" data-fav-multi-list></div>
+                            </div>
+                        </div>
+                        <div class="fav-field fav-multi-picker" data-fav-multi="hoja-ruta">
+                            <span>Numero de hoja de ruta</span>
+                            <button type="button" class="fav-multi-trigger" data-fav-multi-toggle aria-expanded="false">
+                                <strong data-fav-multi-count>Todos</strong><i class="bi bi-chevron-down"></i>
+                            </button>
+                            <div class="fav-multi-box fav-multi-box--right">
+                                <input type="search" class="fav-multi-search" data-fav-multi-search placeholder="Buscar hoja de ruta...">
+                                <div class="fav-multi-list" data-fav-multi-list></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </section>
 
@@ -468,6 +520,14 @@ $selectedLabel = $selectedUnitIds ? count($selectedUnitIds) . ' unidad(es)' : 'T
                     <div class="fav-canvas-wrap">
                         <canvas data-fav-chart="daily"></canvas>
                     </div>
+                </article>
+
+                <article class="fav-chart-card fav-chart-card--daily-table">
+                    <div class="fav-chart-title">
+                        <span>Distribucion diaria</span>
+                        <strong>Cantidad y porcentaje</strong>
+                    </div>
+                    <div class="fav-daily-table" data-fav-daily-table></div>
                 </article>
 
                 <article class="fav-chart-card">
@@ -613,6 +673,7 @@ $selectedLabel = $selectedUnitIds ? count($selectedUnitIds) . ' unidad(es)' : 'T
                             data-fav-ida="<?= fav_h($idaVuelta) ?>"
                             data-fav-conductores="<?= fav_h($driverFilter) ?>"
                             data-fav-hoja="<?= $hojaRuta !== '' ? '1' : '0' ?>"
+                            data-fav-hoja-ruta="<?= fav_h($hojaRuta) ?>"
                             data-fav-total="<?= fav_h((string)$totalViaje) ?>"
                             data-fav-cond-total="<?= fav_h((string)$totalConductores) ?>"
                             data-fav-diferencia="<?= fav_h((string)$diferencia) ?>"
