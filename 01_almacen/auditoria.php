@@ -238,6 +238,101 @@ function aud_parse_content($json): array {
     return $data;
 }
 
+function aud_history_table_exists(mysqli $conn): bool {
+    static $exists = null;
+    if ($exists !== null) return $exists;
+
+    $row = aud_fetch_one($conn, "
+        SELECT 1 AS found
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'tb_hist_auditoria_alm'
+        LIMIT 1
+    ");
+    $exists = !empty($row);
+    return $exists;
+}
+
+function aud_user_label(): string {
+    foreach (['nombre', 'usuario', 'web_usuario'] as $key) {
+        $value = trim((string)($_SESSION[$key] ?? ''));
+        if ($value !== '') return $value;
+    }
+    return 'Usuario web';
+}
+
+function aud_history_summary(string $contenido): array {
+    $data = aud_parse_content($contenido);
+    return aud_summary_from_items($data['items'] ?? []);
+}
+
+function aud_insert_progress_history(
+    mysqli $conn,
+    int $auditId,
+    int $version,
+    string $type,
+    string $contenido
+): void {
+    $summary = aud_history_summary($contenido);
+    $userId = aud_user_id();
+    $userLabel = aud_user_label();
+    $hash = hash('sha256', $contenido);
+
+    $inserted = aud_exec($conn, "
+        INSERT INTO tb_hist_auditoria_alm (
+            clm_aud_alm_id,
+            clm_hist_aud_alm_version,
+            clm_hist_aud_alm_tipo,
+            clm_hist_aud_alm_fecha,
+            clm_hist_aud_alm_idusuario,
+            clm_hist_aud_alm_usuario,
+            clm_hist_aud_alm_total,
+            clm_hist_aud_alm_contados,
+            clm_hist_aud_alm_conformes,
+            clm_hist_aud_alm_pendientes,
+            clm_hist_aud_alm_diferencias,
+            clm_hist_aud_alm_contenido,
+            clm_hist_aud_alm_sha256
+        ) VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ", 'iisisiiiiiss', [
+        $auditId,
+        $version,
+        strtoupper($type),
+        $userId,
+        $userLabel,
+        (int)($summary['total'] ?? 0),
+        (int)($summary['contados'] ?? 0),
+        (int)($summary['conformes'] ?? 0),
+        (int)($summary['pendientes'] ?? 0),
+        (int)($summary['diferencias'] ?? 0),
+        $contenido,
+        $hash,
+    ]);
+
+    if ($inserted !== 1) {
+        throw new RuntimeException('No se pudo registrar la version del progreso.');
+    }
+}
+
+function aud_history_payload(array $row): array {
+    return [
+        'id' => (int)($row['clm_hist_aud_alm_id'] ?? 0),
+        'auditoria_id' => (int)($row['clm_aud_alm_id'] ?? 0),
+        'version' => (int)($row['clm_hist_aud_alm_version'] ?? 0),
+        'tipo' => (string)($row['clm_hist_aud_alm_tipo'] ?? 'PROGRESO'),
+        'fecha' => (string)($row['clm_hist_aud_alm_fecha'] ?? ''),
+        'fecha_txt' => aud_fmt_dt($row['clm_hist_aud_alm_fecha'] ?? ''),
+        'usuario' => (string)($row['clm_hist_aud_alm_usuario'] ?? ''),
+        'total' => (int)($row['clm_hist_aud_alm_total'] ?? 0),
+        'contados' => (int)($row['clm_hist_aud_alm_contados'] ?? 0),
+        'conformes' => (int)($row['clm_hist_aud_alm_conformes'] ?? 0),
+        'pendientes' => (int)($row['clm_hist_aud_alm_pendientes'] ?? 0),
+        'diferencias' => (int)($row['clm_hist_aud_alm_diferencias'] ?? 0),
+        'bytes' => (int)($row['contenido_bytes'] ?? 0),
+        'sha256' => (string)($row['clm_hist_aud_alm_sha256'] ?? ''),
+    ];
+}
+
 function aud_fetch_inventory(mysqli $conn): array {
     $rows = aud_fetch_all($conn, "
         SELECT ID, CODIPRODUCTO, Producto, Unidad, Categoria, Stock_Actual
@@ -463,28 +558,140 @@ try {
             aud_json(['ok' => true, 'audit' => aud_status_payload($audit), 'contenido' => $data]);
         }
 
+        if ($action === 'progress_history') {
+            $id = (int)($_GET['id'] ?? 0);
+            if ($id <= 0) aud_json(['ok' => false, 'message' => 'Auditoria invalida.'], 422);
+            if (!aud_history_table_exists($conn)) {
+                aud_json(['ok' => true, 'installed' => false, 'rows' => []]);
+            }
+
+            $rows = aud_fetch_all($conn, "
+                SELECT
+                    clm_hist_aud_alm_id,
+                    clm_aud_alm_id,
+                    clm_hist_aud_alm_version,
+                    clm_hist_aud_alm_tipo,
+                    clm_hist_aud_alm_fecha,
+                    clm_hist_aud_alm_usuario,
+                    clm_hist_aud_alm_total,
+                    clm_hist_aud_alm_contados,
+                    clm_hist_aud_alm_conformes,
+                    clm_hist_aud_alm_pendientes,
+                    clm_hist_aud_alm_diferencias,
+                    OCTET_LENGTH(clm_hist_aud_alm_contenido) AS contenido_bytes,
+                    clm_hist_aud_alm_sha256
+                FROM tb_hist_auditoria_alm
+                WHERE clm_aud_alm_id = ?
+                ORDER BY clm_hist_aud_alm_version DESC, clm_hist_aud_alm_id DESC
+            ", 'i', [$id]);
+
+            aud_json([
+                'ok' => true,
+                'installed' => true,
+                'rows' => array_map('aud_history_payload', $rows),
+            ]);
+        }
+
+        if ($action === 'progress_snapshot') {
+            $auditId = (int)($_GET['id'] ?? 0);
+            $historyId = (int)($_GET['history_id'] ?? 0);
+            if ($auditId <= 0 || $historyId <= 0) {
+                aud_json(['ok' => false, 'message' => 'Version de auditoria invalida.'], 422);
+            }
+            if (!aud_history_table_exists($conn)) {
+                aud_json(['ok' => false, 'message' => 'La tabla de historial de auditorias aun no esta instalada.'], 409);
+            }
+
+            $row = aud_fetch_one($conn, "
+                SELECT
+                    clm_hist_aud_alm_id,
+                    clm_aud_alm_id,
+                    clm_hist_aud_alm_version,
+                    clm_hist_aud_alm_tipo,
+                    clm_hist_aud_alm_fecha,
+                    clm_hist_aud_alm_usuario,
+                    clm_hist_aud_alm_total,
+                    clm_hist_aud_alm_contados,
+                    clm_hist_aud_alm_conformes,
+                    clm_hist_aud_alm_pendientes,
+                    clm_hist_aud_alm_diferencias,
+                    OCTET_LENGTH(clm_hist_aud_alm_contenido) AS contenido_bytes,
+                    clm_hist_aud_alm_sha256,
+                    clm_hist_aud_alm_contenido
+                FROM tb_hist_auditoria_alm
+                WHERE clm_hist_aud_alm_id = ? AND clm_aud_alm_id = ?
+                LIMIT 1
+            ", 'ii', [$historyId, $auditId]);
+
+            if (!$row) aud_json(['ok' => false, 'message' => 'Version de progreso no encontrada.'], 404);
+            aud_json([
+                'ok' => true,
+                'entry' => aud_history_payload($row),
+                'contenido' => aud_parse_content($row['clm_hist_aud_alm_contenido'] ?? ''),
+            ]);
+        }
+
         if ($action === 'save_progress') {
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') aud_json(['ok' => false, 'message' => 'Metodo no permitido.'], 405);
 
             $id = (int)($_POST['auditoria_id'] ?? 0);
             $contenido = trim((string)($_POST['contenido'] ?? ''));
-            $audit = aud_get_audit($conn, $id, false);
-
-            if (!$audit) aud_json(['ok' => false, 'message' => 'Auditoria no encontrada.'], 404);
-            if ((int)$audit['clm_aud_alm_estado'] !== 1) aud_json(['ok' => false, 'message' => 'Solo se puede guardar progreso en una auditoria pendiente.'], 409);
             if ($contenido === '' || !is_array(json_decode($contenido, true))) aud_json(['ok' => false, 'message' => 'Contenido de auditoria invalido.'], 422);
+            if (!aud_history_table_exists($conn)) {
+                aud_json(['ok' => false, 'message' => 'Instala la tabla tb_hist_auditoria_alm antes de guardar progreso.'], 409);
+            }
 
-            $stmt = $conn->prepare("
-                UPDATE tb_auditoria_alm
-                SET clm_aud_alm_contenido = ?
-                WHERE clm_aud_alm_id = ? AND clm_aud_alm_estado = 1
-            ");
-            if (!$stmt) throw new RuntimeException($conn->error);
-            $stmt->bind_param('si', $contenido, $id);
-            $stmt->execute();
-            $stmt->close();
+            $conn->begin_transaction();
+            try {
+                $audit = aud_fetch_one($conn, "
+                    SELECT clm_aud_alm_id, clm_aud_alm_estado, clm_aud_alm_contenido
+                    FROM tb_auditoria_alm
+                    WHERE clm_aud_alm_id = ?
+                    LIMIT 1
+                    FOR UPDATE
+                ", 'i', [$id]);
 
-            aud_json(['ok' => true, 'message' => 'Progreso guardado. Puedes continuar esta auditoria luego.']);
+                if (!$audit) {
+                    $conn->rollback();
+                    aud_json(['ok' => false, 'message' => 'Auditoria no encontrada.'], 404);
+                }
+                if ((int)$audit['clm_aud_alm_estado'] !== 1) {
+                    $conn->rollback();
+                    aud_json(['ok' => false, 'message' => 'Solo se puede guardar progreso en una auditoria pendiente.'], 409);
+                }
+
+                $last = aud_fetch_one($conn, "
+                    SELECT COALESCE(MAX(clm_hist_aud_alm_version), 0) AS ultima_version
+                    FROM tb_hist_auditoria_alm
+                    WHERE clm_aud_alm_id = ?
+                ", 'i', [$id]);
+                $version = (int)($last['ultima_version'] ?? 0);
+                $previousContent = trim((string)($audit['clm_aud_alm_contenido'] ?? ''));
+
+                if ($version === 0 && $previousContent !== '' && is_array(json_decode($previousContent, true))) {
+                    $version++;
+                    aud_insert_progress_history($conn, $id, $version, 'BASE', $previousContent);
+                }
+
+                $version++;
+                aud_insert_progress_history($conn, $id, $version, 'PROGRESO', $contenido);
+                aud_exec($conn, "
+                    UPDATE tb_auditoria_alm
+                    SET clm_aud_alm_contenido = ?
+                    WHERE clm_aud_alm_id = ? AND clm_aud_alm_estado = 1
+                ", 'si', [$contenido, $id]);
+
+                $conn->commit();
+            } catch (Throwable $historyError) {
+                $conn->rollback();
+                throw $historyError;
+            }
+
+            aud_json([
+                'ok' => true,
+                'version' => $version,
+                'message' => 'Progreso guardado como version ' . $version . '. Puedes continuar esta auditoria luego.',
+            ]);
         }
 
         if ($action === 'schedule') {
@@ -779,6 +986,7 @@ try {
                 <option value="conformes">Conformes</option>
                 <option value="diferencias">Con diferencias</option>
             </select>
+            <button type="button" class="audalm-btn audalm-btn--soft" id="btnRefreshSystemStock"><i class="bi bi-arrow-repeat"></i> Actualizar stock sistema</button>
             <button type="button" class="audalm-btn audalm-btn--soft" id="btnCompletePending"><i class="bi bi-magic"></i> Completar pendientes</button>
         </div>
 
@@ -835,6 +1043,45 @@ try {
     </div>
 </div>
 
+<div class="audalm-modal audalm-modal--wide" id="progressHistoryModal" aria-hidden="true">
+    <div class="audalm-modal-card">
+        <div class="audalm-modal-head">
+            <div>
+                <span class="audalm-kicker audalm-kicker--dark"><i class="bi bi-clock-history"></i> Historial de guardados</span>
+                <h3 id="progressHistoryTitle">Version de progreso</h3>
+            </div>
+            <button type="button" class="audalm-icon-btn" data-close="progressHistoryModal" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div id="progressHistoryBody" class="audalm-detail audalm-history-snapshot"></div>
+    </div>
+</div>
+
+<div class="audalm-modal audalm-modal--wide" id="modal-movimientos" aria-hidden="true">
+    <div class="audalm-modal-card audalm-modal-card--remote">
+        <div class="audalm-modal-head">
+            <div>
+                <span class="audalm-kicker audalm-kicker--dark"><i class="bi bi-clock-history"></i> Movimientos</span>
+                <h3>Historial del producto</h3>
+            </div>
+            <button type="button" class="audalm-icon-btn" data-close="modal-movimientos" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div id="contenido-movimientos" class="audalm-remote-body">Cargando movimientos...</div>
+    </div>
+</div>
+
+<div class="audalm-modal audalm-modal--wide" id="modal-nota" aria-hidden="true">
+    <div class="audalm-modal-card audalm-modal-card--remote">
+        <div class="audalm-modal-head">
+            <div>
+                <span class="audalm-kicker audalm-kicker--dark"><i class="bi bi-file-earmark-text"></i> Documento relacionado</span>
+                <h3>Detalle de nota</h3>
+            </div>
+            <button type="button" class="audalm-icon-btn" data-close="modal-nota" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div id="contenido-nota" class="audalm-remote-body">Cargando nota...</div>
+    </div>
+</div>
+
 <div class="audalm-modal" id="annulModal" aria-hidden="true">
     <div class="audalm-modal-card">
         <div class="audalm-modal-head">
@@ -860,7 +1107,10 @@ try {
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
 <script>
+const productHistoryEndpoint = <?= json_encode(n360_base_url('php/ver_movimientos_producto.php'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+const productNoteEndpoint = <?= json_encode(n360_base_url('php/ver_nota_salida.php'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 const state = {
     rows: [],
     selected: null,
@@ -1043,11 +1293,12 @@ async function loadSpaces() {
     state.spacesLoaded = true;
 }
 
-async function loadInventory() {
-    if (state.inventoryLoaded) return;
-    const data = await api('inventory');
+async function loadInventory(force = false) {
+    if (state.inventoryLoaded && !force) return state.inventory;
+    const data = await api('inventory', force ? {params: {fresh: Date.now()}} : {});
     state.inventory = data.rows || [];
     state.inventoryLoaded = true;
+    return state.inventory;
 }
 
 function makeRecords() {
@@ -1208,7 +1459,12 @@ function auditRecordClass(item) {
 function productDisplay(item) {
     const code = item.cod ? `(${esc(item.cod)}) ` : '';
     const unit = item.unidad ? ` - ${esc(item.unidad)}` : '';
-    return `<strong>${code}</strong><span>${esc(item.producto)}</span><small>${unit}</small>`;
+    return `<div class="audalm-product-info">
+        <div><strong>${code}</strong><span>${esc(item.producto)}</span><small>${unit}</small></div>
+        <button type="button" class="audalm-product-history-btn" data-product-history="${esc(item.idprod)}" title="Ver historial de movimientos" aria-label="Ver historial de ${esc(item.producto)}">
+            <i class="bi bi-clock-history"></i>
+        </button>
+    </div>`;
 }
 
 function focusNextStockInput(currentId, fallbackIndex) {
@@ -1317,6 +1573,54 @@ async function openRealize(button = null) {
     }
 }
 
+async function refreshSystemStock(button = null) {
+    if (!state.activeAudit || !state.records.length) return;
+    if (!confirm('Se consultara nuevamente el stock actual del sistema. El stock fisico y las observaciones no se modificaran. Deseas continuar?')) return;
+
+    try {
+        await withLoading({
+            title: 'Actualizando stock del sistema...',
+            detail: 'Consultando el inventario actual y recalculando diferencias',
+            button
+        }, async () => {
+            const inventory = await loadInventory(true);
+            const currentById = new Map(inventory.map(item => [Number(item.ID || 0), item]));
+            let updated = 0;
+            let unchanged = 0;
+            let missing = 0;
+
+            state.records.forEach(item => {
+                const current = currentById.get(Number(item.idprod));
+                if (!current) {
+                    missing++;
+                    return;
+                }
+
+                const newSystemStock = Number(current.Stock_Actual || 0);
+                if (Number(item.stock_sistema) === newSystemStock) unchanged++;
+                else updated++;
+
+                item.stock_sistema = newSystemStock;
+                if (recordCounted(item)) {
+                    item.diferencia = Number((Number(item.stock_fisico) - newSystemStock).toFixed(4));
+                    item.conforme = Number(item.diferencia) === 0;
+                    item.doc_ok = item.conforme;
+                } else {
+                    item.diferencia = null;
+                    item.conforme = false;
+                    item.doc_ok = false;
+                }
+            });
+
+            renderInventoryRows();
+            const missingText = missing ? ` ${missing} producto(s) no aparecieron en el inventario actual y conservaron su stock anterior.` : '';
+            toast(`${updated} stock(s) actualizados y ${unchanged} sin cambios.${missingText} Revisa y guarda el progreso.`);
+        });
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
 function detailSummaryCards(summary) {
     return `
         <div class="audalm-mini-kpis audalm-mini-kpis--detail">
@@ -1329,16 +1633,9 @@ function detailSummaryCards(summary) {
     `;
 }
 
-function renderDetail(data) {
-    const audit = data.audit;
-    const content = data.contenido || {};
-    const items = Array.isArray(content.items) ? content.items : [];
-    const summary = content.resumen || inventorySummary();
-    const docLink = audit.has_doc
-        ? `<a class="audalm-btn audalm-btn--soft" href="auditoria.php?action=download_doc&id=${audit.id}"><i class="bi bi-paperclip"></i> Descargar documento</a>`
-        : '<span class="audalm-muted">Sin documento adjunto</span>';
-
-    const itemTable = items.length ? `
+function detailItemsTable(items, summary, emptyMessage = 'No hay detalle de productos registrado.') {
+    if (!items.length) return `<div class="audalm-empty audalm-empty--box">${esc(emptyMessage)}</div>`;
+    return `
         ${detailSummaryCards(summary)}
         <div class="audalm-inventory-wrap audalm-inventory-wrap--detail">
             <table class="audalm-table audalm-table--compact">
@@ -1356,7 +1653,103 @@ function renderDetail(data) {
                 `).join('')}</tbody>
             </table>
         </div>
-    ` : `<div class="audalm-empty audalm-empty--box">${audit.estado === 1 ? 'Auditoria pendiente de realizacion.' : 'No hay detalle de productos registrado.'}</div>`;
+    `;
+}
+
+function historyTypeLabel(type) {
+    return String(type || '').toUpperCase() === 'BASE' ? 'Base recuperada' : 'Progreso guardado';
+}
+
+function renderProgressHistory(data) {
+    const target = qs('#detailProgressHistory');
+    const count = qs('#detailProgressHistoryCount');
+    if (!target || !count) return;
+
+    if (!data.installed) {
+        count.textContent = 'No instalado';
+        target.innerHTML = '<div class="audalm-history-state is-warning">Instala la tabla <strong>tb_hist_auditoria_alm</strong> para comenzar a registrar versiones.</div>';
+        return;
+    }
+
+    const entries = Array.isArray(data.rows) ? data.rows : [];
+    count.textContent = `${entries.length} version(es)`;
+    if (!entries.length) {
+        target.innerHTML = '<div class="audalm-history-state">Esta auditoria aun no tiene versiones guardadas. El primer guardado conservara tambien el progreso actual como base.</div>';
+        return;
+    }
+
+    target.innerHTML = entries.map(entry => {
+        const typeClass = String(entry.tipo || '').toUpperCase() === 'BASE' ? 'is-base' : 'is-progress';
+        return `<button type="button" class="audalm-history-entry ${typeClass}" data-progress-history-id="${entry.id}" data-audit-id="${entry.auditoria_id}">
+            <span class="audalm-history-version"><i class="bi bi-clock-history"></i> Version ${entry.version}</span>
+            <span class="audalm-history-kind">${esc(historyTypeLabel(entry.tipo))}</span>
+            <strong>${esc(entry.fecha_txt || '-')}</strong>
+            <small>${esc(entry.usuario || 'Usuario no identificado')}</small>
+            <span class="audalm-history-metrics">
+                <b>${entry.contados} contados</b><b>${entry.pendientes} pendientes</b><b>${entry.diferencias} diferencias</b>
+            </span>
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>`;
+    }).join('');
+}
+
+async function loadProgressHistory(auditId) {
+    const target = qs('#detailProgressHistory');
+    if (target) target.innerHTML = '<div class="audalm-history-state">Cargando versiones...</div>';
+    try {
+        const data = await api('progress_history', {params: {id: auditId}});
+        renderProgressHistory(data);
+    } catch (err) {
+        if (target) target.innerHTML = `<div class="audalm-history-state is-error">${esc(err.message)}</div>`;
+    }
+}
+
+function renderProgressSnapshot(data) {
+    const entry = data.entry || {};
+    const content = data.contenido || {};
+    const items = Array.isArray(content.items) ? content.items : [];
+    const summary = content.resumen || entry;
+    qs('#progressHistoryTitle').textContent = `Version ${entry.version || '-'} - ${historyTypeLabel(entry.tipo)}`;
+    qs('#progressHistoryBody').innerHTML = `
+        <section class="audalm-history-snapshot-head">
+            <div><span>Guardado</span><strong>${esc(entry.fecha_txt || '-')}</strong></div>
+            <div><span>Usuario</span><strong>${esc(entry.usuario || 'Usuario no identificado')}</strong></div>
+            <div><span>Integridad</span><strong title="${esc(entry.sha256 || '')}">${esc((entry.sha256 || '').slice(0, 16) || '-')}</strong></div>
+        </section>
+        ${detailItemsTable(items, summary, 'Esta version no contiene productos.')}
+    `;
+}
+
+async function openProgressSnapshot(auditId, historyId, button = null) {
+    try {
+        await withLoading({
+            title: 'Cargando version...',
+            detail: 'Recuperando la fotografia guardada del progreso',
+            button
+        }, async () => {
+            const data = await api('progress_snapshot', {params: {id: auditId, history_id: historyId}});
+            renderProgressSnapshot(data);
+            openModal('progressHistoryModal');
+        });
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+function renderDetail(data) {
+    const audit = data.audit;
+    const content = data.contenido || {};
+    const items = Array.isArray(content.items) ? content.items : [];
+    const summary = content.resumen || inventorySummary();
+    const docLink = audit.has_doc
+        ? `<a class="audalm-btn audalm-btn--soft" href="auditoria.php?action=download_doc&id=${audit.id}"><i class="bi bi-paperclip"></i> Descargar documento</a>`
+        : '<span class="audalm-muted">Sin documento adjunto</span>';
+
+    const itemTable = detailItemsTable(
+        items,
+        summary,
+        audit.estado === 1 ? 'Auditoria pendiente de realizacion.' : 'No hay detalle de productos registrado.'
+    );
 
     qs('#detailTitle').textContent = `${audit.codigo} - ${audit.estado_txt}`;
     qs('#detailBody').innerHTML = `
@@ -1381,6 +1774,13 @@ function renderDetail(data) {
             ${docLink}
         </section>
         ${itemTable}
+        <section class="audalm-progress-history">
+            <div class="audalm-progress-history__head">
+                <div><span>Versiones</span><h4>Historial de guardados</h4></div>
+                <strong id="detailProgressHistoryCount">Cargando...</strong>
+            </div>
+            <div class="audalm-history-list" id="detailProgressHistory"><div class="audalm-history-state">Cargando versiones...</div></div>
+        </section>
     `;
 }
 
@@ -1395,11 +1795,53 @@ async function openDetail(button = null) {
             const data = await api('detail', {params: {id: state.selected.id}});
             renderDetail(data);
             openModal('detailModal');
+            await loadProgressHistory(state.selected.id);
         });
     } catch (err) {
         toast(err.message, 'error');
     }
 }
+
+function remoteLoading(message) {
+    return `<div class="audalm-remote-state"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><strong>${esc(message)}</strong></div>`;
+}
+
+async function openProductHistory(productId) {
+    const content = qs('#contenido-movimientos');
+    if (!content || !productId) return;
+    content.innerHTML = remoteLoading('Cargando movimientos del producto...');
+    openModal('modal-movimientos');
+
+    try {
+        const url = `${productHistoryEndpoint}${productHistoryEndpoint.includes('?') ? '&' : '?'}id=${encodeURIComponent(productId)}`;
+        const response = await fetch(url, {credentials: 'same-origin'});
+        if (!response.ok) throw new Error('No se pudo consultar el historial del producto.');
+        content.innerHTML = await response.text();
+        if (window.N360Barcode && typeof window.N360Barcode.renderAll === 'function') {
+            window.N360Barcode.renderAll(content);
+        }
+    } catch (err) {
+        content.innerHTML = `<div class="audalm-remote-state is-error"><strong>${esc(err.message)}</strong></div>`;
+    }
+}
+
+async function openProductNote(movementId) {
+    const content = qs('#contenido-nota');
+    if (!content || !movementId) return;
+    content.innerHTML = remoteLoading('Cargando nota relacionada...');
+    openModal('modal-nota');
+
+    try {
+        const url = `${productNoteEndpoint}${productNoteEndpoint.includes('?') ? '&' : '?'}id=${encodeURIComponent(movementId)}`;
+        const response = await fetch(url, {credentials: 'same-origin'});
+        if (!response.ok) throw new Error('No se pudo consultar la nota relacionada.');
+        content.innerHTML = await response.text();
+    } catch (err) {
+        content.innerHTML = `<div class="audalm-remote-state is-error"><strong>${esc(err.message)}</strong></div>`;
+    }
+}
+
+window.verNotaSalida = openProductNote;
 
 function openPrint(type) {
     if (!state.selected) return;
@@ -1411,6 +1853,25 @@ qsa('[data-close]').forEach(btn => btn.addEventListener('click', () => closeModa
 qsa('.audalm-modal').forEach(modal => modal.addEventListener('click', ev => {
     if (ev.target === modal) closeModal(modal.id);
 }));
+document.addEventListener('click', ev => {
+    const productButton = ev.target.closest('[data-product-history]');
+    if (productButton) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openProductHistory(productButton.dataset.productHistory);
+        return;
+    }
+
+    const historyButton = ev.target.closest('[data-progress-history-id]');
+    if (historyButton) {
+        ev.preventDefault();
+        openProgressSnapshot(
+            historyButton.dataset.auditId,
+            historyButton.dataset.progressHistoryId,
+            historyButton
+        );
+    }
+});
 
 qs('#btnOpenSchedule').addEventListener('click', async ev => {
     try {
@@ -1600,6 +2061,7 @@ qs('#btnAnnul').addEventListener('click', () => {
 });
 
 ['#invSearch', '#invCategory', '#invView'].forEach(sel => qs(sel).addEventListener('input', renderInventoryRows));
+qs('#btnRefreshSystemStock').addEventListener('click', ev => refreshSystemStock(ev.currentTarget));
 qs('#btnCompletePending').addEventListener('click', () => {
     state.records.forEach(item => {
         if (item.stock_fisico === null || item.stock_fisico === '') {

@@ -409,7 +409,7 @@
 
 .audalm-inventory-tools {
     display: grid;
-    grid-template-columns: minmax(180px, 1fr) 180px 200px auto;
+    grid-template-columns: minmax(180px, 1fr) 180px 200px auto auto;
     gap: 10px;
     align-items: end;
     margin-bottom: 12px;
@@ -785,7 +785,7 @@
 
 .audalm-inventory-tools {
     margin-top: 16px;
-    grid-template-columns: minmax(180px, 1fr) 190px 190px auto;
+    grid-template-columns: minmax(180px, 1fr) 190px 190px auto auto;
 }
 
 .audalm-mini-kpis {
@@ -874,6 +874,41 @@
     font-weight: 800;
 }
 
+.audalm-product-info {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 32px;
+    gap: 8px;
+    align-items: center;
+}
+
+.audalm-product-info > div {
+    min-width: 0;
+}
+
+.audalm-product-info span,
+.audalm-product-info small {
+    display: block;
+}
+
+.audalm-product-history-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: #176fa4;
+    border: 1px solid #c9dfef;
+    border-radius: 8px;
+    background: #eef7fd;
+    cursor: pointer;
+}
+
+.audalm-product-history-btn:hover {
+    color: #fff;
+    border-color: #2389c9;
+    background: #2389c9;
+}
+
 .audalm-conforme-check {
     min-height: 34px;
     border: 1px solid #b7dfc4;
@@ -946,6 +981,203 @@
     font-weight: 800;
 }
 
+.audalm-progress-history {
+    padding-top: 4px;
+    border-top: 1px solid #d9e4ef;
+}
+
+.audalm-progress-history__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.audalm-progress-history__head span,
+.audalm-history-snapshot-head span {
+    display: block;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.audalm-progress-history__head h4 {
+    margin: 2px 0 0;
+    color: #17283a;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.audalm-progress-history__head > strong {
+    padding: 6px 9px;
+    color: #176fa4;
+    border-radius: 8px;
+    background: #eaf5fc;
+    font-size: 12px;
+}
+
+.audalm-history-list {
+    display: grid;
+    gap: 8px;
+}
+
+.audalm-history-entry {
+    display: grid;
+    grid-template-columns: 130px 130px 150px minmax(140px, 1fr) minmax(320px, 1.4fr) 20px;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    min-height: 58px;
+    padding: 9px 11px;
+    color: #263f58;
+    border: 1px solid #d9e4ef;
+    border-left: 4px solid #2389c9;
+    border-radius: 8px;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+}
+
+.audalm-history-entry.is-base {
+    border-left-color: #d99b17;
+}
+
+.audalm-history-entry:hover {
+    border-color: #91bddb;
+    background: #f5faff;
+}
+
+.audalm-history-version,
+.audalm-history-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.audalm-history-kind {
+    color: #176fa4;
+}
+
+.audalm-history-entry.is-base .audalm-history-kind {
+    color: #8a5b00;
+}
+
+.audalm-history-entry > strong {
+    color: #17283a;
+    font-size: 12px;
+}
+
+.audalm-history-entry > small {
+    overflow: hidden;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.audalm-history-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.audalm-history-metrics b {
+    padding: 4px 6px;
+    color: #526b82;
+    border-radius: 6px;
+    background: #eef3f7;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.audalm-history-state {
+    padding: 16px;
+    color: #526b82;
+    border: 1px dashed #bfd0df;
+    border-radius: 8px;
+    background: #f8fbfe;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.audalm-history-state.is-warning {
+    color: #8a5b00;
+    border-color: #ead18c;
+    background: #fff9e8;
+}
+
+.audalm-history-state.is-error,
+.audalm-remote-state.is-error {
+    color: #9f2116;
+    border-color: #efb7b2;
+    background: #fff1f0;
+}
+
+.audalm-history-snapshot-head {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.audalm-history-snapshot-head > div {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #d9e4ef;
+    border-radius: 8px;
+    background: #f8fbfe;
+}
+
+.audalm-history-snapshot-head strong {
+    display: block;
+    overflow: hidden;
+    margin-top: 4px;
+    color: #17283a;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.audalm-modal-card--remote {
+    overflow: hidden;
+}
+
+.audalm-remote-body {
+    min-height: 220px;
+    max-height: calc(92vh - 78px);
+    overflow: auto;
+    background: #f4f8fc;
+}
+
+.audalm-remote-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 220px;
+    padding: 24px;
+    color: #526b82;
+    font-size: 13px;
+}
+
+.audalm-remote-state .spinner-border {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #c9dfef;
+    border-top-color: #2389c9;
+    border-radius: 50%;
+    animation: audalm-spin .75s linear infinite;
+}
+
+@keyframes audalm-spin {
+    to { transform: rotate(360deg); }
+}
+
 .audalm-empty--box {
     border: 1px dashed #bfd0df;
     border-radius: 8px;
@@ -973,13 +1205,23 @@ body.audalm-lock {
     .audalm-mini-kpis {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .audalm-history-entry {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .audalm-history-entry > .bi-chevron-right {
+        display: none;
+    }
 }
 
 @media (max-width: 680px) {
     .audalm-toolbar,
     .audalm-kpis,
     .audalm-mini-kpis,
-    .audalm-inventory-tools {
+    .audalm-inventory-tools,
+    .audalm-history-entry,
+    .audalm-history-snapshot-head {
         grid-template-columns: 1fr;
     }
 
@@ -989,6 +1231,11 @@ body.audalm-lock {
 
     .audalm-detail-doc {
         align-items: stretch;
+        flex-direction: column;
+    }
+
+    .audalm-progress-history__head {
+        align-items: flex-start;
         flex-direction: column;
     }
 }
