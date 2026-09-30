@@ -2361,8 +2361,15 @@ body.check-report-modal-open {
   font-weight: 700;
 }
 
+.check-analysis-result-head__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .check-analysis-version {
-  max-width: 440px;
+  max-width: 360px;
   padding: 7px 10px;
   border: 1px solid #d7e2ea;
   border-radius: 6px;
@@ -2373,8 +2380,43 @@ body.check-report-modal-open {
   text-align: right;
 }
 
+.check-analysis-pdf-btn {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 17px;
+  border: 1px solid #b23c35;
+  border-radius: 8px;
+  background: #c64b42;
+  color: #fff;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(198, 75, 66, .2);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.check-analysis-pdf-btn i {
+  font-size: 1.05rem;
+}
+
+.check-analysis-pdf-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #b94038;
+  box-shadow: 0 9px 18px rgba(198, 75, 66, .25);
+}
+
+.check-analysis-pdf-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .check-analysis-page .check-report-analysis-filters {
-  grid-template-columns: minmax(170px, .9fr) minmax(170px, .9fr) minmax(150px, .65fr) minmax(280px, 1.5fr);
+  grid-template-columns: minmax(150px, .8fr) minmax(155px, .8fr) minmax(155px, .8fr) minmax(135px, .65fr) minmax(250px, 1.35fr);
   gap: 12px;
   padding: 14px 18px 16px;
   background: #fff;
@@ -2695,6 +2737,16 @@ body.check-report-modal-open {
   .check-analysis-version {
     max-width: none;
     text-align: left;
+  }
+
+  .check-analysis-result-head__actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .check-analysis-pdf-btn {
+    width: 100%;
   }
 
   .check-analysis-kpi {

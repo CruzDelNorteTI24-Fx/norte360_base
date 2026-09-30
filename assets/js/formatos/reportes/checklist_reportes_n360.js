@@ -467,6 +467,134 @@
     doc.save(`consolidado_checklist_calidad_${fileSlug(report.filtros?.desde)}_${fileSlug(report.filtros?.hasta)}.pdf`);
   }
 
+  async function generateAnalysisPdf(report) {
+    if (!window.N360PDF) throw new Error('N360PDF no esta cargado.');
+    if (!report) throw new Error('Primero genera el analisis que deseas exportar.');
+
+    const filters = report.filtros || {};
+    const scope = report.alcance || {};
+    const metrics = report.metricas || {};
+    const service = text(filters.servicio, 'Todos los servicios');
+    const versions = (report.versiones || []).map(version => version.nombre).join(' / ') || 'Sin version';
+    const resultValue = $('unitAnalysisStatus')?.value || '';
+    const resultLabels = {ok: 'Excelente', warn: 'Aceptable', bad: 'Critico'};
+    const resultLabel = resultLabels[resultValue] || 'Todos';
+    const searchValue = ($('unitAnalysisSearch')?.value || '').trim();
+    const zones = filteredAnalysisZones(report);
+    const scopeLabel = filters.todas_activas
+      ? 'Todas las unidades activas'
+      : `${scope.unidades_seleccionadas || 0} unidades seleccionadas`;
+
+    const doc = await window.N360PDF.createDocument(basePdfConfig({
+      orientation: 'landscape',
+      title: 'ANALISIS DE CHECKLIST',
+      secondTitle: `${text(report.tipo?.nombre, 'Checklist')} | ${service}`,
+      docCode: 'N360-CAL-ANA',
+      description: 'Consolidado de calidad generado con los filtros aplicados en Analisis CheckList.',
+      content(doc, cfg) {
+        let y = 34;
+        y = drawInfoGrid(doc, [
+          {label: 'Periodo', value: `${text(filters.desde, '-')} al ${text(filters.hasta, '-')}`},
+          {label: 'Alcance', value: scopeLabel},
+          {label: 'Servicio', value: service},
+          {label: 'Checklist', value: text(report.tipo?.nombre, '-')},
+          {label: 'Version', value: versions},
+          {label: 'Resultado', value: resultLabel},
+          {label: 'Busqueda', value: searchValue || 'Sin busqueda adicional'},
+          {label: 'Ejecuciones', value: report.checklists || 0}
+        ], y, 'landscape');
+
+        y = sectionTitle(doc, 'Indicadores consolidados', y + 2, 'landscape');
+        y = drawInfoGrid(doc, [
+          {label: 'Unidades con datos', value: `${scope.unidades_con_datos || 0} / ${scope.unidades_seleccionadas || 0}`},
+          {label: 'Items respondidos', value: `${metrics.respondidos || 0} / ${metrics.total || 0}`},
+          {label: 'Completitud', value: percentage(metrics.completitud, '0%')},
+          {label: 'Conformidad', value: percentage(metrics.conformidad, '0%'), status: metricTone(metrics)},
+          {label: 'Conformes', value: metrics.conformes || 0, status: 'ok'},
+          {label: 'Hallazgos', value: metrics.no_conformes || 0, status: Number(metrics.no_conformes || 0) > 0 ? 'bad' : 'ok'},
+          {label: 'No aplica', value: metrics.no_aplica || 0},
+          {label: 'Pendientes', value: metrics.pendientes || 0, status: Number(metrics.pendientes || 0) > 0 ? 'warn' : 'ok'}
+        ], y, 'landscape');
+
+        y = sectionTitle(doc, 'Resumen por zona', y + 2, 'landscape');
+        const zoneRows = zones.map(zone => {
+          const zoneMetrics = zone.metricas || {};
+          return [
+            zone.nombre || 'Zona sin nombre',
+            zone.version || 'Sin version',
+            String(zone.checklists || 0),
+            String(zoneMetrics.conformes || 0),
+            String(zoneMetrics.no_conformes || 0),
+            String(zoneMetrics.no_aplica || 0),
+            String(zoneMetrics.pendientes || 0),
+            tableCell(percentage(zoneMetrics.conformidad ?? zoneMetrics.completitud, '0%'), metricTone(zoneMetrics))
+          ];
+        });
+        y = drawTable(doc, ['Zona', 'Version', 'Ejec.', 'C', 'NC', 'NA', 'Pend.', 'Resultado'], zoneRows.length ? zoneRows : [['Sin zonas visibles', '-', '-', '-', '-', '-', '-', '-']], [78, 45, 24, 20, 20, 20, 20, 32], y, {
+          orientation: 'landscape',
+          fontSize: 6.2,
+          maxLines: 3
+        });
+
+        zones.forEach((zone, zoneIndex) => {
+          y = sectionTitle(doc, `${zoneIndex + 1}. ${zone.nombre || 'Zona sin nombre'}`, y, 'landscape');
+          const itemRows = (zone.visibleItems || []).map(item => {
+            const itemMetrics = item.metricas || {};
+            return [
+              item.nombre || 'Item sin nombre',
+              String(itemMetrics.conformes || 0),
+              String(itemMetrics.no_conformes || 0),
+              String(itemMetrics.no_aplica || 0),
+              String(itemMetrics.pendientes || 0),
+              tableCell(percentage(itemMetrics.conformidad ?? itemMetrics.completitud, '0%'), metricTone(itemMetrics))
+            ];
+          });
+          y = drawTable(doc, ['Item evaluado', 'C', 'NC', 'NA', 'Pend.', 'Resultado'], itemRows.length ? itemRows : [['Sin items visibles', '-', '-', '-', '-', '-']], [139, 20, 20, 20, 20, 52], y, {
+            orientation: 'landscape',
+            fontSize: 6.1,
+            maxLines: 3
+          });
+        });
+
+        y = sectionTitle(doc, 'Resultados por unidad', y, 'landscape');
+        const unitRows = (report.unidades || []).map(unit => {
+          const unitMetrics = unit.metricas || {};
+          return [
+            unit.bus || 'Unidad',
+            unit.placa || '-',
+            unit.servicio || 'Sin servicio',
+            String(unit.checklists || 0),
+            `${unitMetrics.respondidos || 0} / ${unitMetrics.total || 0}`,
+            tableCell(percentage(unitMetrics.conformidad, '-'), metricTone(unitMetrics)),
+            String(unitMetrics.no_conformes || 0)
+          ];
+        });
+        y = drawTable(doc, ['Unidad', 'Placa', 'Servicio', 'Ejec.', 'Respondidos', 'Conformidad', 'Hallazgos'], unitRows.length ? unitRows : [['Sin unidades', '-', '-', '-', '-', '-', '-']], [34, 30, 60, 24, 36, 36, 30], y, {
+          orientation: 'landscape',
+          fontSize: 6.1,
+          maxLines: 3
+        });
+
+        y = sectionTitle(doc, 'Ejecuciones del periodo', y, 'landscape');
+        const executionRows = (report.ejecuciones || []).map(execution => [
+          `${execution.bus || 'Unidad'}\n${execution.placa || '-'}`,
+          execution.servicio || 'Sin servicio',
+          `${execution.fecha || '-'}\n${execution.hora || '-'}`,
+          `${execution.tipo || '-'}\n${execution.corr || '-'}`,
+          execution.version || 'Sin version',
+          execution.responsable || '-'
+        ]);
+        drawTable(doc, ['Unidad', 'Servicio', 'Fecha', 'Checklist', 'Version', 'Responsable'], executionRows.length ? executionRows : [['Sin ejecuciones', '-', '-', '-', '-', '-']], [36, 48, 30, 48, 45, 64], y, {
+          orientation: 'landscape',
+          fontSize: 5.8,
+          maxLines: 3
+        });
+      }
+    }));
+
+    doc.save(`analisis_checklist_${fileSlug(service)}_${fileSlug(filters.desde)}_${fileSlug(filters.hasta)}.pdf`);
+  }
+
   function renderSummary(prefix, resumen) {
     const box = $(`${prefix}Summary`);
     if (!box) return;
@@ -583,13 +711,27 @@
     return types.length > 0;
   }
 
+  function filteredAnalysisZones(report) {
+    const zones = Array.isArray(report?.zonas) ? report.zonas : [];
+    const query = ($('unitAnalysisSearch')?.value || '').trim().toLowerCase();
+    const status = $('unitAnalysisStatus')?.value || '';
+
+    return zones.reduce((acc, zone) => {
+      if (status && metricTone(zone.metricas) !== status) return acc;
+      const zoneMatch = String(zone.nombre || '').toLowerCase().includes(query);
+      const matchingItems = query
+        ? (zone.items || []).filter(item => String(item.nombre || '').toLowerCase().includes(query))
+        : (zone.items || []);
+      if (query && !zoneMatch && !matchingItems.length) return acc;
+      acc.push(Object.assign({}, zone, {visibleItems: zoneMatch ? (zone.items || []) : matchingItems}));
+      return acc;
+    }, []);
+  }
+
   function renderUnitAnalysis() {
     const data = unitAnalysisState || {};
     const metrics = data.metricas || {};
     const scope = data.alcance || {};
-    const zones = Array.isArray(data.zonas) ? data.zonas : [];
-    const query = ($('unitAnalysisSearch')?.value || '').trim().toLowerCase();
-    const status = $('unitAnalysisStatus')?.value || '';
 
     $('unitQualityVersion').textContent = (data.versiones || []).length
       ? `Versión: ${(data.versiones || []).map(version => version.nombre).join(' / ')}`
@@ -603,16 +745,7 @@
       <article class="check-analysis-kpi is-findings"><span class="check-analysis-kpi__icon"><i class="bi bi-exclamation-triangle"></i></span><div><span>Hallazgos</span><strong>${esc(metrics.no_conformes || 0)}</strong><small>${esc(metrics.pendientes || 0)} pendientes</small></div></article>
     `;
 
-    const filtered = zones.reduce((acc, zone) => {
-      if (status && metricTone(zone.metricas) !== status) return acc;
-      const zoneMatch = String(zone.nombre || '').toLowerCase().includes(query);
-      const matchingItems = query
-        ? (zone.items || []).filter(item => String(item.nombre || '').toLowerCase().includes(query))
-        : (zone.items || []);
-      if (query && !zoneMatch && !matchingItems.length) return acc;
-      acc.push(Object.assign({}, zone, {visibleItems: zoneMatch ? (zone.items || []) : matchingItems}));
-      return acc;
-    }, []);
+    const filtered = filteredAnalysisZones(data);
 
     const grid = $('unitZoneGrid');
     if (!filtered.length) {
@@ -998,6 +1131,21 @@
     renderAnalysisUnitPicker();
   }
 
+  function populateAnalysisServices() {
+    const select = $('unitAnalysisService');
+    if (!select) return;
+    const previous = select.value;
+    const services = Array.from(new Set(
+      analysisActiveUnits
+        .map(unit => String(unit.servicio || '').trim())
+        .filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b, 'es', {sensitivity: 'base'}));
+
+    select.innerHTML = '<option value="">Todos los servicios</option>'
+      + services.map(service => `<option value="${esc(service)}">${esc(service)}</option>`).join('');
+    select.value = services.includes(previous) ? previous : '';
+  }
+
   function invalidateAnalysisOutput() {
     if (!unitAnalysisState) return;
     unitAnalysisState = null;
@@ -1036,6 +1184,7 @@
     const data = await fetchJson('unidades_activas');
     analysisActiveUnits = Array.isArray(data.unidades) ? data.unidades : [];
     analysisSelectedIds = new Set();
+    populateAnalysisServices();
     renderAnalysisSelection();
   }
 
@@ -1083,20 +1232,25 @@
       desde: $('unitDesde').value,
       hasta: $('unitHasta').value,
       tipo_id: $('unitAnalysisType')?.value || 0,
-      version_id: $('unitAnalysisVersion')?.value || 0
+      version_id: $('unitAnalysisVersion')?.value || 0,
+      servicio: $('unitAnalysisService')?.value || ''
     });
     if (requestId !== unitAnalysisRequest) return;
 
     unitState = data;
     unitAnalysisState = data;
     $('analysisEmpty').classList.add('check-report-hidden');
-    $('analysisUnitName').textContent = analysisAllActive
+    const scopeCount = Number(data.alcance?.unidades_seleccionadas || 0);
+    const scopeName = analysisAllActive
       ? 'Todas las unidades activas'
-      : `${ids.length} unidad${ids.length === 1 ? '' : 'es'} seleccionada${ids.length === 1 ? '' : 's'}`;
+      : `${scopeCount} unidad${scopeCount === 1 ? '' : 'es'} seleccionada${scopeCount === 1 ? '' : 's'}`;
+    const serviceName = String(data.filtros?.servicio || '').trim();
+    $('analysisUnitName').textContent = serviceName ? `${scopeName} · ${serviceName}` : scopeName;
     prepareUnitAnalysis(data);
     renderUnitAnalysis();
     renderAnalysisUnits();
     renderAnalysisHistory();
+    $('btnAnalysisPdf').disabled = !(data.checklists || 0);
     setAnalysisView('zones');
   }
 
@@ -1157,8 +1311,22 @@
     $('unitAnalysisVersion').addEventListener('change', () => {
       during(() => loadAnalysisReport(), {title: 'Actualizando versión...', detail: 'Recalculando resultados'}).catch(err => alert(err.message));
     });
+    $('unitAnalysisService').addEventListener('change', function () {
+      const previous = String(unitAnalysisState?.filtros?.servicio || '');
+      during(() => loadAnalysisReport(), {title: 'Actualizando servicio...', detail: 'Recalculando unidades y resultados'})
+        .catch(err => {
+          this.value = previous;
+          alert(err.message);
+        });
+    });
     $('unitAnalysisStatus').addEventListener('change', renderUnitAnalysis);
     $('unitAnalysisSearch').addEventListener('input', renderUnitAnalysis);
+
+    $('btnAnalysisPdf').addEventListener('click', function () {
+      const button = this;
+      during(() => generateAnalysisPdf(unitAnalysisState), {title: 'Generando reporte PDF...', detail: 'Preparando indicadores, zonas y unidades', button})
+        .catch(err => alert(err.message));
+    });
 
     document.querySelectorAll('[data-analysis-view]').forEach(button => {
       button.addEventListener('click', () => setAnalysisView(button.dataset.analysisView));
@@ -1264,6 +1432,7 @@
   window.N360ChecklistReports = {
     generateChecklistPdf,
     generateUnitPdf,
-    generateFleetPdf
+    generateFleetPdf,
+    generateAnalysisPdf
   };
 })(window, document);

@@ -711,7 +711,8 @@ function cr_fetch_units_period_analysis(
     string $desde,
     string $hasta,
     int $requestedTypeId = 0,
-    int $requestedVersionId = 0
+    int $requestedVersionId = 0,
+    string $requestedService = ''
 ): array {
     $activeBuses = cr_fetch_active_buses($conn);
     $activeMap = [];
@@ -722,9 +723,17 @@ function cr_fetch_units_period_analysis(
     $busIds = $allActive
         ? array_keys($activeMap)
         : array_values(array_filter($requestedBusIds, fn($id) => isset($activeMap[(int)$id])));
+    $requestedService = trim($requestedService);
+    if ($requestedService !== '') {
+        $busIds = array_values(array_filter($busIds, function ($id) use ($activeMap, $requestedService) {
+            return strcasecmp(trim((string)($activeMap[(int)$id]['servicio'] ?? '')), $requestedService) === 0;
+        }));
+    }
     $busIds = array_slice(array_values(array_unique(array_map('intval', $busIds))), 0, 250);
     if (!$busIds) {
-        throw new RuntimeException('Selecciona al menos una unidad activa.');
+        throw new RuntimeException($requestedService !== ''
+            ? 'No hay unidades activas del servicio seleccionado dentro del alcance.'
+            : 'Selecciona al menos una unidad activa.');
     }
 
     $unitStats = [];
@@ -821,6 +830,7 @@ function cr_fetch_units_period_analysis(
             'id_bus' => $busId,
             'bus' => cr_text($row['bus'] ?? ''),
             'placa' => cr_text($row['placa'] ?? ''),
+            'servicio' => cr_text($row['servicio'] ?? ''),
         ];
     }
 
@@ -910,6 +920,7 @@ function cr_fetch_units_period_analysis(
             'tipo_id' => $typeId,
             'version_id' => $requestedVersionId,
             'todas_activas' => $allActive,
+            'servicio' => $requestedService,
         ],
         'alcance' => [
             'unidades_seleccionadas' => count($busIds),
@@ -1214,6 +1225,7 @@ try {
         $busIds = cr_parse_bus_ids($_GET['id_buses'] ?? '');
         $tipoId = (int)($_GET['tipo_id'] ?? 0);
         $versionId = (int)($_GET['version_id'] ?? 0);
+        $servicio = substr(trim((string)($_GET['servicio'] ?? '')), 0, 100);
         cr_json(true, cr_fetch_units_period_analysis(
             $conn,
             $busIds,
@@ -1221,7 +1233,8 @@ try {
             $desde,
             $hasta,
             $tipoId,
-            $versionId
+            $versionId,
+            $servicio
         ));
     }
 

@@ -137,31 +137,41 @@ $dni = trim((string)($_SESSION['DNI'] ?? 'No registrado'));
                         <h2 id="unitQualityTitle">Resultado consolidado</h2>
                         <p id="unitQualityPeriod">Sin periodo consultado</p>
                     </div>
-                    <div class="check-analysis-version" id="unitQualityVersion">Sin versión disponible</div>
+                    <div class="check-analysis-result-head__actions">
+                        <div class="check-analysis-version" id="unitQualityVersion">Sin versión disponible</div>
+                        <button type="button" class="check-analysis-pdf-btn" id="btnAnalysisPdf" disabled>
+                            <i class="bi bi-file-earmark-pdf-fill" aria-hidden="true"></i>
+                            <span>Generar reporte PDF</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="check-report-analysis-filters">
-                <label class="check-report-field">
-                    <span>Checklist</span>
-                    <select id="unitAnalysisType"><option value="">Seleccionar</option></select>
-                </label>
-                <label class="check-report-field">
-                    <span>Versión</span>
-                    <select id="unitAnalysisVersion"><option value="0">Todas</option></select>
-                </label>
-                <label class="check-report-field">
-                    <span>Resultado</span>
-                    <select id="unitAnalysisStatus">
-                        <option value="">Todos</option>
-                        <option value="ok">Excelente</option>
-                        <option value="warn">Aceptable</option>
-                        <option value="bad">Crítico</option>
-                    </select>
-                </label>
-                <label class="check-report-field check-report-field--search">
-                    <span>Buscar zona o ítem</span>
-                    <input type="search" id="unitAnalysisSearch" class="check-report-input" placeholder="Primer piso, asientos, ventanas...">
-                </label>
+                    <label class="check-report-field">
+                        <span>Checklist</span>
+                        <select id="unitAnalysisType"><option value="">Seleccionar</option></select>
+                    </label>
+                    <label class="check-report-field">
+                        <span>Servicio</span>
+                        <select id="unitAnalysisService"><option value="">Todos los servicios</option></select>
+                    </label>
+                    <label class="check-report-field">
+                        <span>Versión</span>
+                        <select id="unitAnalysisVersion"><option value="0">Todas</option></select>
+                    </label>
+                    <label class="check-report-field">
+                        <span>Resultado</span>
+                        <select id="unitAnalysisStatus">
+                            <option value="">Todos</option>
+                            <option value="ok">Excelente</option>
+                            <option value="warn">Aceptable</option>
+                            <option value="bad">Crítico</option>
+                        </select>
+                    </label>
+                    <label class="check-report-field check-report-field--search">
+                        <span>Buscar zona o ítem</span>
+                        <input type="search" id="unitAnalysisSearch" class="check-report-input" placeholder="Primer piso, asientos, ventanas...">
+                    </label>
                 </div>
             </section>
 
