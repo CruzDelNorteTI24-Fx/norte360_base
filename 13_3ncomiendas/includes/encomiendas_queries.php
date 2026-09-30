@@ -651,7 +651,6 @@ function enc_fetch_rezagados_encomienda(mysqli $conn, array $filters): array {
         FROM vw_enc_rezagados_encomienda
         WHERE " . implode(' AND ', $where) . "
         ORDER BY clm_encrev_fechacreated DESC, clm_enc_guia DESC, clm_encrev_orden_hoja ASC, clm_encrevitem_orden ASC
-        LIMIT 1200
     ", $types, $params);
 }
 
