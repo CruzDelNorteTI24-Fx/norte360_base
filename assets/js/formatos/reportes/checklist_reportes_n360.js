@@ -475,7 +475,7 @@
     const scope = report.alcance || {};
     const metrics = report.metricas || {};
     const service = text(filters.servicio, 'Todos los servicios');
-    const versions = (report.versiones || []).map(version => version.nombre).join(' / ') || 'Sin version';
+    const versions = analysisVersionText(report);
     const resultValue = $('unitAnalysisStatus')?.value || '';
     const resultLabels = {ok: 'Excelente', warn: 'Aceptable', bad: 'Critico'};
     const resultLabel = resultLabels[resultValue] || 'Todos';
@@ -665,9 +665,19 @@
     if (report) renderFleetReport(report);
   }
 
-  function populateUnitAnalysisVersions(report, preserveValue) {
+  function analysisVersionText(report) {
+    const versions = Array.isArray(report?.versiones) ? report.versiones : [];
+    const selectedVersionId = Number(report?.filtros?.version_id || 0);
+    if (selectedVersionId > 0) {
+      const selected = versions.find(version => Number(version.id || 0) === selectedVersionId);
+      return selected?.nombre || `Versión ${selectedVersionId}`;
+    }
+    return versions.map(version => version.nombre).filter(Boolean).join(' / ');
+  }
+
+  function populateUnitAnalysisVersions(report, preserveValue, preferLatest) {
     const select = $('unitAnalysisVersion');
-    if (!select) return;
+    if (!select) return '0';
 
     const previous = preserveValue ? select.value : '';
     const versions = (report.versiones || [])
@@ -676,14 +686,17 @@
 
     select.innerHTML = '<option value="0">Todas las versiones</option>'
       + versions.map(([id, label]) => `<option value="${esc(id)}">${esc(label)}</option>`).join('');
-    if (previous && Array.from(select.options).some(option => option.value === previous)) {
+    if (previous && previous !== '0' && Array.from(select.options).some(option => option.value === previous)) {
       select.value = previous;
+    } else if (preferLatest && versions.length) {
+      select.value = versions[0][0];
     } else {
       select.value = '0';
     }
+    return select.value;
   }
 
-  function prepareUnitAnalysis(report) {
+  function prepareUnitAnalysis(report, preferLatestVersion) {
     const section = $('unitQuality');
     const typeSelect = $('unitAnalysisType');
     if (!section || !typeSelect) return false;
@@ -705,7 +718,7 @@
       typeSelect.value = cleaning ? cleaning[0] : (types[0]?.[0] || '');
     }
 
-    populateUnitAnalysisVersions(report, true);
+    populateUnitAnalysisVersions(report, true, preferLatestVersion);
     $('unitQualityPeriod').textContent = `${text(report.filtros?.desde, '-')} al ${text(report.filtros?.hasta, '-')}`;
     section.classList.remove('check-report-hidden');
     return types.length > 0;
@@ -732,9 +745,10 @@
     const data = unitAnalysisState || {};
     const metrics = data.metricas || {};
     const scope = data.alcance || {};
+    const versionText = analysisVersionText(data);
 
-    $('unitQualityVersion').textContent = (data.versiones || []).length
-      ? `Versión: ${(data.versiones || []).map(version => version.nombre).join(' / ')}`
+    $('unitQualityVersion').textContent = versionText
+      ? `Versión: ${versionText}`
       : 'Sin versión en el periodo';
 
     $('unitQualityMetrics').innerHTML = `
@@ -1220,10 +1234,12 @@
     `).join('') || '<tr><td colspan="6">No hay ejecuciones para los filtros seleccionados.</td></tr>';
   }
 
-  async function loadAnalysisReport() {
+  async function loadAnalysisReport(options = {}) {
     const ids = analysisScopeIds();
     if (!ids.length) throw new Error('Selecciona al menos una unidad activa.');
     const requestId = ++unitAnalysisRequest;
+    const requestedVersionId = Number($('unitAnalysisVersion')?.value || 0);
+    const preferLatestVersion = Boolean(options.preferLatestVersion) && requestedVersionId <= 0;
     $('unitZoneGrid').innerHTML = '<div class="check-report-empty"><span class="check-report-inline-loader"></span> Consolidando resultados...</div>';
 
     const data = await fetchJson('analisis_unidades', {
@@ -1246,7 +1262,11 @@
       : `${scopeCount} unidad${scopeCount === 1 ? '' : 'es'} seleccionada${scopeCount === 1 ? '' : 's'}`;
     const serviceName = String(data.filtros?.servicio || '').trim();
     $('analysisUnitName').textContent = serviceName ? `${scopeName} · ${serviceName}` : scopeName;
-    prepareUnitAnalysis(data);
+    prepareUnitAnalysis(data, preferLatestVersion);
+    const selectedVersionId = Number($('unitAnalysisVersion')?.value || 0);
+    if (preferLatestVersion && selectedVersionId > 0) {
+      return loadAnalysisReport({preferLatestVersion: false});
+    }
     renderUnitAnalysis();
     renderAnalysisUnits();
     renderAnalysisHistory();
@@ -1300,13 +1320,14 @@
 
     $('btnUnitLoad').addEventListener('click', function () {
       const button = this;
-      during(() => loadAnalysisReport(), {title: 'Analizando checklists...', detail: 'Consolidando unidades, zonas e ítems', button})
+      $('unitAnalysisVersion').value = '0';
+      during(() => loadAnalysisReport({preferLatestVersion: true}), {title: 'Analizando checklists...', detail: 'Consolidando unidades, zonas e ítems', button})
         .catch(err => alert(err.message));
     });
 
     $('unitAnalysisType').addEventListener('change', () => {
       $('unitAnalysisVersion').value = '0';
-      during(() => loadAnalysisReport(), {title: 'Actualizando checklist...', detail: 'Recalculando resultados'}).catch(err => alert(err.message));
+      during(() => loadAnalysisReport({preferLatestVersion: true}), {title: 'Actualizando checklist...', detail: 'Recalculando resultados'}).catch(err => alert(err.message));
     });
     $('unitAnalysisVersion').addEventListener('change', () => {
       during(() => loadAnalysisReport(), {title: 'Actualizando versión...', detail: 'Recalculando resultados'}).catch(err => alert(err.message));
