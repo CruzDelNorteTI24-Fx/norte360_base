@@ -332,6 +332,13 @@ function n360_menu_config(): array {
                                 'modulo' => 5
                             ],
                             [
+                                'titulo' => 'Análisis CheckList',
+                                'icono' => 'bi bi-bar-chart-line-fill',
+                                'url' => '01_amantenimiento/checklist_analisis.php',
+                                'admin' => true,
+                                'modulo' => 5
+                            ],
+                            [
                                 'titulo' => 'Consolidado checklist',
                                 'icono' => 'bi bi-clipboard2-data-fill',
                                 'url' => '01_amantenimiento/checklist_consolidado.php',

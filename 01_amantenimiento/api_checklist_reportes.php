@@ -178,6 +178,51 @@ function cr_item_metric(array $row): array {
     return ['label' => 'Pendiente', 'value' => 'Sin respuesta', 'status' => 'warn'];
 }
 
+function cr_quality_counter(): array {
+    return [
+        'total' => 0,
+        'respondidos' => 0,
+        'pendientes' => 0,
+        'conformes' => 0,
+        'no_conformes' => 0,
+        'no_aplica' => 0,
+        'otros' => 0,
+    ];
+}
+
+function cr_quality_count_row(array &$counter, array $row): void {
+    $counter['total']++;
+    $value = cr_item_value($row);
+    if ($value === '') {
+        $counter['pendientes']++;
+        return;
+    }
+
+    $counter['respondidos']++;
+    $state = strtoupper(cr_text($row['clm_resultado_estado'] ?? ''));
+    if ($state === 'C') $counter['conformes']++;
+    elseif ($state === 'NC') $counter['no_conformes']++;
+    elseif ($state === 'NA') $counter['no_aplica']++;
+    else $counter['otros']++;
+}
+
+function cr_quality_finalize(array $counter): array {
+    $total = (int)($counter['total'] ?? 0);
+    $respondidos = (int)($counter['respondidos'] ?? 0);
+    $conformes = (int)($counter['conformes'] ?? 0);
+    $noConformes = (int)($counter['no_conformes'] ?? 0);
+    $evaluables = $conformes + $noConformes;
+    $completion = $total > 0 ? round(($respondidos / $total) * 100, 2) : 0.0;
+    $compliance = $evaluables > 0 ? round(($conformes / $evaluables) * 100, 2) : null;
+    $score = $compliance ?? $completion;
+
+    $counter['evaluables'] = $evaluables;
+    $counter['completitud'] = $completion;
+    $counter['conformidad'] = $compliance;
+    $counter['estado'] = $score > 70 ? 'ok' : ($score >= 50 ? 'warn' : 'bad');
+    return $counter;
+}
+
 function cr_fetch_checklist_items_flat(mysqli $conn, int $checklistId, int $tipoId): array {
     $filter = n360_cv_item_filter($conn, $checklistId, $tipoId, 'i', 'c');
     $stmt = $conn->prepare("
@@ -329,6 +374,28 @@ function cr_search_buses(mysqli $conn, string $q): array {
     return cr_fetch_all($stmt);
 }
 
+function cr_fetch_active_buses(mysqli $conn): array {
+    $result = $conn->query("
+        SELECT clm_placas_id AS id_bus,
+               IFNULL(clm_placas_BUS, '') AS bus,
+               IFNULL(clm_placas_PLACA, '') AS placa,
+               IFNULL(clm_placas_SERVICIO, '') AS servicio
+        FROM tb_placas
+        WHERE UPPER(TRIM(IFNULL(clm_placas_ESTADO, 'ACTIVO'))) = 'ACTIVO'
+        ORDER BY clm_placas_BUS ASC, clm_placas_PLACA ASC
+    ");
+    if (!$result) throw new RuntimeException(cr_db_error($conn));
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
+
+function cr_parse_bus_ids($value): array {
+    $parts = is_array($value) ? $value : explode(',', (string)$value);
+    return array_values(array_unique(array_filter(
+        array_map('intval', $parts),
+        fn($id) => $id > 0
+    )));
+}
+
 function cr_checklist_base_query(): string {
     return "
         SELECT c.clm_checklist_id, c.clm_checklist_corr, c.clm_checklist_idtipo,
@@ -414,21 +481,21 @@ function cr_fetch_checklist_detail(mysqli $conn, int $checklistId): array {
     $itemRows = cr_fetch_all($stmtItems);
 
     $categories = [];
-    $total = 0;
-    $respondidos = 0;
+    $quality = cr_quality_counter();
     foreach ($itemRows as $item) {
         $catId = (int)$item['clm_categoria_id'];
         if (!isset($categories[$catId])) {
             $categories[$catId] = [
                 'id' => $catId,
                 'nombre' => cr_text($item['clm_categoria_nombre']),
+                'metricas' => cr_quality_counter(),
                 'items' => [],
             ];
         }
         $valor = cr_item_value($item);
         $answered = $valor !== '';
-        $total++;
-        if ($answered) $respondidos++;
+        cr_quality_count_row($quality, $item);
+        cr_quality_count_row($categories[$catId]['metricas'], $item);
         $categories[$catId]['items'][] = [
             'id' => (int)$item['clm_item_id'],
             'item' => cr_text($item['clm_item_nombre']),
@@ -442,17 +509,422 @@ function cr_fetch_checklist_detail(mysqli $conn, int $checklistId): array {
         ];
     }
 
+    foreach ($categories as &$category) {
+        $category['metricas'] = cr_quality_finalize($category['metricas']);
+    }
+    unset($category);
+
+    $quality = cr_quality_finalize($quality);
+
     $summary = cr_summary_from_row($conn, $row);
     $summary['completion'] = [
-        'total' => $total,
-        'respondidos' => $respondidos,
-        'porcentaje' => $total > 0 ? round(($respondidos / $total) * 100, 2) : 0,
-        'estado' => ($total > 0 && $respondidos >= $total) ? 'Completo' : 'Incompleto',
+        'total' => $quality['total'],
+        'respondidos' => $quality['respondidos'],
+        'porcentaje' => $quality['completitud'],
+        'estado' => ($quality['total'] > 0 && $quality['respondidos'] >= $quality['total']) ? 'Completo' : 'Incompleto',
     ];
+    $summary['calidad'] = $quality;
 
     return [
         'checklist' => $summary,
         'categorias' => array_values($categories),
+    ];
+}
+
+function cr_fetch_period_item_rows(
+    mysqli $conn,
+    array $checklistIds,
+    int $tipoId,
+    ?int $versionId
+): array {
+    $checklistIds = array_values(array_unique(array_filter(array_map('intval', $checklistIds), fn($id) => $id > 0)));
+    if (!$checklistIds) return [];
+
+    $placeholders = implode(',', array_fill(0, count($checklistIds), '?'));
+    $useVersion = $versionId !== null && $versionId > 0 && n360_cv_version_has_items($conn, $versionId);
+    $itemWhere = $useVersion
+        ? 'i.clm_item_idversion = ?'
+        : "i.clm_item_estado = 'activo' AND i.clm_item_idtipocheck = ? AND cat.clm_categorias_estado = 'activo'";
+
+    $stmt = $conn->prepare("
+        SELECT c.clm_checklist_id, c.clm_checklist_id_bus,
+               i.clm_item_id, i.clm_item_nombre, i.clm_items_tipo,
+               cat.clm_categoria_id, cat.clm_categoria_nombre,
+               r.clm_resultado_estado, r.clm_resultado_dfecd, r.clm_rescheck_conductor1,
+               r.clm_rescheck_porcentaje1, r.clm_rescheck_imagen,
+               " . cr_result_doc_expr($conn, 'r') . " AS clm_rescheck_doc
+        FROM tb_checklist_limpieza c
+        INNER JOIN tb_items_checklist i ON 1 = 1
+        INNER JOIN tb_categorias_checklist cat
+            ON cat.clm_categoria_id = i.clm_item_id_categoria
+        LEFT JOIN tb_resultados_checklist r
+            ON r.clm_resultado_id_checklist = c.clm_checklist_id
+           AND r.clm_resultado_id_item = i.clm_item_id
+        WHERE c.clm_checklist_id IN ({$placeholders})
+          AND {$itemWhere}
+        ORDER BY cat.clm_categoria_id ASC, i.clm_item_id ASC, c.clm_checklist_id ASC
+    ");
+    if (!$stmt) throw new RuntimeException(cr_db_error($conn));
+
+    $params = array_merge($checklistIds, [$useVersion ? $versionId : $tipoId]);
+    n360_cv_bind_params($stmt, str_repeat('i', count($params)), $params);
+    return cr_fetch_all($stmt);
+}
+
+function cr_fetch_unit_period_analysis(
+    mysqli $conn,
+    int $busId,
+    string $desde,
+    string $hasta,
+    int $tipoId,
+    int $requestedVersionId = 0
+): array {
+    if (!cr_can_view_tipo($tipoId)) {
+        cr_json(false, [], 'No tienes permiso para este tipo de checklist.', 403);
+    }
+
+    $stmt = $conn->prepare(cr_checklist_base_query() . "
+        WHERE c.clm_checklist_id_bus = ?
+          AND c.clm_checklist_fecha BETWEEN ? AND ?
+          AND c.clm_checklist_idtipo = ?
+        ORDER BY c.clm_checklist_fecha DESC, c.clm_checklist_hora DESC, c.clm_checklist_id DESC
+        LIMIT 400
+    ");
+    if (!$stmt) throw new RuntimeException(cr_db_error($conn));
+    $stmt->bind_param('issi', $busId, $desde, $hasta, $tipoId);
+    $checklists = cr_fetch_all($stmt);
+
+    $groups = [];
+    $tipoNombre = '';
+    foreach ($checklists as $checklist) {
+        $tipoNombre = $tipoNombre ?: cr_text($checklist['tipo_nombre'] ?? '');
+        $checklistId = (int)$checklist['clm_checklist_id'];
+        $versionId = n360_cv_checklist_version_id(
+            $conn,
+            $checklistId,
+            $tipoId,
+            cr_text($checklist['clm_checklist_fecha'] ?? '')
+        );
+        $normalizedVersionId = $versionId && $versionId > 0 ? $versionId : 0;
+        if ($requestedVersionId > 0 && $normalizedVersionId !== $requestedVersionId) continue;
+
+        if (!isset($groups[$normalizedVersionId])) {
+            $groups[$normalizedVersionId] = [
+                'id' => $normalizedVersionId,
+                'nombre' => $normalizedVersionId > 0
+                    ? n360_cv_version_label($conn, $normalizedVersionId)
+                    : 'Estructura heredada',
+                'checklists' => [],
+            ];
+        }
+        $groups[$normalizedVersionId]['checklists'][] = $checklistId;
+    }
+
+    $overall = cr_quality_counter();
+    $zones = [];
+    $versions = [];
+    $selectedChecklistCount = 0;
+
+    foreach ($groups as $versionKey => $group) {
+        $checklistIds = $group['checklists'];
+        $selectedChecklistCount += count($checklistIds);
+        $versions[] = [
+            'id' => (int)$group['id'],
+            'nombre' => $group['nombre'],
+            'checklists' => count($checklistIds),
+        ];
+
+        $itemRows = cr_fetch_period_item_rows(
+            $conn,
+            $checklistIds,
+            $tipoId,
+            (int)$versionKey > 0 ? (int)$versionKey : null
+        );
+        foreach ($itemRows as $item) {
+            $catId = (int)$item['clm_categoria_id'];
+            $zoneKey = (int)$group['id'] . ':' . $catId;
+            if (!isset($zones[$zoneKey])) {
+                $zones[$zoneKey] = [
+                    'id' => $catId,
+                    'nombre' => cr_text($item['clm_categoria_nombre']),
+                    'version_id' => (int)$group['id'],
+                    'version' => $group['nombre'],
+                    'checklists' => count($checklistIds),
+                    'metricas' => cr_quality_counter(),
+                    'items' => [],
+                ];
+            }
+
+            $itemId = (int)$item['clm_item_id'];
+            if (!isset($zones[$zoneKey]['items'][$itemId])) {
+                $zones[$zoneKey]['items'][$itemId] = [
+                    'id' => $itemId,
+                    'nombre' => cr_text($item['clm_item_nombre']),
+                    'tipo' => cr_text($item['clm_items_tipo']),
+                    'metricas' => cr_quality_counter(),
+                ];
+            }
+
+            cr_quality_count_row($overall, $item);
+            cr_quality_count_row($zones[$zoneKey]['metricas'], $item);
+            cr_quality_count_row($zones[$zoneKey]['items'][$itemId]['metricas'], $item);
+        }
+    }
+
+    foreach ($zones as &$zone) {
+        $zone['metricas'] = cr_quality_finalize($zone['metricas']);
+        foreach ($zone['items'] as &$item) {
+            $item['metricas'] = cr_quality_finalize($item['metricas']);
+        }
+        unset($item);
+        $zone['items'] = array_values($zone['items']);
+        $zone['items_catalogo'] = count($zone['items']);
+    }
+    unset($zone);
+
+    usort($versions, fn($a, $b) => $b['id'] <=> $a['id']);
+    uasort($zones, function ($a, $b) {
+        $versionCompare = $b['version_id'] <=> $a['version_id'];
+        return $versionCompare !== 0 ? $versionCompare : ($a['id'] <=> $b['id']);
+    });
+
+    return [
+        'filtros' => [
+            'id_bus' => $busId,
+            'desde' => $desde,
+            'hasta' => $hasta,
+            'tipo_id' => $tipoId,
+            'version_id' => $requestedVersionId,
+        ],
+        'tipo' => ['id' => $tipoId, 'nombre' => $tipoNombre ?: ('Tipo ' . $tipoId)],
+        'checklists' => $selectedChecklistCount,
+        'versiones' => $versions,
+        'metricas' => cr_quality_finalize($overall),
+        'zonas' => array_values($zones),
+    ];
+}
+
+function cr_fetch_units_period_analysis(
+    mysqli $conn,
+    array $requestedBusIds,
+    bool $allActive,
+    string $desde,
+    string $hasta,
+    int $requestedTypeId = 0,
+    int $requestedVersionId = 0
+): array {
+    $activeBuses = cr_fetch_active_buses($conn);
+    $activeMap = [];
+    foreach ($activeBuses as $bus) {
+        $activeMap[(int)$bus['id_bus']] = $bus;
+    }
+
+    $busIds = $allActive
+        ? array_keys($activeMap)
+        : array_values(array_filter($requestedBusIds, fn($id) => isset($activeMap[(int)$id])));
+    $busIds = array_slice(array_values(array_unique(array_map('intval', $busIds))), 0, 250);
+    if (!$busIds) {
+        throw new RuntimeException('Selecciona al menos una unidad activa.');
+    }
+
+    $unitStats = [];
+    foreach ($busIds as $busId) {
+        $unitStats[$busId] = [
+            'checklists' => 0,
+            'metricas' => cr_quality_counter(),
+        ];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($busIds), '?'));
+    $stmt = $conn->prepare(cr_checklist_base_query() . "
+        WHERE c.clm_checklist_id_bus IN ({$placeholders})
+          AND c.clm_checklist_fecha BETWEEN ? AND ?
+        ORDER BY c.clm_checklist_fecha DESC, c.clm_checklist_hora DESC, c.clm_checklist_id DESC
+        LIMIT 2500
+    ");
+    if (!$stmt) throw new RuntimeException(cr_db_error($conn));
+    n360_cv_bind_params(
+        $stmt,
+        str_repeat('i', count($busIds)) . 'ss',
+        array_merge($busIds, [$desde, $hasta])
+    );
+    $allRows = cr_fetch_all($stmt);
+
+    $types = [];
+    foreach ($allRows as $row) {
+        $typeId = (int)($row['clm_checklist_idtipo'] ?? 0);
+        if ($typeId <= 0 || !cr_can_view_tipo($typeId)) continue;
+        $types[$typeId] = cr_text($row['tipo_nombre'] ?? '') ?: ('Tipo ' . $typeId);
+    }
+    uasort($types, fn($a, $b) => strcasecmp($a, $b));
+
+    $typeId = isset($types[$requestedTypeId])
+        ? $requestedTypeId
+        : (isset($types[1]) ? 1 : (int)(array_key_first($types) ?? 0));
+    $typeName = $typeId > 0 ? ($types[$typeId] ?? ('Tipo ' . $typeId)) : 'Sin checklist';
+
+    $typedRows = array_values(array_filter(
+        $allRows,
+        fn($row) => (int)($row['clm_checklist_idtipo'] ?? 0) === $typeId
+    ));
+
+    $versionLabels = [];
+    $preparedRows = [];
+    foreach ($typedRows as $row) {
+        $checklistId = (int)$row['clm_checklist_id'];
+        $versionId = n360_cv_checklist_version_id(
+            $conn,
+            $checklistId,
+            $typeId,
+            cr_text($row['clm_checklist_fecha'] ?? '')
+        );
+        $versionId = $versionId && $versionId > 0 ? (int)$versionId : 0;
+        if (!array_key_exists($versionId, $versionLabels)) {
+            $versionLabels[$versionId] = $versionId > 0
+                ? n360_cv_version_label($conn, $versionId)
+                : 'Estructura heredada';
+        }
+        $row['_version_id'] = $versionId;
+        $row['_version_name'] = $versionLabels[$versionId];
+        $preparedRows[] = $row;
+    }
+
+    $groups = [];
+    $executions = [];
+    foreach ($preparedRows as $row) {
+        $versionId = (int)$row['_version_id'];
+        if ($requestedVersionId > 0 && $versionId !== $requestedVersionId) continue;
+
+        if (!isset($groups[$versionId])) {
+            $groups[$versionId] = [
+                'id' => $versionId,
+                'nombre' => $row['_version_name'],
+                'checklists' => [],
+            ];
+        }
+        $checklistId = (int)$row['clm_checklist_id'];
+        $busId = (int)$row['clm_checklist_id_bus'];
+        $groups[$versionId]['checklists'][] = $checklistId;
+        if (isset($unitStats[$busId])) $unitStats[$busId]['checklists']++;
+
+        $executions[] = [
+            'id' => $checklistId,
+            'corr' => cr_text($row['clm_checklist_corr'] ?? ''),
+            'tipo_id' => $typeId,
+            'tipo' => $typeName,
+            'version_id' => $versionId,
+            'version' => $row['_version_name'],
+            'fecha' => cr_text($row['clm_checklist_fecha'] ?? ''),
+            'hora' => cr_text($row['clm_checklist_hora'] ?? ''),
+            'estado' => cr_text($row['clm_checklist_estado'] ?? ''),
+            'responsable' => cr_text($row['clm_checklist_responsable'] ?? ''),
+            'id_bus' => $busId,
+            'bus' => cr_text($row['bus'] ?? ''),
+            'placa' => cr_text($row['placa'] ?? ''),
+        ];
+    }
+
+    $overall = cr_quality_counter();
+    $zones = [];
+    foreach ($groups as $versionId => $group) {
+        $itemRows = cr_fetch_period_item_rows(
+            $conn,
+            $group['checklists'],
+            $typeId,
+            $versionId > 0 ? $versionId : null
+        );
+        foreach ($itemRows as $item) {
+            $busId = (int)($item['clm_checklist_id_bus'] ?? 0);
+            $categoryId = (int)$item['clm_categoria_id'];
+            $zoneKey = $versionId . ':' . $categoryId;
+            if (!isset($zones[$zoneKey])) {
+                $zones[$zoneKey] = [
+                    'id' => $categoryId,
+                    'nombre' => cr_text($item['clm_categoria_nombre']),
+                    'version_id' => $versionId,
+                    'version' => $group['nombre'],
+                    'checklists' => count($group['checklists']),
+                    'metricas' => cr_quality_counter(),
+                    'items' => [],
+                ];
+            }
+
+            $itemId = (int)$item['clm_item_id'];
+            if (!isset($zones[$zoneKey]['items'][$itemId])) {
+                $zones[$zoneKey]['items'][$itemId] = [
+                    'id' => $itemId,
+                    'nombre' => cr_text($item['clm_item_nombre']),
+                    'tipo' => cr_text($item['clm_items_tipo']),
+                    'metricas' => cr_quality_counter(),
+                ];
+            }
+
+            cr_quality_count_row($overall, $item);
+            cr_quality_count_row($zones[$zoneKey]['metricas'], $item);
+            cr_quality_count_row($zones[$zoneKey]['items'][$itemId]['metricas'], $item);
+            if (isset($unitStats[$busId])) cr_quality_count_row($unitStats[$busId]['metricas'], $item);
+        }
+    }
+
+    foreach ($zones as &$zone) {
+        $zone['metricas'] = cr_quality_finalize($zone['metricas']);
+        foreach ($zone['items'] as &$item) {
+            $item['metricas'] = cr_quality_finalize($item['metricas']);
+        }
+        unset($item);
+        $zone['items'] = array_values($zone['items']);
+        $zone['items_catalogo'] = count($zone['items']);
+    }
+    unset($zone);
+    uasort($zones, function ($a, $b) {
+        $versionCompare = $b['version_id'] <=> $a['version_id'];
+        return $versionCompare !== 0 ? $versionCompare : ($a['id'] <=> $b['id']);
+    });
+
+    $units = [];
+    $unitsWithData = 0;
+    foreach ($busIds as $busId) {
+        $stats = $unitStats[$busId];
+        if ($stats['checklists'] > 0) $unitsWithData++;
+        $units[] = array_merge($activeMap[$busId], [
+            'checklists' => $stats['checklists'],
+            'metricas' => cr_quality_finalize($stats['metricas']),
+        ]);
+    }
+
+    $versions = [];
+    foreach ($versionLabels as $versionId => $label) {
+        $versions[] = ['id' => (int)$versionId, 'nombre' => $label];
+    }
+    usort($versions, fn($a, $b) => $b['id'] <=> $a['id']);
+
+    $typeRows = [];
+    foreach ($types as $availableTypeId => $label) {
+        $typeRows[] = ['id' => (int)$availableTypeId, 'nombre' => $label];
+    }
+
+    return [
+        'filtros' => [
+            'desde' => $desde,
+            'hasta' => $hasta,
+            'tipo_id' => $typeId,
+            'version_id' => $requestedVersionId,
+            'todas_activas' => $allActive,
+        ],
+        'alcance' => [
+            'unidades_seleccionadas' => count($busIds),
+            'unidades_con_datos' => $unitsWithData,
+            'unidades_sin_datos' => count($busIds) - $unitsWithData,
+            'limite_alcanzado' => count($allRows) >= 2500,
+        ],
+        'tipo' => ['id' => $typeId, 'nombre' => $typeName],
+        'tipos' => $typeRows,
+        'checklists' => count($executions),
+        'versiones' => $versions,
+        'metricas' => cr_quality_finalize($overall),
+        'zonas' => array_values($zones),
+        'unidades' => $units,
+        'ejecuciones' => $executions,
     ];
 }
 
@@ -713,11 +1185,44 @@ try {
         cr_json(true, ['unidades' => cr_search_buses($conn, $q)]);
     }
 
+    if ($action === 'unidades_activas') {
+        cr_require_admin();
+        cr_json(true, ['unidades' => cr_fetch_active_buses($conn)]);
+    }
+
     if ($action === 'unidad') {
         cr_require_admin();
         $busId = (int)($_GET['id_bus'] ?? 0);
         if ($busId <= 0) cr_json(false, [], 'Selecciona una unidad valida.', 422);
         cr_json(true, cr_fetch_unit_report($conn, $busId, $desde, $hasta));
+    }
+
+    if ($action === 'analisis_unidad') {
+        cr_require_admin();
+        $busId = (int)($_GET['id_bus'] ?? 0);
+        $tipoId = (int)($_GET['tipo_id'] ?? 0);
+        $versionId = (int)($_GET['version_id'] ?? 0);
+        if ($busId <= 0 || $tipoId <= 0) {
+            cr_json(false, [], 'Selecciona una unidad y un tipo de checklist validos.', 422);
+        }
+        cr_json(true, cr_fetch_unit_period_analysis($conn, $busId, $desde, $hasta, $tipoId, $versionId));
+    }
+
+    if ($action === 'analisis_unidades') {
+        cr_require_admin();
+        $allActive = (int)($_GET['todas_activas'] ?? 0) === 1;
+        $busIds = cr_parse_bus_ids($_GET['id_buses'] ?? '');
+        $tipoId = (int)($_GET['tipo_id'] ?? 0);
+        $versionId = (int)($_GET['version_id'] ?? 0);
+        cr_json(true, cr_fetch_units_period_analysis(
+            $conn,
+            $busIds,
+            $allActive,
+            $desde,
+            $hasta,
+            $tipoId,
+            $versionId
+        ));
     }
 
     if ($action === 'flota') {
