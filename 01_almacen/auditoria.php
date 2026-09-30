@@ -990,6 +990,23 @@ try {
             <button type="button" class="audalm-btn audalm-btn--soft" id="btnCompletePending"><i class="bi bi-magic"></i> Completar pendientes</button>
         </div>
 
+        <div class="audalm-audit-reports" aria-label="Reportes del conteo">
+            <div class="audalm-audit-reports__title">
+                <span><i class="bi bi-file-earmark-pdf"></i> Reportes del conteo</span>
+                <small>Se generan con los valores actuales del modal</small>
+            </div>
+            <button type="button" class="audalm-report-btn is-pending" id="btnPdfPending" disabled>
+                <i class="bi bi-file-earmark-arrow-down"></i>
+                <span><strong>Generar PDF pendientes</strong><small>Productos sin conteo fisico</small></span>
+                <b id="pdfPendingCount">0</b>
+            </button>
+            <button type="button" class="audalm-report-btn is-difference" id="btnPdfDifferences" disabled>
+                <i class="bi bi-exclamation-triangle"></i>
+                <span><strong>Generar PDF diferencias</strong><small>Stock fisico distinto al sistema</small></span>
+                <b id="pdfDifferenceCount">0</b>
+            </button>
+        </div>
+
         <section class="audalm-mini-kpis">
             <div><span>Total</span><strong id="sumTotal">0</strong></div>
             <div><span>Contados</span><strong id="sumContados">0</strong></div>
@@ -1108,9 +1125,18 @@ try {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
 <script>
 const productHistoryEndpoint = <?= json_encode(n360_base_url('php/ver_movimientos_producto.php'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 const productNoteEndpoint = <?= json_encode(n360_base_url('php/ver_nota_salida.php'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+const auditPdfConfig = {
+    userName: <?= json_encode((string)($_SESSION['usuario'] ?? 'Usuario'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    dni: <?= json_encode((string)($_SESSION['DNI'] ?? 'No registrado'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    logoLeft: <?= json_encode(n360_base_url('img/icon.png'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    logoRight: <?= json_encode(n360_base_url('img/norte360_black.png'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+};
 const state = {
     rows: [],
     selected: null,
@@ -1401,6 +1427,22 @@ function inventorySummary() {
     }, {total: 0, contados: 0, conformes: 0, pendientes: 0, ok: 0, diferencias: 0, doc_ok: 0});
 }
 
+function auditReportItems(type) {
+    if (type === 'pending') {
+        return state.records.filter(item => !recordCounted(item));
+    }
+    return state.records.filter(item => recordCounted(item) && Number(item.diferencia) !== 0);
+}
+
+function pdfFileSlug(value) {
+    return String(value || 'auditoria')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'auditoria';
+}
+
 function renderInventoryStats() {
     const s = inventorySummary();
     qs('#sumTotal').textContent = s.total;
@@ -1408,6 +1450,136 @@ function renderInventoryStats() {
     qs('#sumConformes').textContent = s.conformes;
     qs('#sumPendientes').textContent = s.pendientes;
     qs('#sumDiferencias').textContent = s.diferencias;
+    qs('#pdfPendingCount').textContent = s.pendientes;
+    qs('#pdfDifferenceCount').textContent = s.diferencias;
+    qs('#btnPdfPending').disabled = s.pendientes <= 0;
+    qs('#btnPdfDifferences').disabled = s.diferencias <= 0;
+}
+
+async function generateAuditProductsPdf(type, button = null) {
+    const isPending = type === 'pending';
+    const items = auditReportItems(type);
+    const audit = state.activeAudit;
+
+    if (!audit || !items.length) {
+        toast(isPending ? 'No hay productos pendientes para exportar.' : 'No hay productos con diferencia para exportar.', 'error');
+        return;
+    }
+    if (!window.N360PDF || !window.jspdf?.jsPDF || typeof window.jspdf.jsPDF.API.autoTable !== 'function') {
+        toast('El modulo PDF no esta disponible. Recarga la pagina e intenta nuevamente.', 'error');
+        return;
+    }
+
+    const label = isPending ? 'pendientes' : 'con diferencia';
+    try {
+        await withLoading({
+            title: 'Generando reporte PDF...',
+            detail: `Preparando ${items.length} producto(s) ${label}`,
+            button
+        }, async () => {
+            const reportTitle = isPending ? 'PRODUCTOS PENDIENTES DE AUDITORIA' : 'PRODUCTOS CON DIFERENCIA DE STOCK';
+            const doc = await window.N360PDF.createDocument({
+                ...auditPdfConfig,
+                orientation: 'portrait',
+                useCover: false,
+                title: reportTitle,
+                secondTitle: `${audit.codigo || 'Auditoria'} | ${audit.espacio_txt || 'Sin espacio'}`,
+                docCode: isPending ? 'N360-ALM-AUD-PEN' : 'N360-ALM-AUD-DIF',
+                description: 'Reporte generado desde el conteo actual de la auditoria de almacen.',
+                content(pdfDoc) {
+                    const left = 12.7;
+                    const pageWidth = pdfDoc.internal.pageSize.getWidth();
+                    const infoWidth = pageWidth - left * 2;
+                    const mainInfo = `${audit.codigo || 'Auditoria'} | ${audit.fecha_prog_txt || 'Sin fecha'} | ${audit.espacio_txt || 'Sin espacio'} | ${items.length} producto(s)`;
+                    const peopleInfo = `Responsable: ${audit.responsable || '-'} | Supervisor: ${audit.supervisor || '-'} | Veedor: ${audit.veedor || '-'}`;
+                    const mainLines = pdfDoc.splitTextToSize(mainInfo, infoWidth);
+                    const peopleLines = pdfDoc.splitTextToSize(peopleInfo, infoWidth);
+                    const peopleY = 35 + mainLines.length * 3.2 + 1;
+                    const dividerY = peopleY + peopleLines.length * 2.8 + 1.5;
+
+                    pdfDoc.setFont('helvetica', 'bold');
+                    pdfDoc.setFontSize(7.4);
+                    pdfDoc.setTextColor(38, 53, 68);
+                    pdfDoc.text(mainLines, left, 35);
+                    pdfDoc.setFont('helvetica', 'normal');
+                    pdfDoc.setFontSize(6.5);
+                    pdfDoc.setTextColor(100, 116, 139);
+                    pdfDoc.text(peopleLines, left, peopleY);
+                    pdfDoc.setDrawColor(180, 190, 201);
+                    pdfDoc.setLineWidth(.18);
+                    pdfDoc.line(left, dividerY, pageWidth - left, dividerY);
+
+                    pdfDoc.autoTable({
+                        head: [[
+                            'Categoria', '(Codigo) Producto - Unidad', 'Stock actual',
+                            'Estado (Dif.)', 'Stock fisico', 'Nota'
+                        ]],
+                        body: items.map(item => {
+                            const difference = Number(item.diferencia || 0);
+                            const differenceText = difference > 0 ? `+${fmtNum(difference)}` : fmtNum(difference);
+                            const status = isPending
+                                ? 'SIN CONTEO'
+                                : `${difference < 0 ? 'FALTANTE' : 'SOBRANTE'} (${differenceText})`;
+                            return [
+                                item.categoria || '-',
+                                `(${item.cod || '-'}) ${item.producto || '-'} - ${item.unidad || '-'}`,
+                                fmtNum(item.stock_sistema) || '0',
+                                status,
+                                recordCounted(item) ? fmtNum(item.stock_fisico) : '',
+                                item.obs || '',
+                            ];
+                        }),
+                        startY: dividerY + 3,
+                        margin: {left, right: left, top: 31, bottom: 22},
+                        theme: 'grid',
+                        styles: {
+                            font: 'helvetica',
+                            fontSize: 6.1,
+                            cellPadding: 1.5,
+                            lineColor: [194, 205, 216],
+                            lineWidth: .16,
+                            valign: 'middle',
+                            overflow: 'linebreak'
+                        },
+                        headStyles: {
+                            fillColor: [42, 57, 72],
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold',
+                            halign: 'left',
+                            minCellHeight: 9
+                        },
+                        alternateRowStyles: {fillColor: [246, 248, 250]},
+                        columnStyles: {
+                            0: {cellWidth: 32},
+                            1: {cellWidth: 65},
+                            2: {cellWidth: 18, halign: 'center'},
+                            3: {cellWidth: 24},
+                            4: {cellWidth: 18, halign: 'center'},
+                            5: {cellWidth: 27}
+                        },
+                        didParseCell(data) {
+                            if (data.section !== 'body') return;
+                            if (data.column.index === 3 && isPending) {
+                                data.cell.styles.textColor = [161, 98, 7];
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                            if (data.column.index === 3 && !isPending) {
+                                data.cell.styles.textColor = Number(items[data.row.index]?.diferencia || 0) < 0
+                                    ? [180, 35, 24]
+                                    : [28, 105, 151];
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    });
+                }
+            });
+
+            const prefix = isPending ? 'auditoria_pendientes' : 'auditoria_diferencias';
+            doc.save(`${prefix}_${pdfFileSlug(audit.codigo)}.pdf`);
+        });
+    } catch (error) {
+        toast(error?.message || 'No se pudo generar el reporte PDF.', 'error');
+    }
 }
 
 function filteredRecords() {
@@ -2062,6 +2234,8 @@ qs('#btnAnnul').addEventListener('click', () => {
 
 ['#invSearch', '#invCategory', '#invView'].forEach(sel => qs(sel).addEventListener('input', renderInventoryRows));
 qs('#btnRefreshSystemStock').addEventListener('click', ev => refreshSystemStock(ev.currentTarget));
+qs('#btnPdfPending').addEventListener('click', ev => generateAuditProductsPdf('pending', ev.currentTarget));
+qs('#btnPdfDifferences').addEventListener('click', ev => generateAuditProductsPdf('differences', ev.currentTarget));
 qs('#btnCompletePending').addEventListener('click', () => {
     state.records.forEach(item => {
         if (item.stock_fisico === null || item.stock_fisico === '') {

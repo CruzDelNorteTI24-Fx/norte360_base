@@ -770,6 +770,7 @@
 .audalm-modal-card > .audalm-form,
 .audalm-modal-card > .audalm-detail,
 .audalm-modal-card > .audalm-inventory-tools,
+.audalm-modal-card > .audalm-audit-reports,
 .audalm-modal-card > .audalm-mini-kpis,
 .audalm-modal-card > .audalm-inventory-wrap,
 .audalm-modal-card > .audalm-form--footer {
@@ -786,6 +787,153 @@
 .audalm-inventory-tools {
     margin-top: 16px;
     grid-template-columns: minmax(180px, 1fr) 190px 190px auto auto;
+}
+
+.audalm-audit-reports {
+    display: grid;
+    grid-template-columns: minmax(210px, .8fr) repeat(2, minmax(230px, 1fr));
+    gap: 10px;
+    align-items: stretch;
+    margin-bottom: 12px;
+}
+
+.audalm-audit-reports__title {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-height: 64px;
+    padding: 10px 12px;
+    border: 1px solid #d9e4ef;
+    border-left: 4px solid #1b648e;
+    border-radius: 8px;
+    background: #f8fbfe;
+}
+
+.audalm-audit-reports__title span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #16334d;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.audalm-audit-reports__title small {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.audalm-report-btn {
+    --report-tone: #d99a0b;
+    --report-soft: #fff8e5;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 64px;
+    padding: 9px 12px;
+    border: 1px solid #d9e4ef;
+    border-left: 4px solid var(--report-tone);
+    border-radius: 8px;
+    background: #fff;
+    color: #17283a;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.audalm-report-btn.is-pending {
+    border-color: #efd38d;
+    border-left-color: #d99a0b;
+    background: #fffaf0;
+}
+
+.audalm-report-btn.is-difference {
+    --report-tone: #cf4338;
+    --report-soft: rgba(255, 255, 255, .12);
+    border-color: #17324a;
+    border-left-color: #e15349;
+    background: #17324a;
+    color: #fff;
+}
+
+.audalm-report-btn.is-difference strong,
+.audalm-report-btn.is-difference small {
+    color: #fff;
+}
+
+.audalm-report-btn.is-difference small {
+    opacity: .76;
+}
+
+.audalm-report-btn.is-difference b {
+    background: #fff;
+    color: #b9332a;
+}
+
+.audalm-report-btn > i {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--report-soft);
+    font-size: 17px;
+}
+
+.audalm-report-btn span,
+.audalm-report-btn strong,
+.audalm-report-btn small {
+    display: block;
+    min-width: 0;
+}
+
+.audalm-report-btn strong {
+    color: #17324a;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.audalm-report-btn small {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.audalm-report-btn b {
+    display: grid;
+    place-items: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 7px;
+    border-radius: 8px;
+    background: var(--report-soft);
+    color: var(--report-tone);
+    font-size: 12px;
+}
+
+.audalm-report-btn:hover:not(:disabled) {
+    border-color: var(--report-tone);
+    box-shadow: 0 6px 16px rgba(20, 52, 77, .10);
+    transform: translateY(-1px);
+}
+
+.audalm-report-btn.is-difference:hover:not(:disabled) {
+    border-color: #e15349;
+    background: #203f5a;
+}
+
+.audalm-report-btn:focus-visible {
+    outline: 3px solid rgba(35, 137, 201, .18);
+    outline-offset: 2px;
+}
+
+.audalm-report-btn:disabled {
+    cursor: not-allowed;
+    opacity: .52;
 }
 
 .audalm-mini-kpis {
@@ -1210,6 +1358,14 @@ body.audalm-lock {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .audalm-audit-reports {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .audalm-audit-reports__title {
+        grid-column: 1 / -1;
+    }
+
     .audalm-history-entry > .bi-chevron-right {
         display: none;
     }
@@ -1220,6 +1376,7 @@ body.audalm-lock {
     .audalm-kpis,
     .audalm-mini-kpis,
     .audalm-inventory-tools,
+    .audalm-audit-reports,
     .audalm-history-entry,
     .audalm-history-snapshot-head {
         grid-template-columns: 1fr;
