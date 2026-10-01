@@ -5,6 +5,7 @@
   const report = cfg.report || {};
   const tripMap = new Map();
   const rowBaselines = new Map();
+  const selectedScreenDays = new Set();
   let pendingPaymentExport = '';
   let bulkMode = false;
 
@@ -200,11 +201,16 @@
     const month = selectedMonthBounds();
     const visible = visiblePaymentDateBounds(units);
     return {
-      from: month.from || visible.from,
-      to: month.to || visible.to,
+      from: visible.from || month.from,
+      to: visible.to || month.to,
       min: month.from || visible.from,
       max: month.to || visible.to
     };
+  }
+
+  function selectedScreenDaysLabel() {
+    const days = Array.from(selectedScreenDays).sort((a, b) => a - b);
+    return days.length ? days.join(', ') : 'Todos';
   }
 
   function dateInRange(value, from, to) {
@@ -772,17 +778,178 @@
     setBulkMode(!!toggle && !toggle.disabled);
   }
 
-  function setupSearch() {
-    const input = document.querySelector('[data-fcc-search]');
-    if (!input) return;
-    const cards = Array.from(document.querySelectorAll('[data-fcc-unit]'));
-    input.addEventListener('input', () => {
-      const q = compact(input.value).toLowerCase();
-      cards.forEach((card) => {
-        const haystack = String(card.dataset.unitSearch || '').toLowerCase();
-        card.classList.toggle('is-hidden', q !== '' && !haystack.includes(q));
+  function screenRowDay(row) {
+    const direct = Number.parseInt(row?.dataset?.fccDay || '', 10);
+    if (Number.isInteger(direct) && direct > 0 && direct <= 31) return direct;
+    const match = String(row?.dataset?.fccDate || '').match(/-(\d{2})$/);
+    return match ? Number.parseInt(match[1], 10) : 0;
+  }
+
+  function screenRowSearchText(row) {
+    const fieldValues = Array.from(row.querySelectorAll('input, select, textarea'))
+      .map((field) => field.value || '')
+      .join(' ');
+    return keyText([
+      row.textContent || '',
+      fieldValues,
+      row.dataset.fccRevision || '',
+      row.dataset.fccOrigen || '',
+      row.dataset.fccDestino || '',
+      row.dataset.fccHojaruta || ''
+    ].join(' '));
+  }
+
+  function updateScreenKpis(cards) {
+    const visibleCards = cards.filter((card) => !card.classList.contains('is-hidden'));
+    const dates = new Set();
+    const totals = {
+      units: visibleCards.length,
+      days: 0,
+      trips: 0,
+      canceled: 0,
+      pending: 0,
+      paid: 0
+    };
+
+    visibleCards.forEach((card) => {
+      card.querySelectorAll('[data-fcc-row]').forEach((row) => {
+        if (row.hidden) return;
+        const date = compact(row.dataset.fccDate || '');
+        if (date) dates.add(date);
+        if (!row.dataset.fccRow || row.dataset.fccRow === '0') return;
+
+        const canceled = row.dataset.fccAnulado === '1'
+          || isCanceledRevision(row.dataset.fccRevision || '');
+        if (canceled) {
+          totals.canceled += 1;
+          return;
+        }
+
+        totals.trips += 1;
+        const direction = tripDirection(
+          row.querySelector('[data-fcc-field="ida_vuelta"]')?.value
+          || row.querySelector('[data-fcc-col="ida_vuelta"]')?.textContent
+          || ''
+        );
+        if (direction === 'RETORNO') return;
+
+        ['cond1', 'cond2'].forEach((driver) => {
+          if (row.dataset[`fcc${driver.charAt(0).toUpperCase()}${driver.slice(1)}`] !== '1') return;
+          const state = compact(row.querySelector(`[data-fcc-field="${driver}_estado"]`)?.value).toUpperCase();
+          if (state === 'PAGADO') totals.paid += 1;
+          else totals.pending += 1;
+        });
       });
     });
+
+    totals.days = dates.size;
+    Object.entries(totals).forEach(([key, value]) => {
+      const target = document.querySelector(`[data-fcc-screen-kpi="${key}"]`);
+      if (target) target.textContent = Number(value || 0).toLocaleString('es-PE');
+    });
+  }
+
+  function updateDayFilterUi(filter) {
+    if (!filter) return;
+    const selected = Array.from(selectedScreenDays).sort((a, b) => a - b);
+    const options = Array.from(filter.querySelectorAll('[data-fcc-day-option]'));
+    const label = filter.querySelector('[data-fcc-day-label]');
+    const badge = filter.querySelector('[data-fcc-day-badge]');
+    const count = filter.querySelector('[data-fcc-day-count]');
+    const selection = filter.querySelector('[data-fcc-day-selection]');
+
+    options.forEach((option) => {
+      const day = Number.parseInt(option.dataset.fccDayOption || '', 10);
+      const active = selectedScreenDays.has(day);
+      option.classList.toggle('is-selected', active);
+      option.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    filter.classList.toggle('has-selection', selected.length > 0);
+    if (label) {
+      label.textContent = selected.length === 0
+        ? 'Todos los dias'
+        : selected.length <= 3
+          ? `Dias ${selected.join(', ')}`
+          : `${selected.length} dias seleccionados`;
+    }
+    if (badge) badge.textContent = String(selected.length || options.length);
+    if (count) {
+      count.textContent = selected.length
+        ? `${selected.length} de ${options.length} dias visibles`
+        : `${options.length} dias disponibles`;
+    }
+    if (selection) {
+      selection.textContent = selected.length ? `Dias ${selected.join(', ')}` : 'Todo el mes';
+    }
+  }
+
+  function applyScreenFilters() {
+    const input = document.querySelector('[data-fcc-search]');
+    const query = keyText(input?.value || '');
+    const cards = Array.from(document.querySelectorAll('[data-fcc-unit]'));
+
+    cards.forEach((card) => {
+      const rows = Array.from(card.querySelectorAll('[data-fcc-row]'));
+      rows.forEach((row) => {
+        const day = screenRowDay(row);
+        row.hidden = selectedScreenDays.size > 0 && !selectedScreenDays.has(day);
+      });
+
+      const visibleDayRows = rows.filter((row) => !row.hidden);
+      const unitText = keyText(card.querySelector('.fcc-unit-toggle')?.textContent || '');
+      const matchesQuery = query === ''
+        || unitText.includes(query)
+        || visibleDayRows.some((row) => screenRowSearchText(row).includes(query));
+      card.classList.toggle('is-hidden', !matchesQuery || visibleDayRows.length === 0);
+    });
+
+    updateScreenKpis(cards);
+    const canceledTrips = collectCanceledTrips(visibleUnits());
+    const canceledCount = document.querySelector('[data-fcc-canceled-count]');
+    if (canceledCount) canceledCount.textContent = canceledTrips.length.toLocaleString('es-PE');
+  }
+
+  function setupScreenFilters() {
+    const input = document.querySelector('[data-fcc-search]');
+    const filter = document.querySelector('[data-fcc-day-filter]');
+    const toggle = filter?.querySelector('[data-fcc-day-toggle]');
+    const panel = filter?.querySelector('[data-fcc-day-panel]');
+
+    const setPanelOpen = (open) => {
+      if (!toggle || !panel) return;
+      panel.hidden = !open;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    input?.addEventListener('input', applyScreenFilters);
+    toggle?.addEventListener('click', () => setPanelOpen(panel?.hidden !== false));
+    filter?.querySelectorAll('[data-fcc-day-option]').forEach((option) => {
+      option.addEventListener('click', () => {
+        const day = Number.parseInt(option.dataset.fccDayOption || '', 10);
+        if (!Number.isInteger(day)) return;
+        if (selectedScreenDays.has(day)) selectedScreenDays.delete(day);
+        else selectedScreenDays.add(day);
+        updateDayFilterUi(filter);
+        applyScreenFilters();
+      });
+    });
+    filter?.querySelector('[data-fcc-day-all]')?.addEventListener('click', () => {
+      selectedScreenDays.clear();
+      updateDayFilterUi(filter);
+      applyScreenFilters();
+    });
+    filter?.querySelector('[data-fcc-day-close]')?.addEventListener('click', () => setPanelOpen(false));
+
+    document.addEventListener('click', (event) => {
+      if (filter && !filter.contains(event.target)) setPanelOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') setPanelOpen(false);
+    });
+
+    updateDayFilterUi(filter);
+    applyScreenFilters();
   }
 
   function cellText(row, selector) {
@@ -794,7 +961,7 @@
 
   function collectUnitFromCard(card) {
     const title = clean(card.querySelector('.fcc-unit-toggle strong')?.textContent || 'Unidad');
-    const rows = Array.from(card.querySelectorAll('tbody tr')).map((row) => {
+    const rows = Array.from(card.querySelectorAll('tbody tr')).filter((row) => !row.hidden).map((row) => {
       const dayCell = row.querySelector('[data-fcc-col="dia"]');
       const dayNumber = compact(row.dataset.fccDay || dayCell?.querySelector('strong')?.textContent || '');
       const weekday = compact(row.dataset.fccWeekday || dayCell?.querySelector('span')?.textContent || '');
@@ -1292,6 +1459,7 @@
         title: 'Unidad del reporte',
         rows: [
           { label: 'Mes operativo', value: cfg.monthLabel || cfg.month || '-' },
+          { label: 'Dias visibles', value: selectedScreenDaysLabel() },
           { label: 'Unidad', value: unit.title || '-' },
           { label: 'Pagina de unidad', value: `${unitIndex + 1} de ${unitsCount}` },
           { label: 'Conductores / viajes', value: `${totals.drivers} / ${totals.trips}` },
@@ -1310,7 +1478,7 @@
     doc.setFontSize(7.5);
     doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y + 12);
     doc.text(`Unidad: ${unit.title || '-'}`, left + width, y + 12, { align: 'right' });
-    doc.text(`Anulados: ${canceled.toLocaleString('es-PE')}`, left, y + 17);
+    doc.text(`Dias visibles: ${selectedScreenDaysLabel()} | Anulados: ${canceled.toLocaleString('es-PE')}`, left, y + 17);
     doc.setDrawColor(210, 224, 238);
     doc.line(left, y + 21, left + width, y + 21);
     return y + 23;
@@ -1581,6 +1749,7 @@
               title: 'Importes de conductores',
               rows: [
                 { label: 'Mes operativo', value: cfg.monthLabel || cfg.month || '-' },
+                { label: 'Dias visibles', value: selectedScreenDaysLabel() },
                 { label: 'Rango', value: paymentRangeLabel(range) },
                 { label: 'Unidades visibles', value: totals.unidades.toLocaleString('es-PE') },
                 { label: 'Conductores', value: totals.conductores.toLocaleString('es-PE') },
@@ -1596,8 +1765,9 @@
             doc.setFontSize(10);
             doc.text(`Mes operativo: ${cfg.monthLabel || cfg.month || '-'}`, left, y);
             doc.text(`Rango: ${paymentRangeLabel(range)}`, left, y + 5);
+            doc.text(`Dias visibles: ${selectedScreenDaysLabel()}`, left, y + 10);
             doc.text(`Total visible: ${moneyReportText(totals.total)}`, left + width, y, { align: 'right' });
-            y += 14;
+            y += 17;
           }
 
           doc.setTextColor(15, 42, 64);
@@ -2131,7 +2301,7 @@
     });
   });
   setupBulkEdit();
-  setupSearch();
+  setupScreenFilters();
   setupPdfButtons();
   setupPaymentExportButtons();
   setupPaymentRangeModal();

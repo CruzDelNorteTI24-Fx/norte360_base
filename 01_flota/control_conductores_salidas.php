@@ -1012,7 +1012,7 @@ $monthLabel = fcc_month_label($monthStart);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=historial-viaje-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=day-filter-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
@@ -1054,12 +1054,12 @@ $monthLabel = fcc_month_label($monthStart);
         <?php endif; ?>
 
         <section class="fcc-summary">
-            <article><span>Unidades</span><strong><?= number_format($kpis['unidades']) ?></strong></article>
-            <article><span>Dias del mes</span><strong><?= number_format($kpis['dias']) ?></strong></article>
-            <article><span>Viajes</span><strong><?= number_format($kpis['programaciones']) ?></strong></article>
-            <article><span>Anulados</span><strong><?= number_format($kpis['anulados']) ?></strong></article>
-            <article><span>Pendientes</span><strong><?= number_format($kpis['pendientes']) ?></strong></article>
-            <article><span>OK</span><strong><?= number_format($kpis['pagados']) ?></strong></article>
+            <article><span>Unidades</span><strong data-fcc-screen-kpi="units"><?= number_format($kpis['unidades']) ?></strong></article>
+            <article><span>Dias visibles</span><strong data-fcc-screen-kpi="days"><?= number_format($kpis['dias']) ?></strong></article>
+            <article><span>Viajes</span><strong data-fcc-screen-kpi="trips"><?= number_format($kpis['programaciones']) ?></strong></article>
+            <article><span>Anulados</span><strong data-fcc-screen-kpi="canceled"><?= number_format($kpis['anulados']) ?></strong></article>
+            <article><span>Pendientes</span><strong data-fcc-screen-kpi="pending"><?= number_format($kpis['pendientes']) ?></strong></article>
+            <article><span>OK</span><strong data-fcc-screen-kpi="paid"><?= number_format($kpis['pagados']) ?></strong></article>
         </section>
 
         <section class="fcc-filter">
@@ -1077,6 +1077,40 @@ $monthLabel = fcc_month_label($monthStart);
                         <?php endforeach; ?>
                     </select>
                 </label>
+                <div class="fcc-day-filter" data-fcc-day-filter>
+                    <span>Dias visibles</span>
+                    <button type="button" class="fcc-day-filter__toggle" data-fcc-day-toggle aria-expanded="false" aria-controls="fccDayFilterPanel">
+                        <i class="bi bi-calendar3" aria-hidden="true"></i>
+                        <strong data-fcc-day-label>Todos los dias</strong>
+                        <b data-fcc-day-badge><?= number_format(count($days)) ?></b>
+                        <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="fcc-day-filter__panel" id="fccDayFilterPanel" data-fcc-day-panel hidden>
+                        <div class="fcc-day-filter__head">
+                            <div>
+                                <strong>Seleccionar dias</strong>
+                                <small data-fcc-day-count><?= number_format(count($days)) ?> dias disponibles</small>
+                            </div>
+                            <button type="button" data-fcc-day-all title="Mostrar todos los dias">
+                                <i class="bi bi-calendar-check" aria-hidden="true"></i> Todos
+                            </button>
+                        </div>
+                        <div class="fcc-day-filter__grid">
+                            <?php foreach ($days as $dayOption): ?>
+                                <button
+                                    type="button"
+                                    data-fcc-day-option="<?= (int)$dayOption['day'] ?>"
+                                    aria-pressed="false"
+                                    title="Filtrar por el dia <?= (int)$dayOption['day'] ?>"
+                                ><?= (int)$dayOption['day'] ?></button>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="fcc-day-filter__footer">
+                            <span data-fcc-day-selection>Todo el mes</span>
+                            <button type="button" data-fcc-day-close>Listo</button>
+                        </div>
+                    </div>
+                </div>
                 <label class="fcc-filter-search">
                     <span>Buscar en pantalla</span>
                     <input type="search" data-fcc-search value="" placeholder="Bus, placa o conductor...">
@@ -1741,7 +1775,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=split-viaje-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=day-filter-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
