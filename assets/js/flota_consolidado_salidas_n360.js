@@ -161,6 +161,64 @@
     return group === '__ALL__' ? 'Todos' : compact(group || 'SIN GRUPO');
   }
 
+  function activeAmountValue() {
+    const active = document.querySelector('[data-csb-amount-filter] [data-csb-amount].is-active');
+    const value = String(active?.dataset.csbAmount || 'ALL').toUpperCase();
+    return ['WITH', 'WITHOUT'].includes(value) ? value : 'ALL';
+  }
+
+  function activeAmountLabel() {
+    const value = activeAmountValue();
+    if (value === 'WITH') return 'Con importes';
+    if (value === 'WITHOUT') return 'Sin importes';
+    return 'Todos';
+  }
+
+  function rowMatchesGroup(row, group) {
+    if (group === '__ALL__') return true;
+    const groups = String(row.dataset.csbGroups || '')
+      .split('|')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return groups.includes(group);
+  }
+
+  function updateAmountFilterCounts(group) {
+    const wrap = document.querySelector('[data-csb-amount-filter]');
+    if (!wrap) return;
+    if (wrap.classList.contains('is-disabled')) return;
+
+    const groupRows = rows.filter((row) => rowMatchesGroup(row, group));
+    const withAmounts = groupRows.filter((row) => row.dataset.csbHasControlAmounts === '1').length;
+    const counters = {
+      ALL: groupRows.length,
+      WITH: withAmounts,
+      WITHOUT: groupRows.length - withAmounts
+    };
+
+    Object.entries(counters).forEach(([key, value]) => {
+      const counter = wrap.querySelector(`[data-csb-amount-count="${key}"]`);
+      if (counter) counter.textContent = new Intl.NumberFormat('es-PE').format(value);
+    });
+  }
+
+  function applyScreenFilters() {
+    const group = activeGroupValue();
+    const amount = activeAmountValue();
+
+    rows.forEach((row) => {
+      const matchesGroup = rowMatchesGroup(row, group);
+      const hasAmounts = row.dataset.csbHasControlAmounts === '1';
+      const matchesAmount = amount === 'ALL'
+        || (amount === 'WITH' && hasAmounts)
+        || (amount === 'WITHOUT' && !hasAmounts);
+      row.hidden = !(matchesGroup && matchesAmount);
+    });
+
+    updateAmountFilterCounts(group);
+    updateVisibleCount();
+  }
+
   function rowGroupLabel(row) {
     const active = activeGroupValue();
     if (active && active !== '__ALL__') {
@@ -418,6 +476,7 @@
       if (!json.ok) {
         if (json.data?.importes_control) {
           syncControlImpact(row, json.data.importes_control);
+          applyScreenFilters();
         }
         if (json.data?.duplicada) {
           setHojaRutaValidation(row, 'duplicate');
@@ -439,6 +498,7 @@
       row.dataset.csbDbRevision = String(json.data?.estado || estado || 'PENDIENTE').toUpperCase();
       if (json.data?.importes_control) {
         syncControlImpact(row, json.data.importes_control);
+        applyScreenFilters();
       }
       syncStateButtons(row, row.dataset.csbDbRevision);
       syncHojaRutaState(row, json.data?.tiene_hojaruta ?? compact(hojaruta) !== '');
@@ -949,31 +1009,34 @@
     excelButton?.addEventListener('click', exportExcel);
   }
 
-  function setupGroupFilter() {
-    const wrap = document.querySelector('[data-csb-group-filter]');
-    if (!wrap) {
-      updateVisibleCount();
-      return;
-    }
+  function setupScreenFilters() {
+    const groupWrap = document.querySelector('[data-csb-group-filter]');
+    const amountWrap = document.querySelector('[data-csb-amount-filter]');
 
-    wrap.querySelectorAll('[data-csb-group]').forEach((button) => {
+    groupWrap?.querySelectorAll('[data-csb-group]').forEach((button) => {
       button.addEventListener('click', () => {
-        const group = button.dataset.csbGroup || '__ALL__';
-        wrap.querySelectorAll('[data-csb-group]').forEach((btn) => btn.classList.toggle('is-active', btn === button));
-
-        rows.forEach((row) => {
-          if (group === '__ALL__') {
-            row.hidden = false;
-            return;
-          }
-          const groups = String(row.dataset.csbGroups || '').split('|').map((item) => item.trim()).filter(Boolean);
-          row.hidden = !groups.includes(group);
+        groupWrap.querySelectorAll('[data-csb-group]').forEach((btn) => {
+          const selected = btn === button;
+          btn.classList.toggle('is-active', selected);
+          btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
         });
-        updateVisibleCount();
+        applyScreenFilters();
       });
     });
 
-    updateVisibleCount();
+    amountWrap?.querySelectorAll('[data-csb-amount]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (button.disabled) return;
+        amountWrap.querySelectorAll('[data-csb-amount]').forEach((btn) => {
+          const selected = btn === button;
+          btn.classList.toggle('is-active', selected);
+          btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        });
+        applyScreenFilters();
+      });
+    });
+
+    applyScreenFilters();
   }
 
   function syncStateButtons(row, estado) {
@@ -1240,6 +1303,7 @@
               rows: [
                 { label: 'Periodo', value: report.period || '-' },
                 { label: 'Grupo visible', value: activeGroupLabel() },
+                { label: 'Filtro de importes', value: activeAmountLabel() },
                 { label: 'Viajes visibles', value: formatter.format(data.length) },
                 { label: 'Con Hoja de Ruta', value: formatter.format(totalHojaRuta) },
                 { label: 'Pendientes', value: formatter.format(totalPendiente) },
@@ -2111,7 +2175,7 @@
   });
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   document.querySelector('[data-csb-export-route-pdf]')?.addEventListener('click', exportRoutePdf);
-  setupGroupFilter();
+  setupScreenFilters();
   setupHojaRutaSort();
   setupHojaRutaList();
   setupOperationalSummary();

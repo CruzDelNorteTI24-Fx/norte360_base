@@ -445,6 +445,100 @@
     flex-wrap: wrap;
 }
 
+.csb-amount-filter {
+    display: flex;
+    align-items: center;
+    min-height: 38px;
+    overflow: hidden;
+    border: 1px solid #c8d9ea;
+    border-radius: 8px;
+    background: #f5f9fd;
+}
+
+.csb-amount-filter__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: stretch;
+    padding: 0 10px;
+    border-right: 1px solid #c8d9ea;
+    color: #47637e;
+    background: #edf4fa;
+    font-size: .72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.csb-amount-filter__options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, auto));
+    align-self: stretch;
+}
+
+.csb-amount-filter__options button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 10px;
+    border: 0;
+    border-right: 1px solid #d7e4ef;
+    color: #17344f;
+    background: transparent;
+    font-size: .72rem;
+    font-weight: 900;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.csb-amount-filter__options button:last-child {
+    border-right: 0;
+}
+
+.csb-amount-filter__options button:hover:not(:disabled) {
+    color: #0874b9;
+    background: #eaf6ff;
+}
+
+.csb-amount-filter__options button.is-active {
+    color: #fff;
+    background: #1d668e;
+}
+
+.csb-amount-filter__options button[data-csb-amount="WITH"].is-active {
+    background: #a84b1b;
+}
+
+.csb-amount-filter__options button[data-csb-amount="WITHOUT"].is-active {
+    background: #14764f;
+}
+
+.csb-amount-filter__options b {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 23px;
+    min-height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    color: #17658e;
+    background: #fff;
+    font-size: .66rem;
+}
+
+.csb-amount-filter__options button.is-active b {
+    color: #17344f;
+}
+
+.csb-amount-filter.is-disabled {
+    opacity: .62;
+}
+
+.csb-amount-filter__options button:disabled {
+    cursor: not-allowed;
+}
+
 .csb-visible-pill {
     display: inline-flex;
     align-items: center;
@@ -2115,6 +2209,29 @@
     .csb-card-head-actions {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .csb-amount-filter {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .csb-amount-filter__label {
+        justify-content: center;
+        min-height: 34px;
+        border-right: 0;
+        border-bottom: 1px solid #c8d9ea;
+    }
+
+    .csb-amount-filter__options {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .csb-amount-filter__options button {
+        min-width: 0;
+        padding: 7px 5px;
+        white-space: normal;
     }
 
     .csb-btn--general,

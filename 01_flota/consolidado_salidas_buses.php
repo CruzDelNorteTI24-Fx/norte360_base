@@ -1550,6 +1550,7 @@ $rowsForDateTotal = 0;
 $sedeGroups = [];
 $rowGroupsById = [];
 $groupCounters = [];
+$controlAmountCounters = ['all' => 0, 'with' => 0, 'without' => 0];
 $conductoresActivos = [];
 $driverLicensesByDni = [];
 $manualCatalog = ['placas' => [], 'sedes' => []];
@@ -1680,6 +1681,12 @@ $placas = [];
 $conductoresSet = [];
 foreach ($rows as $row) {
     $kpis['registros']++;
+    $controlAmountCounters['all']++;
+    if ($controlAmountsReady && csb_has_control_amounts(csb_control_amounts($row))) {
+        $controlAmountCounters['with']++;
+    } elseif ($controlAmountsReady) {
+        $controlAmountCounters['without']++;
+    }
     $rowId = (int)($row['clm_salprog_id'] ?? 0);
     $groups = csb_row_groups($row, $sedeGroups);
     if (!$groups && $sedeGroups) {
@@ -1916,6 +1923,20 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                     <p>Datos capturados antes de limpiar la pizarra; los comentarios se guardan en esta tabla auxiliar.</p>
                 </div>
                 <div class="csb-card-head-actions">
+                    <div class="csb-amount-filter <?= $controlAmountsReady ? '' : 'is-disabled' ?>" data-csb-amount-filter aria-label="Filtrar viajes por importes de control">
+                        <span class="csb-amount-filter__label"><i class="bi bi-cash-stack" aria-hidden="true"></i> Importes</span>
+                        <div class="csb-amount-filter__options" role="group" aria-label="Estado de importes">
+                            <button type="button" class="is-active" data-csb-amount="ALL" aria-pressed="true">
+                                Todos <b data-csb-amount-count="ALL"><?= number_format($controlAmountCounters['all']) ?></b>
+                            </button>
+                            <button type="button" data-csb-amount="WITH" aria-pressed="false" <?= $controlAmountsReady ? '' : 'disabled' ?>>
+                                Con importes <b data-csb-amount-count="WITH"><?= number_format($controlAmountCounters['with']) ?></b>
+                            </button>
+                            <button type="button" data-csb-amount="WITHOUT" aria-pressed="false" <?= $controlAmountsReady ? '' : 'disabled' ?>>
+                                Sin importes <b data-csb-amount-count="WITHOUT"><?= number_format($controlAmountCounters['without']) ?></b>
+                            </button>
+                        </div>
+                    </div>
                     <button
                         type="button"
                         class="csb-btn csb-btn--general"
@@ -2680,7 +2701,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=control-impact-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=amount-filter-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
