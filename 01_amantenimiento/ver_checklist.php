@@ -22,6 +22,7 @@ define('ACCESS_GRANTED', true);
 require_once("../trash/copidb_secure.php");
 require_once("../.c0nn3ct/db_securebd2.php");
 require_once __DIR__ . "/checklist_versiones.php";
+require_once __DIR__ . "/checklist_evidencia_lib.php";
 // conexión y función SOLO aquí
 require_once("funciones_trabajador.php");
 
@@ -36,6 +37,8 @@ $conductores = obtenerConductores($conn);
 
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
+$checklist_error = trim((string)($_SESSION['error_checklist'] ?? ''));
+unset($_SESSION['error_checklist']);
 $id_checklist = $_GET['id'] ?? null;
 
 if (!$id_checklist) {
@@ -1294,6 +1297,7 @@ input[type=radio] {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/checklist_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/checklist_evidencia_n360.css') ?>">
 </head>
 
 <body>
@@ -1448,12 +1452,23 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 <main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
   <div class="n360-main__inner n360-checklist-shell">
   <?php n360_render_content_separator('top'); ?>
+  <?php if ($checklist_error !== ''): ?>
+    <div class="n360-evidence__error" role="alert">
+      <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+      <span><?= htmlspecialchars($checklist_error, ENT_QUOTES, 'UTF-8') ?></span>
+    </div>
+  <?php endif; ?>
 
     <?php  // Obtener datos del checklist y vehículo
 
-
-      $stmt_datos = $conn->prepare("SELECT c.*,
-            p.clm_placas_placa, p.clm_placas_dueño, p.clm_placas_bus, p.clm_placas_tipo_vehículo, p.clm_placas_servicio,
+      $evidence_select = n360_checklist_evidence_select_sql($conn, 'c');
+      $stmt_datos = $conn->prepare("SELECT c.clm_checklist_id,
+            c.clm_checklist_fecha,
+            c.clm_checklist_estado,
+            c.clm_checklist_corr,
+            c.clm_checklist_idtipo,
+            " . $evidence_select . ",
+            p.clm_placas_placa, p.clm_placas_bus, p.clm_placas_servicio,
             t.clm_checktip_nombre
           FROM tb_checklist_limpieza c
           LEFT JOIN tb_placas p ON c.clm_checklist_id_bus = p.clm_placas_id
@@ -1478,6 +1493,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
       
       $is_cerrado = ($datos['clm_checklist_fecha'] != date('Y-m-d'));
+      $has_checklist_evidence = n360_checklist_evidence_has($datos);
 
       $stmt_datos->close();
     ?>
@@ -1789,6 +1805,55 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
     }
   ?>
 
+<section class="n360-evidence" aria-labelledby="evidenceDetailTitle">
+  <div class="n360-evidence__head">
+    <div class="n360-evidence__title">
+      <span class="n360-evidence__icon" aria-hidden="true"><i class="fas fa-paperclip"></i></span>
+      <div>
+        <strong id="evidenceDetailTitle">Evidencia general</strong>
+        <span>Hoja de limpieza respaldada con imagen o PDF.</span>
+      </div>
+    </div>
+    <span class="n360-evidence__status <?= $has_checklist_evidence ? 'n360-evidence__status--ready' : '' ?>">
+      <?= $has_checklist_evidence ? 'Adjuntada' : 'Pendiente' ?>
+    </span>
+  </div>
+  <div class="n360-evidence__body">
+    <?php if ($has_checklist_evidence): ?>
+      <div class="n360-evidence__current">
+        <div class="n360-evidence__file">
+          <strong><?= htmlspecialchars($datos['clm_checklist_evidencia_nombre'], ENT_QUOTES, 'UTF-8') ?></strong>
+          <small><?= htmlspecialchars(n360_checklist_evidence_size_label($datos['clm_checklist_evidencia_size']), ENT_QUOTES, 'UTF-8') ?><?php if (!empty($datos['clm_checklist_evidencia_fechacarga'])): ?> - Cargada <?= htmlspecialchars(date('d/m/Y H:i', strtotime($datos['clm_checklist_evidencia_fechacarga'])), ENT_QUOTES, 'UTF-8') ?><?php endif; ?></small>
+        </div>
+        <div class="n360-evidence__actions">
+          <a class="n360-evidence__link" href="checklist_evidencia.php?id=<?= (int)$id_checklist ?>" target="_blank" rel="noopener"><i class="fas fa-eye" aria-hidden="true"></i> Ver</a>
+          <a class="n360-evidence__link" href="checklist_evidencia.php?id=<?= (int)$id_checklist ?>&amp;modo=download"><i class="fas fa-download" aria-hidden="true"></i> Descargar</a>
+        </div>
+      </div>
+    <?php endif; ?>
+
+    <?php if (!$is_cerrado): ?>
+      <div class="n360-evidence__picker" data-n360-evidence-picker>
+        <input class="n360-evidence__input"
+               type="file"
+               id="evidencia_checklist_detail"
+               name="evidencia_checklist"
+               accept="image/jpeg,image/png,image/webp,application/pdf">
+        <p class="n360-evidence__help"><?= $has_checklist_evidence ? 'Selecciona otro archivo solo si deseas reemplazar la evidencia actual.' : 'Opcional. Puedes adjuntarla ahora o hacerlo despues desde Fechas de checklist.' ?> Formatos JPG, PNG, WEBP o PDF; maximo 8 MB.</p>
+        <div class="n360-evidence__preview" data-n360-evidence-preview>
+          <i class="fas fa-file-circle-check" aria-hidden="true"></i>
+          <div class="n360-evidence__file">
+            <strong data-n360-evidence-name></strong>
+            <small data-n360-evidence-meta></small>
+          </div>
+        </div>
+      </div>
+    <?php elseif (!$has_checklist_evidence): ?>
+      <p class="n360-evidence__help">Este checklist esta cerrado. La evidencia puede cargarse desde Fechas de checklist.</p>
+    <?php endif; ?>
+  </div>
+</section>
+
 <div class="campo-form">
   <input type="hidden" id="fecha_hora" name="fecha_hora" value="<?= date('Y-m-d\TH:i') ?>" required>
 </div>
@@ -1802,29 +1867,32 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 </form>
 
 <script>
-document.getElementById('item_<?= $item['clm_item_id'] ?>').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  const preview = document.getElementById('preview_img_<?= $item['clm_item_id'] ?>');
+document.querySelectorAll('input[type="file"][name^="item_"][accept*="image"]').forEach(function(input) {
+  input.addEventListener('change', function(e) {
+    const file = e.target.files && e.target.files[0];
+    const itemId = e.target.name.replace('item_', '');
+    const preview = document.getElementById('preview_img_' + itemId);
+    const container = document.getElementById('preview_block_' + itemId);
+    if (!file || !file.type.startsWith('image/') || !container) return;
 
-  if (file && file.type.startsWith('image/')) {
     const reader = new FileReader();
     reader.onload = function(event) {
-      if (preview.tagName.toLowerCase() === 'img') {
+      if (preview && preview.tagName.toLowerCase() === 'img') {
         preview.src = event.target.result;
-      } else {
-        const img = document.createElement('img');
-        img.src = event.target.result;
-        img.style.maxWidth = '100%';
-        img.style.maxHeight = '180px';
-        img.style.borderRadius = '6px';
-        img.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)';
-        const container = document.getElementById('preview_block_<?= $item['clm_item_id'] ?>');
-        container.innerHTML = '';
-        container.appendChild(img);
+        return;
       }
+
+      const img = document.createElement('img');
+      img.src = event.target.result;
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '180px';
+      img.style.borderRadius = '6px';
+      img.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)';
+      container.innerHTML = '';
+      container.appendChild(img);
     };
     reader.readAsDataURL(file);
-  }
+  });
 });
 </script>
 
@@ -1880,6 +1948,7 @@ function cerrarError() {
 <?php n360_render_footer(); ?>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/checklist_evidencia_n360.js') ?>"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const popup = document.getElementById("popup-exito");

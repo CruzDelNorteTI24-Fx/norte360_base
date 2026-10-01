@@ -2,11 +2,21 @@
 session_start();
 define('ACCESS_GRANTED', true);
 require_once("../../../.c0nn3ct/db_securebd2.php");
+require_once __DIR__ . "/../../checklist_evidencia_lib.php";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-  $id_checklist = $_POST['id_checklist'];
+  $id_checklist = (int)($_POST['id_checklist'] ?? 0);
+  $id_usuario_sesion = (int)($_SESSION['id_usuario'] ?? 0);
 
-  $all_items = array_merge(array_keys($_POST), array_keys($_FILES));
+  try {
+    if ($id_checklist <= 0 || $id_usuario_sesion <= 0) {
+      throw new RuntimeException('No se pudo identificar el checklist o el usuario.');
+    }
+
+    $evidencia = n360_checklist_evidence_parse_upload($_FILES, 'evidencia_checklist', false);
+    $conn->begin_transaction();
+
+  $all_items = array_unique(array_merge(array_keys($_POST), array_keys($_FILES)));
 
 
   foreach ($all_items as $key) {
@@ -101,8 +111,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
   }
 
+  if ($evidencia !== null) {
+    n360_checklist_evidence_store($conn, $id_checklist, $id_usuario_sesion, $evidencia);
+  }
+
+  $conn->commit();
   $_SESSION['exito'] = true;
   header("Location: ../../lista_cheklist.php");
   exit();
+  } catch (Throwable $error) {
+    try {
+      $conn->rollback();
+    } catch (Throwable $ignored) {
+    }
+    $_SESSION['error_checklist'] = $error->getMessage();
+    header("Location: ../../ver_checklist.php?id=" . urlencode($id_checklist));
+    exit();
+  }
 }
 ?>

@@ -38,6 +38,8 @@ require_once __DIR__ . '/../../layout/footer_n360.php';
 require_once __DIR__ . '/../../layout/content_n360.php';
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
+$checklist_error = trim((string)($_SESSION['error_checklist'] ?? ''));
+unset($_SESSION['error_checklist']);
 $mostrar_live_guide = false;
 $live_lib = __DIR__ . '/../../n360_live/live_lib.php';
 if (is_file($live_lib)) {
@@ -1074,6 +1076,7 @@ input[type=date] {
 <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
 <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
 <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/checklist_evidencia_n360.css') ?>">
 <?php if ($mostrar_live_guide): ?>
 <link rel="stylesheet" href="<?= n360_asset('n360_live/n360_live.css') ?>">
 <?php endif; ?>
@@ -1131,6 +1134,12 @@ $imagen_existe = file_exists($ruta_imagen);
 ?>
 <div class="main-content n360-main n360-main--module">
 <?php n360_render_content_separator('top'); ?>
+<?php if ($checklist_error !== ''): ?>
+  <div class="n360-evidence__error" role="alert">
+    <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+    <span><?= htmlspecialchars($checklist_error, ENT_QUOTES, 'UTF-8') ?></span>
+  </div>
+<?php endif; ?>
 <div style="
   background: url('<?= $ruta_imagen ?>') no-repeat center center;
   background-size: cover;
@@ -1256,9 +1265,10 @@ function filtrarBuses() {
 <?php if ($mostrar_live_guide): ?>
 <div class="n360-live-clear" aria-hidden="true"></div>
 <?php endif; ?>
-  <form id="form-checklist" action="checklist/guardar_checklist.php" method="POST">
+  <form id="form-checklist" action="checklist/guardar_checklist.php" method="POST" enctype="multipart/form-data">
     <input type="hidden" name="id_tipo_checklist" value="<?= $id_tipo ?>">
     <input type="hidden" name="fecha_seleccionada" id="fecha_form" value="<?= date('Y-m-d') ?>">
+    <input type="hidden" name="MAX_FILE_SIZE" value="8388608">
     <div class="campo-form">
       <label for="bus">Seleccione Bus</label>
       <select name="bus" required class="input-evaluacion">
@@ -1280,7 +1290,36 @@ function filtrarBuses() {
     <div class="campo-form">
       <label for="observacion">Observaciones</label>
       <textarea name="observaciones" id="observaciones" rows="4" placeholder="Detalles, recomendaciones..." required></textarea>
+    </div>
+    <section class="n360-evidence" aria-labelledby="evidenceCreateTitle">
+      <div class="n360-evidence__head">
+        <div class="n360-evidence__title">
+          <span class="n360-evidence__icon" aria-hidden="true"><i class="fa-solid fa-paperclip"></i></span>
+          <div>
+            <strong id="evidenceCreateTitle">Evidencia del checklist</strong>
+            <span>Adjunta la hoja realizada ahora o cargala posteriormente.</span>
+          </div>
+        </div>
+        <span class="n360-evidence__status">Opcional</span>
       </div>
+      <div class="n360-evidence__body" data-n360-evidence-picker>
+        <div class="n360-evidence__picker">
+          <input class="n360-evidence__input"
+                 type="file"
+                 id="evidencia_checklist_create"
+                 name="evidencia_checklist"
+                 accept="image/jpeg,image/png,image/webp,application/pdf">
+          <p class="n360-evidence__help">Formatos permitidos: JPG, PNG, WEBP o PDF. Tamano maximo: 8 MB.</p>
+          <div class="n360-evidence__preview" data-n360-evidence-preview>
+            <i class="fa-solid fa-file-circle-check" aria-hidden="true"></i>
+            <div class="n360-evidence__file">
+              <strong data-n360-evidence-name></strong>
+              <small data-n360-evidence-meta></small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
     <button type="submit" class="btn-validar">Guardar Checklist</button>
   </form>
 <!-- Modal de Carga -->
@@ -1330,6 +1369,7 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/checklist_evidencia_n360.js') ?>"></script>
 <?php if ($mostrar_live_guide): ?>
 <script src="<?= n360_asset('n360_live/n360_live.js') ?>"></script>
 <?php endif; ?>

@@ -1,0 +1,228 @@
+.n360-evidence {
+    margin: 18px 0;
+    padding: 0;
+    border: 1px solid #cbd9e2;
+    border-left: 4px solid #218ec5;
+    border-radius: 7px;
+    background: #f8fbfd;
+    overflow: hidden;
+}
+
+.n360-evidence__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #dce6ec;
+    background: #fff;
+}
+
+.n360-evidence__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.n360-evidence__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border-radius: 6px;
+    color: #176b91;
+    background: #e7f4fa;
+}
+
+.n360-evidence__title strong,
+.n360-evidence__title span {
+    display: block;
+}
+
+.n360-evidence__title strong {
+    color: #173d55;
+    font-size: .95rem;
+}
+
+.n360-evidence__title span {
+    margin-top: 2px;
+    color: #657b89;
+    font-size: .78rem;
+}
+
+.n360-evidence__status {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border: 1px solid #c8d6df;
+    border-radius: 999px;
+    color: #607481;
+    background: #f5f8fa;
+    font-size: .72rem;
+    font-weight: 800;
+}
+
+.n360-evidence__status--ready {
+    color: #0f7049;
+    border-color: #a9d9c2;
+    background: #ebf8f1;
+}
+
+.n360-evidence__body {
+    padding: 16px;
+}
+
+.n360-evidence__current {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+    padding: 11px 12px;
+    border: 1px solid #d6e2e9;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.n360-evidence__file {
+    min-width: 0;
+}
+
+.n360-evidence__file strong,
+.n360-evidence__file small {
+    display: block;
+}
+
+.n360-evidence__file strong {
+    overflow: hidden;
+    color: #1d4055;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.n360-evidence__file small {
+    margin-top: 3px;
+    color: #738692;
+}
+
+.n360-evidence__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.n360-evidence__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 7px 11px;
+    border: 1px solid #9fbdce;
+    border-radius: 6px;
+    color: #155e83;
+    background: #fff;
+    font-size: .78rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.n360-evidence__link:hover {
+    color: #fff;
+    border-color: #176d96;
+    background: #176d96;
+}
+
+.n360-evidence__picker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.n360-evidence__input {
+    width: 100%;
+    min-height: 42px;
+    padding: 7px;
+    border: 1px solid #bfcfd9;
+    border-radius: 6px;
+    color: #344f60;
+    background: #fff;
+}
+
+.n360-evidence__input::file-selector-button {
+    margin-right: 10px;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: 5px;
+    color: #fff;
+    background: #177caf;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.n360-evidence__preview {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    border: 1px solid #bfdae6;
+    border-radius: 6px;
+    color: #245a72;
+    background: #edf8fc;
+    font-size: .82rem;
+}
+
+.n360-evidence__preview.is-visible {
+    display: flex;
+}
+
+.n360-evidence__preview strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.n360-evidence__help {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: #6b7f8b;
+    font-size: .76rem;
+}
+
+.n360-evidence__error {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    max-width: 800px;
+    margin: 16px auto;
+    padding: 12px 14px;
+    border: 1px solid #e7a7a7;
+    border-left: 4px solid #cf3e3e;
+    border-radius: 7px;
+    color: #8b2626;
+    background: #fff1f1;
+    font-weight: 700;
+}
+
+@media (max-width: 640px) {
+    .n360-evidence__head,
+    .n360-evidence__current {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .n360-evidence__picker {
+        grid-template-columns: 1fr;
+    }
+
+    .n360-evidence__actions,
+    .n360-evidence__link {
+        width: 100%;
+    }
+}
+

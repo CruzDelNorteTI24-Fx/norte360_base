@@ -24,6 +24,7 @@ if (!cdf_tiene_acceso()) {
 
 define('ACCESS_GRANTED', true);
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
+require_once __DIR__ . '/checklist_evidencia_lib.php';
 
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
@@ -150,13 +151,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
     $checklistId = (int)($_POST['checklist_id'] ?? 0);
     $newDate = trim((string)($_POST['nueva_fecha'] ?? ''));
+    $action = (string)($_POST['action'] ?? '');
 
     try {
-        if ((string)($_POST['action'] ?? '') !== 'cambiar_fecha') {
+        if (!in_array($action, ['cambiar_fecha', 'cargar_evidencia'], true)) {
             throw new RuntimeException('Accion no permitida.');
         }
-        if ($checklistId <= 0 || !cdf_fecha_valida($newDate)) {
-            throw new RuntimeException('Selecciona una fecha valida.');
+        if ($checklistId <= 0) {
+            throw new RuntimeException('Selecciona un checklist valido.');
         }
 
         $stmtCurrent = $conn->prepare(
@@ -181,7 +183,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $reference = trim((string)($current['clm_checklist_corr'] ?? ''));
         $reference = $reference !== '' ? $reference : '#' . $checklistId;
 
-        if ($oldDate === $newDate) {
+        if ($action === 'cargar_evidencia') {
+            $evidence = n360_checklist_evidence_parse_upload($_FILES, 'evidencia_checklist', true);
+            n360_checklist_evidence_store(
+                $conn,
+                $checklistId,
+                (int)($_SESSION['id_usuario'] ?? 0),
+                $evidence
+            );
+            cdf_flash('success', 'Evidencia del checklist ' . $reference . ' guardada correctamente.');
+        } elseif (!cdf_fecha_valida($newDate)) {
+            throw new RuntimeException('Selecciona una fecha valida.');
+        } elseif ($oldDate === $newDate) {
             cdf_flash('info', 'El checklist ' . $reference . ' ya tiene la fecha seleccionada.');
         } else {
             $stmtUpdate = $conn->prepare(
@@ -286,6 +299,7 @@ $perPage = 50;
 $totalPages = max(1, (int)ceil($totalRows / $perPage));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $perPage;
+$evidenceSelect = n360_checklist_evidence_select_sql($conn, 'c');
 
 $rows = cdf_fetch_all(
     $conn,
@@ -297,6 +311,7 @@ $rows = cdf_fetch_all(
             c.clm_checklist_fechahoraregistro,
             c.clm_checklist_responsable,
             c.clm_checklist_estado,
+            ' . $evidenceSelect . ',
             t.clm_checktip_nombre,
             p.clm_placas_placa,
             p.clm_placas_BUS,
@@ -331,7 +346,8 @@ $visibleRows = count($rows);
     <link rel="stylesheet" href="<?= cdf_h(n360_asset('assets/css/main_n360.css')) ?>">
     <link rel="stylesheet" href="<?= cdf_h(n360_asset('assets/css/footer_n360.css')) ?>">
     <link rel="stylesheet" href="<?= cdf_h(n360_asset('assets/css/content_n360.css')) ?>">
-    <link rel="stylesheet" href="<?= cdf_h(n360_asset('assets/css/checklist_datafecha_n360.css')) ?>?v=20260922-2">
+    <link rel="stylesheet" href="<?= cdf_h(n360_asset('assets/css/checklist_datafecha_n360.css')) ?>">
+    <link rel="stylesheet" href="<?= cdf_h(n360_asset('assets/css/checklist_evidencia_n360.css')) ?>">
 </head>
 <body>
 <?php n360_render_header(['title' => 'Calidad', 'subtitle' => 'Fechas de checklist']); ?>
@@ -342,12 +358,10 @@ $visibleRows = count($rows);
         <?php n360_render_content_separator('top'); ?>
 
         <header class="cdf-heading">
-            <div class="cdf-heading__main">
-                <span class="cdf-heading__icon" aria-hidden="true"><i class="bi bi-calendar2-week-fill"></i></span>
-                <div>
-                    <span class="cdf-heading__context">Calidad / Checklists</span>
-                    <h1>Control de fechas</h1>
-                </div>
+            <div>
+                <span class="cdf-heading__context"><i class="bi bi-calendar2-check-fill" aria-hidden="true"></i> Calidad / Checklists</span>
+                <h1>Fechas de checklist</h1>
+                <p>Trazabilidad de fecha operativa, registro y evidencia.</p>
             </div>
             <a href="lista_cheklist.php" class="cdf-btn cdf-btn--heading"><i class="bi bi-ui-checks-grid" aria-hidden="true"></i> Ver checklists</a>
         </header>
@@ -369,25 +383,28 @@ $visibleRows = count($rows);
         <section class="cdf-summary" aria-label="Resumen de la consulta">
             <div class="cdf-summary__item cdf-summary__item--total">
                 <span class="cdf-summary__icon"><i class="bi bi-clipboard2-data-fill" aria-hidden="true"></i></span>
-                <div><small>Resultados</small><strong><?= number_format($totalRows) ?></strong></div>
+                <div><small>Total registrados</small><strong><?= number_format($totalRows) ?></strong></div>
             </div>
             <div class="cdf-summary__item">
                 <span class="cdf-summary__icon"><i class="bi bi-eye-fill" aria-hidden="true"></i></span>
-                <div><small>En esta pagina</small><strong><?= number_format($visibleRows) ?></strong></div>
+                <div><small>Mostrados</small><strong><?= number_format($visibleRows) ?></strong></div>
             </div>
             <div class="cdf-summary__item">
                 <span class="cdf-summary__icon"><i class="bi bi-tags-fill" aria-hidden="true"></i></span>
-                <div><small>Tipo</small><strong><?= cdf_h($selectedTypeName) ?></strong></div>
+                <div><small>Tipo seleccionado</small><strong><?= cdf_h($selectedTypeName) ?></strong></div>
             </div>
             <div class="cdf-summary__item">
                 <span class="cdf-summary__icon"><i class="bi bi-calendar-range-fill" aria-hidden="true"></i></span>
-                <div><small>Periodo</small><strong><?= cdf_h($periodLabel) ?></strong></div>
+                <div><small>Periodo consultado</small><strong><?= cdf_h($periodLabel) ?></strong></div>
             </div>
         </section>
 
         <section class="cdf-toolbar" aria-label="Filtros de checklist">
             <div class="cdf-toolbar__head">
-                <div><i class="bi bi-sliders" aria-hidden="true"></i><strong>Filtros</strong></div>
+                <div>
+                    <span class="cdf-section-icon" aria-hidden="true"><i class="bi bi-sliders"></i></span>
+                    <div class="cdf-section-copy"><small>Consulta</small><strong>Filtros de búsqueda</strong></div>
+                </div>
                 <?php if ($filters['q'] !== '' || $filters['tipo'] > 0 || $filters['desde'] !== '' || $filters['hasta'] !== ''): ?>
                     <span><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Filtros aplicados</span>
                 <?php endif; ?>
@@ -433,6 +450,7 @@ $visibleRows = count($rows);
         <section class="cdf-data" aria-labelledby="cdfDataTitle">
             <div class="cdf-data__head">
                 <div>
+                    <span class="cdf-data__kicker"><i class="bi bi-list-check" aria-hidden="true"></i> Historial de calidad</span>
                     <h2 id="cdfDataTitle">Checklists registrados</h2>
                     <span>Ordenados por fecha mas reciente</span>
                 </div>
@@ -445,19 +463,17 @@ $visibleRows = count($rows);
                     <tr>
                         <th>Checklist</th>
                         <th>Unidad</th>
-                        <th>Tipo</th>
-                        <th>Fecha del checklist</th>
-                        <th>Hora</th>
-                        <th>Fecha/hora de registro</th>
-                        <th>Responsable</th>
-                        <th>Registrado por</th>
+                        <th>Realizado</th>
+                        <th>Registro</th>
+                        <th>Personal</th>
                         <th>Estado</th>
-                        <th>Accion</th>
+                        <th>Evidencia</th>
+                        <th><span class="visually-hidden">Acciones</span></th>
                     </tr>
                     </thead>
                     <tbody>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="10" class="cdf-empty">No se encontraron checklists con los filtros seleccionados.</td></tr>
+                        <tr><td colspan="8" class="cdf-empty">No se encontraron checklists con los filtros seleccionados.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($rows as $row): ?>
                         <?php
@@ -473,29 +489,70 @@ $visibleRows = count($rows);
                         $stateLabel = $stateKey === 'h0' ? 'Historico' : ($stateKey === 'activo' ? 'Activo' : ($state !== '' ? $state : 'Sin estado'));
                         $stateClass = $stateKey === 'activo' ? 'cdf-state--active' : ($stateKey === 'h0' ? 'cdf-state--history' : '');
                         $registration = cdf_fecha_hora_ui($row['clm_checklist_fechahoraregistro'] ?? '');
+                        $hasEvidence = n360_checklist_evidence_has($row);
+                        $evidenceName = trim((string)($row['clm_checklist_evidencia_nombre'] ?? ''));
                         ?>
                         <tr>
-                            <td><strong><?= cdf_h($reference) ?></strong><small>ID <?= $id ?></small></td>
+                            <td>
+                                <div class="cdf-checklist-cell">
+                                    <strong><?= cdf_h($reference) ?></strong>
+                                    <div><span class="cdf-type <?= cdf_h($typeClass) ?>"><?= cdf_h($row['clm_checktip_nombre'] ?? 'Sin tipo') ?></span><small>ID <?= $id ?></small></div>
+                                </div>
+                            </td>
                             <td><strong><?= cdf_h($bus !== '' ? 'BUS ' . $bus : 'Sin BUS') ?></strong><small><?= cdf_h($plate !== '' ? $plate : 'Sin placa') ?></small></td>
-                            <td><span class="cdf-type <?= cdf_h($typeClass) ?>"><?= cdf_h($row['clm_checktip_nombre'] ?? 'Sin tipo') ?></span></td>
-                            <td><span class="cdf-date-pill"><i class="bi bi-calendar3" aria-hidden="true"></i><?= cdf_h(cdf_fecha_ui($row['clm_checklist_fecha'])) ?></span></td>
-                            <td><span class="cdf-time"><i class="bi bi-clock" aria-hidden="true"></i><?= cdf_h($row['clm_checklist_hora'] ?? '-') ?></span></td>
+                            <td>
+                                <div class="cdf-date-stack">
+                                    <strong><i class="bi bi-calendar3" aria-hidden="true"></i><?= cdf_h(cdf_fecha_ui($row['clm_checklist_fecha'])) ?></strong>
+                                    <small><i class="bi bi-clock" aria-hidden="true"></i><?= cdf_h($row['clm_checklist_hora'] ?? '-') ?></small>
+                                </div>
+                            </td>
                             <td class="<?= $registration['time'] === '' ? 'cdf-registration--empty' : '' ?>"><strong><?= cdf_h($registration['date']) ?></strong><?php if ($registration['time'] !== ''): ?><small><?= cdf_h($registration['time']) ?></small><?php endif; ?></td>
-                            <td><?= cdf_h($row['clm_checklist_responsable'] ?: '-') ?></td>
-                            <td><?= cdf_h($row['usuario_registra'] ?: '-') ?></td>
+                            <td>
+                                <div class="cdf-person-cell">
+                                    <strong><?= cdf_h($row['clm_checklist_responsable'] ?: '-') ?></strong>
+                                    <small>Registró: <?= cdf_h($row['usuario_registra'] ?: '-') ?></small>
+                                </div>
+                            </td>
                             <td><span class="cdf-state <?= cdf_h($stateClass) ?>"><i class="bi <?= $stateKey === 'activo' ? 'bi-check-circle-fill' : 'bi-archive-fill' ?>" aria-hidden="true"></i><?= cdf_h($stateLabel) ?></span></td>
                             <td>
-                                <button type="button"
-                                        class="cdf-btn cdf-btn--change"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#cdfDateModal"
-                                        data-cdf-id="<?= $id ?>"
-                                        data-cdf-date="<?= cdf_h($row['clm_checklist_fecha']) ?>"
-                                        data-cdf-date-display="<?= cdf_h(cdf_fecha_ui($row['clm_checklist_fecha'])) ?>"
-                                        data-cdf-reference="<?= cdf_h($reference) ?>">
-                                    <i class="bi bi-calendar2-event" aria-hidden="true"></i>
-                                    Cambiar fecha
-                                </button>
+                                <?php if ($hasEvidence): ?>
+                                    <div class="cdf-evidence-cell" title="<?= cdf_h($evidenceName) ?>">
+                                        <span class="cdf-evidence-status cdf-evidence-status--ready"><i class="bi bi-paperclip" aria-hidden="true"></i> Adjuntada</span>
+                                        <small><?= cdf_h($evidenceName) ?></small>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="cdf-evidence-status"><i class="bi bi-dash-circle" aria-hidden="true"></i> Sin evidencia</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <div class="cdf-row-actions">
+                                    <button type="button"
+                                            class="cdf-row-action"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#cdfDateModal"
+                                            data-cdf-id="<?= $id ?>"
+                                            data-cdf-date="<?= cdf_h($row['clm_checklist_fecha']) ?>"
+                                            data-cdf-date-display="<?= cdf_h(cdf_fecha_ui($row['clm_checklist_fecha'])) ?>"
+                                            data-cdf-reference="<?= cdf_h($reference) ?>"
+                                            title="Cambiar fecha"
+                                            aria-label="Cambiar fecha de <?= cdf_h($reference) ?>">
+                                        <i class="bi bi-calendar2-event" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="cdf-row-action cdf-row-action--evidence"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#cdfEvidenceModal"
+                                            data-cdf-evidence-id="<?= $id ?>"
+                                            data-cdf-evidence-reference="<?= cdf_h($reference) ?>"
+                                            data-cdf-evidence-name="<?= cdf_h($evidenceName) ?>"
+                                            title="<?= $hasEvidence ? 'Reemplazar evidencia' : 'Adjuntar evidencia' ?>"
+                                            aria-label="<?= $hasEvidence ? 'Reemplazar evidencia de ' : 'Adjuntar evidencia a ' ?><?= cdf_h($reference) ?>">
+                                        <i class="bi <?= $hasEvidence ? 'bi-arrow-repeat' : 'bi-paperclip' ?>" aria-hidden="true"></i>
+                                    </button>
+                                    <?php if ($hasEvidence): ?>
+                                        <a class="cdf-row-action cdf-row-action--view" href="checklist_evidencia.php?id=<?= $id ?>" target="_blank" rel="noopener" title="Ver evidencia" aria-label="Ver evidencia de <?= cdf_h($reference) ?>"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -567,9 +624,64 @@ $visibleRows = count($rows);
     </div>
 </div>
 
+<div class="modal fade cdf-modal" id="cdfEvidenceModal" tabindex="-1" aria-labelledby="cdfEvidenceModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" id="cdfEvidenceForm" enctype="multipart/form-data" autocomplete="off">
+                <input type="hidden" name="csrf" value="<?= cdf_h($csrfToken) ?>">
+                <input type="hidden" name="action" value="cargar_evidencia">
+                <input type="hidden" name="checklist_id" value="">
+                <input type="hidden" name="q" value="<?= cdf_h($filters['q']) ?>">
+                <input type="hidden" name="tipo" value="<?= (int)$filters['tipo'] ?>">
+                <input type="hidden" name="desde" value="<?= cdf_h($filters['desde']) ?>">
+                <input type="hidden" name="hasta" value="<?= cdf_h($filters['hasta']) ?>">
+                <input type="hidden" name="page" value="<?= $page ?>">
+                <input type="hidden" name="MAX_FILE_SIZE" value="8388608">
+
+                <div class="cdf-modal__head">
+                    <div>
+                        <span><i class="bi bi-paperclip" aria-hidden="true"></i> Checklist <strong data-cdf-evidence-reference></strong></span>
+                        <h2 id="cdfEvidenceModalTitle">Adjuntar evidencia</h2>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+
+                <div class="cdf-modal__body">
+                    <div class="cdf-modal__current" data-cdf-evidence-current-wrap hidden>
+                        <span>Evidencia actual</span>
+                        <strong data-cdf-evidence-current>-</strong>
+                    </div>
+                    <div class="n360-evidence__picker" data-n360-evidence-picker>
+                        <input class="n360-evidence__input"
+                               type="file"
+                               id="cdfEvidenceFile"
+                               name="evidencia_checklist"
+                               accept="image/jpeg,image/png,image/webp,application/pdf"
+                               required>
+                        <p class="n360-evidence__help">JPG, PNG, WEBP o PDF. Tamano maximo: 8 MB. Una nueva carga reemplaza el archivo actual.</p>
+                        <div class="n360-evidence__preview" data-n360-evidence-preview>
+                            <i class="bi bi-file-earmark-check-fill" aria-hidden="true"></i>
+                            <div class="n360-evidence__file">
+                                <strong data-n360-evidence-name></strong>
+                                <small data-n360-evidence-meta></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cdf-modal__foot">
+                    <button type="button" class="cdf-btn" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="cdf-btn cdf-btn--primary" data-cdf-evidence-submit><i class="bi bi-cloud-arrow-up-fill" aria-hidden="true"></i> Guardar evidencia</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= cdf_h(n360_asset('assets/js/header_n360.js')) ?>"></script>
 <script src="<?= cdf_h(n360_asset('assets/js/sidebar_n360.js')) ?>"></script>
-<script src="<?= cdf_h(n360_asset('assets/js/checklist_datafecha_n360.js')) ?>?v=20260922-2"></script>
+<script src="<?= cdf_h(n360_asset('assets/js/checklist_evidencia_n360.js')) ?>"></script>
+<script src="<?= cdf_h(n360_asset('assets/js/checklist_datafecha_n360.js')) ?>"></script>
 </body>
 </html>
