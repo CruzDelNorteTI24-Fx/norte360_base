@@ -10,10 +10,12 @@
   const searchEl = modalEl.querySelector('[data-salprog-history-search]');
   const actionEl = modalEl.querySelector('[data-salprog-history-action]');
   const periodEl = modalEl.querySelector('[data-salprog-history-period]');
+  const titleEl = modalEl.querySelector('[data-salprog-history-title]');
   const modal = window.bootstrap && window.bootstrap.Modal
     ? window.bootstrap.Modal.getOrCreateInstance(modalEl)
     : null;
   let rows = [];
+  let activeTripId = 0;
 
   const fieldLabels = {
     clm_salprog_id: 'ID consolidado',
@@ -222,9 +224,14 @@
     if (totalEl) totalEl.textContent = String(visible.length);
     if (!listEl) return;
 
+    let emptyMessage = 'No hay movimientos que coincidan con los filtros.';
+    if (!rows.length && activeTripId > 0) {
+      emptyMessage = 'Este viaje todavia no tiene movimientos registrados.';
+    }
+
     listEl.innerHTML = visible.length
       ? visible.map(renderRow).join('')
-      : '<div class="n360-salprog-history-state">No hay movimientos que coincidan con los filtros.</div>';
+      : `<div class="n360-salprog-history-state">${emptyMessage}</div>`;
   }
 
   function showModal() {
@@ -237,12 +244,26 @@
   }
 
   async function loadHistory(button) {
+    activeTripId = Number.parseInt(button.dataset.salprogHistoryId || '0', 10) || 0;
     rows = [];
     if (searchEl) searchEl.value = '';
     if (actionEl) actionEl.value = 'TODOS';
     if (totalEl) totalEl.textContent = '0';
+    const bus = compact(button.dataset.salprogHistoryBus);
+    const plate = compact(button.dataset.salprogHistoryPlate);
+    const date = compact(button.dataset.salprogHistoryDate);
+    const time = compact(button.dataset.salprogHistoryTime);
+    const routeSheet = compact(button.dataset.salprogHistoryHr);
+    const unit = bus && plate ? `${bus} (${plate})` : bus || plate;
+    const tripContext = [unit, date ? formatDate(date, false) : '', time, routeSheet ? `HR ${routeSheet}` : '']
+      .filter(Boolean)
+      .join(' | ');
+
+    if (titleEl) titleEl.textContent = activeTripId > 0 ? 'Historial del viaje' : 'Historial de cambios';
     if (periodEl) {
-      periodEl.textContent = `${formatDate(cfg.fechaInicio, false)} - ${formatDate(cfg.fechaFin, false)}`;
+      periodEl.textContent = activeTripId > 0
+        ? tripContext || `Registro #${activeTripId}`
+        : `${formatDate(cfg.fechaInicio, false)} - ${formatDate(cfg.fechaFin, false)}`;
     }
     if (listEl) listEl.innerHTML = '<div class="n360-salprog-history-state">Cargando historial...</div>';
     showModal();
@@ -257,6 +278,7 @@
         fecha_inicio: cfg.fechaInicio || '',
         fecha_fin: cfg.fechaFin || ''
       });
+      if (activeTripId > 0) body.set('salprog_id', String(activeTripId));
       const response = await fetch(cfg.endpoint || window.location.pathname, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },

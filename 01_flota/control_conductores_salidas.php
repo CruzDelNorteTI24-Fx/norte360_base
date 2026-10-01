@@ -101,7 +101,14 @@ function fcc_valid_date($value, string $fallback): string {
     return ($date && $date->format('Y-m-d') === $value) ? $value : $fallback;
 }
 
-function fcc_fetch_salprog_history(mysqli $conn, string $fechaInicio, string $fechaFin): array {
+function fcc_fetch_salprog_history(mysqli $conn, string $fechaInicio, string $fechaFin, int $salprogId = 0): array {
+    $whereSql = $salprogId > 0
+        ? 'clm_salprog_id = ?'
+        : 'clm_salprog_fecha_operativa BETWEEN ? AND ?';
+    $types = $salprogId > 0 ? 'i' : 'ss';
+    $params = $salprogId > 0 ? [$salprogId] : [$fechaInicio, $fechaFin];
+    $limitSql = $salprogId > 0 ? '' : ' LIMIT 300';
+
     $rows = fcc_fetch_all($conn, '
         SELECT
             clm_hist_salprog_id AS historial_id,
@@ -122,10 +129,10 @@ function fcc_fetch_salprog_history(mysqli $conn, string $fechaInicio, string $fe
             clm_hist_salprog_snapshot_old AS snapshot_old,
             clm_hist_salprog_snapshot_new AS snapshot_new
         FROM tb_hist_progbuses_salida_consolidado
-        WHERE clm_salprog_fecha_operativa BETWEEN ? AND ?
+        WHERE ' . $whereSql . '
         ORDER BY clm_hist_salprog_id DESC
-        LIMIT 300
-    ', 'ss', [$fechaInicio, $fechaFin]);
+        ' . $limitSql . '
+    ', $types, $params);
 
     foreach ($rows as &$row) {
         $row['campos_modificados'] = array_values(array_filter(array_map(
@@ -611,14 +618,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             [$historyStart, $historyEnd] = [$historyEnd, $historyStart];
         }
 
+        $historyTripRaw = trim((string)($_POST['salprog_id'] ?? ''));
+        $historyTripId = 0;
+        if ($historyTripRaw !== '') {
+            if (!ctype_digit($historyTripRaw) || (int)$historyTripRaw < 1) {
+                fcc_json(false, [], 'El viaje seleccionado no es valido.', 422);
+            }
+            $historyTripId = (int)$historyTripRaw;
+        }
+
         try {
-            $historyRows = fcc_fetch_salprog_history($conn, $historyStart, $historyEnd);
+            $historyRows = fcc_fetch_salprog_history($conn, $historyStart, $historyEnd, $historyTripId);
             fcc_json(true, [
                 'rows' => $historyRows,
                 'total' => count($historyRows),
-                'limit' => 300,
+                'limit' => $historyTripId > 0 ? null : 300,
                 'fecha_inicio' => $historyStart,
                 'fecha_fin' => $historyEnd,
+                'salprog_id' => $historyTripId > 0 ? $historyTripId : null,
             ]);
         } catch (Throwable $e) {
             fcc_json(false, [], $e->getMessage(), 500);
@@ -995,7 +1012,7 @@ $monthLabel = fcc_month_label($monthStart);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=comentario-viaje-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=historial-viaje-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
@@ -1251,6 +1268,19 @@ $monthLabel = fcc_month_label($monthStart);
                                                                 <i class="bi bi-shield-exclamation"></i> HR
                                                             </span>
                                                         <?php endif; ?>
+                                                        <button
+                                                            type="button"
+                                                            class="fcc-trip-history"
+                                                            data-salprog-history-open
+                                                            data-salprog-history-id="<?= (int)$unitRow['id'] ?>"
+                                                            data-salprog-history-bus="<?= fcc_h($unitRow['bus']) ?>"
+                                                            data-salprog-history-plate="<?= fcc_h($unitRow['placa']) ?>"
+                                                            data-salprog-history-date="<?= fcc_h($unitRow['date']) ?>"
+                                                            data-salprog-history-time="<?= fcc_h($unitRow['hora']) ?>"
+                                                            data-salprog-history-hr="<?= fcc_h($unitRow['hoja_ruta']) ?>"
+                                                            title="Ver historial de este viaje"
+                                                            aria-label="Ver historial de este viaje"
+                                                        ><i class="bi bi-clock-history" aria-hidden="true"></i></button>
                                                     </small>
                                                 <?php endif; ?>
                                             </td>
@@ -1642,7 +1672,7 @@ $monthLabel = fcc_month_label($monthStart);
             <div class="n360-salprog-history-head">
                 <div>
                     <span><i class="bi bi-clock-history"></i> Auditoria operativa</span>
-                    <h2 id="n360SalprogHistoryTitle">Historial de cambios</h2>
+                    <h2 id="n360SalprogHistoryTitle" data-salprog-history-title>Historial de cambios</h2>
                     <p data-salprog-history-period><?= fcc_h($monthLabel) ?></p>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -1712,7 +1742,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=split-viaje-1', ENT_QUOTES, 'UTF-8') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>
