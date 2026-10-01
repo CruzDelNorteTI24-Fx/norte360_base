@@ -37,6 +37,108 @@
     box._csbTimer = window.setTimeout(() => box.classList.remove('is-visible'), 2800);
   }
 
+  const controlAmountLabels = {
+    viaje: 'Viaje',
+    cond1: 'Conductor 1',
+    cond2: 'Conductor 2'
+  };
+
+  function normalizeControlAmount(value) {
+    const amount = Number.parseFloat(String(value ?? '').replace(',', '.'));
+    return Number.isFinite(amount) && amount > 0 ? amount : 0;
+  }
+
+  function rowControlAmounts(row) {
+    return {
+      viaje: normalizeControlAmount(row.dataset.csbControlViaje),
+      cond1: normalizeControlAmount(row.dataset.csbControlCond1),
+      cond2: normalizeControlAmount(row.dataset.csbControlCond2)
+    };
+  }
+
+  function hasControlAmounts(amounts) {
+    return Object.values(amounts).some((amount) => normalizeControlAmount(amount) > 0);
+  }
+
+  function formatControlAmount(value) {
+    return `S/ ${normalizeControlAmount(value).toLocaleString('es-PE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
+  }
+
+  function syncControlImpact(row, values) {
+    if (!row || row.dataset.csbControlReady !== '1') return;
+
+    const amounts = {
+      viaje: normalizeControlAmount(values?.viaje),
+      cond1: normalizeControlAmount(values?.cond1),
+      cond2: normalizeControlAmount(values?.cond2)
+    };
+    const hasAmounts = hasControlAmounts(amounts);
+    row.dataset.csbControlViaje = String(amounts.viaje);
+    row.dataset.csbControlCond1 = String(amounts.cond1);
+    row.dataset.csbControlCond2 = String(amounts.cond2);
+    row.dataset.csbHasControlAmounts = hasAmounts ? '1' : '0';
+    row.classList.toggle('csb-row--control-impact', hasAmounts);
+
+    const impact = row.querySelector('[data-csb-control-impact]');
+    if (impact) {
+      impact.classList.toggle('csb-control-impact--warn', hasAmounts);
+      impact.classList.toggle('csb-control-impact--clear', !hasAmounts);
+      impact.classList.remove('csb-control-impact--unavailable');
+    }
+
+    const icon = row.querySelector('[data-csb-control-impact-icon]');
+    if (icon) {
+      icon.className = `bi ${hasAmounts ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'}`;
+    }
+    const state = row.querySelector('[data-csb-control-impact-state]');
+    if (state) state.textContent = hasAmounts ? 'Con importes en control' : 'Sin importes en control';
+    const note = row.querySelector('[data-csb-control-impact-note]');
+    if (note) note.textContent = hasAmounts ? 'Confirmar antes de anular' : 'Sin impacto sobre montos';
+
+    Object.entries(amounts).forEach(([key, amount]) => {
+      const item = row.querySelector(`[data-csb-control-amount="${key}"]`);
+      if (!item) return;
+      item.classList.toggle('is-set', amount > 0);
+      const value = item.querySelector('strong');
+      if (value) value.textContent = formatControlAmount(amount);
+    });
+
+    const cancelButton = row.querySelector('[data-csb-state-option="ANULADO"]');
+    if (cancelButton) {
+      cancelButton.title = hasAmounts
+        ? 'Anular requiere confirmar los importes registrados en control'
+        : 'Marcar como ANULADO';
+    }
+
+    const selectedState = String(row.querySelector('[data-csb-field="estado"]')?.value || '').toUpperCase();
+    const savedState = String(row.dataset.csbDbRevision || '').toUpperCase();
+    row.classList.toggle('csb-row--cancel-selected', hasAmounts && selectedState === 'ANULADO' && savedState !== 'ANULADO');
+  }
+
+  async function confirmControlAnnulment(row) {
+    const amounts = rowControlAmounts(row);
+    if (!hasControlAmounts(amounts)) return true;
+
+    const detail = Object.entries(amounts)
+      .filter(([, amount]) => amount > 0)
+      .map(([key, amount]) => `${controlAmountLabels[key]}: ${formatControlAmount(amount)}`)
+      .join(' | ');
+    const message = `Este viaje tiene importes registrados (${detail}). La anulacion cambia su estado en Control de conductores, pero no borra los montos. Confirma solo si ya los revisaste.`;
+
+    if (window.N360Dialog?.confirm) {
+      return window.N360Dialog.confirm(message, {
+        variant: 'warning',
+        title: 'Viaje con importes en control',
+        confirmText: 'Anular de todas formas',
+        cancelText: 'Volver a revisar'
+      });
+    }
+    return window.confirm(message);
+  }
+
   function updateVisibleCount() {
     const count = rows.filter((row) => !row.hidden).length;
     if (visiblePill) {
@@ -284,6 +386,14 @@
       return;
     }
 
+    let confirmedControlAmounts = false;
+    const isNewAnnulment = String(estado).toUpperCase() === 'ANULADO'
+      && String(row.dataset.csbDbRevision || '').toUpperCase() !== 'ANULADO';
+    if (isNewAnnulment && row.dataset.csbHasControlAmounts === '1') {
+      confirmedControlAmounts = await confirmControlAnnulment(row);
+      if (!confirmedControlAmounts) return;
+    }
+
     const fd = new FormData();
     fd.append('csrf', csrf);
     fd.append('action', 'update_revision');
@@ -292,6 +402,7 @@
     fd.append('comentario', comentario);
     fd.append('correccion', correccion);
     fd.append('hojaruta', hojaruta);
+    fd.append('confirmar_importes_control', confirmedControlAmounts ? '1' : '0');
 
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
@@ -305,6 +416,9 @@
       });
       const json = await res.json();
       if (!json.ok) {
+        if (json.data?.importes_control) {
+          syncControlImpact(row, json.data.importes_control);
+        }
         if (json.data?.duplicada) {
           setHojaRutaValidation(row, 'duplicate');
           hojarutaInput?.focus();
@@ -323,6 +437,9 @@
         saved.textContent = json.data?.actualizado || '';
       }
       row.dataset.csbDbRevision = String(json.data?.estado || estado || 'PENDIENTE').toUpperCase();
+      if (json.data?.importes_control) {
+        syncControlImpact(row, json.data.importes_control);
+      }
       syncStateButtons(row, row.dataset.csbDbRevision);
       syncHojaRutaState(row, json.data?.tiene_hojaruta ?? compact(hojaruta) !== '');
       setHojaRutaValidation(row, compact(hojaruta) !== '' ? 'unique' : 'empty');
@@ -880,6 +997,10 @@
       button.hidden = !canAdd;
       button.disabled = !canAdd;
     });
+    row.classList.toggle(
+      'csb-row--cancel-selected',
+      value === 'ANULADO' && row.dataset.csbHasControlAmounts === '1' && dbValue !== 'ANULADO'
+    );
   }
 
 
@@ -1957,6 +2078,9 @@
     });
   });
   rows.forEach((row) => {
+    if (row.dataset.csbControlReady === '1') {
+      syncControlImpact(row, rowControlAmounts(row));
+    }
     syncStateButtons(row, row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE');
     const initialDuplicate = row.dataset.csbHojarutaDuplicate === '1';
     syncHojaRutaState(row, row.dataset.csbHasHojaruta === '1');

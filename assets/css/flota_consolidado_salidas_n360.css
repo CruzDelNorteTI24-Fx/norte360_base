@@ -797,7 +797,125 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    min-width: 220px;
+    min-width: 250px;
+}
+
+.csb-control-impact {
+    display: grid;
+    gap: 8px;
+    padding: 9px;
+    border: 1px solid #c8d9ea;
+    border-radius: 6px;
+    background: #f8fbfe;
+}
+
+.csb-control-impact__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.csb-control-impact__head > i {
+    flex: 0 0 auto;
+    font-size: 1rem;
+}
+
+.csb-control-impact__head > span {
+    min-width: 0;
+}
+
+.csb-control-impact__head b,
+.csb-control-impact__head small {
+    display: block;
+    margin: 0;
+}
+
+.csb-control-impact__head b {
+    color: #17344f;
+    font-size: .72rem;
+    line-height: 1.2;
+}
+
+.csb-control-impact__head small {
+    margin-top: 2px;
+    color: #60758a;
+    font-size: .65rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.csb-control-impact__amounts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid rgba(112, 137, 161, .24);
+    padding-top: 7px;
+}
+
+.csb-control-impact__amounts > span {
+    min-width: 0;
+    padding: 0 5px;
+    border-right: 1px solid rgba(112, 137, 161, .22);
+    text-align: center;
+}
+
+.csb-control-impact__amounts > span:last-child {
+    border-right: 0;
+}
+
+.csb-control-impact__amounts b,
+.csb-control-impact__amounts strong {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.csb-control-impact__amounts b {
+    color: #667b8f;
+    font-size: .62rem;
+    text-transform: uppercase;
+}
+
+.csb-control-impact__amounts strong {
+    margin-top: 2px;
+    color: #8393a3;
+    font-size: .69rem;
+}
+
+.csb-control-impact__amounts > span.is-set strong {
+    color: #a13c16;
+}
+
+.csb-control-impact--clear {
+    border-color: #b7dfca;
+    background: #f2fbf6;
+}
+
+.csb-control-impact--clear .csb-control-impact__head > i {
+    color: #14764f;
+}
+
+.csb-control-impact--warn {
+    border-color: #f1bc8f;
+    background: #fff8ef;
+}
+
+.csb-control-impact--warn .csb-control-impact__head > i {
+    color: #b34e19;
+}
+
+.csb-control-impact--unavailable .csb-control-impact__head > i {
+    color: #667b8f;
+}
+
+.csb-row--cancel-selected .csb-control-impact--warn {
+    border-color: #dc463d;
+    background: #fff1f0;
+    box-shadow: inset 3px 0 0 #dc463d;
+}
+
+.csb-row--control-impact .csb-state-btn--anulado:not(.is-active) {
+    border-color: #e8a277;
+    color: #9b3f17;
+    background: #fff8ef;
 }
 
 .csb-state-buttons {

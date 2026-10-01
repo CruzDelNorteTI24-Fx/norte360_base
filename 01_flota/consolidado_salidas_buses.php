@@ -208,6 +208,27 @@ function csb_hora_label(?string $value): string {
     return $time ? date('H:i', $time) : substr($value, 0, 5);
 }
 
+function csb_control_amounts(array $row): array {
+    $amount = static function ($value): float {
+        return is_numeric($value) ? max(0.0, (float)$value) : 0.0;
+    };
+
+    return [
+        'viaje' => $amount($row['clm_salprog_imtotaldelviaje'] ?? null),
+        'cond1' => $amount($row['clm_salprog_imtotalcond1'] ?? null),
+        'cond2' => $amount($row['clm_salprog_imtotalcond2'] ?? null),
+    ];
+}
+
+function csb_has_control_amounts(array $amounts): bool {
+    foreach ($amounts as $amount) {
+        if ((float)$amount > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function csb_estado_class(string $estado): string {
     $estado = strtoupper(trim($estado));
     if ($estado === 'VALIDADO') {
@@ -657,6 +678,11 @@ $historyTableReady = isset($conn) && $conn instanceof mysqli && csb_table_exists
     $conn,
     'tb_hist_progbuses_salida_consolidado'
 );
+$controlAmountsReady = $tableReady;
+foreach (['clm_salprog_imtotaldelviaje', 'clm_salprog_imtotalcond1', 'clm_salprog_imtotalcond2'] as $controlAmountColumn) {
+    $controlAmountsReady = $controlAmountsReady
+        && csb_column_exists($conn, 'tb_progbuses_salida_consolidado', $controlAmountColumn);
+}
 
 /* Rango de fechas operativas disponible antes de procesar GET/POST.
    Se conserva fecha_operativa como compatibilidad con enlaces antiguos. */
@@ -1429,6 +1455,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csb_json(false, [], 'Datos incompletos para guardar.', 422);
     }
 
+    $currentControlAmounts = null;
+    if ($estado === 'ANULADO' && $controlAmountsReady) {
+        $controlRows = csb_fetch_all($conn, "
+            SELECT
+                clm_salprog_revision_estado,
+                clm_salprog_imtotaldelviaje,
+                clm_salprog_imtotalcond1,
+                clm_salprog_imtotalcond2
+            FROM tb_progbuses_salida_consolidado
+            WHERE clm_salprog_id = ?
+            LIMIT 1
+        ", 'i', [$id]);
+
+        if (!$controlRows) {
+            csb_json(false, [], 'El viaje seleccionado ya no existe.', 404);
+        }
+
+        $currentControlAmounts = csb_control_amounts($controlRows[0]);
+        $currentRevision = strtoupper(trim((string)($controlRows[0]['clm_salprog_revision_estado'] ?? 'PENDIENTE')));
+        $confirmedControlAmounts = (string)($_POST['confirmar_importes_control'] ?? '') === '1';
+
+        if ($currentRevision !== 'ANULADO' && csb_has_control_amounts($currentControlAmounts) && !$confirmedControlAmounts) {
+            csb_json(false, [
+                'requiere_confirmacion_importes' => true,
+                'importes_control' => $currentControlAmounts,
+            ], 'Este viaje tiene importes registrados en Control de conductores. Revisa los montos y confirma la anulacion.', 409);
+        }
+    }
+
     if ($hojaRuta !== '') {
         $duplicate = csb_find_hojaruta_duplicate($conn, $hojaRuta, $id);
         if ($duplicate) {
@@ -1474,6 +1529,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'actualizado' => date('d/m/Y H:i'),
         'hojaruta' => $hojaRuta,
         'tiene_hojaruta' => $hojaRuta !== '',
+        'importes_control' => $currentControlAmounts,
     ], 'Cambios guardados.');
 }
 
@@ -1691,7 +1747,8 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=driver-history-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=control-impact-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
@@ -1935,9 +1992,14 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 $hojaRuta = trim((string)($row['clm_salprog_hojaruta'] ?? ''));
                                 $tieneHojaRuta = $hojaRuta !== '';
                                 $hojaRutaDuplicada = $tieneHojaRuta && isset($duplicateHojaRutaKeys[csb_hojaruta_key($hojaRuta)]);
+                                $controlAmounts = $controlAmountsReady
+                                    ? csb_control_amounts($row)
+                                    : ['viaje' => 0.0, 'cond1' => 0.0, 'cond2' => 0.0];
+                                $hasControlAmounts = $controlAmountsReady && csb_has_control_amounts($controlAmounts);
                                 $rowClasses = [];
                                 if ($tieneHojaRuta) $rowClasses[] = 'csb-row--hojaruta';
                                 if ($hojaRutaDuplicada) $rowClasses[] = 'csb-row--hojaruta-duplicate';
+                                if ($hasControlAmounts) $rowClasses[] = 'csb-row--control-impact';
                             ?>
                             <tr
                                 class="<?= csb_h(implode(' ', $rowClasses)) ?>"
@@ -1946,6 +2008,11 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 data-csb-db-revision="<?= csb_h($estado) ?>"
                                 data-csb-has-hojaruta="<?= $tieneHojaRuta ? '1' : '0' ?>"
                                 data-csb-hojaruta-duplicate="<?= $hojaRutaDuplicada ? '1' : '0' ?>"
+                                data-csb-control-ready="<?= $controlAmountsReady ? '1' : '0' ?>"
+                                data-csb-has-control-amounts="<?= $hasControlAmounts ? '1' : '0' ?>"
+                                data-csb-control-viaje="<?= csb_h(number_format($controlAmounts['viaje'], 4, '.', '')) ?>"
+                                data-csb-control-cond1="<?= csb_h(number_format($controlAmounts['cond1'], 4, '.', '')) ?>"
+                                data-csb-control-cond2="<?= csb_h(number_format($controlAmounts['cond2'], 4, '.', '')) ?>"
                                 data-csb-transfer-date="<?= csb_h($row['clm_salprog_fecha_operativa'] ?? $fechaOperativa) ?>"
                                 data-csb-transfer-hour="<?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?>"
                                 data-csb-transfer-idplaca="<?= (int)($row['clm_salprog_idplaca'] ?? 0) ?>"
@@ -2066,13 +2133,32 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 </td>
                                 <td>
                                     <div class="csb-action-panel">
+                                        <div class="csb-control-impact <?= !$controlAmountsReady ? 'csb-control-impact--unavailable' : ($hasControlAmounts ? 'csb-control-impact--warn' : 'csb-control-impact--clear') ?>" data-csb-control-impact>
+                                            <div class="csb-control-impact__head">
+                                                <i class="bi <?= !$controlAmountsReady ? 'bi-question-circle-fill' : ($hasControlAmounts ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill') ?>" data-csb-control-impact-icon aria-hidden="true"></i>
+                                                <span>
+                                                    <b data-csb-control-impact-state><?= !$controlAmountsReady ? 'Control no disponible' : ($hasControlAmounts ? 'Con importes en control' : 'Sin importes en control') ?></b>
+                                                    <small data-csb-control-impact-note><?= !$controlAmountsReady ? 'No se pudieron consultar los campos' : ($hasControlAmounts ? 'Confirmar antes de anular' : 'Sin impacto sobre montos') ?></small>
+                                                </span>
+                                            </div>
+                                            <?php if ($controlAmountsReady): ?>
+                                                <div class="csb-control-impact__amounts">
+                                                    <?php foreach (['viaje' => 'Viaje', 'cond1' => 'Cond. 1', 'cond2' => 'Cond. 2'] as $amountKey => $amountLabel): ?>
+                                                        <span class="<?= $controlAmounts[$amountKey] > 0 ? 'is-set' : '' ?>" data-csb-control-amount="<?= csb_h($amountKey) ?>">
+                                                            <b><?= csb_h($amountLabel) ?></b>
+                                                            <strong>S/ <?= number_format($controlAmounts[$amountKey], 2) ?></strong>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                         <div class="csb-state-buttons" aria-label="Cambiar revision">
                                             <?php foreach (['VALIDADO' => 'Validar', 'OBSERVADO' => 'Observar', 'CORREGIDO' => 'Corregir', 'ANULADO' => 'Anular', 'PENDIENTE' => 'Pend.'] as $opcion => $label): ?>
                                                 <button
                                                     type="button"
                                                     class="csb-state-btn csb-state-btn--<?= strtolower($opcion) ?> <?= $estado === $opcion ? 'is-active' : '' ?>"
                                                     data-csb-state-option="<?= $opcion ?>"
-                                                    title="Marcar como <?= csb_h($opcion) ?>"
+                                                    title="<?= $opcion === 'ANULADO' && $hasControlAmounts ? 'Anular requiere confirmar los importes registrados en control' : 'Marcar como ' . csb_h($opcion) ?>"
                                                 >
                                                     <?= csb_h($label) ?>
                                                 </button>
@@ -2593,7 +2679,8 @@ window.N360_SALPROG_HISTORY = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=driver-history-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=control-impact-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
