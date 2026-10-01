@@ -272,6 +272,10 @@ foreach ($permisos as $index => $modulo) {
             header('Location: ../01_flota/programacion_horarios.php');
             exit();
         }
+        if ($vista == 'f-conimp') {
+            header('Location: ../01_flota/control_conductores_salidas.php');
+            exit();
+        }
     }
 }
 

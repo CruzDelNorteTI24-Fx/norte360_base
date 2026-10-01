@@ -15,7 +15,7 @@ require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
 
-if (!n360_puede_modulo(10) || (!n360_puede_vista('f-consalbus') && !n360_puede_vista('f-proghist'))) {
+if (!n360_puede_modulo(10) || !n360_puede_vista('f-conimp')) {
     header('Location: ../login/none_permisos.php');
     exit();
 }
