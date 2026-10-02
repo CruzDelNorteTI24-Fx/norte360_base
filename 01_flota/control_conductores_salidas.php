@@ -804,9 +804,8 @@ try {
     $pageError = $e->getMessage();
 }
 
-if ($selectedUnit !== 'TODOS' && ctype_digit($selectedUnit)) {
-    $unitId = (int)$selectedUnit;
-    $plates = isset($plates[$unitId]) ? [$unitId => $plates[$unitId]] : [];
+if ($selectedUnit !== 'TODOS' && (!ctype_digit($selectedUnit) || !isset($allPlates[(int)$selectedUnit]))) {
+    $selectedUnit = 'TODOS';
 }
 
 $kpis = [
@@ -1012,7 +1011,7 @@ $monthLabel = fcc_month_label($monthStart);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=day-coverage-2', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=direction-screen-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
@@ -1069,8 +1068,8 @@ $monthLabel = fcc_month_label($monthStart);
                     <input type="month" name="mes" value="<?= fcc_h($month) ?>">
                 </label>
                 <label>
-                    <span>Unidad</span>
-                    <select name="unidad">
+                    <span>Unidad en pantalla</span>
+                    <select name="unidad" data-fcc-unit-screen>
                         <option value="TODOS" <?= $selectedUnit === 'TODOS' ? 'selected' : '' ?>>Todas las unidades</option>
                         <?php foreach ($allPlates as $plateOptionId => $plateOption): ?>
                             <option value="<?= (int)$plateOptionId ?>" <?= $selectedUnit === (string)$plateOptionId ? 'selected' : '' ?>><?= fcc_h($plateOption['label'] ?? '') ?></option>
@@ -1109,8 +1108,8 @@ $monthLabel = fcc_month_label($monthStart);
                             <?php endforeach; ?>
                         </div>
                         <div class="fcc-day-filter__legend" aria-label="Nivel de importes registrados">
-                            <span><i class="is-high"></i> 50-100%</span>
-                            <span><i class="is-low"></i> 1-49%</span>
+                            <span><i class="is-high"></i> 30-100%</span>
+                            <span><i class="is-low"></i> 1-29%</span>
                             <span><i class="is-none"></i> Sin avance</span>
                         </div>
                         <div class="fcc-day-filter__footer">
@@ -1120,12 +1119,21 @@ $monthLabel = fcc_month_label($monthStart);
                         </div>
                     </div>
                 </div>
+                <div class="fcc-direction-filter" data-fcc-direction-filter>
+                    <span>Ida / vuelta</span>
+                    <div class="fcc-direction-filter__control" role="group" aria-label="Filtrar por ida, vuelta o pendiente">
+                        <button type="button" class="is-selected" data-fcc-direction-all aria-pressed="true">Todos</button>
+                        <button type="button" data-fcc-direction-option="IDA" aria-pressed="false">IDA</button>
+                        <button type="button" data-fcc-direction-option="RETORNO" aria-pressed="false">VUELTA</button>
+                        <button type="button" data-fcc-direction-option="PENDIENTE" aria-pressed="false">PENDIENTE</button>
+                    </div>
+                </div>
                 <label class="fcc-filter-search">
                     <span>Buscar en pantalla</span>
                     <input type="search" data-fcc-search value="" placeholder="Bus, placa o conductor...">
                 </label>
                 <div class="fcc-filter-actions">
-                    <button type="submit" class="fcc-btn fcc-btn--primary"><i class="bi bi-funnel"></i> Filtrar</button>
+                    <button type="submit" class="fcc-btn fcc-btn--primary"><i class="bi bi-calendar-check"></i> Cargar mes</button>
                     <a class="fcc-btn fcc-btn--soft" href="control_conductores_salidas.php"><i class="bi bi-x-circle"></i> Limpiar</a>
                 </div>
             </form>
@@ -1784,7 +1792,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=day-coverage-2', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=direction-screen-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>

@@ -255,9 +255,60 @@
 
 .fcc-filter-grid {
     display: grid;
-    grid-template-columns: 170px minmax(210px, 280px) minmax(230px, 300px) minmax(240px, 1fr) auto;
+    grid-template-columns: 155px minmax(180px, 230px) minmax(210px, 250px) minmax(270px, 300px) minmax(210px, 1fr) auto;
     gap: 12px;
     align-items: end;
+}
+
+.fcc-direction-filter {
+    min-width: 0;
+}
+
+.fcc-direction-filter > span {
+    display: block;
+}
+
+.fcc-direction-filter__control {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    min-height: 40px;
+    overflow: hidden;
+    border: 1px solid #c7d9eb;
+    border-radius: 8px;
+    background: #f5f9fc;
+}
+
+.fcc-direction-filter__control button {
+    min-width: 0;
+    padding: 0 6px;
+    border: 0;
+    border-right: 1px solid #d7e4ef;
+    color: #526a7e;
+    background: transparent;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0;
+    cursor: pointer;
+}
+
+.fcc-direction-filter__control button:last-child {
+    border-right: 0;
+}
+
+.fcc-direction-filter__control button:hover,
+.fcc-direction-filter__control button:focus-visible {
+    color: #075985;
+    background: #eaf6ff;
+    outline: none;
+}
+
+.fcc-direction-filter__control button.is-selected {
+    color: #fff;
+    background: #1677ad;
+}
+
+.fcc-direction-filter__control [data-fcc-direction-all].is-selected {
+    background: #173f5f;
 }
 
 .fcc-day-filter {

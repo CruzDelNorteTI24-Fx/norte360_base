@@ -6,6 +6,7 @@
   const tripMap = new Map();
   const rowBaselines = new Map();
   const selectedScreenDays = new Set();
+  const selectedScreenDirections = new Set();
   let pendingPaymentExport = '';
   let bulkMode = false;
 
@@ -656,7 +657,7 @@
         throw new Error(json.message || 'No se pudo guardar.');
       }
       applySavedRow(row, json.data || rowValues(row));
-      refreshDayAmountCoverage();
+      applyScreenFilters();
       updateBulkUi();
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
@@ -714,7 +715,7 @@
         const row = document.querySelector(`[data-fcc-row="${cssEscape(String(item.id || ''))}"]`);
         applySavedRow(row, item);
       });
-      refreshDayAmountCoverage();
+      applyScreenFilters();
       updateBulkUi();
       showNotice(json.message || 'Cambios masivos guardados.', true);
     } catch (err) {
@@ -737,7 +738,7 @@
     const ok = window.confirm(`Deseas cancelar ${rows.length} cambio${rows.length === 1 ? '' : 's'} sin guardar?`);
     if (!ok) return;
     rows.forEach(restoreRow);
-    refreshDayAmountCoverage();
+    applyScreenFilters();
     updateBulkUi();
     showNotice('Cambios masivos cancelados.', true);
   }
@@ -758,7 +759,7 @@
         const ok = window.confirm('Hay cambios masivos sin guardar. Deseas salir y descartarlos?');
         if (!ok) return;
         dirtyRows().forEach(restoreRow);
-        refreshDayAmountCoverage();
+        applyScreenFilters();
       }
       setBulkMode(!bulkMode);
     });
@@ -898,9 +899,12 @@
       if (!query) return true;
       const unitText = keyText(card.querySelector('.fcc-unit-toggle')?.textContent || '');
       return unitText.includes(query)
-        || Array.from(card.querySelectorAll('[data-fcc-row]')).some((row) => screenRowSearchText(row).includes(query));
+        || Array.from(card.querySelectorAll('[data-fcc-row]')).some((row) => (
+          rowMatchesDirectionFilter(row) && screenRowSearchText(row).includes(query)
+        ));
     }).forEach((card) => {
       card.querySelectorAll('[data-fcc-row]').forEach((row) => {
+        if (!rowMatchesDirectionFilter(row)) return;
         const day = screenRowDay(row);
         const coverage = rowAmountCoverage(row);
         const dayStats = stats.get(day);
@@ -929,7 +933,7 @@
 
       dayStats.percentage = Math.round((dayStats.filled / dayStats.expected) * 100);
       const percentage = dayStats.percentage;
-      const coverageClass = percentage >= 50
+      const coverageClass = percentage >= 30
         ? 'has-coverage-high'
         : percentage > 0
           ? 'has-coverage-low'
@@ -940,7 +944,7 @@
       option.title = `Dia ${day}: ${dayStats.filled} de ${dayStats.expected} importes registrados en ${dayStats.trips} viaje${dayStats.trips === 1 ? '' : 's'}`;
       option.setAttribute('aria-label', option.title);
 
-      if (percentage >= 50 && (!latestMajority || day > latestMajority.day)) {
+      if (percentage >= 30 && (!latestMajority || day > latestMajority.day)) {
         latestMajority = { day, percentage };
       }
     });
@@ -951,14 +955,36 @@
     const progress = filter.querySelector('[data-fcc-day-progress]');
     if (progress) {
       progress.textContent = latestMajority
-        ? `Mayoria hasta el dia ${latestMajority.day} (${latestMajority.percentage}%)`
-        : 'Sin dias con mayoria de importes';
+        ? `Avance verde hasta el dia ${latestMajority.day} (${latestMajority.percentage}%)`
+        : 'Sin dias con avance verde';
+    }
+  }
+
+  function filterCardsByScreenUnit(cards) {
+    const selectedUnit = compact(document.querySelector('[data-fcc-unit-screen]')?.value || 'TODOS');
+    if (!selectedUnit || selectedUnit === 'TODOS') return cards;
+    return cards.filter((card) => compact(card.dataset.unitId || '') === selectedUnit);
+  }
+
+  function expandSelectedScreenUnit() {
+    const selectedUnit = compact(document.querySelector('[data-fcc-unit-screen]')?.value || 'TODOS');
+    if (!selectedUnit || selectedUnit === 'TODOS') return;
+    const card = document.querySelector(`[data-fcc-unit][data-unit-id="${cssEscape(selectedUnit)}"]`);
+    const content = card?.querySelector('.collapse');
+    const toggle = card?.querySelector('.fcc-unit-toggle');
+    if (!content) return;
+    if (window.bootstrap?.Collapse) {
+      window.bootstrap.Collapse.getOrCreateInstance(content, { toggle: false }).show();
+    } else {
+      content.classList.add('show');
+      toggle?.setAttribute('aria-expanded', 'true');
     }
   }
 
   function refreshDayAmountCoverage() {
     const query = keyText(document.querySelector('[data-fcc-search]')?.value || '');
-    updateDayAmountCoverage(Array.from(document.querySelectorAll('[data-fcc-unit]')), query);
+    const cards = filterCardsByScreenUnit(Array.from(document.querySelectorAll('[data-fcc-unit]')));
+    updateDayAmountCoverage(cards, query);
   }
 
   function updateDayFilterUi(filter) {
@@ -996,16 +1022,48 @@
     }
   }
 
+  function screenRowDirection(row) {
+    return tripDirection(
+      row?.querySelector('[data-fcc-field="ida_vuelta"]')?.value
+      || row?.querySelector('[data-fcc-col="ida_vuelta"]')?.textContent
+      || ''
+    );
+  }
+
+  function rowMatchesDirectionFilter(row) {
+    if (selectedScreenDirections.size === 0) return true;
+    const id = compact(row?.dataset?.fccRow || '');
+    return id !== '' && id !== '0' && selectedScreenDirections.has(screenRowDirection(row));
+  }
+
+  function updateDirectionFilterUi(filter) {
+    if (!filter) return;
+    const allButton = filter.querySelector('[data-fcc-direction-all]');
+    const showAll = selectedScreenDirections.size === 0;
+    allButton?.classList.toggle('is-selected', showAll);
+    allButton?.setAttribute('aria-pressed', showAll ? 'true' : 'false');
+
+    filter.querySelectorAll('[data-fcc-direction-option]').forEach((option) => {
+      const value = compact(option.dataset.fccDirectionOption || '').toUpperCase();
+      const selected = selectedScreenDirections.has(value);
+      option.classList.toggle('is-selected', selected);
+      option.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+    filter.classList.toggle('has-selection', !showAll);
+  }
+
   function applyScreenFilters() {
     const input = document.querySelector('[data-fcc-search]');
     const query = keyText(input?.value || '');
     const cards = Array.from(document.querySelectorAll('[data-fcc-unit]'));
+    const unitCards = new Set(filterCardsByScreenUnit(cards));
 
     cards.forEach((card) => {
       const rows = Array.from(card.querySelectorAll('[data-fcc-row]'));
       rows.forEach((row) => {
         const day = screenRowDay(row);
-        row.hidden = selectedScreenDays.size > 0 && !selectedScreenDays.has(day);
+        const matchesDay = selectedScreenDays.size === 0 || selectedScreenDays.has(day);
+        row.hidden = !matchesDay || !rowMatchesDirectionFilter(row);
       });
 
       const visibleDayRows = rows.filter((row) => !row.hidden);
@@ -1013,10 +1071,10 @@
       const matchesQuery = query === ''
         || unitText.includes(query)
         || visibleDayRows.some((row) => screenRowSearchText(row).includes(query));
-      card.classList.toggle('is-hidden', !matchesQuery || visibleDayRows.length === 0);
+      card.classList.toggle('is-hidden', !unitCards.has(card) || !matchesQuery || visibleDayRows.length === 0);
     });
 
-    updateDayAmountCoverage(cards, query);
+    updateDayAmountCoverage(Array.from(unitCards), query);
     updateScreenKpis(cards);
     const canceledTrips = collectCanceledTrips(visibleUnits());
     const canceledCount = document.querySelector('[data-fcc-canceled-count]');
@@ -1025,7 +1083,9 @@
 
   function setupScreenFilters() {
     const input = document.querySelector('[data-fcc-search]');
+    const unitSelect = document.querySelector('[data-fcc-unit-screen]');
     const filter = document.querySelector('[data-fcc-day-filter]');
+    const directionFilter = document.querySelector('[data-fcc-direction-filter]');
     const toggle = filter?.querySelector('[data-fcc-day-toggle]');
     const panel = filter?.querySelector('[data-fcc-day-panel]');
 
@@ -1036,6 +1096,10 @@
     };
 
     input?.addEventListener('input', applyScreenFilters);
+    unitSelect?.addEventListener('change', () => {
+      applyScreenFilters();
+      expandSelectedScreenUnit();
+    });
     toggle?.addEventListener('click', () => setPanelOpen(panel?.hidden !== false));
     filter?.querySelectorAll('[data-fcc-day-option]').forEach((option) => {
       option.addEventListener('click', () => {
@@ -1053,6 +1117,21 @@
       applyScreenFilters();
     });
     filter?.querySelector('[data-fcc-day-close]')?.addEventListener('click', () => setPanelOpen(false));
+    directionFilter?.querySelectorAll('[data-fcc-direction-option]').forEach((option) => {
+      option.addEventListener('click', () => {
+        const value = compact(option.dataset.fccDirectionOption || '').toUpperCase();
+        if (!['IDA', 'RETORNO', 'PENDIENTE'].includes(value)) return;
+        if (selectedScreenDirections.has(value)) selectedScreenDirections.delete(value);
+        else selectedScreenDirections.add(value);
+        updateDirectionFilterUi(directionFilter);
+        applyScreenFilters();
+      });
+    });
+    directionFilter?.querySelector('[data-fcc-direction-all]')?.addEventListener('click', () => {
+      selectedScreenDirections.clear();
+      updateDirectionFilterUi(directionFilter);
+      applyScreenFilters();
+    });
 
     document.addEventListener('click', (event) => {
       if (filter && !filter.contains(event.target)) setPanelOpen(false);
@@ -1062,7 +1141,9 @@
     });
 
     updateDayFilterUi(filter);
+    updateDirectionFilterUi(directionFilter);
     applyScreenFilters();
+    expandSelectedScreenUnit();
   }
 
   function cellText(row, selector) {
