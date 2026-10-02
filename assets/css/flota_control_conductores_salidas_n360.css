@@ -417,12 +417,6 @@
     background: #e8f7ef;
 }
 
-.fcc-day-filter__grid button.has-coverage-medium {
-    border-color: #e3bd59;
-    color: #755000;
-    background: #fff7dd;
-}
-
 .fcc-day-filter__grid button.has-coverage-low {
     border-color: #e59b96;
     color: #a62d2d;
@@ -489,7 +483,6 @@
 }
 
 .fcc-day-filter__legend i.is-high { background: #27986b; }
-.fcc-day-filter__legend i.is-medium { background: #d9a514; }
 .fcc-day-filter__legend i.is-low { background: #d6534d; }
 .fcc-day-filter__legend i.is-none { background: #9aaaba; }
 

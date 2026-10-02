@@ -929,13 +929,11 @@
 
       dayStats.percentage = Math.round((dayStats.filled / dayStats.expected) * 100);
       const percentage = dayStats.percentage;
-      const coverageClass = percentage >= 80
+      const coverageClass = percentage >= 50
         ? 'has-coverage-high'
-        : percentage >= 50
-          ? 'has-coverage-medium'
-          : percentage > 0
-            ? 'has-coverage-low'
-            : 'has-coverage-none';
+        : percentage > 0
+          ? 'has-coverage-low'
+          : 'has-coverage-none';
       option.classList.add(coverageClass);
       option.dataset.fccCoverage = String(percentage);
       if (percent) percent.textContent = `${percentage}%`;
