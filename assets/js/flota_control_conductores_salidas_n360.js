@@ -656,6 +656,7 @@
         throw new Error(json.message || 'No se pudo guardar.');
       }
       applySavedRow(row, json.data || rowValues(row));
+      refreshDayAmountCoverage();
       updateBulkUi();
       showNotice(json.message || 'Cambios guardados.', true);
     } catch (err) {
@@ -713,6 +714,7 @@
         const row = document.querySelector(`[data-fcc-row="${cssEscape(String(item.id || ''))}"]`);
         applySavedRow(row, item);
       });
+      refreshDayAmountCoverage();
       updateBulkUi();
       showNotice(json.message || 'Cambios masivos guardados.', true);
     } catch (err) {
@@ -735,6 +737,7 @@
     const ok = window.confirm(`Deseas cancelar ${rows.length} cambio${rows.length === 1 ? '' : 's'} sin guardar?`);
     if (!ok) return;
     rows.forEach(restoreRow);
+    refreshDayAmountCoverage();
     updateBulkUi();
     showNotice('Cambios masivos cancelados.', true);
   }
@@ -755,6 +758,7 @@
         const ok = window.confirm('Hay cambios masivos sin guardar. Deseas salir y descartarlos?');
         if (!ok) return;
         dirtyRows().forEach(restoreRow);
+        refreshDayAmountCoverage();
       }
       setBulkMode(!bulkMode);
     });
@@ -768,6 +772,7 @@
         const row = field.closest('[data-fcc-row]');
         if (field.matches('[data-fcc-field="ida_vuelta"]')) {
           applyRoundTripState(row, true);
+          refreshDayAmountCoverage();
         }
         if (field.matches('select')) syncSelectClass(field);
         updateTripTotalState(row);
@@ -849,6 +854,115 @@
     });
   }
 
+  function rowAmountCoverage(row) {
+    const id = compact(row?.dataset?.fccRow || '');
+    const revision = compact(row?.dataset?.fccRevision || '').toUpperCase();
+    if (!id || id === '0' || row.dataset.fccAnulado === '1' || ['ANULADO', 'SIN SALIDA'].includes(revision)) {
+      return null;
+    }
+
+    const expectedInputs = [row.querySelector('[data-fcc-field="viaje_importe"]')];
+    const direction = tripDirection(
+      row.querySelector('[data-fcc-field="ida_vuelta"]')?.value
+      || row.querySelector('[data-fcc-col="ida_vuelta"]')?.textContent
+      || ''
+    );
+
+    if (direction !== 'RETORNO') {
+      ['cond1', 'cond2'].forEach((driver) => {
+        const datasetKey = `fcc${driver.charAt(0).toUpperCase()}${driver.slice(1)}`;
+        if (row.dataset[datasetKey] === '1') {
+          expectedInputs.push(row.querySelector(`[data-fcc-field="${driver}_importe"]`));
+        }
+      });
+    }
+
+    const inputs = expectedInputs.filter(Boolean);
+    return {
+      expected: inputs.length,
+      filled: inputs.filter((input) => moneyNumber(moneyInputRaw(input)) > 0).length
+    };
+  }
+
+  function updateDayAmountCoverage(cards, query) {
+    const filter = document.querySelector('[data-fcc-day-filter]');
+    if (!filter) return;
+
+    const options = Array.from(filter.querySelectorAll('[data-fcc-day-option]'));
+    const stats = new Map(options.map((option) => [
+      Number.parseInt(option.dataset.fccDayOption || '', 10),
+      { expected: 0, filled: 0, trips: 0, percentage: null }
+    ]));
+
+    cards.filter((card) => {
+      if (!query) return true;
+      const unitText = keyText(card.querySelector('.fcc-unit-toggle')?.textContent || '');
+      return unitText.includes(query)
+        || Array.from(card.querySelectorAll('[data-fcc-row]')).some((row) => screenRowSearchText(row).includes(query));
+    }).forEach((card) => {
+      card.querySelectorAll('[data-fcc-row]').forEach((row) => {
+        const day = screenRowDay(row);
+        const coverage = rowAmountCoverage(row);
+        const dayStats = stats.get(day);
+        if (!coverage || !dayStats) return;
+        dayStats.expected += coverage.expected;
+        dayStats.filled += coverage.filled;
+        dayStats.trips += 1;
+      });
+    });
+
+    let latestMajority = null;
+    options.forEach((option) => {
+      const day = Number.parseInt(option.dataset.fccDayOption || '', 10);
+      const dayStats = stats.get(day);
+      const percent = option.querySelector('[data-fcc-day-percent]');
+      option.classList.remove('has-coverage-high', 'has-coverage-medium', 'has-coverage-low', 'has-coverage-none', 'is-latest-majority');
+
+      if (!dayStats || dayStats.expected === 0) {
+        option.classList.add('has-coverage-none');
+        option.dataset.fccCoverage = '';
+        if (percent) percent.textContent = '--';
+        option.title = `Dia ${day}: sin viajes evaluables en la pantalla actual`;
+        option.setAttribute('aria-label', option.title);
+        return;
+      }
+
+      dayStats.percentage = Math.round((dayStats.filled / dayStats.expected) * 100);
+      const percentage = dayStats.percentage;
+      const coverageClass = percentage >= 80
+        ? 'has-coverage-high'
+        : percentage >= 50
+          ? 'has-coverage-medium'
+          : percentage > 0
+            ? 'has-coverage-low'
+            : 'has-coverage-none';
+      option.classList.add(coverageClass);
+      option.dataset.fccCoverage = String(percentage);
+      if (percent) percent.textContent = `${percentage}%`;
+      option.title = `Dia ${day}: ${dayStats.filled} de ${dayStats.expected} importes registrados en ${dayStats.trips} viaje${dayStats.trips === 1 ? '' : 's'}`;
+      option.setAttribute('aria-label', option.title);
+
+      if (percentage >= 50 && (!latestMajority || day > latestMajority.day)) {
+        latestMajority = { day, percentage };
+      }
+    });
+
+    if (latestMajority) {
+      filter.querySelector(`[data-fcc-day-option="${latestMajority.day}"]`)?.classList.add('is-latest-majority');
+    }
+    const progress = filter.querySelector('[data-fcc-day-progress]');
+    if (progress) {
+      progress.textContent = latestMajority
+        ? `Mayoria hasta el dia ${latestMajority.day} (${latestMajority.percentage}%)`
+        : 'Sin dias con mayoria de importes';
+    }
+  }
+
+  function refreshDayAmountCoverage() {
+    const query = keyText(document.querySelector('[data-fcc-search]')?.value || '');
+    updateDayAmountCoverage(Array.from(document.querySelectorAll('[data-fcc-unit]')), query);
+  }
+
   function updateDayFilterUi(filter) {
     if (!filter) return;
     const selected = Array.from(selectedScreenDays).sort((a, b) => a - b);
@@ -904,6 +1018,7 @@
       card.classList.toggle('is-hidden', !matchesQuery || visibleDayRows.length === 0);
     });
 
+    updateDayAmountCoverage(cards, query);
     updateScreenKpis(cards);
     const canceledTrips = collectCanceledTrips(visibleUnits());
     const canceledCount = document.querySelector('[data-fcc-canceled-count]');
@@ -2294,6 +2409,7 @@
       }
       updateTripTotalState(input.closest('[data-fcc-row]'));
       markRowChange(input.closest('[data-fcc-row]'));
+      refreshDayAmountCoverage();
     });
     input.addEventListener('blur', () => {
       if (input.checkValidity()) displayMoneyInput(input);
