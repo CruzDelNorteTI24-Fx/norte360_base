@@ -14,6 +14,7 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
 require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
+require_once __DIR__ . '/flota_evidencias_ui.php';
 
 if (!n360_puede_modulo(10) || (!n360_puede_vista('f-consalbus') && !n360_puede_vista('f-proghist'))) {
     header("Location: ../login/none_permisos.php");
@@ -1756,6 +1757,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=control-impact-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=operational-layout-2', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
@@ -1902,6 +1904,8 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <strong><?= $ultimoCierre ? csb_h($ultimoCierre['clm_cierre_estado'] ?? '-') : '-' ?></strong>
             </div>
         </section>
+
+        <?php n360_flota_evidence_render($fechaInicio, $fechaFin, true); ?>
 
         <?php if ($groupCounters): ?>
             <section class="csb-group-filter" data-csb-group-filter>
@@ -2703,6 +2707,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=amount-filter-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=operational-layout-2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>

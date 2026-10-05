@@ -43,6 +43,7 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
 require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
+require_once __DIR__ . '/flota_evidencias_ui.php';
 require_once("../trash/copidb_secure.php");
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
@@ -196,6 +197,7 @@ function horario_operational_dates(): array {
     $sig = (clone $base)->modify('+1 day');
     return [
         'fecha_base' => $base->format('d/m/Y'),
+        'fecha_base_iso' => $base->format('Y-m-d'),
         'fecha_sig' => $sig->format('d/m/Y'),
         'fecha_sig_corta' => $sig->format('d/m/y'),
         'ahora_iso' => $base->format(DateTimeInterface::ATOM),
@@ -1083,6 +1085,7 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=operational-layout-2', ENT_QUOTES, 'UTF-8') ?>">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 
@@ -4263,6 +4266,11 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                 <div class="d-flex flex-wrap gap-2 justify-content-lg-end mt-lg-4">
                     <button class="btn btn-primary" id="btnNuevoHorario"><i class="bi bi-plus-circle me-2"></i>Nuevo horario</button>
                     <button class="btn btn-outline-secondary" id="btnRefreshHorarios"><i class="bi bi-arrow-repeat me-2"></i>Actualizar</button>
+                    <?php if (!$modo_qr_programacion): ?>
+                    <button type="button" class="btn btn-outline-secondary" data-fe-open data-fe-current-day data-fe-date="<?= h((new DateTimeImmutable('now', new DateTimeZone('America/Lima')))->format('Y-m-d')) ?>">
+                        <i class="bi bi-paperclip me-2" aria-hidden="true"></i>Evidencias del dia <span data-fe-current-count>-/2</span>
+                    </button>
+                    <?php endif; ?>
                     <button class="btn btn-img-auto" id="btnExportImagen">
                         <i class="bi bi-magic me-2"></i>Generar imágenes
                     </button>
@@ -4564,6 +4572,10 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   </div>
 </div>
 <?php if (!$modo_qr_programacion) { n360_render_content_separator('bottom'); n360_render_footer(); } ?>
+<?php if (!$modo_qr_programacion) {
+    $evidenceDate = (new DateTimeImmutable('now', new DateTimeZone('America/Lima')))->format('Y-m-d');
+    n360_flota_evidence_render($evidenceDate, $evidenceDate, false);
+} ?>
 
 <script>
 window.horariosInitialData = <?= json_encode($initialSnapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
@@ -4929,7 +4941,7 @@ function getFilteredRows(){
   });
 }
 
-  function renderDates(){ const f=state.snapshot.fechas||{}; els.datesWrap.innerHTML = `<span class="horario-date-chip"><i class="bi bi-calendar-date me-2"></i>Día Operativo: <strong>${esc(f.fecha_base||'—')}</strong></span><span class="horario-date-chip"><i class="bi bi-arrow-right-circle me-2"></i>Siguiente día operativo: <strong>${esc(f.fecha_sig||'—')}</strong></span><span class="horario-date-chip"><i class="bi bi-clock me-2"></i>Corte diario: 00:00 a 04:59</span>`; }
+  function renderDates(){ const f=state.snapshot.fechas||{}; els.datesWrap.innerHTML = `<span class="horario-date-chip"><i class="bi bi-calendar-date me-2"></i>Día Operativo: <strong>${esc(f.fecha_base||'—')}</strong></span><span class="horario-date-chip"><i class="bi bi-arrow-right-circle me-2"></i>Siguiente día operativo: <strong>${esc(f.fecha_sig||'—')}</strong></span><span class="horario-date-chip"><i class="bi bi-clock me-2"></i>Corte diario: 00:00 a 04:59</span>`; document.dispatchEvent(new CustomEvent('n360:flota-operational-date', {detail: {fecha: f.fecha_base_iso}})); }
   function renderSummary(){ const s=state.snapshot.summary||{}; els.statTotalActivos.textContent=s.total_activos??0; els.statSinBus.textContent=s.total_sin_bus??0; els.statBusesSinHorario.textContent=s.buses_sin_horario??0; els.statBusesTaller.textContent=s.buses_taller??0; }
 function renderSideList(container, rows, emptyText, includeMotivo = false, modo = '') {
   const orderedRows = (rows || []).slice().sort(compareBusNatural);
@@ -7884,6 +7896,9 @@ document.addEventListener("click", function (e) {
 
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
+<?php if (!$modo_qr_programacion): ?>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=operational-layout-2', ENT_QUOTES, 'UTF-8') ?>"></script>
+<?php endif; ?>
 </body>
 
 
