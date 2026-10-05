@@ -15,19 +15,24 @@ function n360_flota_evidence_render(string $start, string $end, bool $showBand):
     <?php if ($showBand): ?>
     <section class="n360-fe-band" data-fe-band data-fe-start="<?= $h($start) ?>" data-fe-end="<?= $h($end) ?>">
         <div class="n360-fe-band-head">
-            <div class="n360-fe-band-title">
-                <span class="n360-fe-band-icon"><i class="bi bi-images" aria-hidden="true"></i></span>
-                <h2>Evidencias por d&#237;a operativo</h2>
-            </div>
+            <h2 class="n360-fe-band-title">
+                <button type="button" class="n360-fe-toggle" data-bs-toggle="collapse" data-bs-target="#n360FlotaEvidenceCollapse" aria-expanded="false" aria-controls="n360FlotaEvidenceCollapse" title="Mostrar u ocultar las evidencias del periodo">
+                    <span class="n360-fe-band-icon"><i class="bi bi-images" aria-hidden="true"></i></span>
+                    <span class="n360-fe-toggle-label">Evidencias por d&#237;a operativo</span>
+                    <i class="bi bi-chevron-down n360-fe-chevron" aria-hidden="true"></i>
+                </button>
+            </h2>
             <button type="button" class="btn btn-primary n360-fe-attach-button" data-fe-open data-fe-date="<?= $h($start) ?>">
                 <i class="bi bi-upload" aria-hidden="true"></i> Adjuntar evidencia
             </button>
         </div>
-        <div class="n360-fe-days" data-fe-days aria-live="polite"></div>
-        <div class="n360-fe-pagination" data-fe-pagination hidden>
-            <button type="button" class="btn btn-outline-secondary btn-sm" data-fe-prev title="Fechas anteriores" aria-label="Fechas anteriores"><i class="bi bi-chevron-left"></i></button>
-            <span data-fe-page-label></span>
-            <button type="button" class="btn btn-outline-secondary btn-sm" data-fe-next title="Fechas siguientes" aria-label="Fechas siguientes"><i class="bi bi-chevron-right"></i></button>
+        <div class="collapse" id="n360FlotaEvidenceCollapse" data-fe-collapse>
+            <div class="n360-fe-days" data-fe-days aria-live="polite"></div>
+            <div class="n360-fe-pagination" data-fe-pagination hidden>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-fe-prev title="Fechas anteriores" aria-label="Fechas anteriores"><i class="bi bi-chevron-left"></i></button>
+                <span data-fe-page-label></span>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-fe-next title="Fechas siguientes" aria-label="Fechas siguientes"><i class="bi bi-chevron-right"></i></button>
+            </div>
         </div>
     </section>
     <?php endif; ?>

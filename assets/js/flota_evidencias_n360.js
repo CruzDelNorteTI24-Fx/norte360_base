@@ -16,6 +16,7 @@
   let dayRequest = 0;
   let pageRequest = 0;
   let page = 0;
+  let pageLoaded = false;
   const pageSize = 14;
   const dayMs = 86400000;
   const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -167,7 +168,11 @@
       const result = await request(cfg.endpoint, { method: 'POST', body: data });
       renderSlots(result.evidencias || []);
       notice('Evidencia guardada.');
-      if (band) await loadPage();
+      if (band) {
+        pageRequest++;
+        pageLoaded = false;
+        if (band.querySelector('.n360-fe-toggle').getAttribute('aria-expanded') === 'true') await loadPage();
+      }
     } catch (error) {
       notice(error.message, true);
     } finally {
@@ -208,7 +213,9 @@
     const { dates, total } = pageDates();
     const current = ++pageRequest;
     const daysEl = band.querySelector('[data-fe-days]');
+    const openDate = daysEl.querySelector('.n360-fe-day[open]')?.dataset.feDate;
     const pagination = band.querySelector('[data-fe-pagination]');
+    pageLoaded = false;
     pagination.hidden = total <= pageSize;
     band.querySelector('[data-fe-prev]').disabled = page === 0;
     band.querySelector('[data-fe-next]').disabled = (page + 1) * pageSize >= total;
@@ -230,9 +237,12 @@
             ? `<a class="n360-fe-attachment is-attached" href="${escape(fileUrl(item))}" target="_blank" rel="noopener" title="Ver ${escape(item.nombre)}">${content}</a>`
             : `<button type="button" class="n360-fe-attachment" data-fe-open data-fe-date="${escape(date)}" data-fe-focus-slot="${slot}" title="Adjuntar evidencia ${slot} del ${escape(label(date))}">${content}</button>`;
         }).join('');
-        return `<div class="n360-fe-day"><div class="n360-fe-day-title"><span class="n360-fe-date-label">D\u00eda operativo</span><div class="n360-fe-date-heading"><strong>${escape(label(date))}</strong><button type="button" class="btn btn-outline-secondary n360-fe-manage" data-fe-open data-fe-date="${escape(date)}" title="Ver o reemplazar las evidencias del ${escape(label(date))}" aria-label="Ver o reemplazar las evidencias del ${escape(label(date))}"><i class="bi bi-folder2-open" aria-hidden="true"></i></button></div><span class="n360-fe-count ${files.length === 2 ? 'is-complete' : ''}">${files.length}/2 archivos</span></div>
-          <div class="n360-fe-day-files">${attachments}</div></div>`;
+        return `<details class="n360-fe-day" name="n360FlotaEvidenceDays" data-fe-date="${escape(date)}"${date === openDate ? ' open' : ''}>
+          <summary class="n360-fe-day-title"><span class="n360-fe-date-heading"><i class="bi bi-calendar3" aria-hidden="true"></i><strong>${escape(label(date))}</strong></span><span class="n360-fe-count ${files.length === 2 ? 'is-complete' : ''}">${files.length}/2 archivos</span><i class="bi bi-chevron-down n360-fe-chevron" aria-hidden="true"></i></summary>
+          <div class="n360-fe-day-body"><div class="n360-fe-day-files">${attachments}</div><button type="button" class="btn btn-outline-secondary n360-fe-manage" data-fe-open data-fe-date="${escape(date)}" title="Ver o reemplazar las evidencias del ${escape(label(date))}" aria-label="Ver o reemplazar las evidencias del ${escape(label(date))}"><i class="bi bi-folder2-open" aria-hidden="true"></i></button></div>
+        </details>`;
       }).join('');
+      pageLoaded = true;
     } catch (error) {
       if (current !== pageRequest) return;
       daysEl.textContent = error.message;
@@ -265,7 +275,9 @@
   if (band) {
     band.querySelector('[data-fe-prev]').addEventListener('click', () => { page--; loadPage(); });
     band.querySelector('[data-fe-next]').addEventListener('click', () => { page++; loadPage(); });
-    loadPage();
+    band.querySelector('[data-fe-collapse]').addEventListener('show.bs.collapse', () => {
+      if (!pageLoaded) loadPage();
+    });
   } else {
     const opener = document.querySelector('[data-fe-open][data-fe-date]');
     if (opener) refreshCurrentDay(opener);
