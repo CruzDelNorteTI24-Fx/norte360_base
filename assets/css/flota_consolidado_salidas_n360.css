@@ -783,6 +783,30 @@
     min-width: 220px;
 }
 
+.csb-physical-route {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    color: #334b5f;
+    font-size: .78rem;
+    font-weight: 700;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.csb-physical-route input {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #057044;
+}
+
+.csb-physical-route:has(input:disabled) {
+    cursor: default;
+}
+
 .csb-hojaruta-state {
     display: inline-flex !important;
     align-items: center;

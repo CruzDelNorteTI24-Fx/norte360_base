@@ -686,6 +686,11 @@ $historyTableReady = isset($conn) && $conn instanceof mysqli && csb_table_exists
     $conn,
     'tb_hist_progbuses_salida_consolidado'
 );
+$hojaFisicaReady = $tableReady && csb_column_exists(
+    $conn,
+    'tb_progbuses_salida_consolidado',
+    'clm_salprog_hojaruta_fisica_revisada'
+);
 $controlAmountsReady = $tableReady;
 foreach (['clm_salprog_imtotaldelviaje', 'clm_salprog_imtotalcond1', 'clm_salprog_imtotalcond2'] as $controlAmountColumn) {
     $controlAmountsReady = $controlAmountsReady
@@ -1465,6 +1470,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csb_json(false, [], 'Datos incompletos para guardar.', 422);
     }
 
+    $hojaFisicaRevisada = null;
+    if (array_key_exists('hojaruta_fisica_revisada', $_POST)) {
+        if (!is_string($_POST['hojaruta_fisica_revisada'])
+            || !in_array($_POST['hojaruta_fisica_revisada'], ['0', '1'], true)) {
+            csb_json(false, [], 'El indicador de hoja fisica debe ser 0 o 1.', 422);
+        }
+        if (!$hojaFisicaReady) {
+            csb_json(false, [], 'El control de hoja fisica aun no esta disponible.', 409);
+        }
+        $hojaFisicaRevisada = (int)$_POST['hojaruta_fisica_revisada'];
+    }
+
     $currentControlAmounts = null;
     if ($estado === 'ANULADO' && $controlAmountsReady) {
         $controlRows = csb_fetch_all($conn, "
@@ -1510,12 +1527,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $uid = csb_uid();
+    $hojaFisicaSet = $hojaFisicaRevisada !== null
+        ? 'clm_salprog_hojaruta_fisica_revisada = ?,'
+        : '';
     $stmt = $conn->prepare("
         UPDATE tb_progbuses_salida_consolidado
            SET clm_salprog_revision_estado = ?,
                clm_salprog_comentario_revision = ?,
                clm_salprog_correccion = ?,
                clm_salprog_hojaruta = NULLIF(?, ''),
+               {$hojaFisicaSet}
                clm_salprog_usuario_revision = ?,
                clm_salprog_datetime_revision = NOW()
          WHERE clm_salprog_id = ?
@@ -1524,7 +1545,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$stmt) {
         csb_json(false, [], $conn->error ?: 'No se pudo preparar la actualizacion.', 500);
     }
-    $stmt->bind_param('ssssii', $estado, $comentario, $correccion, $hojaRuta, $uid, $id);
+    if ($hojaFisicaRevisada !== null) {
+        $stmt->bind_param('ssssiii', $estado, $comentario, $correccion, $hojaRuta, $hojaFisicaRevisada, $uid, $id);
+    } else {
+        $stmt->bind_param('ssssii', $estado, $comentario, $correccion, $hojaRuta, $uid, $id);
+    }
     $ok = $stmt->execute();
     $error = $stmt->error;
     $stmt->close();
@@ -1539,6 +1564,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'actualizado' => date('d/m/Y H:i'),
         'hojaruta' => $hojaRuta,
         'tiene_hojaruta' => $hojaRuta !== '',
+        'hojaruta_fisica_revisada' => $hojaFisicaRevisada === null ? null : $hojaFisicaRevisada === 1,
         'importes_control' => $currentControlAmounts,
     ], 'Cambios guardados.');
 }
@@ -1767,7 +1793,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=drivers-empty-2', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=physical-route-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -2026,6 +2052,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     $driverHistoryJson = '{"captura_original":[],"historial_ediciones":[]}';
                                 }
                                 $hojaRuta = trim((string)($row['clm_salprog_hojaruta'] ?? ''));
+                                $hojaFisicaRevisada = (int)($row['clm_salprog_hojaruta_fisica_revisada'] ?? 0) === 1;
                                 $tieneHojaRuta = $hojaRuta !== '';
                                 $hojaRutaDuplicada = $tieneHojaRuta && isset($duplicateHojaRutaKeys[csb_hojaruta_key($hojaRuta)]);
                                 $controlAmounts = $controlAmountsReady
@@ -2089,9 +2116,18 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                         aria-label="Hoja de ruta anexa"
                                         <?= $canEdit ? '' : 'readonly' ?>
                                     ><?= csb_h($hojaRuta) ?></textarea>
+                                    <label class="csb-physical-route"<?= $hojaFisicaReady ? '' : ' title="Control de hoja fisica no disponible"' ?>>
+                                        <input
+                                            type="checkbox"
+                                            data-csb-field="hojaruta_fisica_revisada"
+                                            <?= $hojaFisicaRevisada ? 'checked' : '' ?>
+                                            <?= $canEdit && $hojaFisicaReady ? '' : 'disabled' ?>
+                                        >
+                                        <span>Hoja física revisada</span>
+                                    </label>
                                     <small class="csb-hojaruta-state" data-csb-hojaruta-state>
                                         <i class="bi <?= $hojaRutaDuplicada ? 'bi-exclamation-triangle-fill' : ($tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle') ?>"></i>
-                                        <span><?= $hojaRutaDuplicada ? 'Duplicada: revisar antes de continuar' : ($tieneHojaRuta ? 'Hoja de ruta registrada Ã‚Â· sin duplicados' : 'Pendiente de revisión') ?></span>
+                                        <span><?= $hojaRutaDuplicada ? 'Duplicada: revisar antes de continuar' : ($tieneHojaRuta ? 'Hoja de ruta registrada Ã‚Â· sin duplicados' : 'Sin número de hoja de ruta') ?></span>
                                     </small>
                                 </td>
                                 <td>
@@ -2692,6 +2728,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 <script>
 window.N360_CSB = {
     canEdit: <?= $canEdit ? 'true' : 'false' ?>,
+    physicalRouteReady: <?= $hojaFisicaReady ? 'true' : 'false' ?>,
     csrf: <?= json_encode($csrfToken) ?>,
     endpoint: 'consolidado_salidas_buses.php',
     fechaOperativa: <?= json_encode($fechaOperativa) ?>,
@@ -2728,8 +2765,8 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=drivers-empty-2', ENT_QUOTES, 'UTF-8') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=physical-route-pdf-2', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=physical-route-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>

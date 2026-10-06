@@ -264,6 +264,64 @@
     ).toUpperCase();
   }
 
+  function physicalRouteReviewed(row) {
+    const checkbox = row?.querySelector('[data-csb-field="hojaruta_fisica_revisada"]');
+    if (cfg.physicalRouteReady !== true || !checkbox) return null;
+    return checkbox.checked;
+  }
+
+  function physicalRoutePdfCell(value, reviewed) {
+    if (reviewed === null) return value;
+    return {
+      content: value,
+      physicalRouteReviewed: reviewed,
+      styles: {
+        fillColor: reviewed ? [234, 248, 240] : [254, 241, 240],
+        cellPadding: { top: 1.25, right: 1.25, bottom: 11, left: 1.25 },
+        minCellHeight: 16
+      }
+    };
+  }
+
+  function drawPhysicalRoutePdfCell(doc, data) {
+    if (data.section !== 'body' || data.column.index !== 4) return;
+    const reviewed = data.cell.raw?.physicalRouteReviewed;
+    if (typeof reviewed !== 'boolean') return;
+
+    // El padding inferior reserva el distintivo sin cubrir el numero de hoja.
+    const x = data.cell.x + 1.25;
+    const y = data.cell.y + data.cell.height - 9.85;
+    const width = data.cell.width - 2.5;
+    const height = 8.6;
+    const boxSize = 2.8;
+    const boxX = x + 1.2;
+    const boxY = y + (height - boxSize) / 2;
+    const textX = boxX + boxSize + 1.2;
+    const textWidth = width - (textX - x) - 0.8;
+
+    doc.saveGraphicsState();
+    doc.setFillColor(...(reviewed ? [5, 112, 68] : [170, 36, 31]));
+    doc.roundedRect(x, y, width, height, 0.8, 0.8, 'F');
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(0.3);
+    doc.rect(boxX, boxY, boxSize, boxSize, 'S');
+    if (reviewed) {
+      doc.setLineWidth(0.45);
+      doc.line(boxX + 0.5, boxY + 1.4, boxX + 1.1, boxY + 2.1);
+      doc.line(boxX + 1.1, boxY + 2.1, boxX + 2.35, boxY + 0.65);
+    }
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(5.6);
+    doc.text('HOJA FISICA', textX, y + 3);
+    const label = reviewed ? 'REVISADA' : 'NO REVISADA';
+    doc.setFontSize(7.2);
+    const labelWidth = doc.getTextWidth(label);
+    if (labelWidth > textWidth) doc.setFontSize(7.2 * textWidth / labelWidth);
+    doc.text(label, textX, y + 6.2);
+    doc.restoreGraphicsState();
+  }
+
   function rowRouteReportData(row) {
     const origen = compact(row.dataset.csbTransferOrigin || '');
     const destino = compact(row.dataset.csbTransferDestination || '');
@@ -291,6 +349,7 @@
       unidad: compact(row.dataset.csbTransferUnit || ''),
       servicio: compact(row.dataset.csbTransferService || ''),
       hojaRuta: compact(row.querySelector('[data-csb-field="hojaruta"]')?.value || ''),
+      hojaFisicaRevisada: physicalRouteReviewed(row),
       conductores: rowDriversText(row),
       estado: rowRevisionText(row),
       ruta: routeLines.join('\n')
@@ -355,7 +414,7 @@
     }
 
     if (icon) icon.className = 'bi bi-circle';
-    if (text) text.textContent = 'Pendiente de revisión';
+    if (text) text.textContent = 'Sin número de hoja de ruta';
   }
 
   function findLocalHojaRutaDuplicate(row, value) {
@@ -438,6 +497,7 @@
     const correccion = row.querySelector('[data-csb-field="correccion"]')?.value || '';
     const hojarutaInput = row.querySelector('[data-csb-field="hojaruta"]');
     const hojaruta = hojarutaInput?.value || '';
+    const hojaFisicaInput = row.querySelector('[data-csb-field="hojaruta_fisica_revisada"]');
     const originalHtml = button.innerHTML;
 
     const hojaRutaValida = await validateHojaRuta(row, true);
@@ -463,6 +523,9 @@
     fd.append('comentario', comentario);
     fd.append('correccion', correccion);
     fd.append('hojaruta', hojaruta);
+    if (cfg.physicalRouteReady === true && hojaFisicaInput && !hojaFisicaInput.disabled) {
+      fd.append('hojaruta_fisica_revisada', hojaFisicaInput.checked ? '1' : '0');
+    }
     fd.append('confirmar_importes_control', confirmedControlAmounts ? '1' : '0');
 
     button.disabled = true;
@@ -499,6 +562,9 @@
         saved.textContent = json.data?.actualizado || '';
       }
       row.dataset.csbDbRevision = String(json.data?.estado || estado || 'PENDIENTE').toUpperCase();
+      if (hojaFisicaInput && typeof json.data?.hojaruta_fisica_revisada === 'boolean') {
+        hojaFisicaInput.checked = json.data.hojaruta_fisica_revisada;
+      }
       if (json.data?.importes_control) {
         syncControlImpact(row, json.data.importes_control);
         applyScreenFilters();
@@ -1106,7 +1172,12 @@
     const head = ths.slice(0, -1).map((th) => compact(th.textContent));
     const body = rows
       .filter((row) => !row.hidden)
-      .map((row) => Array.from(row.children).slice(0, -1).map(cellText));
+      .map((row) => Array.from(row.children).slice(0, -1).map((td) => {
+        if (td.querySelector('[data-csb-field="hojaruta"]')) {
+          return physicalRoutePdfCell(cellText(td) || '-', physicalRouteReviewed(td));
+        }
+        return cellText(td);
+      }));
     return { head, body };
   }
 
@@ -1204,6 +1275,9 @@
                 if (raw.includes('OBSERVADO')) data.cell.styles.textColor = [170, 36, 31];
                 if (raw.includes('CORREGIDO')) data.cell.styles.textColor = [7, 89, 133];
               }
+            },
+            didDrawCell: function (data) {
+              drawPhysicalRoutePdfCell(doc, data);
             }
           });
         }
@@ -1232,7 +1306,7 @@
       [formatIsoDate(item.fecha), item.hora || '-'].filter(Boolean).join('\n'),
       [item.unidad || '-', item.servicio || ''].filter(Boolean).join('\n'),
       item.ruta || '-',
-      item.hojaRuta || 'PENDIENTE',
+      physicalRoutePdfCell(item.hojaRuta || 'SIN NUMERO', item.hojaFisicaRevisada),
       item.conductores || '-',
       item.estado || 'PENDIENTE'
     ]);
@@ -1361,15 +1435,18 @@
               didParseCell: function (cellData) {
                 if (cellData.section !== 'body') return;
                 if (cellData.column.index === 4) {
-                  const raw = String(cellData.cell.raw || '').toUpperCase();
+                  const raw = String(cellData.cell.raw?.content ?? cellData.cell.raw ?? '').toUpperCase();
                   cellData.cell.styles.fontStyle = 'bold';
-                  cellData.cell.styles.textColor = raw === 'PENDIENTE' ? [146, 64, 14] : [5, 112, 68];
+                  cellData.cell.styles.textColor = raw === 'SIN NUMERO' ? [146, 64, 14] : [5, 112, 68];
                 }
                 if (cellData.column.index === 6) {
                   cellData.cell.styles.fontStyle = 'bold';
                   const color = routeReportStateColor(cellData.cell.raw);
                   cellData.cell.styles.textColor = color;
                 }
+              },
+              didDrawCell: function (cellData) {
+                drawPhysicalRoutePdfCell(doc, cellData);
               }
             });
 
