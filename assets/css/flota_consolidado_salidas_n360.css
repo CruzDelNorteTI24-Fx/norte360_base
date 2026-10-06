@@ -1200,6 +1200,15 @@
     font-weight: 900;
 }
 
+.csb-driver-modal,
+.csb-driver-history-modal {
+    --bs-modal-zindex: 1305;
+}
+
+body:has(.csb-driver-modal.show, .csb-driver-history-modal.show) .modal-backdrop {
+    --bs-backdrop-zindex: 1300;
+}
+
 .csb-driver-modal .modal-content,
 .csb-driver-history-modal .modal-content,
 .csb-manual-modal .modal-content,

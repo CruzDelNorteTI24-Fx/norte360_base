@@ -913,8 +913,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $oldText = trim((string)($current['clm_salprog_conductores_texto'] ?? ''));
             $driverLines = csb_conductores_lineas($oldText);
-            if (count($driverLines) !== 1) {
-                throw new RuntimeException('Solo puedes agregar un conductor cuando el viaje tiene exactamente un conductor asignado.');
+            if (count($driverLines) >= 2) {
+                throw new RuntimeException('El viaje ya tiene dos conductores asignados.');
             }
 
             $newLabel = trim((string)$driver['label']);
@@ -965,7 +965,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'conductores_texto' => $newText,
                 'conductores_lineas' => $driverLines,
                 'driver_history' => csb_driver_history_payload($newJson),
-            ], 'Segundo conductor agregado y guardado en historial.');
+            ], 'Conductor agregado y guardado en historial.');
         } catch (Throwable $e) {
             $conn->rollback();
             csb_json(false, [], $e->getMessage() ?: 'No se pudo agregar el conductor.', 400);
@@ -1767,7 +1767,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=readonly-2', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=drivers-empty-2', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -2129,13 +2129,13 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                                 <?php endif; ?>
                                             </span>
                                         <?php endforeach; ?>
-                                        <?php if ($canEdit && count($conductoresLineas) === 1): ?>
+                                        <?php if ($canEdit && count($conductoresLineas) < 2): ?>
                                             <button
                                                 type="button"
                                                 class="csb-driver-add"
                                                 data-csb-driver-add
-                                                title="Agregar segundo conductor"
-                                                aria-label="Agregar segundo conductor"
+                                                title="Agregar conductor"
+                                                aria-label="Agregar conductor"
                                                 <?= $estado === 'OBSERVADO' ? '' : 'hidden' ?>
                                             >
                                                 <i class="bi bi-person-plus-fill"></i>
@@ -2337,7 +2337,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 
 <?php if ($canEdit): ?>
 <div class="modal fade csb-driver-modal" id="csbDriverModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content">
             <div class="csb-modal-head">
                 <div>
@@ -2372,7 +2372,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 
 <?php endif; ?>
 <div class="modal fade csb-driver-history-modal" id="csbDriverHistoryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
         <div class="modal-content">
             <div class="csb-modal-head">
                 <div>
@@ -2728,7 +2728,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=readonly-2', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=drivers-empty-2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>

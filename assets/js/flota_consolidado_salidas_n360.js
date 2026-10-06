@@ -1061,7 +1061,7 @@
     });
     row.querySelectorAll('[data-csb-driver-add]').forEach((button) => {
       const driverCount = row.querySelectorAll('[data-csb-driver-line]').length;
-      const canAdd = canEdit && dbValue === 'OBSERVADO' && driverCount === 1;
+      const canAdd = canEdit && dbValue === 'OBSERVADO' && driverCount < 2;
       button.hidden = !canAdd;
       button.disabled = !canAdd;
     });
@@ -1600,7 +1600,7 @@
 
     const existingDriverTexts = () => {
       if (!state.row) return [];
-      return Array.from(state.row.querySelectorAll('[data-csb-driver-text]'))
+      return Array.from(state.row.querySelectorAll('[data-csb-driver-line] [data-csb-driver-text]'))
         .map((el) => compact(el.textContent).toLowerCase())
         .filter(Boolean);
     };
@@ -1653,8 +1653,8 @@
 
       if (mode === 'add') {
         const driverLines = row.querySelectorAll('[data-csb-driver-line]');
-        if (driverLines.length !== 1) {
-          showNotice('Solo puedes agregar un conductor cuando el viaje tiene uno asignado.', false);
+        if (driverLines.length >= 2) {
+          showNotice('El viaje ya tiene dos conductores asignados.', false);
           return;
         }
       }
@@ -1673,6 +1673,7 @@
       searchInput.value = '';
       saveButton.disabled = true;
       renderList();
+      document.querySelector('[data-csb-notice]')?.classList.remove('is-visible');
       modal.show();
       setTimeout(() => searchInput.focus(), 180);
     };
@@ -1743,8 +1744,9 @@
         if (state.mode === 'add') {
           const driversBox = state.row.querySelector('[data-csb-drivers]');
           const addButton = driversBox?.querySelector('[data-csb-driver-add]');
-          const index = Number(json.data?.driver_index ?? 1);
+          const index = Number(json.data?.driver_index ?? driversBox?.querySelectorAll('[data-csb-driver-line]').length ?? 0);
           if (driversBox) {
+            driversBox.querySelectorAll('.csb-driver-line--empty').forEach((emptyLine) => emptyLine.remove());
             const line = document.createElement('span');
             line.className = 'csb-driver-line';
             line.dataset.csbDriverLine = '';
@@ -1758,7 +1760,6 @@
               </button>`;
             if (addButton) {
               driversBox.insertBefore(line, addButton);
-              addButton.remove();
             } else {
               driversBox.appendChild(line);
             }
