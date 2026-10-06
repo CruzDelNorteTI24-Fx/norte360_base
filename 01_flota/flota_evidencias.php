@@ -18,6 +18,9 @@ if (!n360_flota_evidence_can_access($_SESSION)) {
     n360_flota_evidence_json(false, [], 'No tienes permiso para las evidencias de Flota.', 403);
 }
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if ($method === 'POST' && !n360_flota_evidence_can_upload($_SESSION)) {
+    n360_flota_evidence_json(false, [], 'Tu permiso de evidencias es de solo lectura.', 403);
+}
 if ($method === 'POST' && empty($_POST) && empty($_FILES)
     && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0
     && stripos((string)($_SERVER['CONTENT_TYPE'] ?? ''), 'multipart/form-data') !== false) {

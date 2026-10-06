@@ -2,7 +2,7 @@
 
 const N360_FLOTA_EVIDENCE_MAX_BYTES = 8388608;
 
-function n360_flota_evidence_can_access(array $session): bool
+function n360_flota_evidence_can_upload(array $session): bool
 {
     if (!isset($session['usuario'])) {
         return false;
@@ -14,6 +14,14 @@ function n360_flota_evidence_can_access(array $session): bool
     $views = (array)($session['vistas'] ?? []);
     return in_array(10, $modules)
         && count(array_intersect(['f-proghor', 'f-consalbus', 'f-proghist'], $views)) > 0;
+}
+
+function n360_flota_evidence_can_access(array $session): bool
+{
+    return n360_flota_evidence_can_upload($session)
+        || (isset($session['usuario'])
+            && in_array(10, (array)($session['permisos'] ?? []))
+            && in_array('f-consalbus-ver', (array)($session['vistas'] ?? [])));
 }
 
 function n360_flota_evidence_date(string $value): string

@@ -3,6 +3,7 @@
   const cfg = window.N360_FLOTA_EVIDENCE;
   const modalEl = document.getElementById('n360FlotaEvidenceModal');
   if (!cfg || !modalEl || !window.bootstrap) return;
+  const canUpload = cfg.canUpload === true;
 
   document.body.append(modalEl);
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -87,20 +88,20 @@
           ? `<a class="n360-fe-preview n360-fe-preview--pdf" href="${escape(fileUrl(item))}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i><span>PDF</span></a>`
           : `<a class="n360-fe-preview" href="${escape(fileUrl(item))}" target="_blank" rel="noopener"><img src="${escape(fileUrl(item))}" alt="Evidencia ${slot} del ${escape(label(dateInput.value))}" loading="lazy"></a>`)
         : '<div class="n360-fe-preview n360-fe-preview--empty"><i class="bi bi-image" aria-hidden="true"></i><span>Sin archivo</span></div>';
-      card.innerHTML = `<div class="n360-fe-slot-head"><strong>Evidencia ${slot}</strong><span>${item ? 'Adjuntada' : 'Disponible'}</span></div>
+      card.innerHTML = `<div class="n360-fe-slot-head"><strong>Evidencia ${slot}</strong><span>${item ? 'Adjuntada' : (canUpload ? 'Disponible' : 'Sin archivo')}</span></div>
         ${preview}
         <div class="n360-fe-file">${item
           ? `<strong title="${escape(item.nombre)}">${escape(item.nombre)}</strong><small>${(Number(item.size) / 1048576).toFixed(2)} MB</small><small>${escape(item.usuario)} · ${escape(item.fechacarga)}</small>
              <div class="n360-fe-file-actions"><a class="btn btn-outline-secondary btn-sm" href="${escape(fileUrl(item))}" target="_blank" rel="noopener"><i class="bi bi-eye" aria-hidden="true"></i> Ver</a><a class="btn btn-outline-secondary btn-sm" href="${escape(fileUrl(item, true))}"><i class="bi bi-download" aria-hidden="true"></i> Descargar</a></div>`
           : '<strong>Sin evidencia</strong>'}</div>
-        <form class="n360-fe-upload" data-fe-form="${slot}">
+        ${canUpload ? `<form class="n360-fe-upload" data-fe-form="${slot}">
           <label for="n360FeFile${slot}">${item ? 'Reemplazar archivo' : 'Adjuntar archivo'}</label>
           <input type="file" class="form-control form-control-sm" id="n360FeFile${slot}" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" required>
           <small>JPG, PNG, WEBP o PDF · Hasta 8 MB</small>
           <button type="submit" class="btn btn-primary btn-sm" disabled><i class="bi bi-upload" aria-hidden="true"></i> ${item ? 'Reemplazar' : 'Adjuntar'}</button>
-        </form>`;
+        </form>` : ''}`;
       if (previous) previous.replaceWith(card); else slotsEl.append(card);
-      card.querySelector('input[type="file"]').addEventListener('change', (event) => {
+      card.querySelector('input[type="file"]')?.addEventListener('change', (event) => {
         const input = event.target;
         const file = input.files[0];
         input.setCustomValidity(file && (file.size === 0 || file.size > Number(cfg.maxBytes))
@@ -108,7 +109,7 @@
         if (file) input.reportValidity();
         updateControls();
       });
-      card.querySelector('form').addEventListener('submit', (event) => save(event, slot, revision));
+      card.querySelector('form')?.addEventListener('submit', (event) => save(event, slot, revision));
     }
     updateCount(dateInput.value, rows);
     updateControls();
@@ -149,7 +150,7 @@
   async function save(event, slot, revision) {
     event.preventDefault();
     const form = event.currentTarget;
-    if (uploading || loading || !form.reportValidity()) return;
+    if (!canUpload || uploading || loading || !form.reportValidity()) return;
     const file = form.querySelector('input[type="file"]').files[0];
     if (!file) return;
     if (revision > 0 && !window.confirm(`Reemplazar la evidencia ${slot} del ${label(dateInput.value)}?`)) return;
@@ -229,17 +230,19 @@
         const files = rows.filter((item) => item.fecha === date);
         const attachments = [1, 2].map((slot) => {
           const item = files.find((file) => Number(file.cupo) === slot);
-          const title = item ? item.nombre : `Adjuntar evidencia ${slot}`;
-          const icon = item ? (item.mime === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image') : 'bi-cloud-arrow-up';
-          const detail = item ? `${item.mime === 'application/pdf' ? 'PDF' : 'Imagen'} - ${(Number(item.size) / 1048576).toFixed(2)} MB` : 'Imagen o PDF';
-          const content = `<i class="bi ${icon} n360-fe-attachment-icon" aria-hidden="true"></i><span class="n360-fe-attachment-text"><strong>${escape(title)}</strong><small>${escape(detail)}</small></span><i class="bi ${item ? 'bi-box-arrow-up-right' : 'bi-plus-lg'} n360-fe-attachment-action" aria-hidden="true"></i>`;
+          const title = item ? item.nombre : (canUpload ? `Adjuntar evidencia ${slot}` : `Evidencia ${slot}`);
+          const icon = item ? (item.mime === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image') : (canUpload ? 'bi-cloud-arrow-up' : 'bi-image');
+          const detail = item ? `${item.mime === 'application/pdf' ? 'PDF' : 'Imagen'} - ${(Number(item.size) / 1048576).toFixed(2)} MB` : (canUpload ? 'Imagen o PDF' : 'Sin archivo');
+          const action = item || canUpload ? `<i class="bi ${item ? 'bi-box-arrow-up-right' : 'bi-plus-lg'} n360-fe-attachment-action" aria-hidden="true"></i>` : '';
+          const content = `<i class="bi ${icon} n360-fe-attachment-icon" aria-hidden="true"></i><span class="n360-fe-attachment-text"><strong>${escape(title)}</strong><small>${escape(detail)}</small></span>${action}`;
+          if (!item && !canUpload) return `<div class="n360-fe-attachment is-empty">${content}</div>`;
           return item
             ? `<a class="n360-fe-attachment is-attached" href="${escape(fileUrl(item))}" target="_blank" rel="noopener" title="Ver ${escape(item.nombre)}">${content}</a>`
             : `<button type="button" class="n360-fe-attachment" data-fe-open data-fe-date="${escape(date)}" data-fe-focus-slot="${slot}" title="Adjuntar evidencia ${slot} del ${escape(label(date))}">${content}</button>`;
         }).join('');
         return `<details class="n360-fe-day" name="n360FlotaEvidenceDays" data-fe-date="${escape(date)}"${date === openDate ? ' open' : ''}>
           <summary class="n360-fe-day-title"><span class="n360-fe-date-heading"><i class="bi bi-calendar3" aria-hidden="true"></i><strong>${escape(label(date))}</strong></span><span class="n360-fe-count ${files.length === 2 ? 'is-complete' : ''}">${files.length}/2 archivos</span><i class="bi bi-chevron-down n360-fe-chevron" aria-hidden="true"></i></summary>
-          <div class="n360-fe-day-body"><div class="n360-fe-day-files">${attachments}</div><button type="button" class="btn btn-outline-secondary n360-fe-manage" data-fe-open data-fe-date="${escape(date)}" title="Ver o reemplazar las evidencias del ${escape(label(date))}" aria-label="Ver o reemplazar las evidencias del ${escape(label(date))}"><i class="bi bi-folder2-open" aria-hidden="true"></i></button></div>
+          <div class="n360-fe-day-body"><div class="n360-fe-day-files">${attachments}</div><button type="button" class="btn btn-outline-secondary n360-fe-manage" data-fe-open data-fe-date="${escape(date)}" title="${canUpload ? 'Ver o reemplazar' : 'Ver'} las evidencias del ${escape(label(date))}" aria-label="${canUpload ? 'Ver o reemplazar' : 'Ver'} las evidencias del ${escape(label(date))}"><i class="bi bi-folder2-open" aria-hidden="true"></i></button></div>
         </details>`;
       }).join('');
       pageLoaded = true;

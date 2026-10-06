@@ -1,5 +1,6 @@
 (function () {
   const cfg = window.N360_CSB || {};
+  const canEdit = cfg.canEdit === true;
   const endpoint = cfg.endpoint || 'consolidado_salidas_buses.php';
   const csrf = cfg.csrf || '';
   const report = cfg.report || {};
@@ -368,6 +369,7 @@
   }
 
   async function validateHojaRuta(row, remote = true) {
+    if (!canEdit) return true;
     const input = row.querySelector('[data-csb-field="hojaruta"]');
     if (!input) return true;
 
@@ -426,6 +428,7 @@
   }
 
   async function saveRow(button) {
+    if (!canEdit) return;
     const row = button.closest('[data-csb-row]');
     if (!row) return;
 
@@ -689,6 +692,7 @@
     };
 
     const exportExcel = () => {
+      if (!canEdit) return;
       const visibleRows = visibleRowsNow();
       if (!visibleRows.length) {
         showNotice('No hay viajes visibles para exportar.', false);
@@ -930,6 +934,7 @@
     };
 
     const exportExcel = () => {
+      if (!canEdit) return;
       const summary = buildSummary();
       if (!summary.length) {
         showNotice('No hay datos visibles para exportar.', false);
@@ -1050,13 +1055,13 @@
       button.classList.toggle('is-active', String(button.dataset.csbStateOption || '').toUpperCase() === value);
     });
     row.querySelectorAll('[data-csb-driver-edit]').forEach((button) => {
-      const canEdit = dbValue === 'OBSERVADO';
-      button.hidden = !canEdit;
-      button.disabled = !canEdit;
+      const allowed = canEdit && dbValue === 'OBSERVADO';
+      button.hidden = !allowed;
+      button.disabled = !allowed;
     });
     row.querySelectorAll('[data-csb-driver-add]').forEach((button) => {
       const driverCount = row.querySelectorAll('[data-csb-driver-line]').length;
-      const canAdd = dbValue === 'OBSERVADO' && driverCount === 1;
+      const canAdd = canEdit && dbValue === 'OBSERVADO' && driverCount === 1;
       button.hidden = !canAdd;
       button.disabled = !canAdd;
     });
@@ -1567,6 +1572,7 @@
   }
 
   function setupDriverEditor() {
+    if (!canEdit) return;
     const modalEl = document.getElementById('csbDriverModal');
     if (!modalEl || !window.bootstrap) return;
 
@@ -1790,6 +1796,7 @@
     });
   }
   function setupTransferTrip() {
+    if (!canEdit) return;
     const modalEl = document.getElementById('csbTransferModal');
     const form = modalEl?.querySelector('[data-csb-transfer-form]');
     if (!modalEl || !form || !window.bootstrap) return;
@@ -1970,6 +1977,7 @@
   }
 
   function setupManualTrip() {
+    if (!canEdit) return;
     const open = document.querySelector('[data-csb-manual-open]');
     const modalEl = document.getElementById('csbManualTripModal');
     const form = modalEl?.querySelector('[data-csb-manual-form]');
@@ -2136,6 +2144,7 @@
   });
   document.querySelectorAll('[data-csb-state-option]').forEach((button) => {
     button.addEventListener('click', () => {
+      if (!canEdit) return;
       const row = button.closest('[data-csb-row]');
       if (!row) return;
       syncStateButtons(row, button.dataset.csbStateOption || 'PENDIENTE');
@@ -2153,7 +2162,7 @@
     }
 
     const hojaRutaInput = row.querySelector('[data-csb-field="hojaruta"]');
-    if (hojaRutaInput) {
+    if (canEdit && hojaRutaInput) {
       hojaRutaInput.addEventListener('input', () => {
         const oldTimer = hojaRutaTimers.get(row);
         if (oldTimer) window.clearTimeout(oldTimer);

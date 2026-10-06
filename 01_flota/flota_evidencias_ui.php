@@ -8,7 +8,7 @@ function n360_flota_evidence_token(): string
     return $_SESSION['flota_evidencias_token'];
 }
 
-function n360_flota_evidence_render(string $start, string $end, bool $showBand): void
+function n360_flota_evidence_render(string $start, string $end, bool $showBand, bool $canUpload = true): void
 {
     $h = static function ($value): string { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); };
     ?>
@@ -22,9 +22,11 @@ function n360_flota_evidence_render(string $start, string $end, bool $showBand):
                     <i class="bi bi-chevron-down n360-fe-chevron" aria-hidden="true"></i>
                 </button>
             </h2>
+            <?php if ($canUpload): ?>
             <button type="button" class="btn btn-primary n360-fe-attach-button" data-fe-open data-fe-date="<?= $h($start) ?>">
                 <i class="bi bi-upload" aria-hidden="true"></i> Adjuntar evidencia
             </button>
+            <?php endif; ?>
         </div>
         <div class="collapse" id="n360FlotaEvidenceCollapse" data-fe-collapse>
             <div class="n360-fe-days" data-fe-days aria-live="polite"></div>
@@ -61,7 +63,8 @@ function n360_flota_evidence_render(string $start, string $end, bool $showBand):
     </div>
     <script>
     window.N360_FLOTA_EVIDENCE = <?= json_encode([
-        'endpoint' => 'flota_evidencias.php', 'csrf' => n360_flota_evidence_token(),
+        'endpoint' => 'flota_evidencias.php', 'csrf' => $canUpload ? n360_flota_evidence_token() : '',
+        'canUpload' => $canUpload,
         'maxBytes' => 8388608,
     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES) ?>;
     </script>

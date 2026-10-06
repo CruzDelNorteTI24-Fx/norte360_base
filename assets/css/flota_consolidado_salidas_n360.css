@@ -2317,6 +2317,14 @@
     to { transform: rotate(360deg); }
 }
 
+.csb-table tbody tr textarea[readonly] {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    resize: none;
+    cursor: text;
+}
+
 /* Conductores inactivos: visibles únicamente cuando backend los habilita para administradores. */
 .csb-driver-choice.is-inactive {
     order: 2;

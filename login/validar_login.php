@@ -256,6 +256,10 @@ foreach ($permisos as $index => $modulo) {
         header('Location: ../index.php');
         exit();        
     } elseif ($modulo == 10) {
+        if ($vista == 'f-consalbus-ver') {
+            header('Location: ../01_flota/consolidado_salidas_buses.php');
+            exit();
+        }
         if ($vista == 'f-flotayoperaciones') {
             header('Location: ../index.php');
             exit();

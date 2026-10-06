@@ -85,6 +85,11 @@ function n360_ap_view_catalog(): array {
         }
     }
 
+    $catalog['f-consalbus-ver'] = [
+        'title' => 'Consolidado de salidas: solo lectura',
+        'module' => 10,
+        'desc' => 'Consulta, historiales y PDF. No permite modificar viajes ni cargar evidencias.',
+    ];
     ksort($catalog);
     return $catalog;
 }

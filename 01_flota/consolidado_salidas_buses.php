@@ -16,9 +16,16 @@ require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
 require_once __DIR__ . '/flota_evidencias_ui.php';
 
-if (!n360_puede_modulo(10) || (!n360_puede_vista('f-consalbus') && !n360_puede_vista('f-proghist'))) {
+$canEdit = n360_puede_vista('f-consalbus') || n360_puede_vista('f-proghist');
+if (!n360_puede_modulo(10) || (!$canEdit && !n360_puede_vista('f-consalbus-ver'))) {
     header("Location: ../login/none_permisos.php");
     exit();
+}
+
+// La consulta del historial usa POST, pero no modifica registros.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !$canEdit
+    && (string)($_POST['action'] ?? '') !== 'audit_history') {
+    csb_json(false, [], 'Tu permiso del consolidado es de solo lectura.', 403);
 }
 
 define('ACCESS_GRANTED', true);
@@ -719,10 +726,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $action = (string)($_POST['action'] ?? '');
-    csb_set_salprog_audit_context(
-        $conn,
-        'consolidado_salidas_buses:' . ($action !== '' ? $action : 'post')
-    );
+    if ($canEdit) {
+        csb_set_salprog_audit_context(
+            $conn,
+            'consolidado_salidas_buses:' . ($action !== '' ? $action : 'post')
+        );
+    }
 
     if ($action === 'audit_history') {
         if (!$historyTableReady) {
@@ -1571,7 +1580,9 @@ $kpis = [
 
 if ($tableReady) {
     try {
-        $conductoresActivos = csb_fetch_conductores($conn, $isAdmin);
+        if ($canEdit) {
+            $conductoresActivos = csb_fetch_conductores($conn, $isAdmin);
+        }
         if ($isAdmin) {
             $manualCatalog = csb_fetch_manual_catalog($conn);
         }
@@ -1756,8 +1767,8 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=control-impact-1', ENT_QUOTES, 'UTF-8') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=accordion-3', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=readonly-2', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
@@ -1905,7 +1916,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
             </div>
         </section>
 
-        <?php n360_flota_evidence_render($fechaInicio, $fechaFin, true); ?>
+        <?php n360_flota_evidence_render($fechaInicio, $fechaFin, true, $canEdit); ?>
 
         <?php if ($groupCounters): ?>
             <section class="csb-group-filter" data-csb-group-filter>
@@ -2074,8 +2085,9 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     <textarea
                                         data-csb-field="hojaruta"
                                         rows="3"
-                                        placeholder="Digita la hoja de ruta anexa"
+                                        placeholder="<?= $canEdit ? 'Digita la hoja de ruta anexa' : 'Sin hoja de ruta' ?>"
                                         aria-label="Hoja de ruta anexa"
+                                        <?= $canEdit ? '' : 'readonly' ?>
                                     ><?= csb_h($hojaRuta) ?></textarea>
                                     <small class="csb-hojaruta-state" data-csb-hojaruta-state>
                                         <i class="bi <?= $hojaRutaDuplicada ? 'bi-exclamation-triangle-fill' : ($tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle') ?>"></i>
@@ -2102,6 +2114,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                                 data-csb-driver-license="<?= csb_h($conductorLicencia) ?>"
                                             >
                                                 <span data-csb-driver-text><?= csb_h($conductor) ?></span>
+                                                <?php if ($canEdit): ?>
                                                 <button
                                                     type="button"
                                                     class="csb-driver-edit"
@@ -2113,9 +2126,10 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                                 >
                                                     <i class="bi bi-pencil-square"></i>
                                                 </button>
+                                                <?php endif; ?>
                                             </span>
                                         <?php endforeach; ?>
-                                        <?php if (count($conductoresLineas) === 1): ?>
+                                        <?php if ($canEdit && count($conductoresLineas) === 1): ?>
                                             <button
                                                 type="button"
                                                 class="csb-driver-add"
@@ -2153,8 +2167,8 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     </div>
                                 </td>
                                 <td>
-                                    <textarea data-csb-field="comentario" rows="2" placeholder="Comentario de revision"><?= csb_h($row['clm_salprog_comentario_revision'] ?? '') ?></textarea>
-                                    <textarea data-csb-field="correccion" rows="2" placeholder="Correccion aplicada o pendiente"><?= csb_h($row['clm_salprog_correccion'] ?? '') ?></textarea>
+                                    <textarea data-csb-field="comentario" rows="2" placeholder="Comentario de revision" <?= $canEdit ? '' : 'readonly' ?>><?= csb_h($row['clm_salprog_comentario_revision'] ?? '') ?></textarea>
+                                    <textarea data-csb-field="correccion" rows="2" placeholder="Correccion aplicada o pendiente" <?= $canEdit ? '' : 'readonly' ?>><?= csb_h($row['clm_salprog_correccion'] ?? '') ?></textarea>
                                 </td>
                                 <td>
                                     <div class="csb-action-panel">
@@ -2177,6 +2191,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                                 </div>
                                             <?php endif; ?>
                                         </div>
+                                        <?php if ($canEdit): ?>
                                         <div class="csb-state-buttons" aria-label="Cambiar revision">
                                             <?php foreach (['VALIDADO' => 'Validar', 'OBSERVADO' => 'Observar', 'CORREGIDO' => 'Corregir', 'ANULADO' => 'Anular', 'PENDIENTE' => 'Pend.'] as $opcion => $label): ?>
                                                 <button
@@ -2197,6 +2212,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                         <button type="button" class="csb-icon-btn csb-icon-btn--save" data-csb-save="<?= $id ?>" title="Guardar revision" aria-label="Guardar revision">
                                             <i class="bi bi-check2"></i>
                                         </button>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -2267,9 +2283,11 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
             </div>
             <div class="modal-footer csb-route-list-footer">
                 <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cerrar</button>
+                <?php if ($canEdit): ?>
                 <button type="button" class="csb-btn csb-btn--excel" data-csb-general-excel>
                     <i class="bi bi-file-earmark-excel"></i> Descargar Excel
                 </button>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -2307,14 +2325,17 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
             </div>
             <div class="modal-footer csb-route-list-footer">
                 <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cerrar</button>
+                <?php if ($canEdit): ?>
                 <button type="button" class="csb-btn csb-btn--excel" data-csb-hojarutas-excel>
                     <i class="bi bi-file-earmark-excel"></i> Descargar Excel
                 </button>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
 
+<?php if ($canEdit): ?>
 <div class="modal fade csb-driver-modal" id="csbDriverModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -2349,6 +2370,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     </div>
 </div>
 
+<?php endif; ?>
 <div class="modal fade csb-driver-history-modal" id="csbDriverHistoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
@@ -2669,6 +2691,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 
 <script>
 window.N360_CSB = {
+    canEdit: <?= $canEdit ? 'true' : 'false' ?>,
     csrf: <?= json_encode($csrfToken) ?>,
     endpoint: 'consolidado_salidas_buses.php',
     fechaOperativa: <?= json_encode($fechaOperativa) ?>,
@@ -2705,9 +2728,9 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=amount-filter-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=readonly-2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=accordion-3', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>

@@ -50,6 +50,8 @@
 .n360-fe-attachment:hover { background: #edf6fc; color: #0874b9; border-color: #258ed1; }
 .n360-fe-attachment:focus-visible { outline: 2px solid #258ed1; outline-offset: 2px; }
 .n360-fe-attachment.is-attached { border-style: solid; border-color: #c8d9ea; background: #fff; }
+.n360-fe-attachment.is-empty { cursor: default; }
+.n360-fe-attachment.is-empty:hover { background: #f8fafc; color: #47637e; border-color: #b9ccdc; }
 .n360-fe-attachment-icon { flex: 0 0 24px; font-size: 24px; line-height: 1; color: #258ed1; }
 .n360-fe-attachment-text { display: grid; flex: 1; gap: 5px; min-width: 0; }
 .n360-fe-attachment-text strong { color: #17344f; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }

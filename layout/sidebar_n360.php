@@ -593,7 +593,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Consolidado de salidas',
                                 'icono' => 'bi bi-calendar2-check-fill',
                                 'url' => '01_flota/consolidado_salidas_buses.php',
-                                'vistas' => ['f-consalbus', 'f-proghist'],
+                                'vistas' => ['f-consalbus', 'f-proghist', 'f-consalbus-ver'],
                                 'modulo' => 10
                             ],
                             [
