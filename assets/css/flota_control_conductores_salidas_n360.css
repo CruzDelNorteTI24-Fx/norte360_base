@@ -1161,6 +1161,29 @@ body.fcc-bulk-mode .fcc-action-buttons {
     color: #8aa0b6;
 }
 
+.fcc-page--readonly .fcc-table [data-fcc-field]:disabled {
+    color: #173348;
+    opacity: 1;
+    -webkit-text-fill-color: currentColor;
+}
+
+.fcc-page--readonly .fcc-money-field > span,
+.fcc-page--readonly .fcc-money-field > span small {
+    color: #486478;
+}
+
+.fcc-page--readonly .fcc-table select:disabled {
+    appearance: none;
+}
+
+body.fcc-screen .modal {
+    --bs-modal-zindex: 1305;
+}
+
+body.fcc-screen .modal-backdrop {
+    --bs-backdrop-zindex: 1300;
+}
+
 .fcc-pay--ok { background: #e5f8ee !important; color: #0f6b42 !important; }
 .fcc-pay--pending { background: #fff8e6 !important; color: #936000 !important; }
 .fcc-pay--empty { background: #f2f6fa !important; color: #8aa0b6 !important; }

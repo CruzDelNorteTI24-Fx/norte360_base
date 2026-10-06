@@ -600,7 +600,7 @@ function n360_menu_config(): array {
                                 'titulo' => 'Control conductores',
                                 'icono' => 'bi bi-person-vcard-fill',
                                 'url' => '01_flota/control_conductores_salidas.php',
-                                'vista' => 'f-conimp',
+                                'vistas' => ['f-conimp', 'f-contcondtors-ver'],
                                 'modulo' => 10
                             ],
                         ]

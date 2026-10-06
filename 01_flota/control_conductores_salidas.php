@@ -15,9 +15,14 @@ require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
 
-if (!n360_puede_modulo(10) || !n360_puede_vista('f-conimp')) {
+$canEdit = n360_puede_vista('f-conimp');
+if (!n360_puede_modulo(10) || (!$canEdit && !n360_puede_vista('f-contcondtors-ver'))) {
     header('Location: ../login/none_permisos.php');
     exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$canEdit && (string)($_POST['action'] ?? '') !== 'audit_history') {
+    fcc_json(false, [], 'Tu permiso solo permite consultar el control de conductores.', 403);
 }
 
 define('ACCESS_GRANTED', true);
@@ -1011,17 +1016,17 @@ $monthLabel = fcc_month_label($monthStart);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=direction-screen-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=readonly-2', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
-<body>
+<body class="fcc-screen">
 <?php n360_render_sidebar(); ?>
 <?php n360_render_header(['title' => 'Flota', 'subtitle' => 'Control mensual']); ?>
 
 <div class="n360-main">
     <?php n360_render_content_separator('top'); ?>
 
-    <main class="n360-content fcc-page">
+    <main class="n360-content fcc-page<?= $canEdit ? '' : ' fcc-page--readonly' ?>">
         <section class="fcc-hero">
             <div>
                 <span class="fcc-eyebrow"><i class="bi bi-person-vcard-fill"></i> Flota - conductores</span>
@@ -1031,10 +1036,14 @@ $monthLabel = fcc_month_label($monthStart);
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-driver-summary><i class="bi bi-people-fill"></i> Resumen conductores</button>
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-canceled-summary><i class="bi bi-slash-circle"></i> Anulados <span data-fcc-canceled-count><?= number_format($kpis['anulados']) ?></span></button>
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-payments-pdf><i class="bi bi-cash-coin"></i> PDF pagos</button>
-                <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-payments-excel><i class="bi bi-file-earmark-spreadsheet"></i> Excel pagos</button>
+                <?php if ($canEdit): ?>
+                    <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-payments-excel><i class="bi bi-file-earmark-spreadsheet"></i> Excel pagos</button>
+                <?php endif; ?>
                 <button type="button" class="fcc-btn fcc-btn--soft" data-salprog-history-open><i class="bi bi-clock-history"></i> Historial</button>
                 <button type="button" class="fcc-btn fcc-btn--primary" data-fcc-export-all><i class="bi bi-file-earmark-pdf"></i> PDF consolidado</button>
-                <a class="fcc-btn fcc-btn--soft" href="consolidado_salidas_buses.php"><i class="bi bi-arrow-left"></i> Consolidado</a>
+                <?php if (n360_puede_alguna_vista(['f-consalbus', 'f-proghist', 'f-consalbus-ver'])): ?>
+                    <a class="fcc-btn fcc-btn--soft" href="consolidado_salidas_buses.php"><i class="bi bi-arrow-left"></i> Consolidado</a>
+                <?php endif; ?>
             </div>
         </section>
 
@@ -1139,6 +1148,7 @@ $monthLabel = fcc_month_label($monthStart);
             </form>
         </section>
 
+        <?php if ($canEdit): ?>
         <section class="fcc-bulk-panel <?= $driverColumnsReady ? 'is-active' : '' ?>" data-fcc-bulk-panel>
             <div class="fcc-bulk-panel__info">
                 <span class="fcc-bulk-icon"><i class="bi bi-pencil-square"></i></span>
@@ -1154,6 +1164,8 @@ $monthLabel = fcc_month_label($monthStart);
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-bulk-cancel disabled><i class="bi bi-x-circle"></i> Cancelar cambios</button>
             </div>
         </section>
+
+        <?php endif; ?>
 
         <section class="fcc-units" data-fcc-units>
             <?php if (!$reportUnits): ?>
@@ -1222,12 +1234,12 @@ $monthLabel = fcc_month_label($monthStart);
                                             $hasSchedule = (int)$unitRow['id'] > 0;
                                             $isAnulado = !empty($unitRow['is_anulado']);
                                             $isRetorno = !empty($unitRow['is_retorno']);
-                                            $cond1Enabled = $hasSchedule && !$isAnulado && !$isRetorno && $unitRow['cond1'] !== '' && $driverColumnsReady;
-                                            $cond2Enabled = $hasSchedule && !$isAnulado && !$isRetorno && $unitRow['cond2'] !== '' && $driverColumnsReady;
-                                            $cond1ObsEnabled = $hasSchedule && !$isAnulado && $unitRow['cond1'] !== '' && $driverColumnsReady;
-                                            $cond2ObsEnabled = $hasSchedule && !$isAnulado && $unitRow['cond2'] !== '' && $driverColumnsReady;
-                                            $viajeImporteEnabled = $hasSchedule && !$isAnulado && $driverColumnsReady;
-                                            $viajeComentarioEnabled = $hasSchedule && !$isAnulado && $driverColumnsReady;
+                                            $cond1Enabled = $canEdit && $hasSchedule && !$isAnulado && !$isRetorno && $unitRow['cond1'] !== '' && $driverColumnsReady;
+                                            $cond2Enabled = $canEdit && $hasSchedule && !$isAnulado && !$isRetorno && $unitRow['cond2'] !== '' && $driverColumnsReady;
+                                            $cond1ObsEnabled = $canEdit && $hasSchedule && !$isAnulado && $unitRow['cond1'] !== '' && $driverColumnsReady;
+                                            $cond2ObsEnabled = $canEdit && $hasSchedule && !$isAnulado && $unitRow['cond2'] !== '' && $driverColumnsReady;
+                                            $viajeImporteEnabled = $canEdit && $hasSchedule && !$isAnulado && $driverColumnsReady;
+                                            $viajeComentarioEnabled = $canEdit && $hasSchedule && !$isAnulado && $driverColumnsReady;
 
                                             $fccDateKey = (string)($unitRow['date'] ?? '');
                                             $fccShowDate = !isset($fccRenderedDates[$fccDateKey]);
@@ -1288,7 +1300,7 @@ $monthLabel = fcc_month_label($monthStart);
                                             data-fcc-hojaruta-duplicada="<?= !empty($unitRow['hoja_ruta_duplicada']) ? '1' : '0' ?>"
                                             data-fcc-anulado="<?= $isAnulado ? '1' : '0' ?>"
                                             data-fcc-retorno="<?= $isRetorno ? '1' : '0' ?>"
-                                            data-fcc-editable="<?= ($driverColumnsReady && $hasSchedule && !$isAnulado) ? '1' : '0' ?>"
+                                            data-fcc-editable="<?= ($canEdit && $driverColumnsReady && $hasSchedule && !$isAnulado) ? '1' : '0' ?>"
                                             data-fcc-cond1="<?= $unitRow['cond1'] !== '' ? '1' : '0' ?>"
                                             data-fcc-cond2="<?= $unitRow['cond2'] !== '' ? '1' : '0' ?>"
                                             class="<?= fcc_h(implode(' ', $fccRowClasses)) ?>"
@@ -1337,7 +1349,7 @@ $monthLabel = fcc_month_label($monthStart);
                                             </td>
                                             <td data-fcc-col="ida_vuelta">
                                                 <?php if ($hasSchedule && !$isAnulado): ?>
-                                                    <select data-fcc-field="ida_vuelta" class="fcc-roundtrip <?= fcc_h($fccIdaVueltaClass) ?>" <?= $driverColumnsReady ? '' : 'disabled' ?>>
+                                                    <select data-fcc-field="ida_vuelta" class="fcc-roundtrip <?= fcc_h($fccIdaVueltaClass) ?>" <?= ($canEdit && $driverColumnsReady) ? '' : 'disabled' ?>>
                                                         <option value="PENDIENTE" <?= $unitRow['ida_vuelta'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
                                                         <option value="IDA" <?= $unitRow['ida_vuelta'] === 'IDA' ? 'selected' : '' ?>>IDA</option>
                                                         <option value="RETORNO" <?= $unitRow['ida_vuelta'] === 'RETORNO' ? 'selected' : '' ?>>RETORNO</option>
@@ -1439,7 +1451,7 @@ $monthLabel = fcc_month_label($monthStart);
                                                 <?php if ($hasSchedule): ?>
                                                     <div class="fcc-action-buttons">
                                                         <button type="button" class="fcc-icon-detail" data-fcc-view-trip data-fcc-trip-id="<?= (int)$unitRow['id'] ?>" title="Ver detalle del viaje" aria-label="Ver detalle del viaje"><i class="bi bi-eye-fill"></i></button>
-                                                        <?php if (!$isAnulado): ?>
+                                                        <?php if ($canEdit && !$isAnulado): ?>
                                                             <button type="button" class="fcc-icon-save" data-fcc-save <?= $driverColumnsReady ? '' : 'disabled' ?> title="Guardar estados, pagos y observaciones" aria-label="Guardar estados, pagos y observaciones"><i class="bi bi-save2"></i></button>
                                                         <?php endif; ?>
                                                     </div>
@@ -1761,6 +1773,7 @@ $monthLabel = fcc_month_label($monthStart);
 
 <script>
 window.N360_FCC = {
+    canEdit: <?= $canEdit ? 'true' : 'false' ?>,
     csrf: <?= json_encode($csrfToken) ?>,
     endpoint: 'control_conductores_salidas.php',
     month: <?= json_encode($month) ?>,
@@ -1787,12 +1800,14 @@ window.N360_SALPROG_HISTORY = {
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<?php if ($canEdit): ?>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<?php endif; ?>
 <script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=direction-screen-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=readonly-2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>

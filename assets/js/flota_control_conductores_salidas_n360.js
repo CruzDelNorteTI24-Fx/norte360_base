@@ -1,5 +1,6 @@
 (function () {
   const cfg = window.N360_FCC || {};
+  const canEdit = cfg.canEdit === true;
   const endpoint = cfg.endpoint || 'control_conductores_salidas.php';
   const csrf = cfg.csrf || '';
   const report = cfg.report || {};
@@ -482,7 +483,7 @@
     const direction = tripDirection(fields.ida_vuelta?.value);
     const retorno = isReturnTrip(direction);
     const outbound = direction === 'IDA';
-    const editable = row.dataset.fccEditable === '1';
+    const editable = canEdit && row.dataset.fccEditable === '1';
 
     row.dataset.fccRetorno = retorno ? '1' : '0';
     row.classList.toggle('is-retorno', retorno);
@@ -507,15 +508,15 @@
         return;
       }
 
-      const canEdit = editable && driver.hasDriver;
+      const driverEditable = editable && driver.hasDriver;
       if (driver.state) {
-        driver.state.disabled = !canEdit;
-        if (canEdit && driver.state.value === '') {
+        driver.state.disabled = !driverEditable;
+        if (driverEditable && driver.state.value === '') {
           driver.state.value = 'PENDIENTE';
         }
       }
       if (driver.amount) {
-        driver.amount.disabled = !canEdit;
+        driver.amount.disabled = !driverEditable;
       }
     });
 
@@ -561,7 +562,7 @@
   }
 
   function setBulkMode(active) {
-    bulkMode = !!active;
+    bulkMode = canEdit && !!active;
     document.body.classList.toggle('fcc-bulk-mode', bulkMode);
     if (bulkMode) {
       document.querySelectorAll('[data-fcc-row]').forEach(markRowChange);
@@ -611,6 +612,7 @@
   }
 
   async function saveRow(button) {
+    if (!canEdit) return;
     const row = button.closest('[data-fcc-row]');
     if (!row) return;
     const id = row.dataset.fccRow || '';
@@ -669,6 +671,7 @@
   }
 
   async function saveBulkRows(button) {
+    if (!canEdit) return;
     const rows = dirtyRows();
     if (!rows.length) {
       showNotice('No hay filas modificadas para guardar.', false);
@@ -749,6 +752,11 @@
       rememberRow(row);
       updateTripTotalState(row);
     });
+
+    if (!canEdit) {
+      document.querySelectorAll('[data-fcc-field]').forEach((field) => { field.disabled = true; });
+      return;
+    }
 
     const toggle = document.querySelector('[data-fcc-bulk-toggle]');
     const save = document.querySelector('[data-fcc-bulk-save]');
@@ -2064,6 +2072,7 @@
   }
 
   function exportPaymentsExcel(units, range) {
+    if (!canEdit) return;
     const rows = paymentDetailRows(units || visibleUnits());
     if (!rows.length) {
       showNotice('No hay pagos visibles para exportar.', false);
@@ -2129,6 +2138,7 @@
   }
 
   function openPaymentRangeModal(type) {
+    if (type !== 'pdf' && !canEdit) return;
     const modalEl = document.getElementById('fccPaymentRangeModal');
     if (!modalEl) {
       if (type === 'pdf') exportPaymentsPdf(visibleUnits(), null);
@@ -2471,14 +2481,15 @@
   }
 
   document.querySelectorAll('[data-fcc-save]').forEach((button) => {
-    button.addEventListener('click', () => saveRow(button));
+    if (canEdit) button.addEventListener('click', () => saveRow(button));
   });
   document.querySelectorAll('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]').forEach((select) => {
     syncSelectClass(select);
-    select.addEventListener('change', () => syncSelectClass(select));
+    if (canEdit) select.addEventListener('change', () => syncSelectClass(select));
   });
   document.querySelectorAll('[data-fcc-field="viaje_importe"], [data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]').forEach((input) => {
     setMoneyInputValue(input, input.value, false);
+    if (!canEdit) return;
     input.addEventListener('focus', () => editMoneyInput(input));
     input.addEventListener('input', () => {
       input.dataset.fccMoneyDisplay = input.value;

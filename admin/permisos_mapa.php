@@ -90,6 +90,11 @@ function n360_ap_view_catalog(): array {
         'module' => 10,
         'desc' => 'Consulta, historiales y PDF. No permite modificar viajes ni cargar evidencias.',
     ];
+    $catalog['f-contcondtors-ver'] = [
+        'title' => 'Control de conductores: solo lectura',
+        'module' => 10,
+        'desc' => 'Consulta, historiales y PDF. No permite editar estados, importes ni observaciones.',
+    ];
     ksort($catalog);
     return $catalog;
 }
