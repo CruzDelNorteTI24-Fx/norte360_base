@@ -2072,7 +2072,6 @@
   }
 
   function exportPaymentsExcel(units, range) {
-    if (!canEdit) return;
     const rows = paymentDetailRows(units || visibleUnits());
     if (!rows.length) {
       showNotice('No hay pagos visibles para exportar.', false);
@@ -2138,7 +2137,6 @@
   }
 
   function openPaymentRangeModal(type) {
-    if (type !== 'pdf' && !canEdit) return;
     const modalEl = document.getElementById('fccPaymentRangeModal');
     if (!modalEl) {
       if (type === 'pdf') exportPaymentsPdf(visibleUnits(), null);
