@@ -1060,6 +1060,32 @@
     filter.classList.toggle('has-selection', !showAll);
   }
 
+  function updateVisibleDateGroups(rows) {
+    const groups = new Map();
+    rows.forEach((row, index) => {
+      const date = row.dataset.fccDate || row.dataset.fccDay || `row-${index}`;
+      if (!groups.has(date)) groups.set(date, []);
+      groups.get(date).push(row);
+    });
+
+    groups.forEach((dateRows) => {
+      const visibleRows = dateRows.filter((row) => !row.hidden);
+      const firstVisible = visibleRows[0];
+      const lastVisible = visibleRows[visibleRows.length - 1];
+      const dateCell = dateRows.map((row) => row.querySelector('[data-fcc-col="dia"]')).find(Boolean);
+      if (!dateCell) return;
+
+      // Keep the date on a visible trip without spanning into the next day.
+      const owner = firstVisible || dateRows[0];
+      if (dateCell.parentElement !== owner) owner.prepend(dateCell);
+      dateCell.rowSpan = Math.max(1, visibleRows.length);
+      dateRows.forEach((row) => {
+        row.classList.toggle('fcc-date-group-start', row === firstVisible);
+        row.classList.toggle('fcc-date-group-end', row === lastVisible);
+      });
+    });
+  }
+
   function applyScreenFilters() {
     const input = document.querySelector('[data-fcc-search]');
     const query = keyText(input?.value || '');
@@ -1073,6 +1099,7 @@
         const matchesDay = selectedScreenDays.size === 0 || selectedScreenDays.has(day);
         row.hidden = !matchesDay || !rowMatchesDirectionFilter(row);
       });
+      updateVisibleDateGroups(rows);
 
       const visibleDayRows = rows.filter((row) => !row.hidden);
       const unitText = keyText(card.querySelector('.fcc-unit-toggle')?.textContent || '');
