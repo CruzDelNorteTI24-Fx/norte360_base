@@ -1060,42 +1060,6 @@
     filter.classList.toggle('has-selection', !showAll);
   }
 
-  function updateVisibleDateGroups(rows) {
-    const groups = new Map();
-    rows.forEach((row, index) => {
-      const date = row.dataset.fccDate || row.dataset.fccDay || `row-${index}`;
-      if (!groups.has(date)) groups.set(date, []);
-      groups.get(date).push(row);
-    });
-
-    groups.forEach((dateRows) => {
-      const visibleRows = dateRows.filter((row) => !row.hidden);
-      const firstVisible = visibleRows[0];
-      const lastVisible = visibleRows[visibleRows.length - 1];
-      const dateCell = dateRows.map((row) => row.querySelector('[data-fcc-col="dia"]')).find(Boolean);
-      if (!dateCell) return;
-
-      // A hidden trip must not own the date or leave a span over the next day.
-      const owner = firstVisible || dateRows[0];
-      if (dateCell.parentElement !== owner) owner.prepend(dateCell);
-      dateCell.rowSpan = Math.max(1, visibleRows.length);
-      dateCell.classList.toggle('fcc-date-group-cell', visibleRows.length > 1);
-
-      const count = dateCell.querySelector('.fcc-date-trip-count');
-      if (count) {
-        const total = Math.max(dateRows.length, Number(dateRows[0].dataset.fccTripsDay) || 0);
-        count.textContent = visibleRows.length === total
-          ? `${total} viajes`
-          : `${visibleRows.length} de ${total} viajes`;
-      }
-
-      dateRows.forEach((row) => {
-        row.classList.toggle('fcc-date-group-start', row === firstVisible);
-        row.classList.toggle('fcc-date-group-end', row === lastVisible);
-      });
-    });
-  }
-
   function applyScreenFilters() {
     const input = document.querySelector('[data-fcc-search]');
     const query = keyText(input?.value || '');
@@ -1109,7 +1073,6 @@
         const matchesDay = selectedScreenDays.size === 0 || selectedScreenDays.has(day);
         row.hidden = !matchesDay || !rowMatchesDirectionFilter(row);
       });
-      updateVisibleDateGroups(rows);
 
       const visibleDayRows = rows.filter((row) => !row.hidden);
       const unitText = keyText(card.querySelector('.fcc-unit-toggle')?.textContent || '');
