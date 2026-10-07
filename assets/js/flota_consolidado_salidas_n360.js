@@ -2063,6 +2063,9 @@
 
     const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
     const saveButton = form.querySelector('[data-csb-manual-save]');
+    const operativeDate = form.querySelector('[name="fecha_operativa"]');
+    const departureTime = form.querySelector('[name="hora_salida"]');
+    const realDeparture = form.querySelector('[data-csb-manual-real-departure]');
     const origin = form.querySelector('[name="idorigen"]');
     const destination = form.querySelector('[name="iddestino"]');
     const routes = form.querySelector('[name="ruta_ids[]"]');
@@ -2092,9 +2095,30 @@
       if (message) showNotice(message, false);
     };
 
+    const updateRealDeparture = () => {
+      if (!realDeparture) return;
+      realDeparture.textContent = '-';
+      if (!operativeDate?.value || !departureTime?.value
+          || !operativeDate.validity.valid || !departureTime.validity.valid) return;
+
+      // Use UTC only for calendar arithmetic, independently of the browser's timezone.
+      const realDate = new Date(`${operativeDate.value}T00:00:00Z`);
+      if (Number.isNaN(realDate.getTime())) return;
+      const time = departureTime.value.slice(0, 5);
+      if (time < '05:00') realDate.setUTCDate(realDate.getUTCDate() + 1);
+      realDeparture.textContent = `${formatIsoDate(realDate.toISOString().slice(0, 10))} ${time}`;
+    };
+
+    [operativeDate, departureTime].forEach((field) => {
+      field?.addEventListener('input', updateRealDeparture);
+      field?.addEventListener('change', updateRealDeparture);
+    });
+    updateRealDeparture();
     [origin, destination, routes].forEach((field) => field?.addEventListener('change', softValidate));
 
     open.addEventListener('click', () => {
+      document.querySelector('[data-csb-notice]')?.classList.remove('is-visible');
+      updateRealDeparture();
       modal.show();
       window.setTimeout(() => form.querySelector('[name="hora_salida"]')?.focus(), 180);
     });
@@ -2149,8 +2173,8 @@
 
     modalEl.addEventListener('hidden.bs.modal', () => {
       form.reset();
-      const fecha = form.querySelector('[name="fecha_operativa"]');
-      if (fecha && (cfg.fechaInicio || cfg.fechaOperativa)) fecha.value = cfg.fechaInicio || cfg.fechaOperativa;
+      if (operativeDate && (cfg.fechaInicio || cfg.fechaOperativa)) operativeDate.value = cfg.fechaInicio || cfg.fechaOperativa;
+      updateRealDeparture();
     });
   }
   function setupCalendar() {

@@ -1325,6 +1325,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rutaIdsText = implode(',', $rutaIds);
         $rutaTexto = implode(' -> ', $rutaLabels);
         $horaOrden = csb_hora_orden($horaSalida);
+        if ($horaSalida < '05:00:00') {
+            $horaOrden += 1440;
+        }
         $bus = trim((string)($placa['bus'] ?? ''));
         $placaTexto = trim((string)($placa['placa'] ?? ''));
         $servicio = trim((string)($placa['servicio'] ?? ''));
@@ -1793,7 +1796,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=readonly-excel-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=manual-operative-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -2585,13 +2588,14 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <div class="modal-body">
                     <div class="csb-manual-grid">
                         <label>
-                            <span>Fecha operativa</span>
+                            <span>Fecha operativa (guardado)</span>
                             <input type="date" name="fecha_operativa" value="<?= csb_h($fechaOperativa) ?>" required>
                         </label>
                         <label>
                             <span>Hora salida</span>
                             <input type="time" name="hora_salida" required>
                         </label>
+                        <small class="csb-manual-wide">Salida real: <output data-csb-manual-real-departure aria-live="polite">-</output></small>
                         <label class="csb-manual-wide">
                             <span>Unidad</span>
                             <select name="idplaca" required>
@@ -2761,7 +2765,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=readonly-excel-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=manual-operative-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=physical-route-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
