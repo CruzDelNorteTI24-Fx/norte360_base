@@ -758,7 +758,6 @@
     };
 
     const exportExcel = () => {
-      if (!canEdit) return;
       const visibleRows = visibleRowsNow();
       if (!visibleRows.length) {
         showNotice('No hay viajes visibles para exportar.', false);
@@ -844,6 +843,7 @@
 
     openButton.addEventListener('click', () => {
       renderList();
+      document.querySelector('[data-csb-notice]')?.classList.remove('is-visible');
       modal.show();
     });
 
@@ -1000,7 +1000,6 @@
     };
 
     const exportExcel = () => {
-      if (!canEdit) return;
       const summary = buildSummary();
       if (!summary.length) {
         showNotice('No hay datos visibles para exportar.', false);
@@ -1067,6 +1066,7 @@
 
     openButton.addEventListener('click', () => {
       renderSummary();
+      document.querySelector('[data-csb-notice]')?.classList.remove('is-visible');
       modal.show();
     });
 

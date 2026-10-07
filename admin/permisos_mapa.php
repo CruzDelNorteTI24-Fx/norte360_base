@@ -88,7 +88,7 @@ function n360_ap_view_catalog(): array {
     $catalog['f-consalbus-ver'] = [
         'title' => 'Consolidado de salidas: solo lectura',
         'module' => 10,
-        'desc' => 'Consulta, historiales y PDF. No permite modificar viajes ni cargar evidencias.',
+        'desc' => 'Consulta, historiales, PDF y Excel. No permite modificar viajes ni cargar evidencias.',
     ];
     $catalog['f-contcondtors-ver'] = [
         'title' => 'Control de conductores: solo lectura',

@@ -1225,11 +1225,13 @@
 }
 
 .csb-driver-modal,
-.csb-driver-history-modal {
+.csb-driver-history-modal,
+.csb-hojaruta-list-modal,
+.csb-general-summary-modal {
     --bs-modal-zindex: 1305;
 }
 
-body:has(.csb-driver-modal.show, .csb-driver-history-modal.show) .modal-backdrop {
+body:has(.csb-driver-modal.show, .csb-driver-history-modal.show, .csb-hojaruta-list-modal.show, .csb-general-summary-modal.show) .modal-backdrop {
     --bs-backdrop-zindex: 1300;
 }
 

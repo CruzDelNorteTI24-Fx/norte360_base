@@ -1793,7 +1793,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=physical-route-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=readonly-excel-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -2263,7 +2263,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 </div>
 
 <div class="modal fade csb-general-summary-modal" id="csbGeneralSummaryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
         <div class="modal-content">
             <div class="csb-modal-head">
                 <div>
@@ -2319,18 +2319,16 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
             </div>
             <div class="modal-footer csb-route-list-footer">
                 <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cerrar</button>
-                <?php if ($canEdit): ?>
                 <button type="button" class="csb-btn csb-btn--excel" data-csb-general-excel>
                     <i class="bi bi-file-earmark-excel"></i> Descargar Excel
                 </button>
-                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
 
 <div class="modal fade csb-hojaruta-list-modal" id="csbHojaRutaListModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
         <div class="modal-content">
             <div class="csb-modal-head">
                 <div>
@@ -2361,11 +2359,9 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
             </div>
             <div class="modal-footer csb-route-list-footer">
                 <button type="button" class="csb-btn csb-btn--soft" data-bs-dismiss="modal">Cerrar</button>
-                <?php if ($canEdit): ?>
                 <button type="button" class="csb-btn csb-btn--excel" data-csb-hojarutas-excel>
                     <i class="bi bi-file-earmark-excel"></i> Descargar Excel
                 </button>
-                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -2765,7 +2761,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=physical-route-pdf-2', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=readonly-excel-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=physical-route-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
