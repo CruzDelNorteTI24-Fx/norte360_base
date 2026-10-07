@@ -1174,7 +1174,8 @@
       .filter((row) => !row.hidden)
       .map((row) => Array.from(row.children).slice(0, -1).map((td) => {
         if (td.querySelector('[data-csb-field="hojaruta"]')) {
-          return physicalRoutePdfCell(cellText(td) || '-', physicalRouteReviewed(td));
+          const reviewed = physicalRouteReviewed(td);
+          return physicalRoutePdfCell(cellText(td) || '-', reviewed === true ? true : null);
         }
         return cellText(td);
       }));
