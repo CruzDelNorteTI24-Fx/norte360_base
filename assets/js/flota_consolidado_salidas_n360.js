@@ -1,6 +1,7 @@
 (function () {
   const cfg = window.N360_CSB || {};
   const canEdit = cfg.canEdit === true;
+  const canApprove = cfg.canApprove === true;
   const endpoint = cfg.endpoint || 'consolidado_salidas_buses.php';
   const csrf = cfg.csrf || '';
   const report = cfg.report || {};
@@ -486,8 +487,43 @@
     }
   }
 
+  async function saveApproval(button) {
+    if (!canApprove || cfg.officialApprovalReady !== true) return;
+    const row = button.closest('[data-csb-row]');
+    const checkbox = row?.querySelector('[data-csb-field="aprobado_oficial"]');
+    if (!row || !checkbox || checkbox.disabled) return;
+    const fd = new FormData();
+    fd.append('csrf', csrf);
+    fd.append('action', 'update_approval');
+    fd.append('id', button.dataset.csbSave || row.dataset.csbRow || '');
+    fd.append('aprobado_oficial', checkbox.checked ? '1' : '0');
+    const originalHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST', body: fd, credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.message || 'No se pudo guardar la aprobacion.');
+      if (typeof json.data?.aprobado_oficial === 'boolean') checkbox.checked = json.data.aprobado_oficial;
+      const saved = row.querySelector('[data-csb-saved]');
+      if (saved) saved.textContent = json.data?.actualizado || '';
+      showNotice(json.message || 'Aprobacion oficial guardada.', true);
+    } catch (error) {
+      showNotice(error.message || 'No se pudo guardar la aprobacion.', false);
+    } finally {
+      button.disabled = false;
+      button.innerHTML = originalHtml;
+    }
+  }
+
   async function saveRow(button) {
-    if (!canEdit) return;
+    if (!canEdit) {
+      await saveApproval(button);
+      return;
+    }
     const row = button.closest('[data-csb-row]');
     if (!row) return;
 
@@ -498,6 +534,8 @@
     const hojarutaInput = row.querySelector('[data-csb-field="hojaruta"]');
     const hojaruta = hojarutaInput?.value || '';
     const hojaFisicaInput = row.querySelector('[data-csb-field="hojaruta_fisica_revisada"]');
+    const hojaFisicaCodigoInput = row.querySelector('[data-csb-field="hojaruta_fisica_codigo"]');
+    const aprobadoInput = row.querySelector('[data-csb-field="aprobado_oficial"]');
     const originalHtml = button.innerHTML;
 
     const hojaRutaValida = await validateHojaRuta(row, true);
@@ -525,6 +563,12 @@
     fd.append('hojaruta', hojaruta);
     if (cfg.physicalRouteReady === true && hojaFisicaInput && !hojaFisicaInput.disabled) {
       fd.append('hojaruta_fisica_revisada', hojaFisicaInput.checked ? '1' : '0');
+    }
+    if (cfg.physicalRouteCodeReady === true && hojaFisicaCodigoInput && !hojaFisicaCodigoInput.disabled) {
+      fd.append('hojaruta_fisica_codigo', hojaFisicaCodigoInput.value);
+    }
+    if (canApprove && cfg.officialApprovalReady === true && aprobadoInput && !aprobadoInput.disabled) {
+      fd.append('aprobado_oficial', aprobadoInput.checked ? '1' : '0');
     }
     fd.append('confirmar_importes_control', confirmedControlAmounts ? '1' : '0');
 
@@ -564,6 +608,12 @@
       row.dataset.csbDbRevision = String(json.data?.estado || estado || 'PENDIENTE').toUpperCase();
       if (hojaFisicaInput && typeof json.data?.hojaruta_fisica_revisada === 'boolean') {
         hojaFisicaInput.checked = json.data.hojaruta_fisica_revisada;
+      }
+      if (hojaFisicaCodigoInput && typeof json.data?.hojaruta_fisica_codigo === 'string') {
+        hojaFisicaCodigoInput.value = json.data.hojaruta_fisica_codigo;
+      }
+      if (aprobadoInput && typeof json.data?.aprobado_oficial === 'boolean') {
+        aprobadoInput.checked = json.data.aprobado_oficial;
       }
       if (json.data?.importes_control) {
         syncControlImpact(row, json.data.importes_control);
@@ -1161,6 +1211,11 @@
     if (textareas.length) {
       return Array.from(textareas).map((area) => compact(area.value)).filter(Boolean).join('\n');
     }
+    if (td.querySelector('[data-csb-approval-control]')) {
+      const textCell = td.cloneNode(true);
+      textCell.querySelector('[data-csb-approval-control]').remove();
+      return compact(textCell.textContent);
+    }
     return compact(td.textContent);
   }
 
@@ -1169,10 +1224,12 @@
     if (!table) return { head: [], body: [] };
 
     const ths = Array.from(table.querySelectorAll('thead th'));
-    const head = ths.slice(0, -1).map((th) => compact(th.textContent));
+    const head = ths.filter((th) => !th.hasAttribute('data-csb-report-exclude'))
+      .map((th) => compact(th.textContent));
     const body = rows
       .filter((row) => !row.hidden)
-      .map((row) => Array.from(row.children).slice(0, -1).map((td) => {
+      .map((row) => Array.from(row.children)
+        .filter((td) => !td.hasAttribute('data-csb-report-exclude')).map((td) => {
         if (td.querySelector('[data-csb-field="hojaruta"]')) {
           const reviewed = physicalRouteReviewed(td);
           return physicalRoutePdfCell(cellText(td) || '-', reviewed === true ? true : null);

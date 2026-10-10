@@ -17,14 +17,17 @@ require_once __DIR__ . '/../layout/content_n360.php';
 require_once __DIR__ . '/flota_evidencias_ui.php';
 
 $canEdit = n360_puede_vista('f-consalbus') || n360_puede_vista('f-proghist');
-if (!n360_puede_modulo(10) || (!$canEdit && !n360_puede_vista('f-consalbus-ver'))) {
+$flotaAssigned = ($_SESSION['permisos'] ?? []) === 'all' || in_array(10, n360_permisos());
+$canApprove = $flotaAssigned && n360_puede_vista('f-consalbus-aprobar');
+if (!n360_puede_modulo(10) || (!$canEdit && !$canApprove && !n360_puede_vista('f-consalbus-ver'))) {
     header("Location: ../login/none_permisos.php");
     exit();
 }
 
 // La consulta del historial usa POST, pero no modifica registros.
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !$canEdit
-    && (string)($_POST['action'] ?? '') !== 'audit_history') {
+    && (string)($_POST['action'] ?? '') !== 'audit_history'
+    && !($canApprove && (string)($_POST['action'] ?? '') === 'update_approval')) {
     csb_json(false, [], 'Tu permiso del consolidado es de solo lectura.', 403);
 }
 
@@ -691,6 +694,16 @@ $hojaFisicaReady = $tableReady && csb_column_exists(
     'tb_progbuses_salida_consolidado',
     'clm_salprog_hojaruta_fisica_revisada'
 );
+$hojaFisicaCodigoReady = $tableReady && csb_column_exists(
+    $conn,
+    'tb_progbuses_salida_consolidado',
+    'clm_salprog_hojaruta_fisica_codigo'
+);
+$aprobacionReady = $tableReady && csb_column_exists(
+    $conn,
+    'tb_progbuses_salida_consolidado',
+    'clm_salprog_aprobado_oficial'
+);
 $controlAmountsReady = $tableReady;
 foreach (['clm_salprog_imtotaldelviaje', 'clm_salprog_imtotalcond1', 'clm_salprog_imtotalcond2'] as $controlAmountColumn) {
     $controlAmountsReady = $controlAmountsReady
@@ -731,11 +744,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $action = (string)($_POST['action'] ?? '');
-    if ($canEdit) {
+    if ($canEdit || ($canApprove && $action === 'update_approval')) {
         csb_set_salprog_audit_context(
             $conn,
             'consolidado_salidas_buses:' . ($action !== '' ? $action : 'post')
         );
+    }
+
+    if ($action === 'update_approval') {
+        if (!$canApprove) {
+            csb_json(false, [], 'No tienes permiso para la aprobacion oficial.', 403);
+        }
+        if (!$aprobacionReady) {
+            csb_json(false, [], 'La aprobacion oficial aun no esta disponible.', 409);
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $aprobado = $_POST['aprobado_oficial'] ?? null;
+        if ($id <= 0 || !is_string($aprobado) || !in_array($aprobado, ['0', '1'], true)) {
+            csb_json(false, [], 'Completa el viaje y una aprobacion de 0 o 1.', 422);
+        }
+        $current = csb_fetch_all($conn,
+            'SELECT clm_salprog_id FROM tb_progbuses_salida_consolidado WHERE clm_salprog_id = ? LIMIT 1',
+            'i', [$id]
+        );
+        if (!$current) {
+            csb_json(false, [], 'El viaje seleccionado ya no existe.', 404);
+        }
+        $aprobado = (int)$aprobado;
+        $uid = csb_uid();
+        $stmt = $conn->prepare("UPDATE tb_progbuses_salida_consolidado
+            SET clm_salprog_aprobado_oficial = ?,
+                clm_salprog_usuario_revision = ?,
+                clm_salprog_datetime_revision = CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')
+            WHERE clm_salprog_id = ? LIMIT 1");
+        if (!$stmt) {
+            csb_json(false, [], 'No se pudo preparar la aprobacion.', 500);
+        }
+        $stmt->bind_param('iii', $aprobado, $uid, $id);
+        $ok = $stmt->execute();
+        $error = $stmt->error;
+        $stmt->close();
+        if (!$ok) {
+            csb_json(false, [], $error ?: 'No se pudo guardar la aprobacion.', 500);
+        }
+        csb_json(true, [
+            'aprobado_oficial' => $aprobado === 1,
+            'actualizado' => date('d/m/Y H:i'),
+        ], 'Aprobacion oficial guardada.');
     }
 
     if ($action === 'audit_history') {
@@ -1485,6 +1540,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hojaFisicaRevisada = (int)$_POST['hojaruta_fisica_revisada'];
     }
 
+    $hojaFisicaCodigo = null;
+    if (array_key_exists('hojaruta_fisica_codigo', $_POST)) {
+        if (!$hojaFisicaCodigoReady) {
+            csb_json(false, [], 'El codigo de hoja fisica aun no esta disponible.', 409);
+        }
+        if (!is_string($_POST['hojaruta_fisica_codigo'])) {
+            csb_json(false, [], 'El codigo de hoja fisica debe ser texto.', 422);
+        }
+        $hojaFisicaCodigo = trim($_POST['hojaruta_fisica_codigo']);
+        if (!preg_match('/^.{0,255}$/us', $hojaFisicaCodigo)) {
+            csb_json(false, [], 'El codigo de hoja fisica admite hasta 255 caracteres.', 422);
+        }
+    }
+    $aprobadoOficial = null;
+    if (array_key_exists('aprobado_oficial', $_POST)) {
+        if (!$canApprove) {
+            csb_json(false, [], 'No tienes permiso para la aprobacion oficial.', 403);
+        }
+        if (!$aprobacionReady) {
+            csb_json(false, [], 'La aprobacion oficial aun no esta disponible.', 409);
+        }
+        if (!is_string($_POST['aprobado_oficial']) || !in_array($_POST['aprobado_oficial'], ['0', '1'], true)) {
+            csb_json(false, [], 'La aprobacion oficial debe ser 0 o 1.', 422);
+        }
+        $aprobadoOficial = (int)$_POST['aprobado_oficial'];
+    }
+
     $currentControlAmounts = null;
     if ($estado === 'ANULADO' && $controlAmountsReady) {
         $controlRows = csb_fetch_all($conn, "
@@ -1530,16 +1612,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $uid = csb_uid();
-    $hojaFisicaSet = $hojaFisicaRevisada !== null
-        ? 'clm_salprog_hojaruta_fisica_revisada = ?,'
-        : '';
+    $optionalSet = [];
+    $params = [$estado, $comentario, $correccion, $hojaRuta];
+    $types = 'ssss';
+    if ($hojaFisicaRevisada !== null) {
+        $optionalSet[] = 'clm_salprog_hojaruta_fisica_revisada = ?,';
+        $params[] = $hojaFisicaRevisada;
+        $types .= 'i';
+    }
+    if ($hojaFisicaCodigo !== null) {
+        $optionalSet[] = 'clm_salprog_hojaruta_fisica_codigo = ?,';
+        $params[] = $hojaFisicaCodigo;
+        $types .= 's';
+    }
+    if ($aprobadoOficial !== null) {
+        $optionalSet[] = 'clm_salprog_aprobado_oficial = ?,';
+        $params[] = $aprobadoOficial;
+        $types .= 'i';
+    }
+    $optionalSet = implode("\n", $optionalSet);
+    $params[] = $uid;
+    $params[] = $id;
+    $types .= 'ii';
     $stmt = $conn->prepare("
         UPDATE tb_progbuses_salida_consolidado
            SET clm_salprog_revision_estado = ?,
                clm_salprog_comentario_revision = ?,
                clm_salprog_correccion = ?,
                clm_salprog_hojaruta = NULLIF(?, ''),
-               {$hojaFisicaSet}
+               {$optionalSet}
                clm_salprog_usuario_revision = ?,
                clm_salprog_datetime_revision = NOW()
          WHERE clm_salprog_id = ?
@@ -1548,11 +1649,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$stmt) {
         csb_json(false, [], $conn->error ?: 'No se pudo preparar la actualizacion.', 500);
     }
-    if ($hojaFisicaRevisada !== null) {
-        $stmt->bind_param('ssssiii', $estado, $comentario, $correccion, $hojaRuta, $hojaFisicaRevisada, $uid, $id);
-    } else {
-        $stmt->bind_param('ssssii', $estado, $comentario, $correccion, $hojaRuta, $uid, $id);
-    }
+    csb_bind($stmt, $types, $params);
     $ok = $stmt->execute();
     $error = $stmt->error;
     $stmt->close();
@@ -1568,6 +1665,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'hojaruta' => $hojaRuta,
         'tiene_hojaruta' => $hojaRuta !== '',
         'hojaruta_fisica_revisada' => $hojaFisicaRevisada === null ? null : $hojaFisicaRevisada === 1,
+        'hojaruta_fisica_codigo' => $hojaFisicaCodigo,
+        'aprobado_oficial' => $aprobadoOficial === null ? null : $aprobadoOficial === 1,
         'importes_control' => $currentControlAmounts,
     ], 'Cambios guardados.');
 }
@@ -1796,7 +1895,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=manual-operative-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=official-approval-3', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -2025,7 +2124,8 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                             <th>Conductores</th>
                             <th>Revision</th>
                             <th>Comentario / Correccion</th>
-                            <th>Accion</th>
+                            <th data-csb-report-exclude>Accion</th>
+                            <th data-csb-report-exclude>Aprobacion final</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2036,7 +2136,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     : 'No hay registros para los filtros seleccionados.';
                             ?>
                             <tr>
-                                <td colspan="9" class="csb-empty"><?= csb_h($emptyMessage) ?></td>
+                                <td colspan="10" class="csb-empty"><?= csb_h($emptyMessage) ?></td>
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($rows as $row): ?>
@@ -2056,6 +2156,8 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 }
                                 $hojaRuta = trim((string)($row['clm_salprog_hojaruta'] ?? ''));
                                 $hojaFisicaRevisada = (int)($row['clm_salprog_hojaruta_fisica_revisada'] ?? 0) === 1;
+                                $hojaFisicaCodigo = (string)($row['clm_salprog_hojaruta_fisica_codigo'] ?? '');
+                                $aprobadoOficial = (int)($row['clm_salprog_aprobado_oficial'] ?? 0) === 1;
                                 $tieneHojaRuta = $hojaRuta !== '';
                                 $hojaRutaDuplicada = $tieneHojaRuta && isset($duplicateHojaRutaKeys[csb_hojaruta_key($hojaRuta)]);
                                 $controlAmounts = $controlAmountsReady
@@ -2127,6 +2229,13 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                             <?= $canEdit && $hojaFisicaReady ? '' : 'disabled' ?>
                                         >
                                         <span>Hoja física revisada</span>
+                                    </label>
+                                    <label class="csb-physical-route-code">
+                                        <span>Codigo de hoja fisica</span>
+                                        <input type="text" data-csb-field="hojaruta_fisica_codigo" maxlength="255"
+                                            value="<?= csb_h($hojaFisicaCodigo) ?>"
+                                            <?= $canEdit ? '' : 'readonly' ?>
+                                            <?= $hojaFisicaCodigoReady ? '' : 'disabled title="Codigo de hoja fisica no disponible"' ?>>
                                     </label>
                                     <small class="csb-hojaruta-state" data-csb-hojaruta-state>
                                         <i class="bi <?= $hojaRutaDuplicada ? 'bi-exclamation-triangle-fill' : ($tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle') ?>"></i>
@@ -2209,7 +2318,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     <textarea data-csb-field="comentario" rows="2" placeholder="Comentario de revision" <?= $canEdit ? '' : 'readonly' ?>><?= csb_h($row['clm_salprog_comentario_revision'] ?? '') ?></textarea>
                                     <textarea data-csb-field="correccion" rows="2" placeholder="Correccion aplicada o pendiente" <?= $canEdit ? '' : 'readonly' ?>><?= csb_h($row['clm_salprog_correccion'] ?? '') ?></textarea>
                                 </td>
-                                <td>
+                                <td data-csb-report-exclude>
                                     <div class="csb-action-panel">
                                         <div class="csb-control-impact <?= !$controlAmountsReady ? 'csb-control-impact--unavailable' : ($hasControlAmounts ? 'csb-control-impact--warn' : 'csb-control-impact--clear') ?>" data-csb-control-impact>
                                             <div class="csb-control-impact__head">
@@ -2248,11 +2357,25 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                                 <i class="bi bi-arrow-left-right"></i> Trans.
                                             </button>
                                         <?php endif; ?>
-                                        <button type="button" class="csb-icon-btn csb-icon-btn--save" data-csb-save="<?= $id ?>" title="Guardar revision" aria-label="Guardar revision">
+                                        <?php endif; ?>
+                                        <?php if ($canEdit || ($canApprove && $aprobacionReady)): ?>
+                                        <button type="button" class="csb-icon-btn csb-icon-btn--save" data-csb-save="<?= $id ?>" title="<?= $canEdit ? 'Guardar revision' : 'Guardar aprobacion oficial' ?>" aria-label="<?= $canEdit ? 'Guardar revision' : 'Guardar aprobacion oficial' ?>">
                                             <i class="bi bi-check2"></i>
                                         </button>
                                         <?php endif; ?>
                                     </div>
+                                </td>
+                                <td class="csb-approval-cell" data-csb-report-exclude>
+                                    <label class="csb-approval-control" data-csb-approval-control>
+                                        <span class="csb-approval-box">
+                                            <input type="checkbox" data-csb-field="aprobado_oficial"
+                                                <?= $aprobadoOficial ? 'checked' : '' ?>
+                                                <?= $canApprove && $aprobacionReady ? '' : 'disabled' ?>
+                                                <?= $aprobacionReady ? '' : 'title="Aprobacion oficial no disponible"' ?>>
+                                            <i class="bi bi-check-lg" aria-hidden="true"></i>
+                                        </span>
+                                        <span>APROBADO</span>
+                                    </label>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -2728,7 +2851,10 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 <script>
 window.N360_CSB = {
     canEdit: <?= $canEdit ? 'true' : 'false' ?>,
+    canApprove: <?= $canApprove ? 'true' : 'false' ?>,
     physicalRouteReady: <?= $hojaFisicaReady ? 'true' : 'false' ?>,
+    physicalRouteCodeReady: <?= $hojaFisicaCodigoReady ? 'true' : 'false' ?>,
+    officialApprovalReady: <?= $aprobacionReady ? 'true' : 'false' ?>,
     csrf: <?= json_encode($csrfToken) ?>,
     endpoint: 'consolidado_salidas_buses.php',
     fechaOperativa: <?= json_encode($fechaOperativa) ?>,
@@ -2765,8 +2891,8 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=pdf-reviewed-only-1', ENT_QUOTES, 'UTF-8') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=physical-route-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=official-approval-2', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>

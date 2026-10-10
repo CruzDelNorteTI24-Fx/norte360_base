@@ -51,6 +51,8 @@
     clm_salprog_correccion: 'Correccion',
     clm_salprog_hojaruta: 'Hoja de ruta',
     clm_salprog_hojaruta_fisica_revisada: 'Hoja fisica revisada',
+    clm_salprog_hojaruta_fisica_codigo: 'Codigo de hoja fisica',
+    clm_salprog_aprobado_oficial: 'Aprobado oficial',
     clm_salprog_usuario_revision: 'Usuario de revision',
     clm_salprog_datetime_revision: 'Fecha de revision',
     clm_salprog_usuario_creacion: 'Usuario de creacion',
@@ -78,7 +80,7 @@
 
   function displayValue(value, field) {
     if (value === null || value === undefined || value === '') return '-';
-    if (field === 'clm_salprog_hojaruta_fisica_revisada') {
+    if (field === 'clm_salprog_hojaruta_fisica_revisada' || field === 'clm_salprog_aprobado_oficial') {
       if (String(value) === '1') return 'Si';
       if (String(value) === '0') return 'No';
     }

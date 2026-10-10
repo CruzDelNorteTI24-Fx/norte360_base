@@ -21,7 +21,7 @@ function n360_flota_evidence_can_access(array $session): bool
     return n360_flota_evidence_can_upload($session)
         || (isset($session['usuario'])
             && in_array(10, (array)($session['permisos'] ?? []))
-            && in_array('f-consalbus-ver', (array)($session['vistas'] ?? [])));
+            && count(array_intersect(['f-consalbus-ver', 'f-consalbus-aprobar'], (array)($session['vistas'] ?? []))) > 0);
 }
 
 function n360_flota_evidence_date(string $value): string

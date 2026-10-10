@@ -807,6 +807,126 @@
     cursor: default;
 }
 
+.csb-approval-cell {
+    width: 180px;
+    min-width: 180px;
+}
+
+.csb-approval-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    width: 144px;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #c7d2da;
+    border-radius: 6px;
+    background: #f6f8fa;
+    color: #475c6b;
+    font-size: .75rem;
+    font-weight: 800;
+    line-height: 1.3;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+}
+
+.csb-approval-box {
+    position: relative;
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+}
+
+.csb-approval-box input {
+    display: block;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    border: 2px solid #8498a7;
+    border-radius: 4px;
+    background: #fff;
+    cursor: inherit;
+}
+
+.csb-approval-box .bi {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 16px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.csb-approval-control:has(input:checked) {
+    border-color: #8dc7aa;
+    background: #eaf7ef;
+    color: #176044;
+}
+
+.csb-approval-box input:checked {
+    border-color: #17734e;
+    background: #17734e;
+}
+
+.csb-approval-box input:checked + .bi {
+    opacity: 1;
+}
+
+.csb-approval-control:hover:not(:has(input:disabled)) {
+    border-color: #17734e;
+}
+
+.csb-approval-control:has(input:focus-visible) {
+    outline: 2px solid #187fb6;
+    outline-offset: 3px;
+}
+
+.csb-approval-control:has(input:disabled) {
+    cursor: default;
+}
+
+@media (forced-colors: active) {
+    .csb-approval-box input {
+        appearance: auto;
+    }
+
+    .csb-approval-box .bi {
+        display: none;
+    }
+}
+
+.csb-physical-route-code {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 8px;
+    color: #334b5f;
+    font-size: .75rem;
+    font-weight: 700;
+}
+
+.csb-physical-route-code input {
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    padding: 6px 8px;
+    border: 1px solid #b9cede;
+    border-radius: 6px;
+    background: #fff;
+    color: #08213a;
+    font: inherit;
+}
+
+.csb-physical-route-code input[readonly] {
+    background: transparent;
+    border-color: transparent;
+}
+
 .csb-hojaruta-state {
     display: inline-flex !important;
     align-items: center;

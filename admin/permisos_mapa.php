@@ -90,6 +90,11 @@ function n360_ap_view_catalog(): array {
         'module' => 10,
         'desc' => 'Consulta, historiales, PDF y Excel. No permite modificar viajes ni cargar evidencias.',
     ];
+    $catalog['f-consalbus-aprobar'] = [
+        'title' => 'Consolidado de salidas: aprobacion oficial',
+        'module' => 10,
+        'desc' => 'Consulta, historiales, PDF y Excel. Permite aprobar o retirar la aprobacion oficial, sin editar otros datos ni cargar evidencias.',
+    ];
     $catalog['f-contcondtors-ver'] = [
         'title' => 'Control de conductores: solo lectura',
         'module' => 10,

@@ -1039,7 +1039,7 @@ $monthLabel = fcc_month_label($monthStart);
                 <button type="button" class="fcc-btn fcc-btn--soft" data-fcc-export-payments-excel><i class="bi bi-file-earmark-spreadsheet"></i> Excel pagos</button>
                 <button type="button" class="fcc-btn fcc-btn--soft" data-salprog-history-open><i class="bi bi-clock-history"></i> Historial</button>
                 <button type="button" class="fcc-btn fcc-btn--primary" data-fcc-export-all><i class="bi bi-file-earmark-pdf"></i> PDF consolidado</button>
-                <?php if (n360_puede_alguna_vista(['f-consalbus', 'f-proghist', 'f-consalbus-ver'])): ?>
+                <?php if (n360_puede_alguna_vista(['f-consalbus', 'f-proghist', 'f-consalbus-ver', 'f-consalbus-aprobar'])): ?>
                     <a class="fcc-btn fcc-btn--soft" href="consolidado_salidas_buses.php"><i class="bi bi-arrow-left"></i> Consolidado</a>
                 <?php endif; ?>
             </div>
@@ -1804,7 +1804,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=date-column-1', ENT_QUOTES, 'UTF-8') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=physical-route-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
 </html>
