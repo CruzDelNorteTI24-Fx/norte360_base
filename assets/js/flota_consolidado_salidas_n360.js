@@ -585,7 +585,11 @@
 
   function syncBulkBar() {
     const dirty = dirtyRows();
-    rows.forEach((row) => row.classList.toggle('csb-row--dirty', dirty.includes(row)));
+    rows.forEach((row) => {
+      const pending = dirty.includes(row);
+      row.classList.toggle('csb-row--dirty', pending);
+      row.querySelector('[data-csb-pending]')?.setAttribute('aria-hidden', pending ? 'false' : 'true');
+    });
     const bar = document.querySelector('[data-csb-bulk-bar]');
     bar?.classList.toggle('is-bulk', bulkMode);
     const count = document.querySelector('[data-csb-bulk-count]');
@@ -1332,9 +1336,9 @@
     if (textareas.length) {
       return Array.from(textareas).map((area) => compact(area.value)).filter(Boolean).join('\n');
     }
-    if (td.querySelector('[data-csb-approval-control]')) {
+    if (td.querySelector('[data-csb-approval-control], [data-csb-pending]')) {
       const textCell = td.cloneNode(true);
-      textCell.querySelector('[data-csb-approval-control]').remove();
+      textCell.querySelectorAll('[data-csb-approval-control], [data-csb-pending]').forEach((control) => control.remove());
       return compact(textCell.textContent);
     }
     return compact(td.textContent);
