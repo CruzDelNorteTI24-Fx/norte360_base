@@ -41,16 +41,19 @@
         return bus || placa || '-';
     }
 
-    function setBusy(isBusy) {
+    function setBusy(button, isBusy) {
         if (!button) return;
         if (isBusy) {
             button.dataset.originalHtml = button.innerHTML;
+            button.dataset.originalWidth = button.style.width;
+            button.style.width = `${button.offsetWidth}px`;
             button.disabled = true;
             button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Generando';
             return;
         }
         button.disabled = false;
         if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
+        button.style.width = button.dataset.originalWidth || '';
     }
 
     function notify(type, message) {
@@ -58,9 +61,7 @@
             window.N360Loader.toast(type, message);
             return;
         }
-        if (type === 'danger') {
-            alert(message);
-        }
+        alert(message);
     }
 
     function aggregateByOwner(rows) {
@@ -98,7 +99,7 @@
         return rows.filter(row => Number(row.placa_id || 0) <= 0);
     }
 
-    function infoText() {
+    function infoText(config) {
         const filters = config.filters || {};
         const pieces = [
             `Periodo: ${clean(filters.desde)} al ${clean(filters.hasta)}`,
@@ -108,14 +109,32 @@
         ];
         if (filters.placa) pieces.push(`Placa: ${filters.placa}`);
         if (filters.buscar) pieces.push(`Busqueda: ${filters.buscar}`);
+        if (filters.factura) pieces.push(`Factura: ${filters.factura}`);
+        if (config.proveedor) {
+            pieces.unshift(`Proveedor: ${clean(config.proveedor.nombre)} | RUC: ${clean(config.proveedor.ruc)}`);
+        }
         return pieces;
     }
 
-    function drawSummaryBox(doc, y, width) {
+    function drawSummaryBox(doc, y, width, config) {
         const kpis = config.kpis || {};
         const rows = config.rows || [];
         const noMatch = nonMatchingRows(rows).length;
         const left = 12.7;
+
+        if (config.proveedor) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(8, 36, 61);
+            const supplierLines = doc.splitTextToSize(`${clean(config.proveedor.nombre)} | RUC: ${clean(config.proveedor.ruc)}`, width);
+            doc.text(supplierLines, left, y + 4);
+            y += supplierLines.length * 4 + 5;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            const filterLines = doc.splitTextToSize(infoText(config).slice(1).join(' | '), width);
+            doc.text(filterLines, left, y + 2);
+            y += filterLines.length * 3 + 4;
+        }
 
         if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
             return window.N360PDF.drawReportSummary(doc, {
@@ -124,7 +143,8 @@
                 width,
                 title: 'Filtros aplicados',
                 rows: [
-                    { label: 'Periodo / filtros', value: infoText().join(' | ') },
+                    { label: 'Periodo / filtros', value: config.proveedor
+                        ? `${clean(config.filters.desde)} al ${clean(config.filters.hasta)}` : infoText(config).join(' | ') },
                     { label: 'Registros', value: num(kpis.registros) },
                     { label: 'Placas', value: num(rows.length) },
                     { label: 'No coinciden', value: num(noMatch) },
@@ -145,7 +165,7 @@
         doc.text('RESUMEN DEL REPORTE', left, y + 7.2);
         doc.setTextColor(8, 36, 61);
         doc.setFontSize(7.2);
-        doc.text(doc.splitTextToSize(infoText().join(' | '), width - 4), left, y + 13);
+        doc.text(doc.splitTextToSize(infoText(config).join(' | '), width - 4), left, y + 13);
         doc.text(doc.splitTextToSize(`Registros: ${num(kpis.registros)} | Placas: ${num(rows.length)} | No coinciden: ${num(noMatch)} | Total: ${money(kpis.total)} | Detraccion: ${money(kpis.detraccion)}`, width - 4), left, y + 22);
         doc.setDrawColor(210, 226, 241);
         doc.setLineWidth(0.12);
@@ -205,8 +225,7 @@
         data.cell.styles.fillColor = color;
     }
 
-    async function exportPdf() {
-        if (!button || button.disabled) return;
+    async function exportPdf(config, button) {
 
         try {
             if (!window.N360PDF || typeof window.N360PDF.createDocument !== 'function') {
@@ -222,7 +241,7 @@
                 return;
             }
 
-            setBusy(true);
+            setBusy(button, true);
             const pdfConfig = Object.assign({}, config.pdf || {}, {
                 orientation: 'portrait',
                 useCover: false,
@@ -234,7 +253,7 @@
                 content: function (pdf) {
                     const W = pdf.internal.pageSize.getWidth();
                     let y = 34;
-                    y = drawSummaryBox(pdf, y, W - 25.4);
+                    y = drawSummaryBox(pdf, y, W - 25.4, config);
 
                     const mainBody = rows.map(row => ({
                         _owner: clean(row.dueno, 'No identificado'),
@@ -326,11 +345,15 @@
         } catch (error) {
             notify('danger', error.message || 'No se pudo generar el PDF.');
         } finally {
-            setBusy(false);
+            setBusy(button, false);
         }
     }
 
     if (button) {
-        button.addEventListener('click', exportPdf);
+        button.addEventListener('click', function () {
+            if (!button.disabled) exportPdf(config, button);
+        });
     }
+    window.N360PeajesPDF = {export: exportPdf,
+        summaries: function (rows) { return {duenos: aggregateByOwner(rows), grupos: aggregateByGroup(rows)}; }};
 })(window, document);
