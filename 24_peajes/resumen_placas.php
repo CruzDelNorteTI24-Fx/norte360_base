@@ -408,7 +408,7 @@ window.N360_PEAJES_PROVEEDOR = {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= pje_h(n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js')) ?>"></script>
-<script src="<?= pje_h(n360_asset('assets/js/formatos/reportes/peajes_resumen_placas_pdf.js')) ?>&amp;pje=report-excel-2"></script>
+<script src="<?= pje_h(n360_asset('assets/js/formatos/reportes/peajes_resumen_placas_pdf.js')) ?>&amp;pje=pdf-solid-3"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="<?= pje_h(n360_asset('assets/js/formatos/reportes/peajes_resumen_placas_excel.js')) ?>&amp;pje=report-excel-2"></script>
 <script src="<?= pje_h(n360_asset('assets/js/peajes_reporte_placas.js')) ?>&amp;pje=report-excel-2"></script>

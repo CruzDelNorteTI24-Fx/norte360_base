@@ -35,8 +35,8 @@
     }
 
     function vehicle(row) {
-        const bus = clean(row.bus, '');
-        const placa = clean(row.placa, '');
+        const bus = String(row.bus == null ? '' : row.bus).trim();
+        const placa = String(row.placa == null ? '' : row.placa).trim();
         if (bus && placa) return `${bus} (${placa})`;
         return bus || placa || '-';
     }
@@ -102,75 +102,43 @@
     function infoText(config) {
         const filters = config.filters || {};
         const pieces = [
-            `Periodo: ${clean(filters.desde)} al ${clean(filters.hasta)}`,
-            `Estacion: ${clean(filters.estacion, 'TODOS')}`,
-            `Usuario: ${clean(filters.usuario, 'TODOS')}`,
-            `Importacion: ${clean(filters.importacion, 'TODOS')}`
+            `Periodo: ${clean(filters.desde)} al ${clean(filters.hasta)}`
         ];
+        [['estacion', 'Estacion'], ['usuario', 'Usuario'], ['importacion', 'Importacion']].forEach(([key, label]) => {
+            if (filters[key] && filters[key] !== 'TODOS') pieces.push(`${label}: ${filters[key]}`);
+        });
         if (filters.placa) pieces.push(`Placa: ${filters.placa}`);
         if (filters.buscar) pieces.push(`Busqueda: ${filters.buscar}`);
         if (filters.factura) pieces.push(`Factura: ${filters.factura}`);
-        if (config.proveedor) {
-            pieces.unshift(`Proveedor: ${clean(config.proveedor.nombre)} | RUC: ${clean(config.proveedor.ruc)}`);
-        }
         return pieces;
     }
 
-    function drawSummaryBox(doc, y, width, config) {
-        const kpis = config.kpis || {};
-        const rows = config.rows || [];
-        const noMatch = nonMatchingRows(rows).length;
+    function drawReportContext(doc, y, width, config) {
         const left = 12.7;
-
+        const center = left + width / 2;
+        doc.setTextColor(0, 0, 0);
         if (config.proveedor) {
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9);
-            doc.setTextColor(8, 36, 61);
+            doc.setFontSize(8);
             const supplierLines = doc.splitTextToSize(`${clean(config.proveedor.nombre)} | RUC: ${clean(config.proveedor.ruc)}`, width);
-            doc.text(supplierLines, left, y + 4);
-            y += supplierLines.length * 4 + 5;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7);
-            const filterLines = doc.splitTextToSize(infoText(config).slice(1).join(' | '), width);
-            doc.text(filterLines, left, y + 2);
-            y += filterLines.length * 3 + 4;
+            doc.text(supplierLines, center, y, {align: 'center'});
+            y += supplierLines.length * 3.8;
         }
-
-        if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
-            return window.N360PDF.drawReportSummary(doc, {
-                x: left,
-                y,
-                width,
-                title: 'Filtros aplicados',
-                rows: [
-                    { label: 'Periodo / filtros', value: config.proveedor
-                        ? `${clean(config.filters.desde)} al ${clean(config.filters.hasta)}` : infoText(config).join(' | ') },
-                    { label: 'Registros', value: num(kpis.registros) },
-                    { label: 'Placas', value: num(rows.length) },
-                    { label: 'No coinciden', value: num(noMatch) },
-                    { label: 'Total', value: money(kpis.total) },
-                    { label: 'Detraccion', value: money(kpis.detraccion) }
-                ],
-                columns: 3,
-                bottomGap: 9
-            });
-        }
-
-        doc.setDrawColor(34, 147, 220);
-        doc.setLineWidth(0.55);
-        doc.line(left, y, left + width, y);
-        doc.setTextColor(88, 110, 135);
-        doc.setFont('helvetica', 'bold');
+        doc.setFont('helvetica', 'normal');
         doc.setFontSize(7.6);
-        doc.text('RESUMEN DEL REPORTE', left, y + 7.2);
-        doc.setTextColor(8, 36, 61);
-        doc.setFontSize(7.2);
-        doc.text(doc.splitTextToSize(infoText(config).join(' | '), width - 4), left, y + 13);
-        doc.text(doc.splitTextToSize(`Registros: ${num(kpis.registros)} | Placas: ${num(rows.length)} | No coinciden: ${num(noMatch)} | Total: ${money(kpis.total)} | Detraccion: ${money(kpis.detraccion)}`, width - 4), left, y + 22);
-        doc.setDrawColor(210, 226, 241);
-        doc.setLineWidth(0.12);
-        doc.line(left, y + 31, left + width, y + 31);
-        return y + 39;
+        const filterLines = doc.splitTextToSize(infoText(config).join(' | '), width);
+        doc.text(filterLines, center, y, {align: 'center'});
+        return y + filterLines.length * 3.5 + 3;
+    }
+
+    function totals(rows) {
+        return rows.reduce((sum, row) => {
+            sum.placas += Number(row.placas == null ? 1 : row.placas);
+            sum.registros += Number(row.registros || 0);
+            sum.total += Number(row.total || 0);
+            sum.detraccion += Number(row.detraccion || 0);
+            return sum;
+        }, {placas: 0, registros: 0, total: 0, detraccion: 0});
     }
 
     function autoTable(doc, title, head, body, startY, options) {
@@ -179,39 +147,45 @@
         const opts = options || {};
         const baseStyles = {
             font: 'helvetica',
-            fontSize: 6.6,
-            cellPadding: 1.7,
-            lineColor: [214, 226, 239],
-            lineWidth: 0.08,
+            fontSize: 7.2,
+            cellPadding: 1.2,
+            textColor: [0, 0, 0],
+            lineColor: [0, 0, 0],
+            lineWidth: 0.18,
             overflow: 'linebreak',
             valign: 'middle'
         };
         const baseHeadStyles = {
-            fillColor: [18, 42, 64],
+            fillColor: [35, 35, 35],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
             halign: 'center'
         };
         const tableOptions = Object.assign({
-            startY: startY + 4,
-            margin: {left: left, right: left, top: 32, bottom: 23},
+            startY: startY + 6,
+            margin: {left: left, right: left, top: 34, bottom: 23},
             tableWidth: width,
             head: [head],
             body: body.length ? body : [head.map(() => '-')],
+            showHead: 'everyPage',
+            showFoot: 'lastPage',
+            pageBreak: body.length <= 8 ? 'avoid' : 'auto',
+            rowPageBreak: 'avoid',
             theme: 'grid',
             styles: baseStyles,
             headStyles: baseHeadStyles,
-            alternateRowStyles: {fillColor: [248, 251, 255]},
-            didDrawPage: function () {}
+            footStyles: {fillColor: [235, 237, 239], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.25, halign: 'right'},
+            alternateRowStyles: {fillColor: [246, 246, 246]},
+            willDrawPage: function (data) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.text(title + (data.pageNumber > 1 ? ' (continuacion)' : ''), left, data.cursor.y - 4);
+            }
         }, opts);
         tableOptions.styles = Object.assign({}, baseStyles, opts.styles || {});
         tableOptions.headStyles = Object.assign({}, baseHeadStyles, opts.headStyles || {});
-        tableOptions.alternateRowStyles = Object.assign({}, {fillColor: [248, 251, 255]}, opts.alternateRowStyles || {});
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10.5);
-        doc.setTextColor(7, 27, 49);
-        doc.text(title, left, startY);
+        tableOptions.alternateRowStyles = Object.assign({}, {fillColor: [246, 246, 246]}, opts.alternateRowStyles || {});
 
         doc.autoTable(tableOptions);
 
@@ -252,49 +226,47 @@
             const doc = await window.N360PDF.createDocument(Object.assign({}, pdfConfig, {
                 content: function (pdf) {
                     const W = pdf.internal.pageSize.getWidth();
-                    let y = 34;
-                    y = drawSummaryBox(pdf, y, W - 25.4, config);
+                    let y = drawReportContext(pdf, 30.5, W - 25.4, config);
+                    const mainTotals = totals(rows);
 
                     const mainBody = rows.map(row => ({
                         _owner: clean(row.dueno, 'No identificado'),
-                        0: Number(row.placa_id || 0) > 0 ? 'Coincide' : 'No coincide',
-                        1: vehicle(row),
-                        2: clean(row.tipo_vehiculo, 'Sin tipo'),
-                        3: clean(row.dueno, 'No identificado'),
-                        4: num(row.registros),
-                        5: num(row.facturas),
-                        6: money(row.total),
-                        7: money(row.detraccion)
+                        0: vehicle(row),
+                        1: clean(row.tipo_vehiculo, 'Sin tipo'),
+                        2: clean(row.dueno, 'No identificado'),
+                        3: num(row.registros),
+                        4: money(row.total),
+                        5: money(row.detraccion)
                     }));
 
                     y = autoTable(pdf, 'Facturas y detracciones por placa', [
-                        'Estado', 'Placa / bus', 'Tipo', 'Dueno', 'Reg.', 'Fact.', 'Total', 'Detr.'
+                        'Placa / bus', 'Tipo', 'Dueno', 'Cant.', 'Total', 'Detraccion'
                     ], mainBody, y, {
-                        styles: {fontSize: 5.8, cellPadding: 1.1},
                         columns: [
                             {dataKey: 0}, {dataKey: 1}, {dataKey: 2}, {dataKey: 3},
-                            {dataKey: 4}, {dataKey: 5}, {dataKey: 6}, {dataKey: 7}
+                            {dataKey: 4}, {dataKey: 5}
                         ],
                         columnStyles: {
-                            0: {cellWidth: 18},
-                            1: {cellWidth: 34},
-                            2: {cellWidth: 25},
-                            3: {cellWidth: 30},
-                            4: {cellWidth: 12, halign: 'right'},
-                            5: {cellWidth: 12, halign: 'right'},
-                            6: {cellWidth: 26, halign: 'right'},
-                            7: {cellWidth: 24, halign: 'right'}
+                            0: {cellWidth: 54},
+                            1: {cellWidth: 30},
+                            2: {cellWidth: 33},
+                            3: {cellWidth: 15, halign: 'right'},
+                            4: {cellWidth: 27, halign: 'right'},
+                            5: {cellWidth: W - 25.4 - 159, halign: 'right'}
                         },
+                        foot: [[{content: 'TOTAL GENERAL', colSpan: 3, styles: {halign: 'left'}}, num(mainTotals.registros),
+                            money(mainTotals.total), money(mainTotals.detraccion)]],
                         didParseCell: rowFillByOwner
                     });
 
+                    const owners = aggregateByOwner(rows);
+                    const ownerTotals = totals(owners);
                     y = autoTable(pdf, 'Resumen por dueno', [
-                        'Dueno', 'Placas', 'Registros', 'Facturas', 'Total', 'Detraccion'
-                    ], aggregateByOwner(rows).map(row => [
+                        'Dueno', 'Placas', 'Registros', 'Total', 'Detraccion'
+                    ], owners.map(row => [
                         row.dueno,
                         num(row.placas),
                         num(row.registros),
-                        num(row.facturas),
                         money(row.total),
                         money(row.detraccion)
                     ]), y, {
@@ -302,18 +274,20 @@
                             1: {halign: 'right'},
                             2: {halign: 'right'},
                             3: {halign: 'right'},
-                            4: {halign: 'right'},
-                            5: {halign: 'right'}
-                        }
+                            4: {halign: 'right'}
+                        },
+                        foot: [[{content: 'TOTAL DUENOS', styles: {halign: 'left'}}, num(ownerTotals.placas), num(ownerTotals.registros),
+                            money(ownerTotals.total), money(ownerTotals.detraccion)]]
                     });
 
+                    const groups = aggregateByGroup(rows);
+                    const groupTotals = totals(groups);
                     y = autoTable(pdf, 'Resumen por grupo operativo', [
-                        'Grupo', 'Placas', 'Registros', 'Facturas', 'Total', 'Detraccion'
-                    ], aggregateByGroup(rows).map(row => [
+                        'Grupo', 'Placas', 'Registros', 'Total', 'Detraccion'
+                    ], groups.map(row => [
                         row.grupo,
                         num(row.placas),
                         num(row.registros),
-                        num(row.facturas),
                         money(row.total),
                         money(row.detraccion)
                     ]), y, {
@@ -321,22 +295,27 @@
                             1: {halign: 'right'},
                             2: {halign: 'right'},
                             3: {halign: 'right'},
-                            4: {halign: 'right'},
-                            5: {halign: 'right'}
-                        }
+                            4: {halign: 'right'}
+                        },
+                        foot: [[{content: 'TOTAL GRUPOS', styles: {halign: 'left'}}, num(groupTotals.placas), num(groupTotals.registros),
+                            money(groupTotals.total), money(groupTotals.detraccion)]]
                     });
 
                     const missing = nonMatchingRows(rows);
                     if (missing.length) {
+                        const missingTotals = totals(missing);
                         y = autoTable(pdf, 'Placas no coincidentes con maestro de flota', [
-                            'Placa', 'Registros', 'Facturas', 'Total', 'Detraccion'
+                            'Placa', 'Registros', 'Total', 'Detraccion'
                         ], missing.map(row => [
                             clean(row.placa),
                             num(row.registros),
-                            num(row.facturas),
                             money(row.total),
                             money(row.detraccion)
-                        ]), y);
+                        ]), y, {
+                            columnStyles: {1: {halign: 'right'}, 2: {halign: 'right'}, 3: {halign: 'right'}},
+                            foot: [[{content: 'TOTAL NO COINCIDENTES', styles: {halign: 'left'}}, num(missingTotals.registros),
+                                money(missingTotals.total), money(missingTotals.detraccion)]]
+                        });
                     }
                 }
             }));
