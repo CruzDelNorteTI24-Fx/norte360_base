@@ -357,10 +357,127 @@
     };
   }
 
-  const hojaRutaTimers = new WeakMap();
+  const codeFields = ['hojaruta', 'hojaruta_fisica_codigo'];
+  const codeQueue = new Map();
+  const codeCache = new Map();
+  const codeInFlight = new Set();
+  const codeResults = new WeakMap();
+  const rowBaselines = new Map();
+  let codeTimer = null;
+  let bulkMode = false;
+  let revisionBusy = false;
+  let codeEpoch = 0;
 
   function hojaRutaKey(value) {
     return compact(value).toLocaleLowerCase('es-PE');
+  }
+
+  function codeInput(row, field) {
+    return row.querySelector(`[data-csb-field="${field}"]`);
+  }
+
+  function setCodeValidation(row, field, mode, info = null) {
+    const results = codeResults.get(row) || {};
+    results[field] = { key: hojaRutaKey(codeInput(row, field)?.value), mode, info };
+    codeResults.set(row, results);
+    if (field === 'hojaruta') {
+      setHojaRutaValidation(row, mode, info);
+      return;
+    }
+    const input = codeInput(row, field);
+    const state = row.querySelector('[data-csb-physical-code-state]');
+    input?.classList.toggle('is-duplicate', mode === 'duplicate');
+    input?.classList.toggle('is-checking', mode === 'checking');
+    input?.setAttribute('aria-invalid', mode === 'duplicate' ? 'true' : 'false');
+    if (!state) return;
+    state.hidden = mode === 'empty';
+    state.classList.toggle('is-duplicate', mode === 'duplicate');
+    state.classList.toggle('is-checking', mode === 'checking');
+    const ref = duplicateRefLabel(info);
+    state.textContent = mode === 'duplicate' ? (ref ? `Codigo repetido en ${ref}` : 'Codigo de hoja fisica repetido')
+      : mode === 'checking' ? 'Validando codigo fisico...'
+        : mode === 'unique' ? 'Codigo fisico sin duplicados' : 'Pendiente de validacion al guardar';
+  }
+
+  function localCodeDuplicate(row, field) {
+    const key = hojaRutaKey(codeInput(row, field)?.value);
+    return key ? rows.find((other) => other !== row && hojaRutaKey(codeInput(other, field)?.value) === key) : null;
+  }
+
+  function validateLocalCode(row, field) {
+    const input = codeInput(row, field);
+    if (!input || input.disabled || !canEdit) return true;
+    const key = hojaRutaKey(input.value);
+    if (!key) {
+      setCodeValidation(row, field, 'empty');
+      return true;
+    }
+    const duplicate = localCodeDuplicate(row, field);
+    if (duplicate) {
+      setCodeValidation(row, field, 'duplicate', {
+        bus: duplicate.dataset.csbTransferUnit, fecha: duplicate.dataset.csbTransferDate, hora: duplicate.dataset.csbTransferHour
+      });
+      return false;
+    }
+    const previous = codeResults.get(row)?.[field];
+    if (previous?.key !== key || previous.mode === 'duplicate' && !previous.info?.id) setCodeValidation(row, field, 'pending');
+    return true;
+  }
+
+  function queueCodeValidation(row, field, immediate = false) {
+    const input = codeInput(row, field);
+    if (!input || input.disabled || !canEdit || revisionBusy) return;
+    const slot = `${row.dataset.csbRow}:${field}`;
+    const signature = `${slot}:${hojaRutaKey(input.value)}`;
+    if (codeCache.get(slot)?.signature !== signature) codeCache.delete(slot);
+    codeQueue.delete(slot);
+    if (!validateLocalCode(row, field) || !hojaRutaKey(input.value)) return;
+    // Reuse only the most recent result for this row and field; final saves always revalidate.
+    const cached = codeCache.get(slot);
+    if (cached?.signature === signature) {
+      setCodeValidation(row, field, cached.result.duplicada ? 'duplicate' : 'unique', cached.result.duplicado);
+      return;
+    }
+    codeCache.delete(slot);
+    if (codeInFlight.has(signature)) return;
+    codeQueue.set(slot, { row, field, value: input.value, signature });
+    window.clearTimeout(codeTimer);
+    codeTimer = window.setTimeout(flushCodeValidation, immediate ? 80 : 550);
+  }
+
+  async function flushCodeValidation() {
+    if (!codeQueue.size || revisionBusy) return;
+    const epoch = codeEpoch;
+    const batch = Array.from(codeQueue.values()).slice(0, 300);
+    batch.forEach((item) => {
+      codeQueue.delete(`${item.row.dataset.csbRow}:${item.field}`);
+      codeInFlight.add(item.signature);
+      setCodeValidation(item.row, item.field, 'checking');
+    });
+    const fd = new FormData();
+    fd.append('csrf', csrf);
+    fd.append('action', 'check_route_codes');
+    fd.append('items', JSON.stringify(batch.map((item) => ({ id: item.row.dataset.csbRow, field: item.field, value: item.value }))));
+    try {
+      const res = await fetch(endpoint, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const json = await res.json();
+      if (!json.ok || !Array.isArray(json.data?.results)) throw new Error(json.message || 'No se pudieron validar los codigos.');
+      batch.forEach((item) => {
+        if (revisionBusy || epoch !== codeEpoch || hojaRutaKey(codeInput(item.row, item.field)?.value) !== hojaRutaKey(item.value)) return;
+        const result = json.data.results.find((check) => String(check.id) === item.row.dataset.csbRow && check.field === item.field);
+        if (!result) throw new Error('Validacion incompleta.');
+        codeCache.set(`${item.row.dataset.csbRow}:${item.field}`, { signature: item.signature, result });
+        if (validateLocalCode(item.row, item.field)) setCodeValidation(item.row, item.field, result.duplicada ? 'duplicate' : 'unique', result.duplicado);
+      });
+    } catch (error) {
+      batch.forEach((item) => {
+        if (!revisionBusy && epoch === codeEpoch && hojaRutaKey(codeInput(item.row, item.field)?.value) === hojaRutaKey(item.value)) setCodeValidation(item.row, item.field, 'pending');
+      });
+      showNotice(error.message || 'Los codigos se validaran al guardar.', false);
+    } finally {
+      batch.forEach((item) => codeInFlight.delete(item.signature));
+      if (codeQueue.size && !revisionBusy) codeTimer = window.setTimeout(flushCodeValidation, 80);
+    }
   }
 
   function duplicateRefLabel(info) {
@@ -368,7 +485,7 @@
     const unidad = compact(info.bus || info.placa || '');
     const fechaHora = [compact(info.fecha || ''), compact(info.hora || '')].filter(Boolean).join(' ');
     const ruta = [compact(info.origen || ''), compact(info.destino || '')].filter(Boolean).join(' → ');
-    return [unidad, fechaHora, ruta].filter(Boolean).join(' · ');
+    return [unidad, fechaHora, ruta].filter(Boolean).join(' · ') || (info.id ? `viaje #${info.id}` : '');
   }
 
   function setHojaRutaValidation(row, mode, info = null) {
@@ -415,223 +532,192 @@
     }
 
     if (icon) icon.className = 'bi bi-circle';
-    if (text) text.textContent = 'Sin número de hoja de ruta';
+    if (text) text.textContent = mode === 'pending' ? 'Pendiente de validacion al guardar' : 'Sin número de hoja de ruta';
   }
 
-  function findLocalHojaRutaDuplicate(row, value) {
-    const key = hojaRutaKey(value);
-    if (!key) return null;
-    return rows.find((otherRow) => {
-      if (otherRow === row) return false;
-      const otherValue = otherRow.querySelector('[data-csb-field="hojaruta"]')?.value || '';
-      return hojaRutaKey(otherValue) === key;
-    }) || null;
+  function rowRevisionPayload(row) {
+    const item = { id: row.dataset.csbRow };
+    if (canEdit) {
+      ['estado', 'comentario', 'correccion', 'hojaruta'].forEach((field) => { item[field] = codeInput(row, field)?.value || ''; });
+      if (cfg.physicalRouteReady && codeInput(row, 'hojaruta_fisica_revisada') && !codeInput(row, 'hojaruta_fisica_revisada').disabled) item.hojaruta_fisica_revisada = codeInput(row, 'hojaruta_fisica_revisada').checked ? '1' : '0';
+      if (cfg.physicalRouteCodeReady && codeInput(row, 'hojaruta_fisica_codigo') && !codeInput(row, 'hojaruta_fisica_codigo').disabled) item.hojaruta_fisica_codigo = codeInput(row, 'hojaruta_fisica_codigo').value;
+    }
+    if (canApprove && cfg.officialApprovalReady && codeInput(row, 'aprobado_oficial') && !codeInput(row, 'aprobado_oficial').disabled) item.aprobado_oficial = codeInput(row, 'aprobado_oficial').checked ? '1' : '0';
+    return item;
   }
 
-  async function validateHojaRuta(row, remote = true) {
-    if (!canEdit) return true;
-    const input = row.querySelector('[data-csb-field="hojaruta"]');
-    if (!input) return true;
-
-    const value = input.value || '';
-    if (!hojaRutaKey(value)) {
-      setHojaRutaValidation(row, 'empty');
-      return true;
-    }
-
-    const localDuplicate = findLocalHojaRutaDuplicate(row, value);
-    if (localDuplicate) {
-      const localInfo = {
-        bus: compact(localDuplicate.dataset.csbTransferUnit || ''),
-        fecha: compact(localDuplicate.dataset.csbTransferDate || report.period || ''),
-        hora: compact(localDuplicate.dataset.csbTransferHour || '')
-      };
-      setHojaRutaValidation(row, 'duplicate', localInfo);
-      return false;
-    }
-
-    if (!remote) {
-      setHojaRutaValidation(row, 'unique');
-      return true;
-    }
-
-    setHojaRutaValidation(row, 'checking');
-    const fd = new FormData();
-    fd.append('csrf', csrf);
-    fd.append('action', 'check_hojaruta');
-    fd.append('id', row.dataset.csbRow || '');
-    fd.append('hojaruta', value);
-
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        body: fd,
-        credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
-      const json = await res.json();
-      if (!json.ok) {
-        throw new Error(json.message || 'No se pudo validar la Hoja de Ruta.');
-      }
-      if (json.data?.duplicada) {
-        setHojaRutaValidation(row, 'duplicate', json.data?.duplicado || null);
-        return false;
-      }
-      setHojaRutaValidation(row, 'unique');
-      return true;
-    } catch (error) {
-      row.classList.remove('csb-row--hojaruta-checking');
-      input.classList.remove('is-checking');
-      showNotice(error.message || 'No se pudo validar la Hoja de Ruta.', false);
-      return true; // El servidor vuelve a validar obligatoriamente al guardar.
-    }
+  function dirtyRows() {
+    return rows.filter((row) => JSON.stringify(rowRevisionPayload(row)) !== JSON.stringify(rowBaselines.get(row)));
   }
 
-  async function saveApproval(button) {
-    if (!canApprove || cfg.officialApprovalReady !== true) return;
-    const row = button.closest('[data-csb-row]');
-    const checkbox = row?.querySelector('[data-csb-field="aprobado_oficial"]');
-    if (!row || !checkbox || checkbox.disabled) return;
-    const fd = new FormData();
-    fd.append('csrf', csrf);
-    fd.append('action', 'update_approval');
-    fd.append('id', button.dataset.csbSave || row.dataset.csbRow || '');
-    fd.append('aprobado_oficial', checkbox.checked ? '1' : '0');
-    const originalHtml = button.innerHTML;
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST', body: fd, credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.message || 'No se pudo guardar la aprobacion.');
-      if (typeof json.data?.aprobado_oficial === 'boolean') checkbox.checked = json.data.aprobado_oficial;
-      const saved = row.querySelector('[data-csb-saved]');
-      if (saved) saved.textContent = json.data?.actualizado || '';
-      showNotice(json.message || 'Aprobacion oficial guardada.', true);
-    } catch (error) {
-      showNotice(error.message || 'No se pudo guardar la aprobacion.', false);
-    } finally {
-      button.disabled = false;
-      button.innerHTML = originalHtml;
-    }
+  function syncBulkBar() {
+    const dirty = dirtyRows();
+    rows.forEach((row) => row.classList.toggle('csb-row--dirty', dirty.includes(row)));
+    const bar = document.querySelector('[data-csb-bulk-bar]');
+    bar?.classList.toggle('is-bulk', bulkMode);
+    const count = document.querySelector('[data-csb-bulk-count]');
+    if (count) count.textContent = `${dirty.length} ${dirty.length === 1 ? 'viaje modificado' : 'viajes modificados'}`;
+    const actions = document.querySelector('[data-csb-bulk-actions]');
+    if (actions) actions.hidden = !bulkMode;
+    document.querySelectorAll('[data-csb-mode]').forEach((button) => {
+      const active = (button.dataset.csbMode === 'bulk') === bulkMode;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      button.disabled = revisionBusy;
+    });
+    document.querySelectorAll('[data-csb-bulk-save], [data-csb-bulk-cancel]').forEach((button) => { button.disabled = revisionBusy || !dirty.length; });
+    rows.forEach((row) => {
+      const save = row.querySelector('[data-csb-save]');
+      if (save) save.hidden = bulkMode;
+    });
   }
 
-  async function saveRow(button) {
-    if (!canEdit) {
-      await saveApproval(button);
-      return;
+  function applySavedRevision(row, data) {
+    ['hojaruta', 'hojaruta_fisica_codigo', 'comentario', 'correccion'].forEach((field) => {
+      if (typeof data[field] === 'string' && codeInput(row, field)) codeInput(row, field).value = data[field];
+    });
+    ['hojaruta_fisica_revisada', 'aprobado_oficial'].forEach((field) => {
+      if (typeof data[field] === 'boolean' && codeInput(row, field)) codeInput(row, field).checked = data[field];
+    });
+    if (data.estado) {
+      row.dataset.csbDbRevision = data.estado;
+      const status = row.querySelector('[data-csb-status]');
+      if (status) { status.textContent = data.estado; status.className = `csb-status ${data.clase || 'csb-status--pending'}`; }
+      syncStateButtons(row, data.estado);
+      syncHojaRutaState(row, data.tiene_hojaruta);
+      codeFields.forEach((field) => setCodeValidation(row, field, hojaRutaKey(codeInput(row, field)?.value) ? 'unique' : 'empty'));
     }
-    const row = button.closest('[data-csb-row]');
-    if (!row) return;
+    const saved = row.querySelector('[data-csb-saved]');
+    if (saved) saved.textContent = data.actualizado || '';
+    if (data.importes_control) syncControlImpact(row, data.importes_control);
+  }
 
-    const id = button.dataset.csbSave || row.dataset.csbRow || '';
-    const estado = row.querySelector('[data-csb-field="estado"]')?.value || 'PENDIENTE';
-    const comentario = row.querySelector('[data-csb-field="comentario"]')?.value || '';
-    const correccion = row.querySelector('[data-csb-field="correccion"]')?.value || '';
-    const hojarutaInput = row.querySelector('[data-csb-field="hojaruta"]');
-    const hojaruta = hojarutaInput?.value || '';
-    const hojaFisicaInput = row.querySelector('[data-csb-field="hojaruta_fisica_revisada"]');
-    const hojaFisicaCodigoInput = row.querySelector('[data-csb-field="hojaruta_fisica_codigo"]');
-    const aprobadoInput = row.querySelector('[data-csb-field="aprobado_oficial"]');
-    const originalHtml = button.innerHTML;
+  function lockRevisionControls() {
+    const controls = Array.from(document.querySelectorAll('[data-csb-row] input, [data-csb-row] textarea, [data-csb-row] button, [data-csb-mode], [data-csb-bulk-save], [data-csb-bulk-cancel], [data-csb-manual-open]'));
+    const previous = controls.map((control) => ({ control, disabled: control.disabled }));
+    controls.forEach((control) => { control.disabled = true; });
+    return () => previous.forEach(({ control, disabled }) => { control.disabled = disabled; });
+  }
 
-    const hojaRutaValida = await validateHojaRuta(row, true);
-    if (!hojaRutaValida) {
-      showNotice('Esa Hoja de Ruta ya está registrada en otro viaje.', false);
-      hojarutaInput?.focus();
-      return;
-    }
-
-    let confirmedControlAmounts = false;
-    const isNewAnnulment = String(estado).toUpperCase() === 'ANULADO'
-      && String(row.dataset.csbDbRevision || '').toUpperCase() !== 'ANULADO';
-    if (isNewAnnulment && row.dataset.csbHasControlAmounts === '1') {
-      confirmedControlAmounts = await confirmControlAnnulment(row);
-      if (!confirmedControlAmounts) return;
-    }
-
-    const fd = new FormData();
-    fd.append('csrf', csrf);
-    fd.append('action', 'update_revision');
-    fd.append('id', id);
-    fd.append('estado', estado);
-    fd.append('comentario', comentario);
-    fd.append('correccion', correccion);
-    fd.append('hojaruta', hojaruta);
-    if (cfg.physicalRouteReady === true && hojaFisicaInput && !hojaFisicaInput.disabled) {
-      fd.append('hojaruta_fisica_revisada', hojaFisicaInput.checked ? '1' : '0');
-    }
-    if (cfg.physicalRouteCodeReady === true && hojaFisicaCodigoInput && !hojaFisicaCodigoInput.disabled) {
-      fd.append('hojaruta_fisica_codigo', hojaFisicaCodigoInput.value);
-    }
-    if (canApprove && cfg.officialApprovalReady === true && aprobadoInput && !aprobadoInput.disabled) {
-      fd.append('aprobado_oficial', aprobadoInput.checked ? '1' : '0');
-    }
-    fd.append('confirmar_importes_control', confirmedControlAmounts ? '1' : '0');
-
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
-
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        body: fd,
-        credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
-      const json = await res.json();
-      if (!json.ok) {
-        if (json.data?.importes_control) {
-          syncControlImpact(row, json.data.importes_control);
-          applyScreenFilters();
+  async function saveRevisionRows(target, isBulk, button) {
+    if (revisionBusy || !target.length || (!canEdit && !canApprove)) return;
+    if (target.length > 300) { showNotice('El limite es 300 viajes por lote. Guarda por rangos de fechas mas cortos.', false); return; }
+    for (const row of target) {
+      for (const field of codeFields) {
+        if (canEdit && !validateLocalCode(row, field)) {
+          showNotice(field === 'hojaruta' ? 'Hay una hoja de ruta repetida entre los viajes en pantalla.' : 'Hay un codigo de hoja fisica repetido entre los viajes en pantalla.', false);
+          row.hidden = false;
+          codeInput(row, field)?.focus();
+          return;
         }
+      }
+    }
+    if (isBulk && !window.confirm(`Guardar cambios de ${target.length} ${target.length === 1 ? 'viaje' : 'viajes'}?`)) return;
+    // Capture authorized fields before disabling controls, and block parallel edits until the reply.
+    const items = target.map(rowRevisionPayload);
+    revisionBusy = true;
+    codeEpoch++;
+    window.clearTimeout(codeTimer);
+    codeQueue.clear();
+    const unlock = lockRevisionControls();
+    const originalHtml = button.innerHTML;
+    const persistedRows = [];
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>' + (isBulk ? ' Guardar cambios' : '');
+    try {
+      for (let i = 0; i < target.length; i++) {
+        const row = target[i];
+        if (items[i].estado === 'ANULADO' && row.dataset.csbDbRevision !== 'ANULADO' && row.dataset.csbHasControlAmounts === '1') {
+          if (!await confirmControlAnnulment(row)) return;
+          items[i].confirmar_importes_control = '1';
+        }
+      }
+      const fd = new FormData();
+      fd.append('csrf', csrf);
+      fd.append('action', isBulk ? (canEdit ? 'bulk_update_revision' : 'bulk_update_approval') : (canEdit ? 'update_revision' : 'update_approval'));
+      if (isBulk) fd.append('items', JSON.stringify(items));
+      else Object.entries(items[0]).forEach(([field, value]) => fd.append(field, value));
+      const res = await fetch(endpoint, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const json = await res.json();
+      if (!json.ok) {
+        const row = target.find((item) => String(json.data?.id) === item.dataset.csbRow) || target[0];
+        if (json.data?.importes_control) syncControlImpact(row, json.data.importes_control);
         if (json.data?.duplicada) {
-          setHojaRutaValidation(row, 'duplicate');
-          hojarutaInput?.focus();
+          const field = json.data.field || 'hojaruta';
+          setCodeValidation(row, field, 'duplicate', json.data.duplicado);
+          row.hidden = false;
+          // Focus after controls are restored.
+          window.setTimeout(() => codeInput(row, field)?.focus(), 0);
         }
         throw new Error(json.message || 'No se pudo guardar.');
       }
-
-      const status = row.querySelector('[data-csb-status]');
-      if (status) {
-        status.textContent = json.data?.estado || estado;
-        status.className = `csb-status ${json.data?.clase || 'csb-status--pending'}`;
-      }
-
-      const saved = row.querySelector('[data-csb-saved]');
-      if (saved) {
-        saved.textContent = json.data?.actualizado || '';
-      }
-      row.dataset.csbDbRevision = String(json.data?.estado || estado || 'PENDIENTE').toUpperCase();
-      if (hojaFisicaInput && typeof json.data?.hojaruta_fisica_revisada === 'boolean') {
-        hojaFisicaInput.checked = json.data.hojaruta_fisica_revisada;
-      }
-      if (hojaFisicaCodigoInput && typeof json.data?.hojaruta_fisica_codigo === 'string') {
-        hojaFisicaCodigoInput.value = json.data.hojaruta_fisica_codigo;
-      }
-      if (aprobadoInput && typeof json.data?.aprobado_oficial === 'boolean') {
-        aprobadoInput.checked = json.data.aprobado_oficial;
-      }
-      if (json.data?.importes_control) {
-        syncControlImpact(row, json.data.importes_control);
-        applyScreenFilters();
-      }
-      syncStateButtons(row, row.dataset.csbDbRevision);
-      syncHojaRutaState(row, json.data?.tiene_hojaruta ?? compact(hojaruta) !== '');
-      setHojaRutaValidation(row, compact(hojaruta) !== '' ? 'unique' : 'empty');
-      if (hojaRutaSortActive) {
-        applyHojaRutaSort();
-      }
-      showNotice(json.message || 'Cambios guardados.', true);
-    } catch (err) {
-      showNotice(err.message || 'No se pudo guardar.', false);
+      const saved = isBulk ? json.data?.rows : [{ ...json.data, id: items[0].id }];
+      if (!Array.isArray(saved) || saved.length !== target.length) throw new Error('Respuesta incompleta. Actualiza la pagina para comprobar el guardado.');
+      saved.forEach((data) => {
+        const row = target.find((item) => item.dataset.csbRow === String(data.id));
+        if (row) {
+          applySavedRevision(row, data);
+          persistedRows.push(row);
+        }
+      });
+      codeCache.clear();
+      showNotice(isBulk ? `${target.length} viajes guardados.` : (json.message || 'Cambios guardados.'), true);
+    } catch (error) {
+      showNotice(error.message || 'No se pudo guardar.', false);
     } finally {
-      button.disabled = false;
+      unlock();
+      revisionBusy = false;
       button.innerHTML = originalHtml;
+      persistedRows.forEach((row) => {
+        syncStateButtons(row, codeInput(row, 'estado')?.value || row.dataset.csbDbRevision);
+        rowBaselines.set(row, rowRevisionPayload(row));
+      });
+      syncBulkBar();
+      if (hojaRutaSortActive) applyHojaRutaSort();
     }
+  }
+
+  function saveRow(button) {
+    const row = button.closest('[data-csb-row]');
+    if (row) return saveRevisionRows([row], false, button);
+  }
+
+  function setupBulkRevision() {
+    rows.forEach((row) => {
+      rowBaselines.set(row, rowRevisionPayload(row));
+      row.querySelectorAll('[data-csb-field]').forEach((input) => {
+        input.addEventListener('input', syncBulkBar);
+        input.addEventListener('change', syncBulkBar);
+      });
+    });
+    document.querySelectorAll('[data-csb-mode]').forEach((button) => button.addEventListener('click', () => {
+      if (revisionBusy) return;
+      bulkMode = button.dataset.csbMode === 'bulk';
+      syncBulkBar();
+    }));
+    document.querySelector('[data-csb-bulk-save]')?.addEventListener('click', (event) => saveRevisionRows(dirtyRows(), true, event.currentTarget));
+    document.querySelector('[data-csb-bulk-cancel]')?.addEventListener('click', () => {
+      if (revisionBusy || !window.confirm('Descartar los cambios pendientes de todos los viajes?')) return;
+      codeEpoch++;
+      window.clearTimeout(codeTimer);
+      codeQueue.clear();
+      dirtyRows().forEach((row) => {
+        const baseline = rowBaselines.get(row);
+        Object.entries(baseline).forEach(([field, value]) => {
+          const input = codeInput(row, field);
+          if (!input) return;
+          if (input.type === 'checkbox') input.checked = value === '1';
+          else input.value = value;
+        });
+        syncStateButtons(row, baseline.estado || row.dataset.csbDbRevision);
+        codeFields.forEach((field) => validateLocalCode(row, field));
+      });
+      codeCache.clear();
+      syncBulkBar();
+    });
+    window.addEventListener('beforeunload', (event) => {
+      if (revisionBusy || dirtyRows().length) { event.preventDefault(); event.returnValue = ''; }
+    });
+    syncBulkBar();
   }
 
   function hojaRutaSortValue(row) {
@@ -1906,7 +1992,7 @@
           state.line.dataset.csbDriverLicense = driverLicense;
         }
 
-        syncStateButtons(state.row, state.row.dataset.csbDbRevision || 'OBSERVADO');
+        syncStateButtons(state.row, codeInput(state.row, 'estado')?.value || state.row.dataset.csbDbRevision || 'OBSERVADO');
         if (json.data?.driver_history) {
           setDriverHistoryPayload(state.row, json.data.driver_history);
         }
@@ -2010,6 +2096,10 @@
       if (!row) return;
 
       const estado = String(row.dataset.csbDbRevision || '').toUpperCase();
+      if (revisionBusy || dirtyRows().length) {
+        showNotice('Guarda o cancela los cambios pendientes antes de registrar un transbordo.', false);
+        return;
+      }
       if (estado === 'TRANSBORDADO' || estado === 'TRANSBORDO') {
         showNotice(`Este viaje ya está marcado como ${estado}.`, false);
         return;
@@ -2176,6 +2266,10 @@
 
     open.addEventListener('click', () => {
       document.querySelector('[data-csb-notice]')?.classList.remove('is-visible');
+      if (revisionBusy || dirtyRows().length) {
+        showNotice('Guarda o cancela los cambios pendientes antes de registrar un viaje manual.', false);
+        return;
+      }
       updateRealDeparture();
       modal.show();
       window.setTimeout(() => form.querySelector('[name="hora_salida"]')?.focus(), 180);
@@ -2308,6 +2402,7 @@
       const row = button.closest('[data-csb-row]');
       if (!row) return;
       syncStateButtons(row, button.dataset.csbStateOption || 'PENDIENTE');
+      syncBulkBar();
     });
   });
   rows.forEach((row) => {
@@ -2320,31 +2415,20 @@
     if (initialDuplicate) {
       setHojaRutaValidation(row, 'duplicate');
     }
+    if (row.dataset.csbPhysicalCodeDuplicate === '1') setCodeValidation(row, 'hojaruta_fisica_codigo', 'duplicate');
 
-    const hojaRutaInput = row.querySelector('[data-csb-field="hojaruta"]');
-    if (canEdit && hojaRutaInput) {
-      hojaRutaInput.addEventListener('input', () => {
-        const oldTimer = hojaRutaTimers.get(row);
-        if (oldTimer) window.clearTimeout(oldTimer);
-
-        const localOk = validateHojaRuta(row, false);
-        Promise.resolve(localOk).then((ok) => {
-          if (!ok || !hojaRutaKey(hojaRutaInput.value)) return;
-          const timer = window.setTimeout(() => validateHojaRuta(row, true), 550);
-          hojaRutaTimers.set(row, timer);
-        });
-      });
-
-      hojaRutaInput.addEventListener('blur', () => {
-        const oldTimer = hojaRutaTimers.get(row);
-        if (oldTimer) window.clearTimeout(oldTimer);
-        validateHojaRuta(row, true);
-      });
-    }
+    codeFields.forEach((field) => {
+      const input = codeInput(row, field);
+      if (!canEdit || !input || input.disabled) return;
+      input.addEventListener('input', () => queueCodeValidation(row, field));
+      input.addEventListener('blur', () => queueCodeValidation(row, field, true));
+      if (field === 'hojaruta_fisica_codigo' && row.dataset.csbPhysicalCodeDuplicate !== '1') validateLocalCode(row, field);
+    });
   });
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   document.querySelector('[data-csb-export-route-pdf]')?.addEventListener('click', exportRoutePdf);
   setupScreenFilters();
+  setupBulkRevision();
   setupHojaRutaSort();
   setupHojaRutaList();
   setupOperationalSummary();

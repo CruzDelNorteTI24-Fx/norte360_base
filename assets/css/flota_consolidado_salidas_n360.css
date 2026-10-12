@@ -2430,6 +2430,96 @@ body:has(.csb-driver-modal.show, .csb-driver-history-modal.show, .csb-manual-mod
     }
 }
 
+.csb-bulk-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid #dbe5ed;
+    background: #f7fafc;
+}
+
+.csb-bulk-bar.is-bulk {
+    background: #fff9ec;
+    border-top-color: #eed5a5;
+}
+
+.csb-save-mode {
+    display: inline-flex;
+    border: 1px solid #becfdb;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.csb-save-mode button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 0;
+    background: #fff;
+    color: #304b60;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.csb-save-mode button.is-active {
+    background: #177da5;
+    color: #fff;
+}
+
+.csb-save-mode button:focus-visible {
+    outline: 2px solid #162e40;
+    outline-offset: -3px;
+}
+
+.csb-bulk-count {
+    color: #775117;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.csb-bulk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.csb-bulk-actions[hidden] { display: none; }
+.csb-bulk-actions button:disabled { opacity: .55; cursor: default; }
+.csb-table [data-csb-save][hidden] { display: none; }
+
+.csb-table tbody tr.csb-row--dirty > td:first-child {
+    outline: 2px solid #dea53b;
+    outline-offset: -2px;
+}
+
+.csb-code-state {
+    display: block;
+    margin-top: 5px;
+    font-size: 11px;
+    color: #587083;
+    overflow-wrap: anywhere;
+}
+
+.csb-code-state[hidden] { display: none; }
+.csb-code-state.is-duplicate { color: #aa241f; }
+.csb-code-state.is-checking { color: #8a5a06; }
+.csb-physical-route-code input.is-duplicate { border-color: #d8544f; background: #fff3f3; }
+.csb-physical-route-code input.is-checking { border-color: #d6a54b; }
+
+@media (max-width: 576px) {
+    .csb-bulk-bar { padding: 12px; gap: 10px; }
+    .csb-save-mode { margin-left: 42px; }
+    .csb-bulk-actions { margin-left: 0; width: 100%; }
+    .csb-bulk-actions .csb-btn { flex: 1 1 130px; justify-content: center; white-space: normal; }
+}
+
 /* Validación de Hoja de Ruta duplicada */
 .csb-table tbody tr.csb-row--hojaruta-duplicate td,
 .csb-table tbody tr.csb-row--hojaruta-duplicate:hover td {

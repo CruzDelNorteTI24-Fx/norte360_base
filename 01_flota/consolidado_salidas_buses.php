@@ -27,7 +27,7 @@ if (!n360_puede_modulo(10) || (!$canEdit && !$canApprove && !n360_puede_vista('f
 // La consulta del historial usa POST, pero no modifica registros.
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !$canEdit
     && (string)($_POST['action'] ?? '') !== 'audit_history'
-    && !($canApprove && (string)($_POST['action'] ?? '') === 'update_approval')) {
+    && !($canApprove && in_array((string)($_POST['action'] ?? ''), ['update_approval', 'bulk_update_approval'], true))) {
     csb_json(false, [], 'Tu permiso del consolidado es de solo lectura.', 403);
 }
 
@@ -35,6 +35,7 @@ define('ACCESS_GRANTED', true);
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 
 mysqli_report(MYSQLI_REPORT_OFF);
+require_once __DIR__ . '/flota_consolidado_revision.php';
 
 function csb_h($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -374,31 +375,8 @@ function csb_hojaruta_key(?string $value): string {
 }
 
 function csb_find_hojaruta_duplicate(mysqli $conn, string $hojaRuta, int $excludeId = 0): ?array {
-    $hojaRuta = trim($hojaRuta);
-    if ($hojaRuta === '') {
-        return null;
-    }
-
-    $rows = csb_fetch_all($conn, "
-        SELECT
-            clm_salprog_id,
-            clm_salprog_fecha_operativa,
-            clm_salprog_horasalida,
-            clm_salprog_bus,
-            clm_salprog_placa,
-            clm_salprog_origen,
-            clm_salprog_destino,
-            clm_salprog_hojaruta
-        FROM tb_progbuses_salida_consolidado
-        WHERE clm_salprog_id <> ?
-          AND clm_salprog_hojaruta IS NOT NULL
-          AND TRIM(clm_salprog_hojaruta) <> ''
-          AND LOWER(TRIM(clm_salprog_hojaruta)) = LOWER(TRIM(?))
-        ORDER BY clm_salprog_fecha_operativa DESC, clm_salprog_horasalida DESC, clm_salprog_id DESC
-        LIMIT 1
-    ", 'is', [$excludeId, $hojaRuta]);
-
-    return $rows[0] ?? null;
+    if (csb_hojaruta_key($hojaRuta) === '') return null;
+    return csb_code_duplicate(csb_code_index(csb_code_records($conn, false)), 'hojaruta', $hojaRuta, $excludeId);
 }
 
 function csb_conductores_lineas(?string $value): array {
@@ -744,7 +722,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $action = (string)($_POST['action'] ?? '');
-    if ($canEdit || ($canApprove && $action === 'update_approval')) {
+    if ($canEdit || ($canApprove && in_array($action, ['update_approval', 'bulk_update_approval'], true))) {
         csb_set_salprog_audit_context(
             $conn,
             'consolidado_salidas_buses:' . ($action !== '' ? $action : 'post')
@@ -1029,6 +1007,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             $conn->rollback();
             csb_json(false, [], $e->getMessage() ?: 'No se pudo agregar el conductor.', 400);
+        }
+    }
+
+    if ($action === 'check_route_codes') {
+        try {
+            $items = csb_revision_items($_POST['items'] ?? null);
+            $checks = [];
+            foreach ($items as $item) {
+                if (!is_array($item) || !isset($item['id'], $item['field'], $item['value'])
+                    || (!is_int($item['id']) && !is_string($item['id']))
+                    || !is_string($item['field']) || !is_string($item['value'])
+                    || !in_array($item['field'], ['hojaruta', 'hojaruta_fisica_codigo'], true)
+                    || !preg_match('/^[1-9][0-9]*$/D', (string)$item['id'])) {
+                    throw new CsbRevisionError('Datos invalidos para comprobar duplicados.');
+                }
+                if ($item['field'] === 'hojaruta_fisica_codigo' && !$hojaFisicaCodigoReady) {
+                    throw new CsbRevisionError('El codigo de hoja fisica aun no esta disponible.', 409);
+                }
+                if (!preg_match('//u', $item['value'])
+                    || ($item['field'] === 'hojaruta_fisica_codigo' && !preg_match('/^.{0,255}$/us', trim($item['value'])))) {
+                    throw new CsbRevisionError('Codigo de hoja invalido.');
+                }
+                $checks[] = $item;
+            }
+            $index = csb_code_index(csb_code_records($conn, $hojaFisicaCodigoReady));
+            $results = [];
+            foreach ($checks as $item) {
+                $duplicate = csb_code_duplicate($index, $item['field'], $item['value'], (int)$item['id']);
+                $results[] = ['id' => (int)$item['id'], 'field' => $item['field'], 'value' => $item['value'],
+                    'duplicada' => $duplicate !== null, 'duplicado' => $duplicate ? csb_code_reference($duplicate) : null];
+            }
+            csb_json(true, ['results' => $results]);
+        } catch (CsbRevisionError $e) {
+            csb_json(false, $e->details, $e->getMessage(), $e->getCode());
+        }
+    }
+
+    if (in_array($action, ['update_revision', 'bulk_update_revision', 'bulk_update_approval'], true)) {
+        try {
+            $approvalOnly = $action === 'bulk_update_approval';
+            if (!$approvalOnly && !$canEdit) throw new CsbRevisionError('No tienes permiso de edicion.', 403);
+            if ($approvalOnly && !$canApprove) throw new CsbRevisionError('No tienes permiso de aprobacion.', 403);
+            $items = $action === 'update_revision' ? [$_POST] : csb_revision_items($_POST['items'] ?? null);
+            $saved = csb_save_revisions($conn, $items, $approvalOnly, $canApprove, [
+                'hojaruta_fisica_revisada' => $hojaFisicaReady,
+                'hojaruta_fisica_codigo' => $hojaFisicaCodigoReady,
+                'aprobado_oficial' => $aprobacionReady,
+                'importes_control' => $controlAmountsReady,
+            ]);
+            csb_json(true, $action === 'update_revision' ? $saved[0] : ['rows' => $saved, 'updated' => count($saved)], 'Cambios guardados.');
+        } catch (CsbRevisionError $e) {
+            csb_json(false, $e->details, $e->getMessage(), $e->getCode());
+        } catch (Throwable $e) {
+            csb_json(false, [], 'No se pudo guardar. No se guardo ningun cambio del lote.', 500);
         }
     }
 
@@ -1513,162 +1545,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action !== 'update_revision') {
-        csb_json(false, [], 'Accion no reconocida.', 400);
-    }
-
-    $id = (int)($_POST['id'] ?? 0);
-    $estado = strtoupper(trim((string)($_POST['estado'] ?? 'PENDIENTE')));
-    $comentario = trim((string)($_POST['comentario'] ?? ''));
-    $correccion = trim((string)($_POST['correccion'] ?? ''));
-    $hojaRuta = trim((string)($_POST['hojaruta'] ?? ''));
-    $permitidos = ['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL', 'TRANSBORDADO', 'TRANSBORDO'];
-
-    if ($id <= 0 || !in_array($estado, $permitidos, true)) {
-        csb_json(false, [], 'Datos incompletos para guardar.', 422);
-    }
-
-    $hojaFisicaRevisada = null;
-    if (array_key_exists('hojaruta_fisica_revisada', $_POST)) {
-        if (!is_string($_POST['hojaruta_fisica_revisada'])
-            || !in_array($_POST['hojaruta_fisica_revisada'], ['0', '1'], true)) {
-            csb_json(false, [], 'El indicador de hoja fisica debe ser 0 o 1.', 422);
-        }
-        if (!$hojaFisicaReady) {
-            csb_json(false, [], 'El control de hoja fisica aun no esta disponible.', 409);
-        }
-        $hojaFisicaRevisada = (int)$_POST['hojaruta_fisica_revisada'];
-    }
-
-    $hojaFisicaCodigo = null;
-    if (array_key_exists('hojaruta_fisica_codigo', $_POST)) {
-        if (!$hojaFisicaCodigoReady) {
-            csb_json(false, [], 'El codigo de hoja fisica aun no esta disponible.', 409);
-        }
-        if (!is_string($_POST['hojaruta_fisica_codigo'])) {
-            csb_json(false, [], 'El codigo de hoja fisica debe ser texto.', 422);
-        }
-        $hojaFisicaCodigo = trim($_POST['hojaruta_fisica_codigo']);
-        if (!preg_match('/^.{0,255}$/us', $hojaFisicaCodigo)) {
-            csb_json(false, [], 'El codigo de hoja fisica admite hasta 255 caracteres.', 422);
-        }
-    }
-    $aprobadoOficial = null;
-    if (array_key_exists('aprobado_oficial', $_POST)) {
-        if (!$canApprove) {
-            csb_json(false, [], 'No tienes permiso para la aprobacion oficial.', 403);
-        }
-        if (!$aprobacionReady) {
-            csb_json(false, [], 'La aprobacion oficial aun no esta disponible.', 409);
-        }
-        if (!is_string($_POST['aprobado_oficial']) || !in_array($_POST['aprobado_oficial'], ['0', '1'], true)) {
-            csb_json(false, [], 'La aprobacion oficial debe ser 0 o 1.', 422);
-        }
-        $aprobadoOficial = (int)$_POST['aprobado_oficial'];
-    }
-
-    $currentControlAmounts = null;
-    if ($estado === 'ANULADO' && $controlAmountsReady) {
-        $controlRows = csb_fetch_all($conn, "
-            SELECT
-                clm_salprog_revision_estado,
-                clm_salprog_imtotaldelviaje,
-                clm_salprog_imtotalcond1,
-                clm_salprog_imtotalcond2
-            FROM tb_progbuses_salida_consolidado
-            WHERE clm_salprog_id = ?
-            LIMIT 1
-        ", 'i', [$id]);
-
-        if (!$controlRows) {
-            csb_json(false, [], 'El viaje seleccionado ya no existe.', 404);
-        }
-
-        $currentControlAmounts = csb_control_amounts($controlRows[0]);
-        $currentRevision = strtoupper(trim((string)($controlRows[0]['clm_salprog_revision_estado'] ?? 'PENDIENTE')));
-        $confirmedControlAmounts = (string)($_POST['confirmar_importes_control'] ?? '') === '1';
-
-        if ($currentRevision !== 'ANULADO' && csb_has_control_amounts($currentControlAmounts) && !$confirmedControlAmounts) {
-            csb_json(false, [
-                'requiere_confirmacion_importes' => true,
-                'importes_control' => $currentControlAmounts,
-            ], 'Este viaje tiene importes registrados en Control de conductores. Revisa los montos y confirma la anulacion.', 409);
-        }
-    }
-
-    if ($hojaRuta !== '') {
-        $duplicate = csb_find_hojaruta_duplicate($conn, $hojaRuta, $id);
-        if ($duplicate) {
-            $refBus = trim((string)($duplicate['clm_salprog_bus'] ?? ''));
-            $refPlaca = trim((string)($duplicate['clm_salprog_placa'] ?? ''));
-            $refUnidad = $refBus !== '' && $refPlaca !== '' ? $refBus . ' (' . $refPlaca . ')' : ($refBus ?: ($refPlaca ?: 'otra unidad'));
-            $refFecha = csb_date_label($duplicate['clm_salprog_fecha_operativa'] ?? '');
-            $refHora = csb_hora_label($duplicate['clm_salprog_horasalida'] ?? '');
-            csb_json(false, [
-                'duplicada' => true,
-                'duplicado_id' => (int)($duplicate['clm_salprog_id'] ?? 0),
-            ], "La Hoja de Ruta ya esta registrada en {$refUnidad}, {$refFecha} {$refHora}. No se guardo el duplicado.", 409);
-        }
-    }
-
-    $uid = csb_uid();
-    $optionalSet = [];
-    $params = [$estado, $comentario, $correccion, $hojaRuta];
-    $types = 'ssss';
-    if ($hojaFisicaRevisada !== null) {
-        $optionalSet[] = 'clm_salprog_hojaruta_fisica_revisada = ?,';
-        $params[] = $hojaFisicaRevisada;
-        $types .= 'i';
-    }
-    if ($hojaFisicaCodigo !== null) {
-        $optionalSet[] = 'clm_salprog_hojaruta_fisica_codigo = ?,';
-        $params[] = $hojaFisicaCodigo;
-        $types .= 's';
-    }
-    if ($aprobadoOficial !== null) {
-        $optionalSet[] = 'clm_salprog_aprobado_oficial = ?,';
-        $params[] = $aprobadoOficial;
-        $types .= 'i';
-    }
-    $optionalSet = implode("\n", $optionalSet);
-    $params[] = $uid;
-    $params[] = $id;
-    $types .= 'ii';
-    $stmt = $conn->prepare("
-        UPDATE tb_progbuses_salida_consolidado
-           SET clm_salprog_revision_estado = ?,
-               clm_salprog_comentario_revision = ?,
-               clm_salprog_correccion = ?,
-               clm_salprog_hojaruta = NULLIF(?, ''),
-               {$optionalSet}
-               clm_salprog_usuario_revision = ?,
-               clm_salprog_datetime_revision = NOW()
-         WHERE clm_salprog_id = ?
-         LIMIT 1
-    ");
-    if (!$stmt) {
-        csb_json(false, [], $conn->error ?: 'No se pudo preparar la actualizacion.', 500);
-    }
-    csb_bind($stmt, $types, $params);
-    $ok = $stmt->execute();
-    $error = $stmt->error;
-    $stmt->close();
-
-    if (!$ok) {
-        csb_json(false, [], $error ?: 'No se pudo guardar.', 500);
-    }
-
-    csb_json(true, [
-        'estado' => $estado,
-        'clase' => csb_estado_class($estado),
-        'actualizado' => date('d/m/Y H:i'),
-        'hojaruta' => $hojaRuta,
-        'tiene_hojaruta' => $hojaRuta !== '',
-        'hojaruta_fisica_revisada' => $hojaFisicaRevisada === null ? null : $hojaFisicaRevisada === 1,
-        'hojaruta_fisica_codigo' => $hojaFisicaCodigo,
-        'aprobado_oficial' => $aprobadoOficial === null ? null : $aprobadoOficial === 1,
-        'importes_control' => $currentControlAmounts,
-    ], 'Cambios guardados.');
+    csb_json(false, [], 'Accion no reconocida.', 400);
 }
 
 $revision = strtoupper(trim((string)($_GET['revision'] ?? 'TODOS')));
@@ -1680,6 +1557,7 @@ if (!in_array($revision, $revisionPermitidas, true)) {
 
 $rows = [];
 $duplicateHojaRutaKeys = [];
+$duplicatePhysicalCodeKeys = [];
 $pageError = '';
 $ultimoCierre = null;
 $cierresEnRango = 0;
@@ -1783,20 +1661,14 @@ if ($tableReady) {
         ", $types, $params);
         $driverLicensesByDni = csb_fetch_driver_licenses_by_dni($conn, csb_driver_dnis_from_rows($rows));
 
-        $duplicateRows = csb_fetch_all($conn, "
-            SELECT LOWER(TRIM(clm_salprog_hojaruta)) AS hoja_key, COUNT(*) AS total
-            FROM tb_progbuses_salida_consolidado
-            WHERE clm_salprog_hojaruta IS NOT NULL
-              AND TRIM(clm_salprog_hojaruta) <> ''
-            GROUP BY LOWER(TRIM(clm_salprog_hojaruta))
-            HAVING COUNT(*) > 1
-        ");
-        foreach ($duplicateRows as $duplicateRow) {
-            $key = csb_hojaruta_key($duplicateRow['hoja_key'] ?? '');
-            if ($key !== '') {
-                $duplicateHojaRutaKeys[$key] = true;
-            }
+        $codeIndex = csb_code_index(csb_code_records($conn, $hojaFisicaCodigoReady));
+        foreach ($codeIndex['hojaruta'] as $key => $matches) {
+            if (count($matches) > 1) $duplicateHojaRutaKeys[$key] = true;
         }
+        foreach ($codeIndex['hojaruta_fisica_codigo'] as $key => $matches) {
+            if (count($matches) > 1) $duplicatePhysicalCodeKeys[$key] = true;
+        }
+        unset($codeIndex);
 
         if (csb_table_exists($conn, 'tb_progbuses_cierre_operativo')) {
             $cierreRows = csb_fetch_all($conn, "
@@ -1895,7 +1767,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=official-approval-3', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=bulk-revision-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -2112,6 +1984,19 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 </div>
             </div>
 
+            <?php if ($canEdit || ($canApprove && $aprobacionReady)): ?>
+                <div class="csb-bulk-bar" data-csb-bulk-bar>
+                    <div class="csb-save-mode" role="group" aria-label="Modo de guardado">
+                        <button type="button" class="is-active" data-csb-mode="individual" aria-pressed="true"><i class="bi bi-pencil-square" aria-hidden="true"></i> Individual</button>
+                        <button type="button" data-csb-mode="bulk" aria-pressed="false"><i class="bi bi-ui-checks" aria-hidden="true"></i> Masivo</button>
+                    </div>
+                    <span class="csb-bulk-count" data-csb-bulk-count aria-live="polite">0 viajes modificados</span>
+                    <div class="csb-bulk-actions" hidden data-csb-bulk-actions>
+                        <button type="button" class="csb-btn csb-btn--primary" data-csb-bulk-save disabled><i class="bi bi-save" aria-hidden="true"></i> Guardar cambios</button>
+                        <button type="button" class="csb-btn csb-btn--soft" data-csb-bulk-cancel disabled><i class="bi bi-x-circle" aria-hidden="true"></i> Cancelar cambios</button>
+                    </div>
+                </div>
+            <?php endif; ?>
             <div class="csb-table-wrap">
                 <table class="csb-table" data-csb-table>
                     <thead>
@@ -2157,6 +2042,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 $hojaRuta = trim((string)($row['clm_salprog_hojaruta'] ?? ''));
                                 $hojaFisicaRevisada = (int)($row['clm_salprog_hojaruta_fisica_revisada'] ?? 0) === 1;
                                 $hojaFisicaCodigo = (string)($row['clm_salprog_hojaruta_fisica_codigo'] ?? '');
+                                $physicalCodeDuplicate = isset($duplicatePhysicalCodeKeys[csb_hojaruta_key($hojaFisicaCodigo)]);
                                 $aprobadoOficial = (int)($row['clm_salprog_aprobado_oficial'] ?? 0) === 1;
                                 $tieneHojaRuta = $hojaRuta !== '';
                                 $hojaRutaDuplicada = $tieneHojaRuta && isset($duplicateHojaRutaKeys[csb_hojaruta_key($hojaRuta)]);
@@ -2176,6 +2062,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 data-csb-db-revision="<?= csb_h($estado) ?>"
                                 data-csb-has-hojaruta="<?= $tieneHojaRuta ? '1' : '0' ?>"
                                 data-csb-hojaruta-duplicate="<?= $hojaRutaDuplicada ? '1' : '0' ?>"
+                                data-csb-physical-code-duplicate="<?= $physicalCodeDuplicate ? '1' : '0' ?>"
                                 data-csb-control-ready="<?= $controlAmountsReady ? '1' : '0' ?>"
                                 data-csb-has-control-amounts="<?= $hasControlAmounts ? '1' : '0' ?>"
                                 data-csb-control-viaje="<?= csb_h(number_format($controlAmounts['viaje'], 4, '.', '')) ?>"
@@ -2233,10 +2120,12 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                     <label class="csb-physical-route-code">
                                         <span>Codigo de hoja fisica</span>
                                         <input type="text" data-csb-field="hojaruta_fisica_codigo" maxlength="255"
+                                            class="<?= $physicalCodeDuplicate ? 'is-duplicate' : '' ?>"
                                             value="<?= csb_h($hojaFisicaCodigo) ?>"
                                             <?= $canEdit ? '' : 'readonly' ?>
                                             <?= $hojaFisicaCodigoReady ? '' : 'disabled title="Codigo de hoja fisica no disponible"' ?>>
                                     </label>
+                                    <small class="csb-code-state<?= $physicalCodeDuplicate ? ' is-duplicate' : '' ?>" data-csb-physical-code-state <?= $physicalCodeDuplicate ? '' : 'hidden' ?> aria-live="polite"><?= $physicalCodeDuplicate ? 'Codigo de hoja fisica repetido' : '' ?></small>
                                     <small class="csb-hojaruta-state" data-csb-hojaruta-state>
                                         <i class="bi <?= $hojaRutaDuplicada ? 'bi-exclamation-triangle-fill' : ($tieneHojaRuta ? 'bi-check-circle-fill' : 'bi-circle') ?>"></i>
                                         <span><?= $hojaRutaDuplicada ? 'Duplicada: revisar antes de continuar' : ($tieneHojaRuta ? 'Hoja de ruta registrada Ã‚Â· sin duplicados' : 'Sin número de hoja de ruta') ?></span>
@@ -2891,7 +2780,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=official-approval-2', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=bulk-revision-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
