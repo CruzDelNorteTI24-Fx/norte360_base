@@ -219,6 +219,7 @@
 
     updateAmountFilterCounts(group);
     updateVisibleCount();
+    syncApproveVisibleButton();
   }
 
   function rowGroupLabel(row) {
@@ -550,6 +551,38 @@
     return rows.filter((row) => JSON.stringify(rowRevisionPayload(row)) !== JSON.stringify(rowBaselines.get(row)));
   }
 
+  function visibleUnapprovedRows() {
+    if (!canApprove || cfg.officialApprovalReady !== true) return [];
+    return currentVisibleRows().filter((row) => {
+      const checkbox = codeInput(row, 'aprobado_oficial');
+      return checkbox && !checkbox.disabled && !checkbox.checked;
+    });
+  }
+
+  function syncApproveVisibleButton() {
+    const button = document.querySelector('[data-csb-approve-visible]');
+    if (button) button.disabled = revisionBusy || !bulkMode || !visibleUnapprovedRows().length;
+  }
+
+  function approveVisibleRows() {
+    if (revisionBusy || !bulkMode || !canApprove || cfg.officialApprovalReady !== true) return;
+    const targets = visibleUnapprovedRows();
+    if (!targets.length) return;
+    const targetSet = new Set(targets);
+    const pendingTotal = rows.filter((row) => {
+      const payload = rowRevisionPayload(row);
+      if (targetSet.has(row)) payload.aprobado_oficial = '1';
+      return JSON.stringify(payload) !== JSON.stringify(rowBaselines.get(row));
+    }).length;
+    if (pendingTotal > 300) {
+      showNotice('El lote superaria 300 viajes modificados. Guarda o cancela los pendientes y ajusta los filtros antes de aprobar visibles.', false);
+      return;
+    }
+    targets.forEach((row) => { codeInput(row, 'aprobado_oficial').checked = true; });
+    syncBulkBar();
+    showNotice(`${targets.length} ${targets.length === 1 ? 'aprobacion pendiente' : 'aprobaciones pendientes'}.`, true);
+  }
+
   function syncBulkBar() {
     const dirty = dirtyRows();
     rows.forEach((row) => row.classList.toggle('csb-row--dirty', dirty.includes(row)));
@@ -570,6 +603,7 @@
       const save = row.querySelector('[data-csb-save]');
       if (save) save.hidden = bulkMode;
     });
+    syncApproveVisibleButton();
   }
 
   function applySavedRevision(row, data) {
@@ -593,7 +627,7 @@
   }
 
   function lockRevisionControls() {
-    const controls = Array.from(document.querySelectorAll('[data-csb-row] input, [data-csb-row] textarea, [data-csb-row] button, [data-csb-mode], [data-csb-bulk-save], [data-csb-bulk-cancel], [data-csb-manual-open]'));
+    const controls = Array.from(document.querySelectorAll('[data-csb-row] input, [data-csb-row] textarea, [data-csb-row] button, [data-csb-mode], [data-csb-approve-visible], [data-csb-bulk-save], [data-csb-bulk-cancel], [data-csb-manual-open]'));
     const previous = controls.map((control) => ({ control, disabled: control.disabled }));
     controls.forEach((control) => { control.disabled = true; });
     return () => previous.forEach(({ control, disabled }) => { control.disabled = disabled; });
@@ -695,6 +729,7 @@
       syncBulkBar();
     }));
     document.querySelector('[data-csb-bulk-save]')?.addEventListener('click', (event) => saveRevisionRows(dirtyRows(), true, event.currentTarget));
+    document.querySelector('[data-csb-approve-visible]')?.addEventListener('click', approveVisibleRows);
     document.querySelector('[data-csb-bulk-cancel]')?.addEventListener('click', () => {
       if (revisionBusy || !window.confirm('Descartar los cambios pendientes de todos los viajes?')) return;
       codeEpoch++;

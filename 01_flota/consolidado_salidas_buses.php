@@ -1767,7 +1767,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=bulk-revision-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=approve-visible-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -1992,6 +1992,9 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                     </div>
                     <span class="csb-bulk-count" data-csb-bulk-count aria-live="polite">0 viajes modificados</span>
                     <div class="csb-bulk-actions" hidden data-csb-bulk-actions>
+                        <?php if ($canApprove && $aprobacionReady): ?>
+                            <button type="button" class="csb-btn csb-btn--approve-visible" data-csb-approve-visible disabled title="Marcar APROBADO en los viajes visibles"><i class="bi bi-check2-all" aria-hidden="true"></i> Aprobar visibles</button>
+                        <?php endif; ?>
                         <button type="button" class="csb-btn csb-btn--primary" data-csb-bulk-save disabled><i class="bi bi-save" aria-hidden="true"></i> Guardar cambios</button>
                         <button type="button" class="csb-btn csb-btn--soft" data-csb-bulk-cancel disabled><i class="bi bi-x-circle" aria-hidden="true"></i> Cancelar cambios</button>
                     </div>
@@ -2780,7 +2783,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=bulk-revision-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=approve-visible-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>

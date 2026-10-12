@@ -2492,6 +2492,8 @@ body:has(.csb-driver-modal.show, .csb-driver-history-modal.show, .csb-manual-mod
 
 .csb-bulk-actions[hidden] { display: none; }
 .csb-bulk-actions button:disabled { opacity: .55; cursor: default; }
+.csb-btn--approve-visible { background: #edf8f1; border-color: #acd4b9; color: #21633d; }
+.csb-btn--approve-visible:hover:not(:disabled) { background: #ddefe3; border-color: #71ac88; }
 .csb-table [data-csb-save][hidden] { display: none; }
 
 .csb-table tbody tr.csb-row--dirty > td:first-child {
@@ -2518,6 +2520,7 @@ body:has(.csb-driver-modal.show, .csb-driver-history-modal.show, .csb-manual-mod
     .csb-save-mode { margin-left: 42px; }
     .csb-bulk-actions { margin-left: 0; width: 100%; }
     .csb-bulk-actions .csb-btn { flex: 1 1 130px; justify-content: center; white-space: normal; }
+    .csb-bulk-actions .csb-btn--approve-visible { flex-basis: 100%; }
 }
 
 /* Validación de Hoja de Ruta duplicada */
