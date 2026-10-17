@@ -1298,14 +1298,20 @@
     row.querySelectorAll('[data-csb-driver-edit]').forEach((button) => {
       const allowed = canEdit && dbValue === 'OBSERVADO';
       button.hidden = !allowed;
-      button.disabled = !allowed;
+      button.disabled = revisionBusy || !allowed;
     });
     row.querySelectorAll('[data-csb-driver-add]').forEach((button) => {
       const driverCount = row.querySelectorAll('[data-csb-driver-line]').length;
       const canAdd = canEdit && dbValue === 'OBSERVADO' && driverCount < 2;
       button.hidden = !canAdd;
-      button.disabled = !canAdd;
+      button.disabled = revisionBusy || !canAdd;
     });
+    const swap = row.querySelector('[data-csb-driver-swap]');
+    if (swap) {
+      const allowed = canEdit && cfg.canSwapDrivers === true && row.querySelectorAll('[data-csb-driver-line]').length === 2;
+      swap.hidden = !allowed;
+      swap.disabled = revisionBusy || !allowed;
+    }
     row.classList.toggle(
       'csb-row--cancel-selected',
       value === 'ANULADO' && row.dataset.csbHasControlAmounts === '1' && dbValue !== 'ANULADO'
@@ -1730,6 +1736,7 @@
 
   function driverHistoryAction(value) {
     const action = compact(value || '').toLowerCase();
+    if (action === 'intercambiar_orden_conductores') return 'Intercambio conductores y pagos';
     if (action.includes('agregar')) return 'Agrego conductor';
     if (action.includes('edicion') || action.includes('editar')) return 'Edito conductor';
     return action ? action.replace(/_/g, ' ') : 'Cambio de conductor';
@@ -1802,7 +1809,7 @@
             </div>
             <div>
               <span>Posicion</span>
-              <strong>${escapeHtml(String(Number(entry.conductor_index ?? index) + 1).padStart(2, '0'))}</strong>
+              <strong>${entry.accion === 'intercambiar_orden_conductores' ? '01 &harr; 02' : escapeHtml(String(Number(entry.conductor_index ?? index) + 1).padStart(2, '0'))}</strong>
             </div>
           </div>
           <div class="csb-driver-history-change">
@@ -1831,6 +1838,57 @@
     rows.forEach((row) => syncDriverHistoryButton(row));
   }
 
+  function setupDriverSwap() {
+    if (!canEdit || cfg.canSwapDrivers !== true) return;
+    document.addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-csb-driver-swap]');
+      if (!button || button.disabled || revisionBusy) return;
+      const row = button.closest('[data-csb-row]');
+      const lines = Array.from(row?.querySelectorAll('[data-csb-driver-line]') || []);
+      if (lines.length !== 2) return;
+      const token = row.dataset.csbDriverOrderToken || '';
+      revisionBusy = true;
+      const unlock = lockRevisionControls();
+      const originalHtml = button.innerHTML;
+      try {
+        const message = 'Intercambiar conductor 1 y conductor 2? Sus pagos, estados y observaciones se moveran con cada persona. El cambio se guardara inmediatamente.';
+        const confirmed = window.N360Dialog?.confirm
+          ? await window.N360Dialog.confirm(message, { title: 'Intercambiar conductores', confirmText: 'Intercambiar', cancelText: 'Cancelar' })
+          : window.confirm(message);
+        if (!confirmed) return;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
+        const fd = new FormData();
+        fd.append('csrf', csrf);
+        fd.append('action', 'swap_drivers');
+        fd.append('id', row.dataset.csbRow);
+        fd.append('expected_order_token', token);
+        const res = await fetch(endpoint, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.message || 'No se pudo intercambiar los conductores.');
+        lines[0].before(lines[1]);
+        [lines[1], lines[0]].forEach((line, index) => {
+          line.dataset.csbDriverIndex = String(index);
+          const edit = line.querySelector('[data-csb-driver-edit]');
+          if (edit) edit.dataset.csbDriverIndex = String(index);
+        });
+        row.dataset.csbDriverOrderToken = json.data.driver_order_token;
+        setDriverHistoryPayload(row, json.data.driver_history);
+        syncControlImpact(row, json.data.importes_control);
+        applyScreenFilters();
+        showNotice(json.message || 'Orden de conductores guardado.', true);
+      } catch (error) {
+        showNotice(error.message || 'No se pudo intercambiar los conductores.', false);
+      } finally {
+        unlock();
+        revisionBusy = false;
+        button.innerHTML = originalHtml;
+        syncStateButtons(row, codeInput(row, 'estado')?.value || row.dataset.csbDbRevision);
+        syncDriverHistoryButton(row);
+        syncBulkBar();
+      }
+    });
+  }
+
   function setupDriverEditor() {
     if (!canEdit) return;
     const modalEl = document.getElementById('csbDriverModal');
@@ -1855,6 +1913,7 @@
       row: null,
       line: null,
       index: -1,
+      token: '',
       selected: null
     };
 
@@ -1901,7 +1960,7 @@
 
     const openDriverModal = ({ mode, row, line = null, index = -1 }) => {
       const estadoDb = String(row?.dataset.csbDbRevision || row?.querySelector('[data-csb-field="estado"]')?.value || '').toUpperCase();
-      if (!row) return;
+      if (!row || revisionBusy) return;
       if (estadoDb !== 'OBSERVADO') {
         showNotice(`Guarda la revision como OBSERVADO antes de ${mode === 'add' ? 'agregar' : 'editar'} conductores.`, false);
         return;
@@ -1919,7 +1978,7 @@
         }
       }
 
-      state = { mode, row, line, index, selected: null };
+      state = { mode, row, line, index, token: row.dataset.csbDriverOrderToken || '', selected: null };
       if (titleEl) titleEl.textContent = mode === 'add' ? 'Agregar conductor al consolidado' : 'Editar conductor del consolidado';
       if (currentLabelEl) currentLabelEl.textContent = mode === 'add' ? 'Conductor ya asignado' : 'Conductor actual';
       setSaveLabel(mode === 'add' ? 'Agregar conductor' : 'Guardar conductor');
@@ -1939,6 +1998,7 @@
     };
 
     listEl.addEventListener('click', (event) => {
+      if (revisionBusy) return;
       const choice = event.target.closest('[data-csb-driver-choice]');
       if (!choice) return;
       const id = Number(choice.dataset.csbDriverChoice || 0);
@@ -1952,6 +2012,7 @@
     document.addEventListener('click', (event) => {
       const editButton = event.target.closest('[data-csb-driver-edit]');
       if (editButton) {
+        if (editButton.disabled) return;
         const row = editButton.closest('[data-csb-row]');
         const line = editButton.closest('[data-csb-driver-line]');
         const index = Number(editButton.dataset.csbDriverIndex ?? line?.dataset.csbDriverIndex ?? -1);
@@ -1962,6 +2023,7 @@
 
       const addButton = event.target.closest('[data-csb-driver-add]');
       if (addButton) {
+        if (addButton.disabled) return;
         const row = addButton.closest('[data-csb-row]');
         if (!row) return;
         openDriverModal({ mode: 'add', row });
@@ -1969,7 +2031,7 @@
     });
 
     saveButton.addEventListener('click', async () => {
-      if (!state.row || !state.selected) return;
+      if (!state.row || !state.selected || revisionBusy) return;
       if (state.mode === 'edit' && !state.line) return;
 
       const originalHtml = saveButton.innerHTML;
@@ -1977,14 +2039,20 @@
       fd.append('csrf', csrf);
       fd.append('action', state.mode === 'add' ? 'add_driver' : 'update_driver');
       fd.append('id', state.row.dataset.csbRow || '');
+      fd.append('expected_order_token', state.token);
       if (state.mode === 'edit') {
         fd.append('driver_index', String(state.index));
       }
       fd.append('driver_id', String(state.selected.id));
 
+      revisionBusy = true;
+      const unlock = lockRevisionControls();
+      const dismiss = Array.from(modalEl.querySelectorAll('[data-bs-dismiss]'));
+      dismiss.forEach((button) => { button.disabled = true; });
       saveButton.disabled = true;
       saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Guardando';
 
+      let saved = false;
       try {
         const res = await fetch(endpoint, {
           method: 'POST',
@@ -2031,22 +2099,35 @@
           state.line.dataset.csbDriverLicense = driverLicense;
         }
 
-        syncStateButtons(state.row, codeInput(state.row, 'estado')?.value || state.row.dataset.csbDbRevision || 'OBSERVADO');
+        state.row.dataset.csbDriverOrderToken = json.data.driver_order_token;
         if (json.data?.driver_history) {
           setDriverHistoryPayload(state.row, json.data.driver_history);
         }
         showNotice(json.message || (state.mode === 'add' ? 'Conductor agregado.' : 'Conductor actualizado.'), true);
-        modal.hide();
+        saved = true;
       } catch (error) {
         showNotice(error.message || (state.mode === 'add' ? 'No se pudo agregar el conductor.' : 'No se pudo actualizar el conductor.'), false);
         saveButton.disabled = false;
       } finally {
+        unlock();
+        revisionBusy = false;
+        dismiss.forEach((button) => { button.disabled = false; });
+        if (state.row) {
+          syncStateButtons(state.row, codeInput(state.row, 'estado')?.value || state.row.dataset.csbDbRevision);
+          syncDriverHistoryButton(state.row);
+        }
+        syncBulkBar();
         saveButton.innerHTML = originalHtml;
+        if (saved) modal.hide();
       }
     });
 
+    modalEl.addEventListener('hide.bs.modal', (event) => {
+      if (revisionBusy) event.preventDefault();
+    });
+
     modalEl.addEventListener('hidden.bs.modal', () => {
-      state = { mode: 'edit', row: null, line: null, index: -1, selected: null };
+      state = { mode: 'edit', row: null, line: null, index: -1, token: '', selected: null };
       if (titleEl) titleEl.textContent = 'Editar conductor del consolidado';
       if (currentLabelEl) currentLabelEl.textContent = 'Conductor actual';
       setSaveLabel('Guardar conductor');
@@ -2472,6 +2553,7 @@
   setupHojaRutaList();
   setupOperationalSummary();
   setupDriverHistoryModal();
+  setupDriverSwap();
   setupDriverEditor();
   setupTransferTrip();
   setupManualTrip();

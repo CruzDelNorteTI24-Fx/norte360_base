@@ -36,6 +36,7 @@ require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 
 mysqli_report(MYSQLI_REPORT_OFF);
 require_once __DIR__ . '/flota_consolidado_revision.php';
+require_once __DIR__ . '/flota_conductores_orden.php';
 
 function csb_h($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -570,7 +571,7 @@ function csb_fetch_conductor_disponible(mysqli $conn, int $id, bool $allowInacti
     return $rows[0];
 }
 
-function csb_build_driver_history(?string $rawJson, string $oldText, string $newText, int $driverIndex, array $driver, string $action = 'edicion_conductor_consolidado'): string {
+function csb_build_driver_history(?string $rawJson, string $oldText, string $newText, int $driverIndex, array $driver, string $action = 'edicion_conductor_consolidado', array $details = []): string {
     $decoded = json_decode((string)$rawJson, true);
     if (!is_array($decoded)) {
         $decoded = [];
@@ -588,7 +589,7 @@ function csb_build_driver_history(?string $rawJson, string $oldText, string $new
         }
     }
 
-    $payload['historial_ediciones'][] = [
+    $payload['historial_ediciones'][] = array_merge([
         'fecha' => date('Y-m-d H:i:s'),
         'usuario_id' => csb_uid(),
         'usuario' => (string)($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? ''),
@@ -598,7 +599,7 @@ function csb_build_driver_history(?string $rawJson, string $oldText, string $new
         'texto_anterior' => $oldText,
         'texto_nuevo' => $newText,
         'accion' => $action,
-    ];
+    ], $details);
 
     return json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
@@ -686,6 +687,11 @@ $controlAmountsReady = $tableReady;
 foreach (['clm_salprog_imtotaldelviaje', 'clm_salprog_imtotalcond1', 'clm_salprog_imtotalcond2'] as $controlAmountColumn) {
     $controlAmountsReady = $controlAmountsReady
         && csb_column_exists($conn, 'tb_progbuses_salida_consolidado', $controlAmountColumn);
+}
+$driverSwapReady = $tableReady;
+foreach (['clm_salprog_cond1_estado', 'clm_salprog_cond2_estado', 'clm_salprog_imtotalcond1', 'clm_salprog_imtotalcond2', 'clm_salprog_cond1_observacion', 'clm_salprog_cond2_observacion'] as $driverSwapColumn) {
+    $driverSwapReady = $driverSwapReady
+        && csb_column_exists($conn, 'tb_progbuses_salida_consolidado', $driverSwapColumn);
 }
 
 /* Rango de fechas operativas disponible antes de procesar GET/POST.
@@ -826,6 +832,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
     }
 
+    if ($action === 'swap_drivers') {
+        if (!$canEdit) {
+            csb_json(false, [], 'No tienes permiso para intercambiar conductores.', 403);
+        }
+        if (!$driverSwapReady) {
+            csb_json(false, [], 'Faltan columnas de pagos de conductores para un intercambio completo.', 409);
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            csb_json(false, [], 'Selecciona un viaje valido.', 422);
+        }
+        $stmt = null;
+        $transactionStarted = false;
+        try {
+            if (!$conn->begin_transaction()) throw new RuntimeException('No se pudo iniciar el intercambio.', 500);
+            $transactionStarted = true;
+            $current = n360_flota_lock_driver_order($conn, $id, (string)($_POST['expected_order_token'] ?? ''));
+            $oldText = (string)($current['clm_salprog_conductores_texto'] ?? '');
+            $lines = csb_conductores_lineas($oldText);
+            if (count($lines) !== 2) {
+                throw new RuntimeException('El viaje debe tener exactamente dos conductores para intercambiar su orden.', 422);
+            }
+            $dni1 = csb_driver_dni_from_label($lines[0]);
+            $dni2 = csb_driver_dni_from_label($lines[1]);
+            if (csb_norm($lines[0]) === csb_norm($lines[1]) || ($dni1 !== '' && $dni1 === $dni2)) {
+                throw new RuntimeException('Los dos conductores deben ser personas diferentes.', 422);
+            }
+            $rawJson = (string)($current['clm_salprog_conductores_json'] ?? '');
+            if (trim($rawJson) !== '' && !is_array(json_decode($rawJson, true))) {
+                throw new RuntimeException('El historial de conductores no es valido. No se ha modificado el viaje.', 409);
+            }
+            $newText = implode(' | ', array_reverse($lines));
+            $payments = [];
+            foreach ([1, 2] as $position) {
+                $payments[] = [
+                    'estado' => $current['clm_salprog_cond' . $position . '_estado'],
+                    'importe' => $current['clm_salprog_imtotalcond' . $position],
+                    'observacion' => $current['clm_salprog_cond' . $position . '_observacion'],
+                ];
+            }
+            $newJson = csb_build_driver_history($rawJson, $oldText, $newText, -1, ['label' => $newText], 'intercambiar_orden_conductores', [
+                'posiciones' => [0, 1],
+                'pagos_anteriores' => $payments,
+                'pagos_nuevos' => array_reverse($payments),
+            ]);
+            // Bind the original opposite values: MySQL SET assignments are sequential.
+            $cond1Estado = $payments[1]['estado'];
+            $cond1Importe = $payments[1]['importe'];
+            $cond1Obs = $payments[1]['observacion'];
+            $cond2Estado = $payments[0]['estado'];
+            $cond2Importe = $payments[0]['importe'];
+            $cond2Obs = $payments[0]['observacion'];
+            $stmt = $conn->prepare('UPDATE tb_progbuses_salida_consolidado SET
+                clm_salprog_conductores_texto = ?, clm_salprog_conductores_json = ?,
+                clm_salprog_cond1_estado = ?, clm_salprog_imtotalcond1 = ?, clm_salprog_cond1_observacion = ?,
+                clm_salprog_cond2_estado = ?, clm_salprog_imtotalcond2 = ?, clm_salprog_cond2_observacion = ?
+                WHERE clm_salprog_id = ? LIMIT 1');
+            if (!$stmt) {
+                throw new RuntimeException('No se pudo preparar el intercambio.', 500);
+            }
+            $stmt->bind_param('ssssssssi', $newText, $newJson, $cond1Estado, $cond1Importe, $cond1Obs, $cond2Estado, $cond2Importe, $cond2Obs, $id);
+            if (!$stmt->execute()) {
+                throw new RuntimeException('No se pudo guardar el intercambio.', 500);
+            }
+            $stmt->close();
+            $stmt = null;
+            $current['clm_salprog_conductores_texto'] = $newText;
+            $current['clm_salprog_conductores_json'] = $newJson;
+            $current['clm_salprog_imtotalcond1'] = $cond1Importe;
+            $current['clm_salprog_imtotalcond2'] = $cond2Importe;
+            if (!$conn->commit()) throw new RuntimeException('No se pudo confirmar el intercambio.', 500);
+            $transactionStarted = false;
+            csb_json(true, [
+                'id' => $id,
+                'driver_order_token' => n360_flota_driver_order_token($current),
+                'driver_history' => csb_driver_history_payload($newJson),
+                'importes_control' => csb_control_amounts($current),
+            ], 'Orden intercambiado. Los pagos, estados y observaciones siguen con cada conductor.');
+        } catch (Throwable $e) {
+            if ($stmt instanceof mysqli_stmt) $stmt->close();
+            if ($transactionStarted) $conn->rollback();
+            csb_json(false, [], $e->getMessage(), in_array($e->getCode(), [404, 409, 422], true) ? $e->getCode() : 500);
+        }
+    }
+
     if ($action === 'update_driver') {
         $id = (int)($_POST['id'] ?? 0);
         $driverIndex = (int)($_POST['driver_index'] ?? -1);
@@ -844,22 +935,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $conn->begin_transaction();
         try {
-            $currentRows = csb_fetch_all($conn, "
-                SELECT
-                    clm_salprog_revision_estado,
-                    clm_salprog_conductores_texto,
-                    clm_salprog_conductores_json
-                FROM tb_progbuses_salida_consolidado
-                WHERE clm_salprog_id = ?
-                LIMIT 1
-                FOR UPDATE
-            ", 'i', [$id]);
-
-            if (!$currentRows) {
-                throw new RuntimeException('No se encontro el registro del consolidado.');
-            }
-
-            $current = $currentRows[0];
+            $current = n360_flota_lock_driver_order($conn, $id, (string)($_POST['expected_order_token'] ?? ''));
             $estadoActual = strtoupper(trim((string)($current['clm_salprog_revision_estado'] ?? 'PENDIENTE')));
             if ($estadoActual !== 'OBSERVADO') {
                 throw new RuntimeException('Solo puedes editar conductores cuando el registro esta OBSERVADO.');
@@ -903,11 +979,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'driver_license' => $driver['licencia'] ?? '',
                 'conductores_texto' => $newText,
                 'conductores_lineas' => $driverLines,
+                'driver_order_token' => n360_flota_driver_order_token(['clm_salprog_conductores_texto' => $newText, 'clm_salprog_conductores_json' => $newJson]),
                 'driver_history' => csb_driver_history_payload($newJson),
             ], 'Conductor actualizado y guardado en historial.');
         } catch (Throwable $e) {
             $conn->rollback();
-            csb_json(false, [], $e->getMessage() ?: 'No se pudo actualizar el conductor.', 400);
+            csb_json(false, [], $e->getMessage() ?: 'No se pudo actualizar el conductor.', in_array($e->getCode(), [404, 409], true) ? $e->getCode() : 400);
         }
     }
 
@@ -928,22 +1005,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $conn->begin_transaction();
         try {
-            $currentRows = csb_fetch_all($conn, "
-                SELECT
-                    clm_salprog_revision_estado,
-                    clm_salprog_conductores_texto,
-                    clm_salprog_conductores_json
-                FROM tb_progbuses_salida_consolidado
-                WHERE clm_salprog_id = ?
-                LIMIT 1
-                FOR UPDATE
-            ", 'i', [$id]);
-
-            if (!$currentRows) {
-                throw new RuntimeException('No se encontro el registro del consolidado.');
-            }
-
-            $current = $currentRows[0];
+            $current = n360_flota_lock_driver_order($conn, $id, (string)($_POST['expected_order_token'] ?? ''));
             $estadoActual = strtoupper(trim((string)($current['clm_salprog_revision_estado'] ?? 'PENDIENTE')));
             if ($estadoActual !== 'OBSERVADO') {
                 throw new RuntimeException('Solo puedes agregar conductores cuando el registro esta OBSERVADO.');
@@ -1002,11 +1064,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'driver_license' => $driver['licencia'] ?? '',
                 'conductores_texto' => $newText,
                 'conductores_lineas' => $driverLines,
+                'driver_order_token' => n360_flota_driver_order_token(['clm_salprog_conductores_texto' => $newText, 'clm_salprog_conductores_json' => $newJson]),
                 'driver_history' => csb_driver_history_payload($newJson),
             ], 'Conductor agregado y guardado en historial.');
         } catch (Throwable $e) {
             $conn->rollback();
-            csb_json(false, [], $e->getMessage() ?: 'No se pudo agregar el conductor.', 400);
+            csb_json(false, [], $e->getMessage() ?: 'No se pudo agregar el conductor.', in_array($e->getCode(), [404, 409], true) ? $e->getCode() : 400);
         }
     }
 
@@ -1767,7 +1830,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=pending-indicator-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=driver-order-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -2083,6 +2146,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 data-csb-transfer-ruta-ids="<?= csb_h($row['clm_salprog_ruta_ids'] ?? '') ?>"
                                 data-csb-transfer-route="<?= csb_h($row['clm_salprog_ruta_texto'] ?? '') ?>"
                                 data-csb-driver-history="<?= csb_h($driverHistoryJson) ?>"
+                                data-csb-driver-order-token="<?= csb_h(n360_flota_driver_order_token($row)) ?>"
                             >
                                 <td class="csb-date-cell">
                                     <strong><?= csb_h(csb_date_label($row['clm_salprog_fecha_operativa'] ?? '')) ?></strong>
@@ -2183,6 +2247,14 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                             </button>
                                         <?php endif; ?>
                                     </div>
+                                    <div class="csb-driver-tools">
+                                    <?php if ($canEdit && $driverSwapReady): ?>
+                                    <button type="button" class="csb-driver-edit" data-csb-driver-swap
+                                        title="Intercambiar conductores" aria-label="Intercambiar conductores"
+                                        <?= count($conductoresLineas) === 2 ? '' : 'hidden' ?>>
+                                        <i class="bi bi-arrow-down-up" aria-hidden="true"></i>
+                                    </button>
+                                    <?php endif; ?>
                                     <button
                                         type="button"
                                         class="csb-driver-history-btn"
@@ -2195,6 +2267,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                         <span>Historial</span>
                                         <b data-csb-driver-history-count><?= number_format($driverHistoryCount) ?></b>
                                     </button>
+                                    </div>
                                     <small>Asignacion capturada del modulo Conductores</small>
                                 </td>
                                 <td>
@@ -2746,6 +2819,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
 <script>
 window.N360_CSB = {
     canEdit: <?= $canEdit ? 'true' : 'false' ?>,
+    canSwapDrivers: <?= ($canEdit && $driverSwapReady) ? 'true' : 'false' ?>,
     canApprove: <?= $canApprove ? 'true' : 'false' ?>,
     physicalRouteReady: <?= $hojaFisicaReady ? 'true' : 'false' ?>,
     physicalRouteCodeReady: <?= $hojaFisicaCodigoReady ? 'true' : 'false' ?>,
@@ -2786,7 +2860,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=pending-indicator-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=driver-order-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>

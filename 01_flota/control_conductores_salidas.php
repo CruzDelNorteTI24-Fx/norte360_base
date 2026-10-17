@@ -29,6 +29,7 @@ define('ACCESS_GRANTED', true);
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 
 mysqli_report(MYSQLI_REPORT_OFF);
+require_once __DIR__ . '/flota_conductores_orden.php';
 
 function fcc_h($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -542,6 +543,7 @@ function fcc_driver_update_payload(array $data): array {
 
     return [
         'id' => $id,
+        'expected_order_token' => (string)($data['expected_order_token'] ?? ''),
         'ida_vuelta' => $idaVuelta,
         'viaje_importe' => $viajeImporte,
         'viaje_comentario' => $viajeComentario,
@@ -669,8 +671,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $transactionStarted = false;
         try {
             $payloads = array_map(static fn($item) => fcc_driver_update_payload(is_array($item) ? $item : []), $items);
-            $conn->begin_transaction();
+            $lockedPayloads = $payloads;
+            usort($lockedPayloads, static fn($a, $b) => $a['id'] <=> $b['id']);
+            if (!$conn->begin_transaction()) throw new RuntimeException('No se pudo iniciar el guardado.');
             $transactionStarted = true;
+            foreach ($lockedPayloads as $payload) {
+                n360_flota_lock_driver_order($conn, $payload['id'], $payload['expected_order_token']);
+            }
 
             $stmt = fcc_prepare_driver_update($conn);
             $idaVuelta = $viajeImporte = $viajeComentario = $cond1Estado = $cond1Importe = $cond1Obs = $cond2Estado = $cond2Importe = $cond2Obs = '';
@@ -695,7 +702,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt->close();
             $stmt = null;
-            $conn->commit();
+            if (!$conn->commit()) throw new RuntimeException('No se pudo confirmar el guardado.');
             $transactionStarted = false;
 
             fcc_json(true, [
@@ -712,13 +719,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($transactionStarted) {
                 $conn->rollback();
             }
-            fcc_json(false, [], $e->getMessage(), 500);
+            fcc_json(false, [], $e->getMessage(), in_array($e->getCode(), [404, 409], true) ? $e->getCode() : 500);
         }
     }
 
     $stmt = null;
+    $transactionStarted = false;
     try {
         $payload = fcc_driver_update_payload($_POST);
+        if (!$conn->begin_transaction()) throw new RuntimeException('No se pudo iniciar el guardado.');
+        $transactionStarted = true;
+        n360_flota_lock_driver_order($conn, $payload['id'], $payload['expected_order_token']);
         $stmt = fcc_prepare_driver_update($conn);
 
         $idaVuelta = $payload['ida_vuelta'];
@@ -739,6 +750,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt->close();
         $stmt = null;
+        if (!$conn->commit()) throw new RuntimeException('No se pudo confirmar el guardado.');
+        $transactionStarted = false;
 
         fcc_json(true, [
             'ida_vuelta' => $payload['ida_vuelta'],
@@ -756,7 +769,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt instanceof mysqli_stmt) {
             $stmt->close();
         }
-        fcc_json(false, [], $e->getMessage(), 500);
+        if ($transactionStarted) $conn->rollback();
+        fcc_json(false, [], $e->getMessage(), in_array($e->getCode(), [404, 409], true) ? $e->getCode() : 500);
     }
 }
 
@@ -935,6 +949,7 @@ foreach ($plates as $plateId => $plate) {
 
             $unitRows[] = [
                 'id' => (int)($row['clm_salprog_id'] ?? 0),
+                'driver_order_token' => n360_flota_driver_order_token($row),
                 'date' => $date,
                 'day' => $day['day'],
                 'weekday' => $day['weekday'],
@@ -1284,6 +1299,7 @@ $monthLabel = fcc_month_label($monthStart);
                                         ?>
                                         <tr
                                             data-fcc-row="<?= (int)$unitRow['id'] ?>"
+                                            data-fcc-driver-order-token="<?= fcc_h($unitRow['driver_order_token'] ?? '') ?>"
                                             data-fcc-date="<?= fcc_h($unitRow['date']) ?>"
                                             data-fcc-day="<?= fcc_h($unitRow['day']) ?>"
                                             data-fcc-weekday="<?= fcc_h($unitRow['weekday']) ?>"
@@ -1803,7 +1819,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=date-column-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=driver-order-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>

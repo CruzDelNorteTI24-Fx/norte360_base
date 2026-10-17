@@ -350,6 +350,7 @@
     const fields = rowFields(row);
     return {
       id: row.dataset.fccRow || '',
+      expected_order_token: row.dataset.fccDriverOrderToken || '',
       ida_vuelta: tripDirection(fields.ida_vuelta?.value),
       viaje_importe: moneyInputRaw(fields.viaje_importe),
       viaje_comentario: fields.viaje_comentario?.value || '',
@@ -633,6 +634,7 @@
     fd.append('csrf', csrf);
     fd.append('action', 'update_driver_status');
     fd.append('id', id);
+    fd.append('expected_order_token', row.dataset.fccDriverOrderToken || '');
     fd.append('ida_vuelta', tripDirection(row.querySelector('[data-fcc-field="ida_vuelta"]')?.value));
     fd.append('viaje_importe', moneyInputRaw(row.querySelector('[data-fcc-field="viaje_importe"]')));
     fd.append('viaje_comentario', row.querySelector('[data-fcc-field="viaje_comentario"]')?.value || '');

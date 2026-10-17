@@ -705,6 +705,23 @@
     display: none !important;
 }
 
+.csb-driver-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 7px;
+}
+
+.csb-driver-tools .csb-driver-history-btn {
+    margin-top: 0;
+}
+
+.csb-driver-edit:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
 .csb-driver-history-btn {
     display: inline-flex;
     align-items: center;
