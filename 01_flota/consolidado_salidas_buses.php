@@ -141,6 +141,16 @@ function csb_column_exists(mysqli $conn, string $table, string $column): bool {
     return (int)($row['total'] ?? 0) > 0;
 }
 
+function csb_trip_insert_exception(mysqli $conn, int $errno, string $error, string $fallback): RuntimeException {
+    if ($errno === 1062 && strpos($error, 'uk_salprog_fecha_prog_placa') !== false) {
+        if (!csb_column_exists($conn, 'tb_progbuses_salida_consolidado', 'clm_salprog_hora_manual_key')) {
+            return new RuntimeException('La base aun limita los viajes manuales a uno por unidad y dia. Ejecuta la query de viajes manuales multiples del consolidado.', 409);
+        }
+        return new RuntimeException('Ya existe un registro para esa unidad, fecha y hora de salida.', 409);
+    }
+    return new RuntimeException($error ?: $fallback);
+}
+
 function csb_fetch_all(mysqli $conn, string $sql, string $types = '', array $params = []): array {
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
@@ -1266,7 +1276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 [$fechaOperativaTransfer, $idPlaca, $horaSalida]
             );
             if ($duplicados) {
-                throw new RuntimeException('Ya existe un registro para esa unidad, fecha y hora de salida.');
+                throw new RuntimeException('Ya existe un registro para esa unidad, fecha y hora de salida.', 409);
             }
 
             $rutaLabels = [];
@@ -1361,9 +1371,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
             csb_bind($stmt, 'sisssisissssisssi', $paramsTransfer);
             if (!$stmt->execute()) {
+                $errno = $stmt->errno;
                 $error = $stmt->error;
                 $stmt->close();
-                throw new RuntimeException($error ?: 'No se pudo crear el viaje relacionado.');
+                throw csb_trip_insert_exception($conn, $errno, $error, 'No se pudo crear el viaje relacionado.');
             }
             $nuevoId = (int)$stmt->insert_id;
             $stmt->close();
@@ -1406,7 +1417,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ], 'Transbordo registrado: ' . $sourceRole . ' / ' . $counterpartRole . '.');
         } catch (Throwable $e) {
             $conn->rollback();
-            csb_json(false, [], 'No se pudo registrar el transbordo: ' . $e->getMessage(), 400);
+            csb_json(false, [], 'No se pudo registrar el transbordo: ' . $e->getMessage(), $e->getCode() === 409 ? 409 : 400);
         }
     }
 
@@ -1585,12 +1596,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             if (!$stmt->execute()) {
+                $errno = $stmt->errno;
                 $error = $stmt->error;
                 $stmt->close();
-
-                throw new RuntimeException(
-                    $error ?: 'No se pudo registrar el viaje manual.'
-                );
+                throw csb_trip_insert_exception($conn, $errno, $error, 'No se pudo registrar el viaje manual.');
             }
 
             $nuevoId = (int)$stmt->insert_id;
@@ -1604,7 +1613,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ], 'Viaje manual registrado correctamente.');
         } catch (Throwable $e) {
             $conn->rollback();
-            csb_json(false, [], 'No se pudo registrar el viaje manual: ' . $e->getMessage(), 500);
+            csb_json(false, [], 'No se pudo registrar el viaje manual: ' . $e->getMessage(), $e->getCode() === 409 ? 409 : 500);
         }
     }
 
