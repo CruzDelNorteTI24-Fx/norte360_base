@@ -184,23 +184,92 @@
     if (panel?.fechas_disponibles !== true) return;
     const search = (document.getElementById('txtBuscarUnidadPanel').value || '').trim().toLowerCase();
     const groups = condtGroupFlotas(panel.flotas).filter(group => condtMatchesUnitSearch(group, search));
-    const people = groups.flatMap(g => g.slots.filter(s => s.clm_progconductores_idconductor).map(s => ({ ...s, unidad: `${g.bus || '-'} (${g.placa || '-'})` })));
-    panel.retenes.forEach(row => people.push({ ...row, unidad: 'Reten' }));
-    if (!people.length) { condtAlert('No hay conductores para exportar.', 'warning', 'Sin datos'); return; }
+    const reserves = panel.retenes || [];
+    if (!groups.length && !reserves.length) { condtAlert('No hay unidades ni conductores para exportar.', 'warning', 'Sin datos'); return; }
     try {
       const doc = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const filters = `Unidad: ${document.getElementById('txtBuscarUnidadPanel').value.trim() || 'Todas'} | Retenes: ${document.getElementById('txtBuscarRetenPanel').value.trim() || 'Todos'}`;
-      const body = [[{ content: filters, colSpan: 4, styles: { fillColor: [239, 245, 249], textColor: [40, 60, 70] } }], ...people.map(person => {
+      const personRow = person => {
+        if (!person.clm_progconductores_idconductor) return { conductor: 'Sin conductor asignado', trabajo: '-', descanso: '-', sin_conductor: true };
         const data = current(person.clm_progconductores_idconductor);
-        return [person.unidad, `${person.conductor || '-'}\nDNI: ${person.dni || '-'}`, range(data.trabajo_desde, data.trabajo_hasta),
-          rest(data).join('\n') + (data.dias_descanso ? `\n${data.dias_descanso} dia(s)` : '') || 'Sin fechas'];
-      })];
-      doc.autoTable({ startY: 34, margin: { top: 34, bottom: 23, left: 15, right: 15 },
-        head: [['Unidad', 'Conductor / DNI', 'Trabajo autorizado', 'Descanso permitido']], body,
-        styles: { font: 'helvetica', fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineWidth: .15, lineColor: [180, 190, 198], overflow: 'linebreak' },
-        headStyles: { fillColor: [24, 58, 78], textColor: [255, 255, 255], fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [247, 249, 250] },
-        columnStyles: { 0: { cellWidth: 27 }, 1: { cellWidth: 57 }, 2: { cellWidth: 40 }, 3: { cellWidth: 56 } }, showHead: 'everyPage' });
+        const phone = String(person.celular || '').trim();
+        return { conductor: `${person.conductor || '-'}\nLic.: ${person.licencia || '-'}${phone ? ` | Tel.: (${phone})` : ''}`,
+          trabajo: range(data.trabajo_desde, data.trabajo_hasta),
+          descanso: rest(data).join('\n') + (data.dias_descanso ? `\n${data.dias_descanso} dia(s)` : '') || 'Sin fechas' };
+      };
+      const dateColumns = [
+        { header: 'CONDUCTOR', dataKey: 'conductor' },
+        { header: 'TRABAJO AUTORIZADO', dataKey: 'trabajo' }, { header: 'DESCANSO PERMITIDO', dataKey: 'descanso' }
+      ];
+      const options = {
+        theme: 'grid', margin: { top: 34, bottom: 23, left: 15, right: 15 }, tableWidth: 180,
+        styles: { font: 'times', fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineWidth: .25, lineColor: [0, 0, 0], overflow: 'linebreak', valign: 'middle' },
+        headStyles: { fillColor: [255, 242, 0], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', minCellHeight: 9 },
+        columnStyles: { bus: { cellWidth: 15 }, placa: { cellWidth: 23 },
+          conductor: { cellWidth: 72, fontStyle: 'bold' }, trabajo: { cellWidth: 33 }, descanso: { cellWidth: 37 } },
+        showHead: 'everyPage', rowPageBreak: 'avoid'
+      };
+      doc.setFont('times', 'normal'); doc.setFontSize(8); doc.setTextColor(75, 85, 99);
+      doc.text(`Generado: ${condtFormatDateTimeHuman()}`, 105, 31, { align: 'center' });
+      doc.text(`Unidades: ${groups.length} | Conductores asignados: ${groups.reduce((count, group) => count + group.slots.filter(slot => slot.clm_progconductores_idconductor).length, 0)} | Retenes disponibles: ${reserves.length}`, 105, 35, { align: 'center' });
+      let y = 39;
+      const filters = ['txtBuscarUnidadPanel', 'txtBuscarRetenPanel'].map(id => document.getElementById(id).value.trim());
+      if (filters.some(Boolean)) {
+        const brief = value => value.length > 80 ? value.slice(0, 77) + '...' : value;
+        const lines = doc.splitTextToSize(`Unidad: ${brief(filters[0]) || 'Todas'} | Retenes: ${brief(filters[1]) || 'Todos'}`, 180);
+        doc.text(lines, 105, y, { align: 'center' }); y += lines.length * 3.5 + 2;
+      }
+      if (groups.length) {
+        const segments = new Map();
+        doc.autoTable({ ...options, startY: y,
+          columns: [{ header: 'BUS', dataKey: 'bus' }, { header: 'PLACA', dataKey: 'placa' }, ...dateColumns],
+          body: groups.flatMap((group, index) => group.slots.map(person => ({ bus: '', placa: '', ...personRow(person), group: index }))),
+          didParseCell: cell => {
+            if (cell.section === 'body') cell.cell.styles.fillColor = cell.row.raw.group % 2 ? [248, 250, 252] : [255, 255, 255];
+            if (cell.section === 'body' && cell.row.raw.sin_conductor) {
+              cell.cell.styles.textColor = [100, 116, 139]; cell.cell.styles.fontStyle = 'italic';
+            }
+          },
+          didDrawCell: cell => {
+            if (cell.section !== 'body' || cell.column.dataKey !== 'bus') return;
+            const key = cell.row.raw.group, top = cell.cell.y, bottom = top + cell.cell.height;
+            const segment = segments.get(key);
+            if (segment) { segment.top = Math.min(segment.top, top); segment.bottom = Math.max(segment.bottom, bottom); }
+            else segments.set(key, { top, bottom });
+          },
+          didDrawPage: () => {
+            // Merge only the visible part of each unit, including continuations on later pages.
+            segments.forEach(({ top, bottom }, index) => {
+              const group = groups[index], height = bottom - top;
+              const fillColor = index % 2 ? [248, 250, 252] : [255, 255, 255];
+              const unitCell = (x, width, value, fontSize, textColor) => {
+                value = String(value || '-');
+                doc.setFont('times', 'bolditalic');
+                while (fontSize > 6) {
+                  doc.setFontSize(fontSize);
+                  if (value.split(/\s+/).every(word => doc.getTextWidth(word) <= width - 2)
+                    && doc.splitTextToSize(value, width - 2).length * (fontSize * .35 + 2) <= height - 2) break;
+                  fontSize--;
+                }
+                condtDrawCell(doc, x, top, width, height, value, { fillColor, textColor, align: 'center', fontStyle: 'bolditalic', fontSize, paddingX: 1, paddingY: 1, lineWidth: .25 });
+              };
+              unitCell(15, 15, group.bus, 18, [255, 0, 0]);
+              unitCell(30, 23, group.placa, 14, [0, 32, 96]);
+              doc.setDrawColor(0, 0, 0); doc.setLineWidth(.45); doc.line(15, bottom, 195, bottom);
+            });
+            segments.clear();
+          }
+        });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+      if (reserves.length) {
+        doc.autoTable({ ...options, startY: y,
+          columns: [{ header: 'RETENES', dataKey: 'reten' }, ...dateColumns],
+          body: reserves.map(person => ({ reten: '', ...personRow(person) })),
+          headStyles: { ...options.headStyles, fillColor: [44, 62, 80], textColor: [255, 255, 255] },
+          columnStyles: { ...options.columnStyles, reten: { cellWidth: 38 } },
+          alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+      }
       const total = doc.internal.getNumberOfPages();
       for (let page = 1; page <= total; page++) {
         doc.setPage(page);

@@ -4954,7 +4954,7 @@ window.N360_CONDT_FECHAS = {
 };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_conductores_fechas_n360.js') . '&fechas=1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_conductores_fechas_n360.js') . '&fechas=3', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
