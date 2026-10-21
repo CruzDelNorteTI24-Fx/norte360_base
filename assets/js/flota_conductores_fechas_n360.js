@@ -1,0 +1,215 @@
+(function () {
+  'use strict';
+  const cfg = window.N360_CONDT_FECHAS;
+  if (!cfg?.enabled) return;
+  const escape = condtEscapeHtml;
+  const empty = () => ({ trabajo_desde: null, trabajo_hasta: null, descansos: [], dias_descanso: 0, version: '0' });
+  const date = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') ? value.split('-').reverse().join('/') : '-';
+  const range = (from, to) => !from || !to ? 'Sin fechas' : from === to ? date(from) : `${date(from)} al ${date(to)}`;
+  const rest = data => (data.descansos || []).map(p => range(p.desde, p.hasta));
+  const current = id => CONDT_STATE.panel?.fechas?.[id] || empty();
+  const snapshot = data => ({ trabajo_desde: data.trabajo_desde || null, trabajo_hasta: data.trabajo_hasta || null,
+    descansos: (data.descansos || []).map(p => ({ desde: p.desde, hasta: p.hasta })) });
+  let state = null, busy = false, allowClose = false, confirming = false;
+
+  function cell(id) {
+    const data = current(id), ready = CONDT_STATE.panel?.fechas_disponibles === true;
+    const periods = rest(data);
+    return `<div class="condt-fechas" data-condt-fechas="${Number(id)}">
+      <div><span class="condt-fechas-label">Trabajo autorizado</span><span>${escape(ready ? range(data.trabajo_desde, data.trabajo_hasta) : 'No disponible')}</span></div>
+      <div><span class="condt-fechas-label">Descanso permitido</span><div class="condt-fechas-periods">${(ready && periods.length ? periods : [ready ? 'Sin fechas' : 'No disponible']).map(p => `<span>${escape(p)}</span>`).join('')}</div>${ready && periods.length ? `<small>${Number(data.dias_descanso)} dia(s)</small>` : ''}</div>
+      <button type="button" class="condt-fechas-icon" data-condt-fechas-open="${Number(id)}" ${ready ? '' : 'disabled'} title="${ready ? 'Editar trabajo y descanso' : 'Pendiente de instalar la query de fechas'}" aria-label="Editar trabajo y descanso"><i class="bi bi-calendar3" aria-hidden="true"></i></button>
+    </div>`;
+  }
+
+  function sync(panel) {
+    const button = document.getElementById('btnExportarPdfFechas');
+    if (button) {
+      button.disabled = panel?.fechas_disponibles !== true;
+      button.title = button.disabled ? 'Pendiente de instalar la query de fechas' : 'PDF trabajo y descanso';
+    }
+  }
+
+  function history(row) {
+    if (row.tipo_evento !== 'FECHAS_TRABAJO_DESCANSO') return '';
+    return `<div class="condt-fechas-history">${[['Antes', row.fechas_antes], ['Despues', row.fechas_despues]].map(([label, data]) => {
+      if (!data) return `<div><strong>${label}</strong><p>Sin datos</p></div>`;
+      return `<div><strong>${label}</strong><p>Trabajo: ${escape(range(data.trabajo_desde, data.trabajo_hasta))}</p><p>Descanso: ${escape(rest(data).join('; ') || 'Sin fechas')}</p></div>`;
+    }).join('')}</div>`;
+  }
+
+  window.CondtFechas = { cell, sync, history };
+  const modalEl = document.createElement('div');
+  modalEl.id = 'condtFechasModal';
+  modalEl.className = 'modal fade condt-fechas-modal';
+  modalEl.tabIndex = -1;
+  modalEl.setAttribute('aria-hidden', 'true');
+  modalEl.setAttribute('aria-labelledby', 'condtFechasTitle');
+  modalEl.innerHTML = `<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><form class="modal-content" data-condt-fechas-form novalidate>
+    <div class="modal-header"><div><h5 class="modal-title" id="condtFechasTitle"><i class="bi bi-calendar3 me-2" aria-hidden="true"></i>Trabajo y descanso</h5><div data-condt-fechas-name></div></div><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+    <div class="modal-body"><div class="alert alert-danger" data-condt-fechas-error role="alert" hidden></div>
+      <fieldset class="condt-fechas-work"><legend>Trabajo autorizado</legend><div class="condt-fechas-work-fields">
+        <label>Desde<input class="form-control" type="date" min="1000-01-01" max="9999-12-31" data-condt-work-from></label>
+        <label>Hasta<input class="form-control" type="date" min="1000-01-01" max="9999-12-31" data-condt-work-to></label></div></fieldset>
+      <div class="condt-fechas-rest-head"><h6>Descanso permitido</h6><button type="button" class="condt-btn condt-btn-light condt-btn-xs" data-condt-rest-add><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar descanso</button></div>
+      <div data-condt-rest-list></div><div class="condt-fechas-none" data-condt-rest-empty>Sin descansos registrados</div>
+    </div><div class="modal-footer"><button type="button" class="condt-btn condt-btn-light" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="condt-btn condt-btn-primary" data-condt-fechas-save disabled><i class="bi bi-check2 me-1" aria-hidden="true"></i>Guardar fechas</button></div>
+  </form></div>`;
+  document.body.append(modalEl);
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  const form = modalEl.querySelector('form');
+  const list = modalEl.querySelector('[data-condt-rest-list]');
+  const from = modalEl.querySelector('[data-condt-work-from]');
+  const to = modalEl.querySelector('[data-condt-work-to]');
+  const save = modalEl.querySelector('[data-condt-fechas-save]');
+  const error = modalEl.querySelector('[data-condt-fechas-error]');
+
+  function values() {
+    return { trabajo_desde: from.value || null, trabajo_hasta: to.value || null,
+      descansos: Array.from(list.children).map(row => ({ desde: row.querySelector('[data-rest-from]').value,
+        hasta: row.dataset.mode === 'dia' ? row.querySelector('[data-rest-from]').value : row.querySelector('[data-rest-to]').value })) };
+  }
+  function changed() { return !!state && JSON.stringify(values()) !== state.baseline; }
+  function refresh() {
+    save.disabled = busy || !changed();
+    modalEl.querySelector('[data-condt-rest-empty]').hidden = list.children.length > 0;
+    modalEl.querySelector('[data-condt-rest-add]').disabled = busy || list.children.length >= 100;
+  }
+  function addPeriod(period = { desde: '', hasta: '' }) {
+    if (list.children.length >= 100) return;
+    const row = document.createElement('div');
+    row.className = 'condt-fechas-editor-row';
+    row.innerHTML = `<div class="condt-fechas-modes" role="group" aria-label="Tipo de descanso"><button type="button" data-rest-mode="dia">Dia</button><button type="button" data-rest-mode="rango">Rango</button></div>
+      <label><span data-rest-start-label>Fecha</span><input class="form-control" type="date" min="1000-01-01" max="9999-12-31" data-rest-from required></label>
+      <label data-rest-end-label>Hasta<input class="form-control" type="date" min="1000-01-01" max="9999-12-31" data-rest-to required></label>
+      <button type="button" class="condt-fechas-icon condt-fechas-remove" data-rest-remove title="Quitar descanso" aria-label="Quitar descanso"><i class="bi bi-trash" aria-hidden="true"></i></button>`;
+    row.querySelector('[data-rest-from]').value = period.desde;
+    row.querySelector('[data-rest-to]').value = period.hasta;
+    list.append(row);
+    setMode(row, period.desde === period.hasta ? 'dia' : 'rango');
+    refresh();
+  }
+  function setMode(row, mode) {
+    row.dataset.mode = mode;
+    row.querySelectorAll('[data-rest-mode]').forEach(button => {
+      const active = button.dataset.restMode === mode;
+      button.classList.toggle('is-active', active); button.setAttribute('aria-pressed', String(active));
+    });
+    row.querySelector('[data-rest-start-label]').textContent = mode === 'dia' ? 'Fecha' : 'Desde';
+    row.querySelector('[data-rest-end-label]').hidden = mode === 'dia';
+    row.querySelector('[data-rest-to]').disabled = mode === 'dia';
+    row.querySelector('[data-rest-to]').min = row.querySelector('[data-rest-from]').value || '1000-01-01';
+  }
+  document.addEventListener('click', event => {
+    const button = event.target.closest('[data-condt-fechas-open]');
+    if (!button || button.disabled || busy) return;
+    const id = Number(button.dataset.condtFechasOpen);
+    const panel = CONDT_STATE.panel;
+    const person = [...panel.flotas, ...panel.retenes].find(p => Number(p.clm_progconductores_idconductor) === id);
+    if (!person) return;
+    const data = current(id);
+    state = { id, version: data.version, baseline: JSON.stringify(snapshot(data)) };
+    allowClose = false;
+    from.value = data.trabajo_desde || ''; to.value = data.trabajo_hasta || '';
+    list.replaceChildren();
+    data.descansos.forEach(addPeriod);
+    modalEl.querySelector('[data-condt-fechas-name]').textContent = `${person.conductor} (${person.dni || '-'})`;
+    error.hidden = true; refresh(); modal.show();
+  });
+  modalEl.querySelector('[data-condt-rest-add]').addEventListener('click', () => { if (!busy) addPeriod(); });
+  list.addEventListener('click', event => {
+    if (busy) return;
+    const mode = event.target.closest('[data-rest-mode]');
+    if (mode) setMode(mode.closest('.condt-fechas-editor-row'), mode.dataset.restMode);
+    event.target.closest('[data-rest-remove]')?.closest('.condt-fechas-editor-row').remove();
+    refresh();
+  });
+  form.addEventListener('input', event => {
+    if (event.target.matches('[data-rest-from]')) setMode(event.target.closest('.condt-fechas-editor-row'), event.target.closest('.condt-fechas-editor-row').dataset.mode);
+    error.hidden = true; refresh();
+  });
+  form.addEventListener('change', refresh);
+  modalEl.addEventListener('show.bs.modal', () => document.body.classList.add('condt-fechas-open'));
+  modalEl.addEventListener('hide.bs.modal', event => {
+    if (busy || confirming) { event.preventDefault(); return; }
+    if (!allowClose && changed()) {
+      event.preventDefault();
+      confirming = true;
+      const confirmation = condtConfirm('Descartar los cambios pendientes de fechas?', { title: 'Cambios sin guardar', confirmText: 'Descartar', cancelText: 'Seguir editando' });
+      // Keep the shared confirmation within Bootstrap's focus boundary.
+      const dialog = document.querySelector('.n360-dialog');
+      if (dialog) { modalEl.append(dialog); form.inert = true; }
+      confirmation.then(confirmed => {
+        if (dialog) document.body.append(dialog);
+        form.inert = false; confirming = false;
+        if (confirmed) { allowClose = true; modal.hide(); } else { save.focus(); }
+      });
+    }
+  });
+  modalEl.addEventListener('hidden.bs.modal', () => { state = null; document.body.classList.remove('condt-fechas-open'); });
+  window.addEventListener('beforeunload', event => { if (busy || changed()) { event.preventDefault(); event.returnValue = ''; } });
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (busy || confirming || !state || !changed() || !form.reportValidity()) return;
+    const data = values();
+    if (!!data.trabajo_desde !== !!data.trabajo_hasta || (data.trabajo_desde && data.trabajo_desde > data.trabajo_hasta)) {
+      error.textContent = 'Completa el inicio y fin del trabajo en orden cronologico.'; error.hidden = false; return;
+    }
+    busy = true;
+    const controls = Array.from(form.querySelectorAll('input,button'));
+    const disabled = controls.map(control => control.disabled);
+    controls.forEach(control => { control.disabled = true; });
+    const html = save.innerHTML;
+    save.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Guardando';
+    let saved = false;
+    try {
+      const result = await condtPost({ ajax_action: 'guardar_fechas', id_conductor: state.id, csrf: cfg.csrf,
+        version: state.version, fechas: JSON.stringify(data) }, false);
+      CONDT_STATE.panel.fechas[state.id] = result.data;
+      condtRenderFlotas(CONDT_STATE.panel.flotas);
+      condtRenderRetenes(CONDT_STATE.panel.retenes);
+      state.baseline = JSON.stringify(snapshot(result.data));
+      saved = true;
+    } catch (err) {
+      error.textContent = err.message || 'No se pudieron guardar las fechas.'; error.hidden = false;
+    } finally {
+      controls.forEach((control, index) => { control.disabled = disabled[index]; });
+      busy = false; save.innerHTML = html; refresh();
+      if (saved) { allowClose = true; modal.hide(); }
+    }
+  });
+
+  document.getElementById('btnExportarPdfFechas')?.addEventListener('click', () => {
+    const panel = CONDT_STATE.panel;
+    if (panel?.fechas_disponibles !== true) return;
+    const search = (document.getElementById('txtBuscarUnidadPanel').value || '').trim().toLowerCase();
+    const groups = condtGroupFlotas(panel.flotas).filter(group => condtMatchesUnitSearch(group, search));
+    const people = groups.flatMap(g => g.slots.filter(s => s.clm_progconductores_idconductor).map(s => ({ ...s, unidad: `${g.bus || '-'} (${g.placa || '-'})` })));
+    panel.retenes.forEach(row => people.push({ ...row, unidad: 'Reten' }));
+    if (!people.length) { condtAlert('No hay conductores para exportar.', 'warning', 'Sin datos'); return; }
+    try {
+      const doc = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const filters = `Unidad: ${document.getElementById('txtBuscarUnidadPanel').value.trim() || 'Todas'} | Retenes: ${document.getElementById('txtBuscarRetenPanel').value.trim() || 'Todos'}`;
+      const body = [[{ content: filters, colSpan: 4, styles: { fillColor: [239, 245, 249], textColor: [40, 60, 70] } }], ...people.map(person => {
+        const data = current(person.clm_progconductores_idconductor);
+        return [person.unidad, `${person.conductor || '-'}\nDNI: ${person.dni || '-'}`, range(data.trabajo_desde, data.trabajo_hasta),
+          rest(data).join('\n') + (data.dias_descanso ? `\n${data.dias_descanso} dia(s)` : '') || 'Sin fechas'];
+      })];
+      doc.autoTable({ startY: 34, margin: { top: 34, bottom: 23, left: 15, right: 15 },
+        head: [['Unidad', 'Conductor / DNI', 'Trabajo autorizado', 'Descanso permitido']], body,
+        styles: { font: 'helvetica', fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineWidth: .15, lineColor: [180, 190, 198], overflow: 'linebreak' },
+        headStyles: { fillColor: [24, 58, 78], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [247, 249, 250] },
+        columnStyles: { 0: { cellWidth: 27 }, 1: { cellWidth: 57 }, 2: { cellWidth: 40 }, 3: { cellWidth: 56 } }, showHead: 'everyPage' });
+      const total = doc.internal.getNumberOfPages();
+      for (let page = 1; page <= total; page++) {
+        doc.setPage(page);
+        condtDrawHeaderFooter(doc, page, total, 'Trabajo y descanso de conductores', 'PRG_RPT_TRABAJO_DESCANSO');
+      }
+      doc.save(`Trabajo_Descanso_Conductores_${condtFormatDateTimeForFile()}.pdf`);
+    } catch (err) { condtAlert('No se pudo generar el PDF de trabajo y descanso.', 'danger', 'Error de PDF'); }
+  });
+  if (CONDT_STATE.panel) {
+    sync(CONDT_STATE.panel); condtRenderFlotas(CONDT_STATE.panel.flotas); condtRenderRetenes(CONDT_STATE.panel.retenes);
+  }
+})();

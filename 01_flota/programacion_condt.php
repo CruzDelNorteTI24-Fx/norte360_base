@@ -49,6 +49,11 @@ unset($_SESSION['exito']);
 <?php
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
+require_once __DIR__ . '/flota_conductores_fechas.php';
+if (!$modo_qr_conductores && empty($_SESSION['condt_fechas_token'])) {
+    $_SESSION['condt_fechas_token'] = bin2hex(random_bytes(24));
+}
+
 function condt_db(): mysqli {
     global $conn;
     if (isset($conn) && $conn instanceof mysqli) {
@@ -383,9 +388,13 @@ function condt_actualizar_estado_conductor(int $idTrabajador, string $estado): v
 function condt_fetch_historial(int $limit = 300, string $buscar = ''): array {
     $db = condt_db();
     $limit = max(1, min(500, $limit));
+    $fechasSelect = condt_fechas_ready($db)
+        ? 'h.clm_hist_progconductores_tipo_evento AS tipo_evento, h.clm_hist_progconductores_fechas_antes AS fechas_antes, h.clm_hist_progconductores_fechas_despues AS fechas_despues,'
+        : "'PROGRAMACION' AS tipo_evento, NULL AS fechas_antes, NULL AS fechas_despues,";
 
     $sql = "
         SELECT
+            {$fechasSelect}
             h.clm_hist_progconductores_id            AS hist_id,
             UPPER(h.clm_hist_progconductores_accion) AS accion,
             DATE_FORMAT(h.clm_hist_progconductores_fechaevento, '%d/%m/%Y %H:%i') AS fechaevento,
@@ -496,7 +505,16 @@ function condt_fetch_historial(int $limit = 300, string $buscar = ''): array {
             $color    = '#c0392b';
         }
 
+        if ($row['tipo_evento'] === 'FECHAS_TRABAJO_DESCANSO') {
+            $titulo = 'Fechas de trabajo y descanso actualizadas';
+            $detalle = "Se actualizaron las fechas informativas de {$conductor}.";
+            $etiqueta = 'Trabajo y descanso';
+            $color = '#087b8a';
+        }
         $out[] = [
+            'tipo_evento'  => $row['tipo_evento'],
+            'fechas_antes' => json_decode((string)$row['fechas_antes'], true),
+            'fechas_despues' => json_decode((string)$row['fechas_despues'], true),
             'hist_id'      => (int)$row['hist_id'],
             'fechaevento'  => condt_safe($row['fechaevento']),
             'titulo'       => $titulo,
@@ -519,6 +537,7 @@ function condt_fetch_historial(int $limit = 300, string $buscar = ''): array {
 }
 
 function condt_fetch_panel(string $buscarReten = ''): array {
+    global $modo_qr_conductores;
     $db = condt_db();
     $maxPorPlaca = condt_max_por_placa();
 
@@ -594,7 +613,7 @@ function condt_fetch_panel(string $buscarReten = ''): array {
         }
     }
 
-    return [
+    $panel = [
         'max_por_placa' => $maxPorPlaca,
         'unidades' => $unidades,
         'flotas' => $flotas,
@@ -607,6 +626,12 @@ function condt_fetch_panel(string $buscarReten = ''): array {
             'sin_asignar' => count(array_filter($flotas, fn($r) => empty($r['clm_progconductores_idconductor']))),
         ]
     ];
+    if (!$modo_qr_conductores) {
+        $panel['fechas_disponibles'] = condt_fechas_ready($db);
+        $ids = array_merge(array_column($flotas, 'clm_progconductores_idconductor'), array_column($retenes, 'clm_progconductores_idconductor'));
+        $panel['fechas'] = $panel['fechas_disponibles'] ? condt_fechas_map($db, $ids) : [];
+    }
+    return $panel;
 }
 
 function condt_insert_reten_desde_trabajador(int $idTrabajador): void {
@@ -812,6 +837,22 @@ if ($modo_qr_conductores && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
     try {
         $action = $_POST['ajax_action'];
+
+        if ($action === 'guardar_fechas') {
+            if (!is_string($_POST['csrf'] ?? null) || !hash_equals((string)($_SESSION['condt_fechas_token'] ?? ''), $_POST['csrf'])) {
+                condt_json(['ok' => false, 'msg' => 'Sesion invalida. Actualiza la pagina.'], 419);
+            }
+            try {
+                $input = json_decode((string)($_POST['fechas'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
+                if (!is_array($input)) throw new InvalidArgumentException('Completa las fechas.', 422);
+                $version = is_string($_POST['version'] ?? null) ? $_POST['version'] : '';
+                $saved = condt_fechas_save(condt_db(), (int)($_POST['id_conductor'] ?? 0), $input, $version, condt_user_id());
+                condt_json(['ok' => true, 'msg' => !empty($saved['sin_cambios']) ? 'No hay cambios para guardar.' : 'Fechas guardadas y registradas en historial.', 'data' => $saved]);
+            } catch (Throwable $e) {
+                $status = in_array($e->getCode(), [409, 422], true) ? $e->getCode() : ($e instanceof JsonException ? 422 : 500);
+                condt_json(['ok' => false, 'msg' => $status === 500 ? 'No se pudieron guardar las fechas y su historial. No se aplicaron cambios.' : $e->getMessage()], $status);
+            }
+        }
 
         if ($action === 'convertir_pendiente_a_reten') {
             $idTrabajador = (int)($_POST['id_trabajador'] ?? 0);
@@ -2970,6 +3011,7 @@ body.modo-qr-conductores .panel-qr-conductores .qr-condt-btn-ghost:hover {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_conductores_fechas_n360.css') . '&fechas=1', ENT_QUOTES, 'UTF-8') ?>">
     <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 </head>
 
@@ -3032,6 +3074,11 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 <button class="condt-btn condt-btn-dark" id="btnExportarPdfLicencias">
   <i class="bi bi-file-earmark-pdf-fill me-2"></i>PDF Licencias
 </button>
+<?php if (!$modo_qr_conductores): ?>
+<button class="condt-btn condt-btn-primary" id="btnExportarPdfFechas" disabled>
+  <i class="bi bi-file-earmark-pdf me-2"></i>PDF trabajo y descanso
+</button>
+<?php endif; ?>
 
         <button class="condt-btn condt-btn-primary" id="btnRecargar">
           <i class="bi bi-arrow-repeat me-2"></i>Recargar
@@ -3335,7 +3382,7 @@ document.addEventListener("click", function (e) {
   const barra = document.querySelector(".usuario-barra");
   const dropdown = document.getElementById("usuarioDropdown");
 
-  if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
+  if (barra && dropdown && !barra.contains(e.target) && !dropdown.contains(e.target)) {
     dropdown.style.display = "none";
   }
 });
@@ -3533,7 +3580,8 @@ function condtRenderFlotas(flotas) {
                         <span class="condt-slot-badge">Conductor ${slot.slot}</span>
                     </div>
 
-                    <div>
+                    <div class="condt-person-with-fechas">
+                        <div>
                         ${
                             tieneConductor
                             ? `
@@ -3548,6 +3596,8 @@ function condtRenderFlotas(flotas) {
                               `
                             : `<div class="condt-empty">Sin conductor asignado</div>`
                         }
+                        </div>
+                        ${tieneConductor ? (window.CondtFechas?.cell(slot.clm_progconductores_idconductor) || '') : ''}
                     </div>
 
                     <div class="condt-actions">
@@ -3657,6 +3707,7 @@ function condtRenderRetenes(retenes, targetId = 'condtRetenesWrap', modoModal = 
                         : `<button class="condt-mini-btn detalle" onclick="condtAbrirDetalleConductor(${row.clm_progconductores_idconductor}, '${contextoPayload}')"><i class="bi bi-person-vcard me-1"></i>Detalle</button>`
                     }
                 </div>
+                ${!modoModal ? (window.CondtFechas?.cell(row.clm_progconductores_idconductor) || '') : ''}
             </div>
         `;
     }).join('');
@@ -3667,6 +3718,7 @@ async function condtCargarPanel() {
         const buscarReten = document.getElementById('txtBuscarRetenPanel').value.trim();
         const { data } = await condtGet(`programacion_condt.php?ajax=panel&buscar_reten=${encodeURIComponent(buscarReten)}`, true);
         CONDT_STATE.panel = data;
+        window.CondtFechas?.sync(data);
 
         condtRenderResumen(data.resumen);
         condtRenderFlotas(data.flotas);
@@ -3964,6 +4016,7 @@ async function condtCargarHistorial(buscar = '') {
                             <span class="condt-hist-chip" style="background:${row.color};">${condtEscapeHtml(row.etiqueta)}</span>
                             <div class="fw-bold">${condtEscapeHtml(row.titulo)}</div>
                             <div class="mt-2">${condtEscapeHtml(row.detalle)}</div>
+                            ${window.CondtFechas?.history(row) || ''}
                             <div class="condt-muted mt-2">
                                 Fecha: ${condtEscapeHtml(row.fechaevento)}
                                 &nbsp;&nbsp;|&nbsp;&nbsp;
@@ -4894,6 +4947,14 @@ document.getElementById('btnExportarPdf').addEventListener('click', condtGenerat
 
 </script>
 
+<script>
+window.N360_CONDT_FECHAS = {
+    enabled: <?= $modo_qr_conductores ? 'false' : 'true' ?>,
+    csrf: <?= json_encode($modo_qr_conductores ? '' : ($_SESSION['condt_fechas_token'] ?? '')) ?>
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_conductores_fechas_n360.js') . '&fechas=1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
