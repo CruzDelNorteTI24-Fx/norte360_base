@@ -3012,6 +3012,7 @@ body.modo-qr-conductores .panel-qr-conductores .qr-condt-btn-ghost:hover {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_conductores_fechas_n360.css') . '&fechas=1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_conductores_calendario_n360.css') . '&cal=2', ENT_QUOTES, 'UTF-8') ?>">
     <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 </head>
 
@@ -3075,6 +3076,9 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
   <i class="bi bi-file-earmark-pdf-fill me-2"></i>PDF Licencias
 </button>
 <?php if (!$modo_qr_conductores): ?>
+<button class="condt-btn condt-btn-primary" id="btnCalendarioConductores" disabled>
+  <i class="bi bi-calendar3 me-2" aria-hidden="true"></i>Calendario de conductores
+</button>
 <button class="condt-btn condt-btn-primary" id="btnExportarPdfFechas" disabled>
   <i class="bi bi-file-earmark-pdf me-2"></i>PDF trabajo y descanso
 </button>
@@ -4954,7 +4958,8 @@ window.N360_CONDT_FECHAS = {
 };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_conductores_fechas_n360.js') . '&fechas=3', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_conductores_fechas_n360.js') . '&fechas=4', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_conductores_calendario_n360.js') . '&cal=2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

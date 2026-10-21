@@ -23,11 +23,12 @@
   }
 
   function sync(panel) {
-    const button = document.getElementById('btnExportarPdfFechas');
-    if (button) {
+    ['btnExportarPdfFechas', 'btnCalendarioConductores'].forEach(id => {
+      const button = document.getElementById(id);
+      if (!button) return;
       button.disabled = panel?.fechas_disponibles !== true;
-      button.title = button.disabled ? 'Pendiente de instalar la query de fechas' : 'PDF trabajo y descanso';
-    }
+      button.title = button.disabled ? 'Pendiente de instalar la query de fechas' : button.textContent.trim();
+    });
   }
 
   function history(row) {
