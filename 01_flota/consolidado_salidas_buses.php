@@ -37,6 +37,8 @@ require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 mysqli_report(MYSQLI_REPORT_OFF);
 require_once __DIR__ . '/flota_consolidado_revision.php';
 require_once __DIR__ . '/flota_conductores_orden.php';
+require_once __DIR__ . '/flota_contratos.php';
+require_once __DIR__ . '/flota_contratos_ui.php';
 
 function csb_h($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -1433,16 +1435,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $idDestino = (int)($_POST['iddestino'] ?? 0);
         $rutaIdsRaw = $_POST['ruta_ids'] ?? [];
         $comentarioManual = trim((string)($_POST['comentario'] ?? ''));
+        $contratoId = (int)($_POST['contrato_id'] ?? 0);
+        $contractOrigin = $contractDestination = null;
+        if ($contratoId > 0) {
+            try {
+                if (!n360_contract_ready($conn)) throw new RuntimeException('Instala la query de contratos.', 409);
+                $contractOrigin = n360_contract_place($conn, $idOrigen, (string)($_POST['origen_libre'] ?? ''));
+                $contractDestination = n360_contract_place($conn, $idDestino, (string)($_POST['destino_libre'] ?? ''));
+                n360_contract_route($contractOrigin, $contractDestination);
+                $idOrigen = $contractOrigin['id'];
+                $idDestino = $contractDestination['id'];
+            } catch (Throwable $e) { csb_json(false, [], $e->getMessage(), in_array($e->getCode(), [409,422], true) ? $e->getCode() : 500); }
+        }
 
         if (!is_array($rutaIdsRaw)) {
             $rutaIdsRaw = [$rutaIdsRaw];
         }
         $rutaIds = array_values(array_unique(array_filter(array_map('intval', $rutaIdsRaw), static fn($id) => $id > 0)));
 
-        if (!$fechaManual || !$horaSalida || $idPlaca <= 0 || $idOrigen <= 0 || $idDestino <= 0) {
+        if (!$fechaManual || !$horaSalida || $idPlaca <= 0 || ($contratoId <= 0 && ($idOrigen <= 0 || $idDestino <= 0))) {
             csb_json(false, [], 'Completa fecha, hora, unidad, origen y destino para registrar el viaje manual.', 422);
         }
-        if ($idOrigen === $idDestino) {
+        if ($idOrigen !== null && $idOrigen === $idDestino) {
             csb_json(false, [], 'El origen y destino no pueden ser la misma sede.', 422);
         }
         if (in_array($idOrigen, $rutaIds, true) || in_array($idDestino, $rutaIds, true)) {
@@ -1468,9 +1482,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $placa = $placaRows[0];
 
-        $sedeIds = array_merge([$idOrigen, $idDestino], $rutaIds);
+        $sedeIds = array_values(array_filter(array_merge([$idOrigen, $idDestino], $rutaIds), static fn($id) => $id > 0));
         $sedesMap = csb_fetch_sedes_by_ids($conn, $sedeIds);
-        if (!isset($sedesMap[$idOrigen], $sedesMap[$idDestino])) {
+        if ($contratoId <= 0 && !isset($sedesMap[$idOrigen], $sedesMap[$idDestino])) {
             csb_json(false, [], 'No se encontro el origen o destino seleccionado.', 422);
         }
         foreach ($rutaIds as $rutaId) {
@@ -1512,6 +1526,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $revisionComentario = 'Registro manual agregado desde consolidado.';
         $conn->begin_transaction();
         try {
+            $contractReason = n360_contract_guard_bus($conn, $idPlaca, $contratoId, $_POST);
+            if ($contratoId > 0) {
+                $realDeparture = $fechaManual . ' ' . $horaSalida;
+                if ($horaSalida < '05:00:00') $realDeparture = (new DateTimeImmutable($realDeparture))->modify('+1 day')->format('Y-m-d H:i:s');
+                n360_contract_return($conn, $contratoId, $idPlaca, $realDeparture);
+                $revisionComentario = 'Retorno manual del contrato #' . $contratoId . '.';
+            }
+            if ($contractReason !== '') $revisionComentario .= ' ' . $contractReason;
+            $contractColumns = n360_contract_ready($conn) ? ', clm_salprog_contrato_id, clm_salprog_contrato_tramo' : '';
+            $contractValues = n360_contract_ready($conn) ? ', ?, ?' : '';
             $stmt = $conn->prepare("
                 INSERT INTO tb_progbuses_salida_consolidado (
                     clm_salprog_cierre_id,
@@ -1538,7 +1562,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     clm_salprog_revision_estado,
                     clm_salprog_comentario_revision,
                     clm_salprog_usuario_revision,
-                    clm_salprog_datetime_revision
+                    clm_salprog_datetime_revision {$contractColumns}
                 ) VALUES (
                     0,
                     ?,
@@ -1564,7 +1588,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'MANUAL',
                     ?,
                     ?,
-                    CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')
+                    CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00') {$contractValues}
                 )
             ");
             if (!$stmt) {
@@ -1577,9 +1601,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $placaTexto,
                 $servicio,
                 $idOrigen,
-                $sedesMap[$idOrigen],
+                $contractOrigin ? $contractOrigin['label'] : $sedesMap[$idOrigen],
                 $idDestino,
-                $sedesMap[$idDestino],
+                $contractDestination ? $contractDestination['label'] : $sedesMap[$idDestino],
                 $rutaIdsText,
                 $rutaTexto,
                 $horaSalida,
@@ -1589,9 +1613,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $uid,
             ];
 
+            $manualTypes = 'sisssisissssissi';
+            if (n360_contract_ready($conn)) {
+                $paramsManual[] = $contratoId > 0 ? $contratoId : null;
+                $paramsManual[] = $contratoId > 0 ? 'RETORNO' : null;
+                $manualTypes .= 'is';
+            }
             csb_bind(
                 $stmt,
-                'sisssisissssissi',
+                $manualTypes,
                 $paramsManual
             );
 
@@ -1613,7 +1643,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ], 'Viaje manual registrado correctamente.');
         } catch (Throwable $e) {
             $conn->rollback();
-            csb_json(false, [], 'No se pudo registrar el viaje manual: ' . $e->getMessage(), $e->getCode() === 409 ? 409 : 500);
+            csb_json(false, [], 'No se pudo registrar el viaje manual: ' . $e->getMessage(), in_array($e->getCode(), [403,409,422,429], true) ? $e->getCode() : 500);
         }
     }
 
@@ -1860,6 +1890,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <span><i class="bi bi-calendar2-check"></i> <?= csb_h($periodoOperativoLabel) ?></span>
                 <span><i class="bi bi-clock-history"></i> Cierre (Pe) 04:59am</span>
                 <button type="button" class="csb-btn csb-btn--hero-soft" data-salprog-history-open><i class="bi bi-clock-history"></i> Historial</button>
+                <?php n360_contract_button($conn, 'csb-btn csb-btn--hero-soft'); ?>
                 <button type="button" class="csb-btn csb-btn--hero" data-csb-export-pdf><i class="bi bi-file-earmark-pdf"></i> PDF</button>
                 <button type="button" class="csb-btn csb-btn--hero" data-csb-export-route-pdf><i class="bi bi-file-earmark-richtext"></i> PDF Hoja de Ruta</button>
                 <?php if ($isAdmin): ?>
@@ -2869,7 +2900,8 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=driver-order-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<?php n360_contract_render($conn, $canEdit, $isAdmin); ?>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=contracts-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>

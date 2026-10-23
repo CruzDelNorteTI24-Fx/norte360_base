@@ -19,7 +19,7 @@ $web_rol              = $_SESSION['web_rol'] ?? '';
 $usuario_session      = $_SESSION['usuario'] ?? 'QR Operativo';
 $dni_session          = $_SESSION['DNI'] ?? '—';
 
-$HORARIO_CIERRE_URL   = 'https://dimgrey-cat-911574.hostingersite.com/ht/01_flota/cron_cierre_operativo_horarios.php?token=NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
+$HORARIO_CIERRE_URL   = 'http://localhost/norte360_base/01_flota/cron_cierre_operativo_horarios.php?token=NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
 
 $permisos = ($session_permisos_raw === 'all') ? [] : (array)$session_permisos_raw;
 $vistas   = ($session_permisos_raw === 'all') ? [] : (array)$session_vistas_raw;
@@ -44,6 +44,8 @@ require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
 require_once __DIR__ . '/flota_evidencias_ui.php';
+require_once __DIR__ . '/flota_contratos.php';
+require_once __DIR__ . '/flota_contratos_ui.php';
 require_once("../trash/copidb_secure.php");
 $exito = isset($_SESSION['exito']) && $_SESSION['exito'] === true;
 unset($_SESSION['exito']);
@@ -360,6 +362,10 @@ $sql = "
 }
 
 function horario_fetch_panel_horarios(mysqli $conn, int $estado = 1): array {
+    $contractFields = n360_contract_fields_sql($conn, 'pb', !empty($GLOBALS['modo_qr_programacion']));
+    $originContract = n360_contract_place_sql($conn, 'pb', 'o1', 'origen');
+    $destinationContract = n360_contract_place_sql($conn, 'pb', 'o2', 'destino');
+    $contractWhere = n360_contract_ready($conn) ? ' AND (pb.clm_progbuses_escontrato=0 OR pb.clm_progbuses_idplaca IS NOT NULL)' : '';
     $comentarioSelect = horario_has_comentario_column($conn)
         ? "IFNULL(pb.clm_progbuses_comentario, '') AS clm_progbuses_comentario,"
         : "'' AS clm_progbuses_comentario,";
@@ -376,6 +382,7 @@ $sql = "
         pb.clm_progbuses_idusuario,
         pb.clm_progbuses_datetimeupdated,
         pb.clm_progbuses_motivo,
+        {$contractFields}
         {$comentarioSelect}
         IFNULL(p.clm_placas_BUS, '') AS bus,
         IFNULL(p.clm_placas_PLACA, '') AS placa,
@@ -383,8 +390,8 @@ $sql = "
         IFNULL(p.clm_placas_servicio, '') AS servicio_unidad,   
         IFNULL(ea.clm_pgbestado_estado, '') AS estado_actual_unidad,
         IFNULL(ea.clm_pgbestado_motivo, '') AS motivo_actual_unidad,     
-        IFNULL(o1.clm_sedes_abr, '') AS oficina_origen,
-        IFNULL(o2.clm_sedes_abr, '') AS oficina_destino,
+        {$originContract} AS oficina_origen,
+        {$destinationContract} AS oficina_destino,
         IFNULL(o1.clm_sedes_grupo_pizarra, 'SIN GRUPO') AS grupo_pizarra_origen,
         IFNULL(NULLIF(TRIM(o1.clm_sedes_tipo_imagen_grupo), ''), 'PIZARRA') AS tipo_imagen_grupo_origen,
         o1.clm_sedes_orden_pizarra AS orden_pizarra_origen
@@ -393,7 +400,7 @@ $sql = "
     LEFT JOIN tb_progbuses_estado_actual ea ON ea.clm_pgbestado_idplaca = p.clm_placas_id
     LEFT JOIN tb_sedes o1 ON o1.clm_sedes_id = pb.clm_progbuses_idoficina_origen
     LEFT JOIN tb_sedes o2 ON o2.clm_sedes_id = pb.clm_progbuses_idoficina_destino
-    WHERE pb.clm_progbuses_estado = ?
+    WHERE pb.clm_progbuses_estado = ? {$contractWhere}
     ORDER BY 
         IFNULL(o1.clm_sedes_grupo_pizarra, 'SIN GRUPO') ASC,
         CASE
@@ -487,6 +494,8 @@ function horario_fetch_buses_disponibles(mysqli $conn): array {
 }
 
 function horario_fetch_historial(mysqli $conn, int $limit = 300): array {
+    $originContract = n360_contract_place_sql($conn, 'h', 'o1', 'origen');
+    $destinationContract = n360_contract_place_sql($conn, 'h', 'o2', 'destino');
     $limit = max(1, min(1000, $limit));
     $sql = "
         SELECT
@@ -507,8 +516,8 @@ function horario_fetch_historial(mysqli $conn, int $limit = 300): array {
             IFNULL(h.clm_progbuses_motivo, '') AS motivo,
             IFNULL(p.clm_placas_BUS, '') AS bus,
             IFNULL(p.clm_placas_PLACA, '') AS placa,
-            IFNULL(o1.clm_sedes_abr, '') AS oficina_origen,
-            IFNULL(o2.clm_sedes_abr, '') AS oficina_destino
+            {$originContract} AS oficina_origen,
+            {$destinationContract} AS oficina_destino
         FROM tb_hist_progbuses h
         LEFT JOIN tb_placas p ON p.clm_placas_id = h.clm_progbuses_idplaca
         LEFT JOIN tb_sedes o1 ON o1.clm_sedes_id = h.clm_progbuses_idoficina_origen
@@ -528,12 +537,13 @@ function horario_fetch_historial(mysqli $conn, int $limit = 300): array {
 }
 
 function horario_fetch_summary(mysqli $conn): array {
+    $contractWhere = n360_contract_ready($conn) ? ' AND (pb.clm_progbuses_escontrato=0 OR pb.clm_progbuses_idplaca IS NOT NULL)' : '';
     $sql = "
         SELECT COUNT(*) AS total_activos,
                SUM(CASE WHEN pb.clm_progbuses_idplaca IS NULL THEN 1 ELSE 0 END) AS total_sin_bus,
                SUM(CASE WHEN pb.clm_progbuses_idplaca IS NOT NULL THEN 1 ELSE 0 END) AS total_asignados
         FROM tb_progbuses pb
-        WHERE pb.clm_progbuses_estado = 1
+        WHERE pb.clm_progbuses_estado = 1 {$contractWhere}
     ";
     $res = $conn->query($sql);
     if (!$res) throw new RuntimeException(horario_mysqli_error($conn));
@@ -552,6 +562,11 @@ function horario_build_snapshot(mysqli $conn): array {
     $summary = horario_fetch_summary($conn);
     $summary['buses_sin_horario'] = count($sinHorario);
     $summary['buses_taller'] = count($taller);
+    $contracts = empty($GLOBALS['modo_qr_programacion']) ? n360_contract_rows($conn) : [];
+    $reserved = [];
+    foreach ($contracts as $contract) if (!(int)$contract['released']) $reserved[(int)$contract['bus_id']] = (int)$contract['id'];
+    foreach ($sinHorario as &$bus) $bus['contrato_reservado'] = $reserved[(int)$bus['clm_placas_id']] ?? null;
+    unset($bus);
     return [
         'fechas' => horario_operational_dates(),
         'summary' => $summary,
@@ -560,6 +575,8 @@ function horario_build_snapshot(mysqli $conn): array {
         'buses_taller' => $taller,
         'oficinas_origen' => horario_fetch_oficinas($conn, 'ORIGEN'),
         'oficinas_destino' => horario_fetch_oficinas($conn, 'TODAS'),
+        'contratos_ready' => n360_contract_ready($conn),
+        'contratos' => $contracts,
     ];
 }
 
@@ -596,6 +613,12 @@ if (isset($_GET['ajax'])) {
         $conn->begin_transaction();
 
         if ($ajax === 'create_horario') {
+            if ((string)($_POST['escontrato'] ?? '0') === '1') {
+                $contractId = n360_contract_create($conn, $_POST, $horario_uid);
+                horario_sync_estado_actual_bus($conn, $horario_uid, (int)$_POST['contrato_bus']);
+                $conn->commit();
+                horario_json(true, horario_build_snapshot($conn), 'Contrato creado y unidad reservada.');
+            }
             $idOrigen = (int)($_POST['idof_origen'] ?? 0);
             $idDestino = (int)($_POST['idof_destino'] ?? 0);
             $ruta = horario_normalizar_ruta($_POST['ruta'] ?? '');
@@ -677,6 +700,7 @@ if (isset($_GET['ajax'])) {
 
         if ($ajax === 'editar_hora') {
             $progid = (int)($_POST['progid'] ?? 0);
+            n360_contract_regular_schedule($conn, $progid);
             $nuevaHora = horario_time_to_sql($_POST['horasalida'] ?? '');
             $nuevoDestino = (int)($_POST['idof_destino'] ?? 0);
             $nuevaRuta = horario_normalizar_ruta($_POST['ruta'] ?? '');
@@ -815,12 +839,15 @@ if (isset($_GET['ajax'])) {
             $progid = (int)($_POST['progid'] ?? 0);
             $idplaca = (int)($_POST['idplaca'] ?? 0);
             if ($progid <= 0 || $idplaca <= 0) throw new RuntimeException('Selecciona un horario y un bus válido.');
+            n360_contract_regular_schedule($conn, $progid);
+            n360_contract_guard_bus($conn, $idplaca, $progid, $_POST);
             $stmt = $conn->prepare("UPDATE tb_progbuses SET clm_progbuses_idplaca = ?, clm_progbuses_estado = 1, clm_progbuses_idusuario = ?, clm_progbuses_motivo = NULL WHERE clm_progbuses_progid = ?");
             if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
             $stmt->bind_param('iii', $idplaca, $horario_uid, $progid);
             if (!$stmt->execute()) { $err = $stmt->error ?: horario_mysqli_error($conn); $stmt->close(); throw new RuntimeException($err); }
             $stmt->close();
             horario_sync_estado_actual_bus($conn, $horario_uid, $idplaca);
+            horario_clear_hist_motivo($conn);
             $conn->commit();
             horario_json(true, horario_build_snapshot($conn), 'Bus asignado correctamente.');
         }
@@ -978,6 +1005,7 @@ if (isset($_GET['ajax'])) {
 
         if (in_array($ajax, ['cambiar_bus', 'remover_bus', 'inactivar_horario', 'activar_horario'], true)) {
             $progid = (int)($_POST['progid'] ?? 0);
+            n360_contract_regular_schedule($conn, $progid);
             if ($progid <= 0) throw new RuntimeException('Horario inválido.');
             $stmt = $conn->prepare("SELECT clm_progbuses_idplaca FROM tb_progbuses WHERE clm_progbuses_progid = ? LIMIT 1");
             if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
@@ -993,6 +1021,8 @@ if (isset($_GET['ajax'])) {
                 $idplacaNueva = (int)($_POST['idplaca'] ?? 0);
                 if ($idplacaNueva <= 0) throw new RuntimeException('Selecciona la nueva unidad.');
                 if ($idplacaActual && $idplacaActual === $idplacaNueva) throw new RuntimeException('Has seleccionado la misma unidad que ya tiene el horario.');
+                $contractReason = n360_contract_guard_bus($conn, $idplacaNueva, $progid, $_POST);
+                if ($contractReason !== '') $motivo = trim($motivo . ' | ' . $contractReason);
                 horario_set_hist_motivo($conn, $motivo);
                 $stmt = $conn->prepare("UPDATE tb_progbuses SET clm_progbuses_idplaca = ?, clm_progbuses_estado = 1, clm_progbuses_idusuario = ?, clm_progbuses_motivo = NULL WHERE clm_progbuses_progid = ?");
                 if (!$stmt) throw new RuntimeException(horario_mysqli_error($conn));
@@ -4267,6 +4297,7 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
                     <button class="btn btn-primary" id="btnNuevoHorario"><i class="bi bi-plus-circle me-2"></i>Nuevo horario</button>
                     <button class="btn btn-outline-secondary" id="btnRefreshHorarios"><i class="bi bi-arrow-repeat me-2"></i>Actualizar</button>
                     <?php if (!$modo_qr_programacion): ?>
+                    <?php n360_contract_button($conn, 'btn btn-outline-secondary'); ?>
                     <button type="button" class="btn btn-outline-secondary" data-fe-open data-fe-current-day data-fe-date="<?= h((new DateTimeImmutable('now', new DateTimeZone('America/Lima')))->format('Y-m-d')) ?>">
                         <i class="bi bi-paperclip me-2" aria-hidden="true"></i>Evidencias del dia <span data-fe-current-count>-/2</span>
                     </button>
@@ -4578,9 +4609,10 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 } ?>
 
 <script>
-window.horariosInitialData = <?= json_encode($initialSnapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+window.horariosInitialData = <?= json_encode($initialSnapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 window.horariosInitialError = <?= json_encode($initialError, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
+<?php if (!$modo_qr_programacion) n360_contract_render($conn, true, $web_rol === 'Admin'); ?>
 <script>
 (function () {
   const state = {
@@ -4997,6 +5029,8 @@ function renderSideList(container, rows, emptyText, includeMotivo = false, modo 
           </div>
         ` : ''}
 
+        ${r.contrato_reservado ? `<span class="n360-contract-tag"><i class="bi bi-lock"></i> RESERVADO / #${Number(r.contrato_reservado)}</span>` : ''}
+
         ${btnTaller}
         ${btnSinHorario}
       </div>
@@ -5103,6 +5137,7 @@ function attachMarcarSinHorarioActions(container) {
 
 
   function renderScheduleCard(row, fechaSig){
+  const esContrato = Number(row.clm_progbuses_escontrato) === 1;
   const activo = Number(row.clm_progbuses_estado) === 1;
   const tieneBus = !!row.clm_progbuses_idplaca;
   const estaEnTaller = tieneBus && String(row.estado_actual_unidad || '').toUpperCase() === 'TALLER';
@@ -5112,10 +5147,11 @@ function attachMarcarSinHorarioActions(container) {
   if (activo && tieneBus) estadoBadge = estaEnTaller ? badge('EN TALLER', 'taller') : badge('ASIGNADO', 'success');
   if (activo && !tieneBus) estadoBadge = badge('SIN BUS', 'warning');
 
-  const nextBadge = isNext(hora) ? `<span class="mini-badge mini-badge--next">${esc(fechaSig || 'SIG. DÍA')}</span>` : '';
+  const nextBadge = !esContrato && isNext(hora) ? `<span class="mini-badge mini-badge--next">${esc(fechaSig || 'SIG. DÍA')}</span>` : '';
+  const contractDate = (s) => s ? `${String(s).slice(8,10)}/${String(s).slice(5,7)}/${String(s).slice(0,4)} ${String(s).slice(11,16)}` : '-';
 
   let actions = '';
-  if (activo) {
+  if (activo && !esContrato) {
     if (tieneBus) {
       actions += `
         <button class="btn-action-card primary full" data-action="cambiar" data-id="${row.clm_progbuses_progid}">
@@ -5157,6 +5193,7 @@ function attachMarcarSinHorarioActions(container) {
         Ruta: ${esc(rutaTexto)}
       </div>`
     : '';
+  if (esContrato) actions = `<button class="btn-action-card light full" data-action="contrato" data-id="${row.clm_progbuses_progid}"><i class="bi bi-briefcase"></i> Reserva de contrato</button>`;
   const comentario = String(row.clm_progbuses_comentario || '').trim();
   const comentarioHtml = comentario
     ? `<div class="schedule-card__comentario">
@@ -5175,9 +5212,10 @@ function attachMarcarSinHorarioActions(container) {
       <div class="schedule-card__top">
         <div class="schedule-card__time">
           <div class="schedule-card__hour">${esc(hora || '—')}</div>
-          <div class="schedule-card__day">${isNext(hora) ? esc(fechaSig || 'SIGUIENTE DÍA') : 'MISMO DÍA'}</div>
+          <div class="schedule-card__day">${esContrato ? esc(contractDate(row.clm_progbuses_contrato_salida).slice(0,10)) : isNext(hora) ? esc(fechaSig || 'SIGUIENTE DÍA') : 'MISMO DÍA'}</div>
         </div>
         <div class="schedule-card__badges">
+          ${esContrato ? '<span class="n360-contract-tag"><i class="bi bi-briefcase"></i> CONTRATO</span>' : ''}
           ${nextBadge}
           ${estadoBadge}
         </div>
@@ -5191,6 +5229,7 @@ function attachMarcarSinHorarioActions(container) {
       }</div>
       <div class="schedule-card__unit">${esc(unidadTexto)}</div>
       <div class="schedule-card__meta">${esc(metaTexto)}</div>
+      ${esContrato ? `<div class="schedule-card__meta">Salida: ${esc(contractDate(row.clm_progbuses_contrato_salida))}<br>Retorno previsto: ${esc(contractDate(row.clm_progbuses_contrato_retorno))}</div>` : ''}
       ${rutaHtml}
       ${comentarioHtml}
       ${tallerNota}
@@ -5245,6 +5284,7 @@ function attachMarcarSinHorarioActions(container) {
               });
             }
 
+          else if(action==='contrato'){ window.N360Contracts?.open(); }
           else if(action==='inactivar'){ askMotivo({accion:'INACTIVAR',titulo:'Motivo de inhabilitación del horario',permitirTaller:false}).then(m=>{ if(m) performAction('inactivar_horario',{progid:row.clm_progbuses_progid,motivo:m},'Horario inhabilitado correctamente.'); }); } }); }); }
 
     function renderBoard(){
@@ -6835,7 +6875,7 @@ busesSinHorario.forEach(b => {
 }
 
 
-  function updateAll(){ renderDates(); renderSummary(); renderBoard(); renderListaGruposExportacion();
+  function updateAll(){ window.N360Contracts?.update(state.snapshot); renderDates(); renderSummary(); renderBoard(); renderListaGruposExportacion();
   renderSideList(
     els.sideTaller,
     state.snapshot.buses_taller || [],
@@ -6910,9 +6950,10 @@ async function fetchJson(action, options = {}) {
   async function refreshSnapshot(showOk=false){ const data=await fetchJson('snapshot'); state.snapshot=data; updateAll(); if(showOk) showAlert('success','Programación actualizada correctamente.'); }
   function populateOfficeSelects(){ const origenes=state.snapshot.oficinas_origen||[]; const destinos=state.snapshot.oficinas_destino||[]; els.crearOrigen.innerHTML=`<option value="">Selecciona origen</option>`+origenes.map(o=>`<option value="${o.clm_sedes_id}">${esc(o.oficina||`Sede ${o.clm_sedes_id}`)}</option>`).join(''); els.crearDestino.innerHTML=`<option value="">Selecciona destino</option>`+destinos.map(o=>`<option value="${o.clm_sedes_id}">${esc(o.oficina||`Sede ${o.clm_sedes_id}`)}</option>`).join(''); }
   function updateCreatePreview(){
-    const origenTxt = els.crearOrigen.options[els.crearOrigen.selectedIndex]?.text || 'Origen';
-    const destinoTxt = els.crearDestino.options[els.crearDestino.selectedIndex]?.text || 'Destino';
-    const hora = els.crearHora.value || '16:00';
+    const draft = window.N360Contracts?.createData();
+    const origenTxt = draft?.values?.origen_libre || els.crearOrigen.options[els.crearOrigen.selectedIndex]?.text || 'Origen';
+    const destinoTxt = draft?.values?.destino_libre || els.crearDestino.options[els.crearDestino.selectedIndex]?.text || 'Destino';
+    const hora = draft?.values?.contrato_salida?.slice(11,16) || els.crearHora.value || '16:00';
     const rutaIds = getRutaSeleccionada(els.crearRutaList);
     const rutaTxt = rutaIds.length ? ` | Ruta: ${rutaIdsToTexto(rutaIds)}` : '';
 
@@ -6941,18 +6982,42 @@ async function fetchJson(action, options = {}) {
   }
 async function saveNewHorario(){
   if (state.isBusy) return;
+  const contract = window.N360Contracts?.createData() || { active: false };
+  if (contract.active && contract.error) { showAlert('warning', contract.error); return; }
 
-  if(!els.crearOrigen.value||!els.crearDestino.value){
+  if(!contract.active && (!els.crearOrigen.value||!els.crearDestino.value)){
     showAlert('warning','Selecciona origen y destino.');
     return;
   }
-  if(els.crearOrigen.value===els.crearDestino.value){
+  if(els.crearOrigen.value && els.crearOrigen.value===els.crearDestino.value){
     showAlert('warning','Origen y destino no pueden ser iguales.');
     return;
   }
   if(!els.crearHora.value){
     showAlert('warning','Selecciona una hora de salida.');
     return;
+  }
+
+  if (contract.active) {
+    const target = {
+      clm_progbuses_progid: 0,
+      clm_progbuses_horasalida: contract.values.contrato_salida.slice(11),
+      clm_progbuses_contrato_salida: contract.values.contrato_salida,
+      oficina_origen: contract.values.origen_libre || els.crearOrigen.selectedOptions[0]?.text || '',
+      oficina_destino: contract.values.destino_libre || els.crearDestino.selectedOptions[0]?.text || ''
+    };
+    const alert = evaluarAlertaDescanso8Horas(contract.values.contrato_bus, target);
+    if (alert) {
+      const el = $('modalCrearHorario');
+      el.dataset.contractAuthorizing = '1';
+      modalCreate.hide();
+      await waitModalHidden(el);
+      const approved = await confirmarDescanso8Horas(alert,
+        { bus: $('n360ContractBus').selectedOptions[0]?.text || '', placa: '' }, target);
+      await new Promise((resolve) => { el.addEventListener('shown.bs.modal', resolve, { once: true }); modalCreate.show(); });
+      delete el.dataset.contractAuthorizing;
+      if (!approved) return;
+    }
   }
 
   const rutaIds = getRutaSeleccionada(els.crearRutaList);
@@ -6963,12 +7028,13 @@ async function saveNewHorario(){
   fd.append('horasalida',els.crearHora.value);
   fd.append('ruta', rutaIds.join(','));
   fd.append('comentario', (els.crearComentario?.value || '').trim());
+  if (contract.active) Object.entries(contract.values).forEach(([key, value]) => fd.append(key, value));
 
   const data=await fetchJson('create_horario',{method:'POST',body:fd});
   state.snapshot=data;
   updateAll();
   modalCreate.hide();
-  showAlert('success','Horario creado correctamente.');
+  showAlert('success', contract.active ? 'Contrato creado y unidad reservada.' : 'Horario creado correctamente.');
 }
   function openEditTimeModal(row){
     if(Number(row.clm_progbuses_estado)!==1){
@@ -7128,6 +7194,8 @@ function renderBusList() {
     let bdg = badge('SIN_HORARIO', 'warning');
     if (b.estado_programacion === 'TALLER') bdg = badge('TALLER', 'danger');
     if (Number(b.cantidad_asignaciones) > 0) bdg = badge('ASIGNADO', 'success');
+    const reservation = (state.snapshot.contratos || []).find((r) => !Number(r.released) && Number(r.bus_id) === Number(b.clm_placas_id));
+    if (reservation) bdg = `<span class="n360-contract-tag"><i class="bi bi-lock"></i> RESERVADO #${Number(reservation.id)}</span>`;
 
     const active = state.busSelection && String(state.busSelection.clm_placas_id) === String(b.clm_placas_id);
 
@@ -7184,6 +7252,15 @@ function horaToMinutosOperativos(hora) {
 }
 
 function evaluarAlertaDescanso8Horas(idplacaNueva, rowDestino) {
+  const operativeDate = (value) => {
+    if (!value) return null;
+    const day = new Date(`${String(value).slice(0,10)}T12:00:00Z`);
+    if (Number.isNaN(day.getTime())) return null;
+    if (String(value).slice(11,16) < '05:00') day.setUTCDate(day.getUTCDate() - 1);
+    return day.toISOString().slice(0,10);
+  };
+  const boardDate = state.snapshot.fechas?.fecha_base_iso;
+  const targetDate = operativeDate(rowDestino.clm_progbuses_contrato_salida) || boardDate;
   const nuevaHoraMin = horaToMinutosOperativos(
     rowDestino.clm_progbuses_horasalida || rowDestino.hora_fmt
   );
@@ -7199,6 +7276,8 @@ function evaluarAlertaDescanso8Horas(idplacaNueva, rowDestino) {
       if (String(r.clm_progbuses_idplaca || '') !== String(idplacaNueva || '')) return false;
       if (String(r.clm_progbuses_progid || '') === String(rowDestino.clm_progbuses_progid || '')) return false;
       if (Number(r.clm_progbuses_estado || 0) !== 1) return false;
+      if (Number(r.clm_progbuses_escontrato) === 1 && operativeDate(r.clm_progbuses_contrato_salida) !== targetDate) return false;
+      if (!Number(r.clm_progbuses_escontrato) && targetDate !== boardDate) return false;
       return true;
     })
     .map(r => {
@@ -7392,14 +7471,23 @@ async function confirmBusSelection() {
     return;
   }
 
+  let contratoAutorizacion = '';
+  if (window.N360ContractConfig?.ready) {
+    modalBus.hide();
+    await waitModalHidden($('modalBus'));
+    try {
+      const authorization = await window.N360Contracts.authorize(state.busSelection.clm_placas_id);
+      if (!authorization.ok) { modalBus.show(); return; }
+      contratoAutorizacion = authorization.password;
+    } catch (error) { showAlert('danger', error.message); modalBus.show(); return; }
+  }
   const alerta8h = evaluarAlertaDescanso8Horas(
     state.busSelection.clm_placas_id,
     state.currentRow
   );
 
   if (alerta8h) {
-    modalBus.hide();
-    await waitModalHidden($('modalBus'));
+    if ($('modalBus').classList.contains('show')) { modalBus.hide(); await waitModalHidden($('modalBus')); }
 
     const continuar = await confirmarDescanso8Horas(
       alerta8h,
@@ -7419,7 +7507,9 @@ async function confirmBusSelection() {
       'asignar_bus',
       {
         progid: state.currentRow.clm_progbuses_progid,
-        idplaca: state.busSelection.clm_placas_id
+        idplaca: state.busSelection.clm_placas_id,
+        contrato_autorizacion: contratoAutorizacion,
+        contrato_csrf: window.N360Contracts?.csrf() || ''
       },
       'Bus asignado correctamente.'
     );
@@ -7428,8 +7518,7 @@ async function confirmBusSelection() {
     return;
   }
 
-  modalBus.hide();
-  await waitModalHidden($('modalBus'));
+  if ($('modalBus').classList.contains('show')) { modalBus.hide(); await waitModalHidden($('modalBus')); }
 
   const motivo = await askMotivo({
     accion: 'CAMBIO',
@@ -7448,6 +7537,8 @@ async function confirmBusSelection() {
     {
       progid: state.currentRow.clm_progbuses_progid,
       idplaca: state.busSelection.clm_placas_id,
+      contrato_autorizacion: contratoAutorizacion,
+      contrato_csrf: window.N360Contracts?.csrf() || '',
       motivo
     },
     'Bus cambiado correctamente.'
@@ -7855,6 +7946,7 @@ if (els.btnLimpiarFiltroHistorial) {
 els.btnConfirmBus.addEventListener('click',()=>confirmBusSelection().catch(err=>showAlert('danger',err.message||'No se pudo completar la operación con el bus.')));
 fillQuickTimes(els.crearHora, els.quickTimeWrap, updateCreatePreview);
 fillQuickTimes(els.editarHoraInput, els.quickEditTimeWrap, updateEditPreview);
+document.addEventListener('n360:contracts-changed', () => refreshSnapshot().catch((error) => showAlert('danger', error.message)));
 updateAll();
 
 const paramsQR = new URLSearchParams(window.location.search);
@@ -7880,6 +7972,7 @@ if (esModoQRProgramacion) {
 <script>
 function toggleDropdown() {
   const dropdown = document.getElementById("usuarioDropdown");
+  if (!dropdown) return;
   dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
 }
 
@@ -7887,6 +7980,7 @@ function toggleDropdown() {
 document.addEventListener("click", function (e) {
   const barra = document.querySelector(".usuario-barra");
   const dropdown = document.getElementById("usuarioDropdown");
+  if (!barra || !dropdown) return;
 
   if (!barra.contains(e.target) && !dropdown.contains(e.target)) {
     dropdown.style.display = "none";

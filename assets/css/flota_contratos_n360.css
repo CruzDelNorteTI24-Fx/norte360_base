@@ -1,0 +1,49 @@
+.n360-contract-modal .modal-dialog { width: calc(100% - 24px); max-width: 1140px; margin: 16px auto; }
+.n360-contract-modal .modal-content { margin: 0; padding: 0; border: 0; border-radius: 8px; overflow: hidden; max-height: calc(100dvh - 32px); }
+.n360-contract-modal .modal-footer .btn, .n360-contract-table .btn { width: auto; }
+.n360-contract-modal .modal-header .btn-close { width: 16px; flex-shrink: 0; }
+.n360-contract-modal .modal-dialog:not(.modal-xl) { max-width: 500px; }
+.n360-contract-modal .modal-header { background: #193447; color: #fff; border-top: 3px solid #f5cc42; padding: 16px 20px; }
+.n360-contract-modal .modal-header small { font-size: 10px; font-weight: 700; color: #c7dce9; }
+.n360-contract-modal .modal-header .modal-title { font-size: 20px; font-weight: 700; margin: 0; color: #fff; text-align: left; }
+.n360-contract-modal .modal-body { padding: 16px 20px; }
+.n360-contract-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.n360-contract-toolbar input { flex: 1; min-width: 170px; }
+.n360-contract-toolbar .btn-group { flex-shrink: 0; }
+.n360-contract-toolbar > button { flex: 0 0 32px; width: 32px; height: 32px; padding: 4px; }
+.n360-contract-table { min-width: 830px; font-size: 12px; color: #153247; }
+.n360-contract-table thead th { background: #193447; color: #fff; padding: 10px; white-space: nowrap; }
+.n360-contract-table tbody td { padding: 12px 10px; vertical-align: top; border-color: #e0e8ef; overflow-wrap: anywhere; }
+.n360-contract-table tbody td:nth-child(2) { max-width: 240px; }
+.n360-contract-table small { display: block; color: #657789; margin-top: 3px; }
+.n360-contract-table input[type="datetime-local"] { max-width: 190px; font-size: 12px; padding: 5px; border: 1px solid #bfcedb; border-radius: 4px; }
+.n360-contract-table .btn { font-size: 12px; white-space: nowrap; }
+.n360-contract-status { display: inline-flex; align-items: center; gap: 4px; background: #fff2cf; color: #795600; font-size: 10px; font-weight: 700; padding: 4px 7px; border-radius: 4px; }
+.n360-contract-status.is-late { background: #fce8e6; color: #a22c28; }
+.n360-contract-status.is-free { background: #e4f4eb; color: #126c47; }
+.n360-contract-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; background: #fff8e4; border-top: 1px solid #e8d694; padding: 12px; }
+.n360-contract-confirm strong { margin-right: auto; font-size: 13px; }
+.n360-contract-mode { display: flex; align-items: center; gap: 8px; padding: 11px 12px; margin-bottom: 16px; background: #edf5fb; border-left: 3px solid #258ac1; font-size: 13px; font-weight: 700; }
+.n360-contract-create { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #dce5ed; }
+.n360-contract-create .row { margin-top: 0; }
+.n360-contract-place-toggle { display: flex; width: 100%; gap: 5px; align-items: center; font-size: 11px; margin: 7px 0; }
+.n360-contract-place-input { width: 100%; }
+.n360-contract-tag { display: inline-flex; gap: 4px; align-items: center; color: #795600; background: #fff2cf; border-radius: 4px; font-size: 10px; padding: 3px 6px; font-weight: 700; }
+.n360-contract-return-picker { padding: 12px 0; margin-bottom: 12px; border-bottom: 1px solid #dce5ed; }
+.n360-contract-return-picker label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 5px; }
+.n360-contract-empty { text-align: center; padding: 28px !important; color: #667a89; }
+.n360-contract-create[hidden], .n360-contract-place-input[hidden], .n360-contract-place-toggle[hidden] { display: none !important; }
+#modalCrearHorario select[hidden], #modalCrearHorario .row[hidden], #csbManualTripModal select[hidden] { display: none !important; }
+#modalCrearHorario.n360-contract-creating .modal-dialog { width: calc(100% - 24px); max-width: 760px; margin: 16px auto; }
+#modalCrearHorario.n360-contract-creating .modal-content { margin: 0; padding: 0; border-radius: 8px; max-height: calc(100dvh - 32px); }
+#modalCrearHorario.n360-contract-creating .modal-body { overflow-y: auto; padding: 16px; }
+#modalCrearHorario.n360-contract-creating .modal-footer { flex-shrink: 0; padding: 12px 16px; }
+#modalCrearHorario.n360-contract-creating .modal-footer .btn { width: auto; }
+.n360-contract-place-field > .n360-contract-place-title { display: block; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.n360-contract-place-field select, .n360-contract-place-field input[type="text"] { width: 100%; min-height: 34px; border: 1px solid #bfd0df; border-radius: 4px; padding: 6px 10px; }
+@media (max-width: 575px) {
+    .n360-contract-modal .modal-body { padding: 12px; }
+    .n360-contract-toolbar .btn-group { width: 100%; display: flex; }
+    .n360-contract-toolbar .btn-group .btn { flex: 1; }
+    .n360-contract-modal .modal-title { font-size: 18px; }
+}

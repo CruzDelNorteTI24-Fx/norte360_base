@@ -2405,7 +2405,16 @@
       }
 
       const originalHtml = saveButton?.innerHTML || '';
+      if (saveButton?.disabled) return;
+      if (saveButton) saveButton.disabled = true;
+      let contractAuthorization = { ok: true, password: '' };
+      try {
+        if (window.N360Contracts) contractAuthorization = await window.N360Contracts.authorizeManual(form);
+      } catch (error) { if (saveButton) saveButton.disabled = false; showNotice(error.message, false); return; }
+      if (!contractAuthorization.ok) { if (saveButton) saveButton.disabled = false; return; }
       const fd = new FormData(form);
+      fd.append('contrato_autorizacion', contractAuthorization.password);
+      fd.append('contrato_csrf', window.N360Contracts?.csrf() || '');
       fd.append('csrf', csrf);
       fd.append('action', 'create_manual_trip');
 
@@ -2444,6 +2453,7 @@
     });
 
     modalEl.addEventListener('hidden.bs.modal', () => {
+      if (modalEl.dataset.contractAuthorizing) return;
       form.reset();
       if (operativeDate && (cfg.fechaInicio || cfg.fechaOperativa)) operativeDate.value = cfg.fechaInicio || cfg.fechaOperativa;
       updateRealDeparture();

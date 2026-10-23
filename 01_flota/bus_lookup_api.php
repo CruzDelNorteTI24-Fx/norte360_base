@@ -9,6 +9,7 @@ define('ACCESS_GRANTED', true);
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 
 mysqli_report(MYSQLI_REPORT_OFF);
+require_once __DIR__ . '/flota_contratos.php';
 
 function bl_json(bool $ok, array $data = [], string $message = '', int $status = 200): void {
     http_response_code($status);
@@ -257,6 +258,8 @@ function bl_fetch_conductores(mysqli $conn, int $busId): array {
 }
 
 function bl_fetch_horarios(mysqli $conn, int $busId): array {
+    $originContract = n360_contract_place_sql($conn, 'pb', 'o1', 'origen');
+    $destinationContract = n360_contract_place_sql($conn, 'pb', 'o2', 'destino');
     $sedeMap = bl_sede_map($conn);
     $comentarioExpr = bl_column_exists($conn, 'tb_progbuses', 'clm_progbuses_comentario')
         ? "IFNULL(pb.clm_progbuses_comentario, '')"
@@ -278,8 +281,8 @@ function bl_fetch_horarios(mysqli $conn, int $busId): array {
                    '%d/%m/%Y'
                ) AS fecha_operativa,
                DATE_FORMAT(pb.clm_progbuses_datetimeupdated, '%d/%m/%Y %H:%i') AS fecha_actualizacion,
-               IFNULL(o1.clm_sedes_abr, '') AS origen,
-               IFNULL(o2.clm_sedes_abr, '') AS destino,
+               {$originContract} AS origen,
+               {$destinationContract} AS destino,
                {$comentarioExpr} AS comentario
         FROM tb_progbuses pb
         LEFT JOIN tb_sedes o1 ON o1.clm_sedes_id = pb.clm_progbuses_idoficina_origen

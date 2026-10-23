@@ -30,6 +30,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 require_once("../trash/copidb_secure.php");
 
 mysqli_report(MYSQLI_REPORT_OFF);
+require_once __DIR__ . '/flota_contratos.php';
 
 function h($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -61,6 +62,8 @@ function hist_uid(): int {
 }
 
 function hist_build_filters(mysqli $conn, array $input): array {
+    $originExpr = n360_contract_place_sql($conn, 'h', 'o1', 'origen');
+    $destinationExpr = n360_contract_place_sql($conn, 'h', 'o2', 'destino');
     $where = [];
     $types = '';
     $params = [];
@@ -105,13 +108,13 @@ function hist_build_filters(mysqli $conn, array $input): array {
     }
 
     if ($origen !== '') {
-        $where[] = "IFNULL(o1.clm_sedes_abr,'') = ?";
+        $where[] = "{$originExpr} = ?";
         $types .= 's';
         $params[] = $origen;
     }
 
     if ($destino !== '') {
-        $where[] = "IFNULL(o2.clm_sedes_abr,'') = ?";
+        $where[] = "{$destinationExpr} = ?";
         $types .= 's';
         $params[] = $destino;
     }
@@ -178,13 +181,26 @@ function hist_fetch_filters_options(mysqli $conn): array {
         $destinos = $origenes;
     }
 
+    if (n360_contract_ready($conn)) {
+        $res = $conn->query("SELECT DISTINCT oficina FROM (
+            SELECT clm_sedes_abr COLLATE utf8mb4_unicode_ci AS oficina FROM tb_sedes
+            UNION SELECT clm_progbuses_origen_libre COLLATE utf8mb4_unicode_ci FROM tb_progbuses
+            UNION SELECT clm_progbuses_destino_libre COLLATE utf8mb4_unicode_ci FROM tb_progbuses
+            UNION SELECT clm_progbuses_origen_libre COLLATE utf8mb4_unicode_ci FROM tb_hist_progbuses
+            UNION SELECT clm_progbuses_destino_libre COLLATE utf8mb4_unicode_ci FROM tb_hist_progbuses
+        ) lugares WHERE IFNULL(oficina,'')<>'' ORDER BY oficina");
+        if ($res) $origenes = $destinos = $res->fetch_all(MYSQLI_ASSOC);
+    }
+
     return [
         'servicios' => $servicios,
         'origenes'  => $origenes,
         'destinos'  => $destinos,
     ];
 }
-function actual_build_filters(array $input): array {
+function actual_build_filters(mysqli $conn, array $input): array {
+    $originExpr = n360_contract_place_sql($conn, 'pb', 'o1', 'origen');
+    $destinationExpr = n360_contract_place_sql($conn, 'pb', 'o2', 'destino');
     $where = [];
     $types = '';
     $params = [];
@@ -209,13 +225,13 @@ function actual_build_filters(array $input): array {
     }
 
     if ($origen !== '') {
-        $where[] = "IFNULL(o1.clm_sedes_abr,'') = ?";
+        $where[] = "{$originExpr} = ?";
         $types .= 's';
         $params[] = $origen;
     }
 
     if ($destino !== '') {
-        $where[] = "IFNULL(o2.clm_sedes_abr,'') = ?";
+        $where[] = "{$destinationExpr} = ?";
         $types .= 's';
         $params[] = $destino;
     }
@@ -226,6 +242,8 @@ function actual_build_filters(array $input): array {
         $params[] = (int)$estado;
     }
 
+    if (n360_contract_ready($conn)) $where[] = '(pb.clm_progbuses_escontrato=0 OR pb.clm_progbuses_idplaca IS NOT NULL)';
+
     $sqlWhere = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
     return [
@@ -235,6 +253,8 @@ function actual_build_filters(array $input): array {
     ];
 }
 function hist_fetch_dashboard(mysqli $conn, array $input): array {
+    $originExpr = n360_contract_place_sql($conn, 'h', 'o1', 'origen');
+    $destinationExpr = n360_contract_place_sql($conn, 'h', 'o2', 'destino');
     $filters = hist_build_filters($conn, $input);
     [$fromSql, $types, $params] = hist_base_from($conn, $filters);
 
@@ -249,6 +269,7 @@ function hist_fetch_dashboard(mysqli $conn, array $input): array {
             COUNT(DISTINCT CONCAT(
                 IFNULL(h.clm_progbuses_idoficina_origen,0), '-',
                 IFNULL(h.clm_progbuses_idoficina_destino,0), '-',
+                {$originExpr}, '-', {$destinationExpr}, '-',
                 IFNULL(h.clm_progbuses_horasalida,'00:00:00')
             )) AS horarios_distintos
         {$fromSql}
@@ -283,11 +304,11 @@ function hist_fetch_dashboard(mysqli $conn, array $input): array {
     $rankingHorarios = hist_stmt_fetch_all($conn, "
         SELECT
             TIME_FORMAT(h.clm_progbuses_horasalida, '%H:%i') AS hora,
-            IFNULL(o1.clm_sedes_abr, '—') AS origen,
-            IFNULL(o2.clm_sedes_abr, '—') AS destino,
+            {$originExpr} AS origen,
+            {$destinationExpr} AS destino,
             COUNT(*) AS total
         {$fromSql}
-        GROUP BY h.clm_progbuses_horasalida, o1.clm_sedes_abr, o2.clm_sedes_abr
+        GROUP BY h.clm_progbuses_horasalida, {$originExpr}, {$destinationExpr}
         ORDER BY total DESC, h.clm_progbuses_horasalida ASC
         LIMIT 10
     ", $types, $params);
@@ -313,10 +334,10 @@ function hist_fetch_dashboard(mysqli $conn, array $input): array {
 
     $movPorOrigen = hist_stmt_fetch_all($conn, "
         SELECT
-            IFNULL(o1.clm_sedes_abr, 'SIN ORIGEN') AS origen,
+            {$originExpr} AS origen,
             COUNT(*) AS total
         {$fromSql}
-        GROUP BY o1.clm_sedes_abr
+        GROUP BY {$originExpr}
         ORDER BY total DESC, origen ASC
         LIMIT 10
     ", $types, $params);
@@ -344,8 +365,8 @@ $movPorDia = hist_stmt_fetch_all($conn, "
             IFNULL(p.clm_placas_BUS, 'SIN BUS') AS bus,
             IFNULL(p.clm_placas_PLACA, '—') AS placa,
             IFNULL(p.clm_placas_servicio, '—') AS servicio,
-            IFNULL(o1.clm_sedes_abr, '—') AS origen,
-            IFNULL(o2.clm_sedes_abr, '—') AS destino,
+            {$originExpr} AS origen,
+            {$destinationExpr} AS destino,
             IFNULL(h.clm_progbuses_motivo, '') AS motivo,
             IFNULL(u.usuario, '—') AS usuario
         FROM tb_hist_progbuses h
@@ -381,7 +402,9 @@ $movPorDia = hist_stmt_fetch_all($conn, "
     ];
 }
 function actual_fetch_dashboard(mysqli $conn, array $input): array {
-    $filters = actual_build_filters($input);
+    $originExpr = n360_contract_place_sql($conn, 'pb', 'o1', 'origen');
+    $destinationExpr = n360_contract_place_sql($conn, 'pb', 'o2', 'destino');
+    $filters = actual_build_filters($conn, $input);
 
     $fromSql = "
         FROM tb_progbuses pb
@@ -421,11 +444,11 @@ function actual_fetch_dashboard(mysqli $conn, array $input): array {
     $rankingHorarios = hist_stmt_fetch_all($conn, "
         SELECT
             TIME_FORMAT(pb.clm_progbuses_horasalida, '%H:%i') AS hora,
-            IFNULL(o1.clm_sedes_abr, '—') AS origen,
-            IFNULL(o2.clm_sedes_abr, '—') AS destino,
+            {$originExpr} AS origen,
+            {$destinationExpr} AS destino,
             COUNT(*) AS total
         {$fromSql}
-        GROUP BY pb.clm_progbuses_horasalida, o1.clm_sedes_abr, o2.clm_sedes_abr
+        GROUP BY pb.clm_progbuses_horasalida, {$originExpr}, {$destinationExpr}
         ORDER BY total DESC, pb.clm_progbuses_horasalida ASC
         LIMIT 10
     ", $types, $params);
@@ -442,10 +465,10 @@ function actual_fetch_dashboard(mysqli $conn, array $input): array {
 
     $movPorOrigen = hist_stmt_fetch_all($conn, "
         SELECT
-            IFNULL(o1.clm_sedes_abr, 'SIN ORIGEN') AS origen,
+            {$originExpr} AS origen,
             COUNT(*) AS total
         {$fromSql}
-        GROUP BY o1.clm_sedes_abr
+        GROUP BY {$originExpr}
         ORDER BY total DESC, origen ASC
         LIMIT 10
     ", $types, $params);
@@ -472,8 +495,8 @@ function actual_fetch_dashboard(mysqli $conn, array $input): array {
             IFNULL(p.clm_placas_BUS, 'SIN BUS') AS bus,
             IFNULL(p.clm_placas_PLACA, '—') AS placa,
             IFNULL(p.clm_placas_servicio, '—') AS servicio,
-            IFNULL(o1.clm_sedes_abr, '—') AS origen,
-            IFNULL(o2.clm_sedes_abr, '—') AS destino,
+            {$originExpr} AS origen,
+            {$destinationExpr} AS destino,
             IFNULL(pb.clm_progbuses_motivo, '') AS motivo,
             IFNULL(u.usuario, '—') AS usuario,
             pb.clm_progbuses_estado AS estado
