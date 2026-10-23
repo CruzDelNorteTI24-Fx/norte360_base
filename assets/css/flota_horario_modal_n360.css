@@ -1,0 +1,446 @@
+/* Keep legacy modal and full-width button rules outside this form. */
+html:has(#modalCrearHorario.show) {
+    overflow: hidden;
+}
+
+#modalCrearHorario.modal {
+    z-index: 10090;
+    width: 100vw;
+    padding: 0 !important;
+    overflow: hidden;
+    background: transparent;
+}
+
+body:has(#modalCrearHorario.show) > .modal-backdrop {
+    z-index: 10080;
+}
+
+body:has(#modalCrearHorario.show) #horariosAlertZone .alert-success {
+    display: none;
+}
+
+#modalCrearHorario.modal .modal-dialog {
+    width: calc(100% - 24px);
+    max-width: 760px;
+    min-height: calc(100% - 32px);
+    margin: 16px auto;
+}
+
+#modalCrearHorario.modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    color: #22384b;
+    letter-spacing: 0;
+    box-shadow: 0 18px 56px #00000038;
+}
+
+#modalCrearHorario .modal-header {
+    flex-shrink: 0;
+    gap: 16px;
+    padding: 14px 20px;
+    background: #193b50;
+    border-top: 3px solid #f4cc46;
+}
+
+#modalCrearHorario .horario-create-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+#modalCrearHorario .horario-create-icon {
+    color: #f4cc46;
+    font-size: 24px;
+}
+
+#modalCrearHorario .modal-title {
+    margin: 0 0 3px;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: left;
+}
+
+#modalCrearHorario .modal-header .small {
+    color: #c8dce8;
+    font-size: 12px;
+}
+
+#modalCrearHorario .modal-header .btn-close {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 8px;
+    border-radius: 4px;
+    background-color: transparent;
+    opacity: .85;
+}
+
+#modalCrearHorario.modal .modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px 20px;
+    background: #fff;
+    scrollbar-gutter: stable;
+}
+
+#modalCrearHorario .btn {
+    width: auto;
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+#modalCrearHorario .form-label {
+    display: block;
+    margin: 0 0 6px;
+    color: #334b5d;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#modalCrearHorario .form-control,
+#modalCrearHorario .form-select {
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    margin: 0;
+    padding: 7px 10px;
+    border: 1px solid #c8d6e2;
+    border-radius: 5px;
+    background-color: #fff;
+    color: #22384b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+#modalCrearHorario .form-select {
+    padding-right: 32px;
+    text-overflow: ellipsis;
+}
+
+#modalCrearHorario .form-control:focus,
+#modalCrearHorario .form-select:focus {
+    border-color: #258fc6;
+    box-shadow: 0 0 0 3px #258fc61a;
+}
+
+#modalCrearHorario input[type="checkbox"] {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    accent-color: #1688bf;
+    cursor: pointer;
+}
+
+#modalCrearHorario :is(button, input[type="checkbox"]):focus-visible {
+    outline: 2px solid #1688bf;
+    outline-offset: 3px;
+}
+
+#modalCrearHorario .n360-contract-mode {
+    min-height: 34px;
+    margin: 0 0 12px;
+    padding: 7px 12px;
+    border: 1px solid #dbe7ef;
+    border-left: 3px solid #248bbf;
+    border-radius: 4px;
+    background: #f1f7fb;
+    color: #24495f;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#modalCrearHorario .n360-contract-mode:has(input:checked) {
+    border-color: #91bcd4;
+    background: #e9f5fc;
+}
+
+#modalCrearHorario .n360-contract-create {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+}
+
+#modalCrearHorario .n360-contract-create .row {
+    --bs-gutter-y: 12px;
+}
+
+#modalCrearHorario .n360-contract-create .row > :first-child {
+    margin-top: 0;
+}
+
+#modalCrearHorario .n360-contract-create small {
+    color: #617789;
+    font-size: 12px;
+}
+
+#modalCrearHorario .n360-contract-create output {
+    color: #24495f;
+    font-weight: 700;
+}
+
+#modalCrearHorario .horario-create-preview {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid #e4ebf0;
+}
+
+#modalCrearHorario .horario-create-preview > .bi {
+    padding-top: 3px;
+    color: #1688bf;
+    font-size: 21px;
+}
+
+#modalCrearHorario .horario-create-preview > div {
+    min-width: 0;
+}
+
+#modalCrearHorario .horario-create-caption {
+    margin-bottom: 3px;
+    color: #6b7e8c;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#modalCrearHorario #previewNuevoHorario {
+    color: #1b3d52;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#modalCrearHorario .horario-create-places {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+#modalCrearHorario .horario-create-places > div {
+    min-width: 0;
+}
+
+#modalCrearHorario .horario-create-swap {
+    width: 36px;
+    height: 36px;
+    margin-top: 24px;
+    padding: 0;
+    color: #49718a;
+    border-color: #c8d6e2;
+    background: #f6f9fb;
+}
+
+#modalCrearHorario .n360-contract-place-toggle {
+    gap: 7px;
+    margin: 9px 0;
+    color: #526b7c;
+    line-height: 1.5;
+}
+
+#modalCrearHorario .horario-create-time {
+    margin-bottom: 14px;
+}
+
+#modalCrearHorario #quickTimeWrap {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+#modalCrearHorario #quickTimeWrap .btn {
+    width: 100%;
+    min-height: 30px;
+    padding: 4px;
+    border-color: #cddce6;
+    background: #f6f9fb;
+    color: #355c74;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+#modalCrearHorario :is(#quickTimeWrap .btn, .horario-create-swap, .horario-create-clear):hover {
+    border-color: #1688bf;
+    background: #e6f3fb;
+    color: #126591;
+}
+
+#modalCrearHorario .ruta-box {
+    padding: 12px 0 0;
+    border: 0;
+    border-top: 1px solid #e4ebf0;
+    border-radius: 0;
+    background: transparent;
+}
+
+#modalCrearHorario .ruta-box__head {
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+#modalCrearHorario .ruta-box__title {
+    color: #334b5d;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#modalCrearHorario .ruta-box__title > .bi {
+    margin-right: 4px;
+    color: #1688bf;
+}
+
+#modalCrearHorario .horario-create-optional {
+    margin-left: 5px;
+    color: #6b7e8c;
+    font-size: 11px;
+    font-weight: 400;
+}
+
+#modalCrearHorario .horario-create-clear {
+    flex: 0 0 30px;
+    width: 30px;
+    min-height: 30px;
+    padding: 3px;
+    border-color: #d8e2ea;
+    color: #617789;
+}
+
+#modalCrearHorario .ruta-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-height: 108px;
+    gap: 4px 10px;
+    padding-right: 6px;
+    scrollbar-gutter: stable;
+}
+
+#modalCrearHorario .ruta-item {
+    min-height: 32px;
+    margin: 0;
+    padding: 6px;
+    border-color: transparent;
+    border-radius: 4px;
+    background: #f5f8fa;
+    color: #435c6d;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#modalCrearHorario .ruta-item:has(input:checked) {
+    border-color: #a5cfdf;
+    background: #eaf6fc;
+    color: #18597c;
+}
+
+#modalCrearHorario .ruta-list .empty-state {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 10px;
+    border: 0;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+#modalCrearHorario .ruta-preview {
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #617789;
+    font-size: 11px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+#modalCrearHorario .horario-create-comment {
+    margin-top: 12px;
+}
+
+#modalCrearHorario textarea.form-control {
+    min-height: 64px;
+    resize: vertical;
+}
+
+#modalCrearHorario.modal .modal-footer {
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid #e1e9ef;
+    background: #f7fafc;
+}
+
+#modalCrearHorario.modal .modal-footer .btn {
+    width: auto;
+    min-height: 38px;
+    margin: 0;
+    padding: 8px 14px;
+}
+
+#modalCrearHorario .modal-footer .btn-primary {
+    background: #1688bf;
+    border-color: #1688bf;
+}
+
+@media (max-width: 575px) {
+    #modalCrearHorario.modal .modal-dialog {
+        width: calc(100% - 16px);
+        min-height: calc(100% - 16px);
+        margin: 8px auto;
+    }
+
+    #modalCrearHorario.modal .modal-content {
+        max-height: calc(100vh - 16px);
+        max-height: calc(100dvh - 16px);
+    }
+
+    #modalCrearHorario .modal-header,
+    #modalCrearHorario.modal .modal-body {
+        padding: 14px;
+    }
+
+    #modalCrearHorario .modal-title {
+        font-size: 17px;
+    }
+
+    #modalCrearHorario .horario-create-places {
+        grid-template-columns: minmax(0, 1fr) 36px;
+        gap: 10px;
+    }
+
+    #modalCrearHorario .horario-create-places > div:last-child {
+        grid-column: 1 / -1;
+    }
+
+    #modalCrearHorario .ruta-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    #modalCrearHorario.modal .modal-footer {
+        padding: 12px 14px;
+    }
+}

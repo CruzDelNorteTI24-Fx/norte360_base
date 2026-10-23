@@ -19,7 +19,7 @@ $web_rol              = $_SESSION['web_rol'] ?? '';
 $usuario_session      = $_SESSION['usuario'] ?? 'QR Operativo';
 $dni_session          = $_SESSION['DNI'] ?? '—';
 
-$HORARIO_CIERRE_URL   = 'http://localhost/norte360_base/01_flota/cron_cierre_operativo_horarios.php?token=NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
+$HORARIO_CIERRE_URL   = 'https://dimgrey-cat-911574.hostingersite.com/ht/01_flota/cron_cierre_operativo_horarios.php?token=NORTE360_CIERRE_2026_FABIO_SEGURIDAD';
 
 $permisos = ($session_permisos_raw === 'all') ? [] : (array)$session_permisos_raw;
 $vistas   = ($session_permisos_raw === 'all') ? [] : (array)$session_vistas_raw;
@@ -4350,30 +4350,72 @@ $edad = calcularEdad("2000-04-12"); // ejemplo
 
 </div>
 
-<div class="modal fade" id="modalCrearHorario" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Crear nuevo horario</h5><div class="small text-white-50">Origen: solo sedes ORIGEN activas · Destino: todas las sedes activas</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="alert alert-light border rounded-4 mb-4"><div class="small text-secondary fw-bold mb-1">Vista previa</div><div class="fs-5 fw-bold text-dark" id="previewNuevoHorario">16:00 | Origen → Destino</div></div><div class="row g-3 mb-3"><div class="col-md-5"><label class="form-label fw-bold">Origen</label><select id="crearOrigen" class="form-select"></select></div><div class="col-md-2 d-flex align-items-end justify-content-center"><button type="button" class="btn btn-outline-secondary w-100" id="btnSwapOficinas"><i class="bi bi-arrow-left-right"></i></button></div><div class="col-md-5"><label class="form-label fw-bold">Destino</label><select id="crearDestino" class="form-select"></select></div></div><div class="row g-3 mb-3"><div class="col-md-4"><label class="form-label fw-bold">Hora de salida</label><input type="time" id="crearHora" class="form-control" step="300" value="16:00"></div><div class="col-md-8"><label class="form-label fw-bold">Horarios rápidos</label><div class="quick-time" id="quickTimeWrap"></div></div></div>
-<div class="ruta-box">
-  <div class="ruta-box__head">
-    <div>
-      <div class="ruta-box__title">
-        <i class="bi bi-signpost-split me-1"></i> Ruta intermedia
+<div class="modal fade" id="modalCrearHorario" tabindex="-1" aria-labelledby="crearHorarioTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="horario-create-heading">
+          <i class="bi bi-calendar2-plus horario-create-icon" aria-hidden="true"></i>
+          <div>
+            <h5 class="modal-title" id="crearHorarioTitulo">Crear nuevo horario</h5>
+            <div class="small">Programaci&oacute;n de salidas</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
-      <div class="ruta-box__hint">
-        Selecciona las sedes por donde pasará la unidad. No se mostrará origen ni destino.
+      <div class="modal-body">
+        <div class="horario-create-preview">
+          <i class="bi bi-signpost-2" aria-hidden="true"></i>
+          <div>
+            <div class="horario-create-caption">Recorrido</div>
+            <div id="previewNuevoHorario">16:00 | Origen &rarr; Destino</div>
+          </div>
+        </div>
+        <div class="horario-create-places">
+          <div>
+            <label class="form-label" for="crearOrigen">Origen</label>
+            <select id="crearOrigen" class="form-select"></select>
+          </div>
+          <button type="button" class="btn btn-outline-secondary horario-create-swap" id="btnSwapOficinas" title="Intercambiar origen y destino" aria-label="Intercambiar origen y destino">
+            <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+          </button>
+          <div>
+            <label class="form-label" for="crearDestino">Destino</label>
+            <select id="crearDestino" class="form-select"></select>
+          </div>
+        </div>
+        <div class="row g-3 horario-create-time">
+          <div class="col-md-4">
+            <label class="form-label" for="crearHora">Hora de salida</label>
+            <input type="time" id="crearHora" class="form-control" step="300" value="16:00">
+          </div>
+          <div class="col-md-8">
+            <div class="form-label" id="crearHorariosRapidosLabel">Horarios r&aacute;pidos</div>
+            <div class="quick-time" id="quickTimeWrap" role="group" aria-labelledby="crearHorariosRapidosLabel"></div>
+          </div>
+        </div>
+        <div class="ruta-box">
+          <div class="ruta-box__head">
+            <div class="ruta-box__title"><i class="bi bi-signpost-split" aria-hidden="true"></i> Ruta intermedia <span class="horario-create-optional">Opcional</span></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm horario-create-clear" id="btnLimpiarRutaCrear" title="Limpiar ruta intermedia" aria-label="Limpiar ruta intermedia">
+              <i class="bi bi-eraser" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="ruta-list" id="crearRutaList"></div>
+          <div class="ruta-preview" id="crearRutaPreview">Ruta: directa, sin sedes intermedias.</div>
+        </div>
+        <div class="horario-create-comment">
+          <label class="form-label" for="crearComentario">Comentario <span class="horario-create-optional">Opcional</span></label>
+          <textarea id="crearComentario" class="form-control" rows="2" maxlength="500" placeholder="Comentario del horario"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevoHorario"><i class="bi bi-check2" aria-hidden="true"></i> Guardar horario</button>
       </div>
     </div>
-    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLimpiarRutaCrear">
-      Limpiar
-    </button>
-  </div>
-
-  <div class="ruta-list" id="crearRutaList"></div>
-
-  <div class="ruta-preview" id="crearRutaPreview">
-    Ruta: directa, sin sedes intermedias.
   </div>
 </div>
-
-<div class="mt-3"><label class="form-label fw-bold">Comentario</label><textarea id="crearComentario" class="form-control" rows="3" maxlength="500" placeholder="Comentario opcional para este horario"></textarea><div class="form-text">Se guarda junto al horario y queda visible en la tarjeta.</div></div></div><div class="modal-footer bg-white"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnGuardarNuevoHorario">Guardar horario</button></div></div></div></div>
 
 <div class="modal fade" id="modalEditarHora" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1">Cambiar hora del horario</h5><div class="small text-white-50" id="editarHoraSubtitulo">Horario</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="alert alert-light border rounded-4 mb-4"><div class="small text-secondary fw-bold mb-1">Vista previa de reprogramación</div><div class="fs-5 fw-bold text-dark" id="previewEditarHora">00:00 → 00:00</div></div>
     <div class="mb-3">
@@ -4613,6 +4655,7 @@ window.horariosInitialData = <?= json_encode($initialSnapshot, JSON_UNESCAPED_UN
 window.horariosInitialError = <?= json_encode($initialError, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
 <?php if (!$modo_qr_programacion) n360_contract_render($conn, true, $web_rol === 'Admin'); ?>
+<link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_horario_modal_n360.css') . '&modal=1', ENT_QUOTES, 'UTF-8') ?>">
 <script>
 (function () {
   const state = {
