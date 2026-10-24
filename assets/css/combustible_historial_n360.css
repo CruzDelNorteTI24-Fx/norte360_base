@@ -112,7 +112,7 @@
 }
 
 .comb-filters .stock-filter-actions {
-    grid-column: span 2;
+    grid-column: span 1;
     min-width: 0;
     display: flex;
     flex-wrap: wrap;
@@ -218,12 +218,6 @@
 @media (max-width: 1600px) {
     .comb-filters {
         grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .comb-filter-search,
-    .comb-filters .stock-filter-actions {
-        grid-column: span 2;
-        justify-content: flex-start;
     }
 }
 

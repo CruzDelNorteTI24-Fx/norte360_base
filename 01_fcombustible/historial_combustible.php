@@ -61,8 +61,25 @@ function comb_fetch_all(mysqli $conn, string $sql, string $types = '', array $pa
 
 function comb_valid_date($value, string $fallback): string
 {
+    if (!is_string($value) || !preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value)) {
+        return $fallback;
+    }
     $date = DateTime::createFromFormat('Y-m-d', (string)$value);
     return ($date && $date->format('Y-m-d') === (string)$value) ? (string)$value : $fallback;
+}
+
+function comb_period_label(string $desde, string $hasta): string
+{
+    if ($desde !== '' && $hasta !== '') {
+        return date('d/m/Y', strtotime($desde)) . ' al ' . date('d/m/Y', strtotime($hasta));
+    }
+    if ($desde !== '') {
+        return 'Desde ' . date('d/m/Y', strtotime($desde));
+    }
+    if ($hasta !== '') {
+        return 'Hasta ' . date('d/m/Y', strtotime($hasta));
+    }
+    return 'Sin límite de fechas';
 }
 
 function comb_fmt_qty($value): string
@@ -213,10 +230,16 @@ $conn->query("SET collation_connection = 'utf8mb4_unicode_ci'");
 
 $today = date('Y-m-d');
 $defaultDesde = date('Y-01-01');
-$desde = comb_valid_date($_GET['desde'] ?? $defaultDesde, $defaultDesde);
-$hasta = comb_valid_date($_GET['hasta'] ?? $today, $today);
-if ($desde > $hasta) {
+$desde = ($_GET['desde'] ?? null) === '' ? '' : comb_valid_date($_GET['desde'] ?? $defaultDesde, $defaultDesde);
+$hasta = ($_GET['hasta'] ?? null) === '' ? '' : comb_valid_date($_GET['hasta'] ?? $today, $today);
+if ($desde !== '' && $hasta !== '' && $desde > $hasta) {
     [$desde, $hasta] = [$hasta, $desde];
+}
+
+$desdeEmision = comb_valid_date($_GET['desde_emision'] ?? '', '');
+$hastaEmision = comb_valid_date($_GET['hasta_emision'] ?? '', '');
+if ($desdeEmision !== '' && $hastaEmision !== '' && $desdeEmision > $hastaEmision) {
+    [$desdeEmision, $hastaEmision] = [$hastaEmision, $desdeEmision];
 }
 
 $tipo = strtoupper(trim((string)($_GET['tipo'] ?? 'TODOS')));
@@ -341,13 +364,30 @@ try {
     } catch (Throwable $e) {
         $histPromedios = [];
     }
-    $where = [
-        'p.clm_alm_producto_idCATEGORIA = 11',
-        'm.clm_alm_mov_fecha_registro >= ?',
-        'm.clm_alm_mov_fecha_registro <= ?',
-    ];
-    $types = 'ss';
-    $params = [$desde . ' 00:00:00', $hasta . ' 23:59:59'];
+    $where = ['p.clm_alm_producto_idCATEGORIA = 11'];
+    $types = '';
+    $params = [];
+
+    if ($desde !== '') {
+        $where[] = 'm.clm_alm_mov_fecha_registro >= ?';
+        $types .= 's';
+        $params[] = $desde . ' 00:00:00';
+    }
+    if ($hasta !== '') {
+        $where[] = 'm.clm_alm_mov_fecha_registro <= ?';
+        $types .= 's';
+        $params[] = $hasta . ' 23:59:59';
+    }
+    if ($desdeEmision !== '') {
+        $where[] = 'm.clm_alm_mov_fecha_emision >= ?';
+        $types .= 's';
+        $params[] = $desdeEmision;
+    }
+    if ($hastaEmision !== '') {
+        $where[] = 'm.clm_alm_mov_fecha_emision <= ?';
+        $types .= 's';
+        $params[] = $hastaEmision;
+    }
 
     if ($tipo !== 'TODOS') {
         $where[] = "UPPER(TRIM(CAST(m.clm_alm_mov_TIPO AS CHAR))) = ?";
@@ -495,7 +535,8 @@ foreach ($productos as $p) {
 $tipoLabel = $tipo === 'TODOS' ? 'Todos los tipos' : comb_tipo_label($tipo);
 $grupoLabel = $grupo === 'TODOS' ? 'Todos los grupos' : $grupo;
 $placaLabel = $placa === '' ? 'Todas las placas' : $placa;
-$periodoLabel = date('d/m/Y', strtotime($desde)) . ' al ' . date('d/m/Y', strtotime($hasta));
+$periodoLabel = 'Registro: ' . comb_period_label($desde, $hasta);
+$emisionLabel = 'Emisión: ' . comb_period_label($desdeEmision, $hastaEmision);
 
 define('N360_LAYOUT', true);
 define('N360_BASE_URL', '../');
@@ -519,7 +560,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=1') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -597,12 +638,20 @@ require_once __DIR__ . '/../layout/content_n360.php';
 
         <form class="stock-filters stock-filters--history comb-filters" method="GET" autocomplete="off">
             <label class="stock-field">
-                <span>Desde</span>
+                <span>Registro desde</span>
                 <input type="date" name="desde" value="<?= comb_h($desde) ?>">
             </label>
             <label class="stock-field">
-                <span>Hasta</span>
+                <span>Registro hasta</span>
                 <input type="date" name="hasta" value="<?= comb_h($hasta) ?>">
+            </label>
+            <label class="stock-field">
+                <span>Emisión desde</span>
+                <input type="date" name="desde_emision" value="<?= comb_h($desdeEmision) ?>">
+            </label>
+            <label class="stock-field">
+                <span>Emisión hasta</span>
+                <input type="date" name="hasta_emision" value="<?= comb_h($hastaEmision) ?>">
             </label>
             <label class="stock-field">
                 <span>Tipo</span>
@@ -976,7 +1025,7 @@ window.N360_COMBUSTIBLE_REPORT = {
     subtitle: 'Movimientos operativos por grifo',
     docCode: 'COM_RPT_HIST_COMB',
     period: <?= json_encode($periodoLabel, JSON_UNESCAPED_UNICODE) ?>,
-    filters: <?= json_encode([$tipoLabel, $selectedProductoLabel, $selectedGrifoLabel, $grupoLabel, $placaLabel], JSON_UNESCAPED_UNICODE) ?>,
+    filters: <?= json_encode([$emisionLabel, $tipoLabel, $selectedProductoLabel, $selectedGrifoLabel, $grupoLabel, $placaLabel], JSON_UNESCAPED_UNICODE) ?>,
     generatedBy: <?= json_encode($nombreUsuario, JSON_UNESCAPED_UNICODE) ?>,
     dni: <?= json_encode((string)$dniUsuario, JSON_UNESCAPED_UNICODE) ?>,
     fileBase: <?= json_encode('Movimientos_Combustible_' . date('Ymd_His'), JSON_UNESCAPED_UNICODE) ?>,
