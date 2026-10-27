@@ -175,6 +175,7 @@
 
 .trace-filters input,
 .trace-filters select,
+.trace-modal__field input,
 .trace-modal__field select {
     background: #fff;
     border: 1px solid #cbdced;
@@ -189,6 +190,36 @@
 
 .trace-input-icon input {
     padding-left: 42px;
+}
+
+.trace-modal__field {
+    display: block;
+    margin-top: 14px;
+}
+
+.trace-location-preview {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid #d8e5f2;
+    border-radius: 8px;
+    background: #f4f8fd;
+    overflow-wrap: anywhere;
+}
+
+.trace-location-preview > span {
+    font-size: 12px;
+    font-weight: 800;
+    color: #5b7089;
+}
+
+.trace-location-preview p {
+    margin: 6px 0 0;
+    white-space: pre-wrap;
+}
+
+.trace-location-detail {
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .trace-filter-actions {

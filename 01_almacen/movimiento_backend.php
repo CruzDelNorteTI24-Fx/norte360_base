@@ -334,3 +334,5 @@ if (!function_exists('alm_producto_tiene_movimientos')) {
         return (bool)$row;
     }
 }
+
+require_once __DIR__ . '/activos_ubicacion_helpers.php';

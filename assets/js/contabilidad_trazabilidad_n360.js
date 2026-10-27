@@ -11,6 +11,9 @@
   const barcodeModal = document.getElementById('traceBarcodeModal');
   const barcodeCard = document.getElementById('traceBarcodeCard');
   const moveForm = document.getElementById('traceMoveForm');
+  const assetLocation = window.N360AssetLocation;
+  const locationDetailEnabled = page.dataset.locationDetail === '1';
+  let moveSaving = false;
 
   const $ = (selector, root = document) => root.querySelector(selector);
 
@@ -79,6 +82,7 @@
 
   function closeModal(modal) {
     if (!modal) return;
+    if (modal === moveModal && moveSaving) return;
     modal.hidden = true;
     if (![moveModal, historyModal, barcodeModal].some((item) => item && !item.hidden)) {
       document.body.classList.remove('trace-modal-open');
@@ -104,25 +108,48 @@
     openModal(barcodeModal);
   }
 
+  function updateMovePreview() {
+    const sede = $('#traceMoveSede');
+    const sedeText = sede?.value ? sede.selectedOptions[0]?.textContent?.trim() || '' : '';
+    const detail = locationDetailEnabled ? assetLocation.detail($('#traceMoveDetalle')?.value || '') : '';
+    const preview = $('#traceMovePreview');
+    if (preview) preview.textContent = sedeText ? assetLocation.location(sedeText, detail) : 'Selecciona una sede/oficina.';
+  }
+
+  function setMoveSaving(value) {
+    moveSaving = value;
+    $('#traceMoveSubmit').disabled = value;
+    $('#traceMoveSede').disabled = value;
+    $('#traceMoveDetalle').disabled = value || !locationDetailEnabled;
+    moveModal.querySelectorAll('[data-trace-close]').forEach((button) => { button.disabled = value; });
+  }
+
   function openMove(button) {
     if (!moveModal || !moveForm) return;
 
     $('#traceMoveLabelId').value = button.dataset.labelId || '';
     $('#traceMoveCode').textContent = button.dataset.labelCode || '-';
     $('#traceMoveProduct').textContent = button.dataset.product || '-';
-    $('#traceMoveCurrent').textContent = button.dataset.currentSede || 'Sin ubicacion';
+    const currentDetail = button.dataset.currentDetalle || '';
+    $('#traceMoveCurrent').textContent = assetLocation.location(button.dataset.currentSede || 'Sin ubicacion', currentDetail);
+    $('#traceMoveExpectedSede').value = button.dataset.currentSedeId || '0';
+    $('#traceMoveExpectedDetalle').value = currentDetail;
+    $('#traceMoveDetalle').value = currentDetail;
 
     const select = $('#traceMoveSede');
     if (select) {
-      select.value = '';
-      const current = String(button.dataset.currentSedeId || '');
+      select.value = String(button.dataset.currentSedeId || '');
       Array.from(select.options).forEach((option) => {
-        option.disabled = option.value !== '' && option.value === current;
+        option.disabled = false;
       });
     }
 
+    updateMovePreview();
     openModal(moveModal);
   }
+
+  $('#traceMoveSede')?.addEventListener('change', updateMovePreview);
+  $('#traceMoveDetalle')?.addEventListener('input', updateMovePreview);
 
   async function openHistory(button) {
     if (!historyModal) return;
@@ -159,9 +186,9 @@
         <time>${esc(formatDate(row.fecha))}</time>
         <div>
           <div class="trace-history-route">
-            <strong>${esc(row.sede_antes || 'Sin ubicacion')}</strong>
+            <strong>${esc(assetLocation.location(row.sede_antes || 'Sin ubicacion', row.detalle_antes || ''))}</strong>
             <i class="bi bi-arrow-right" aria-hidden="true"></i>
-            <strong>${esc(row.sede_despues || 'Sin ubicacion')}</strong>
+            <strong>${esc(assetLocation.location(row.sede_despues || 'Sin ubicacion', row.detalle_despues || ''))}</strong>
           </div>
           <div class="trace-history-user">Registrado por ${esc(row.usuario || 'Usuario')}</div>
         </div>
@@ -211,26 +238,34 @@
 
   moveForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (moveSaving) return;
 
     const labelId = $('#traceMoveLabelId')?.value || '';
     const newSedeId = $('#traceMoveSede')?.value || '';
     const labelCode = $('#traceMoveCode')?.textContent || 'Etiqueta';
-    const targetText = $('#traceMoveSede')?.selectedOptions?.[0]?.textContent?.trim() || 'la nueva ubicacion';
+    const detail = locationDetailEnabled ? assetLocation.detail($('#traceMoveDetalle')?.value || '') : '';
+    const targetText = assetLocation.location($('#traceMoveSede')?.selectedOptions?.[0]?.textContent?.trim() || 'la nueva ubicacion', detail);
 
     if (!labelId || !newSedeId) {
       await alertBox('Selecciona la nueva ubicacion del activo.', 'warning');
       return;
     }
 
-    const confirmed = await confirmBox(`Se movera ${labelCode} hacia ${targetText}. No se creara movimiento de almacen.`, {
-      title: 'Confirmar traslado',
-      confirmText: 'Mover activo',
-      cancelText: 'Cancelar',
-      variant: 'warning',
-    });
-    if (!confirmed) return;
+    if (assetLocation.length(detail) > 220) {
+      await alertBox('El detalle de ubicación admite hasta 220 caracteres.', 'warning');
+      return;
+    }
 
+    setMoveSaving(true);
     try {
+      const confirmed = await confirmBox(`Se movera ${labelCode} hacia ${targetText}. No se creara movimiento de almacen.`, {
+        title: 'Confirmar traslado',
+        confirmText: 'Mover activo',
+        cancelText: 'Cancelar',
+        variant: 'warning',
+      });
+      if (!confirmed) return;
+
       const data = await withLoader(() => fetchJson(api, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,6 +274,9 @@
           csrf,
           label_id: Number(labelId),
           new_sede_id: Number(newSedeId),
+          ubicacion_detalle: detail,
+          expected_sede_id: Number($('#traceMoveExpectedSede').value),
+          expected_detalle: $('#traceMoveExpectedDetalle').value,
         }),
       }), {
         title: 'Moviendo activo',
@@ -246,10 +284,14 @@
         button: '#traceMoveSubmit',
       });
 
+      setMoveSaving(false);
+      closeModal(moveModal);
       await alertBox(data.message || 'Ubicacion actualizada correctamente.', 'success', 'Traslado registrado');
       window.location.reload();
     } catch (error) {
       await alertBox(error.message, 'error');
+    } finally {
+      setMoveSaving(false);
     }
   });
 })();

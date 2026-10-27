@@ -11,6 +11,7 @@
   const originId = page.dataset.originId || '1';
   const originLabel = page.dataset.originLabel || 'ALMACEN (ALM)';
   const isAccountingOrigin = String(originId) === '12';
+  const assetLocation = window.N360AssetLocation;
   const originArea = page.dataset.originArea || (originId === '4' ? 'RRHH' : (isAccountingOrigin ? 'ACTIVOS' : 'ALMACEN'));
   const originTipo = page.dataset.originTipo || (originId === '4' ? 'BIEN_CONTROLADO' : (isAccountingOrigin ? 'ACTIVO_FIJO' : 'CONSUMIBLE'));
   const originSerieEntrada = page.dataset.serieEntrada || (originId === '4' ? 'RE' : (isAccountingOrigin ? 'CE' : 'NE'));
@@ -680,7 +681,7 @@
         tabla: 'tb_notas_salida',
         clm_nota_serie: originSerieEntrada,
         clm_nota_modulo: originModule,
-        clm_nota_motivo: $('#almEntradaObservacion')?.value || '',
+        clm_nota_motivo: isAccountingOrigin ? accountingObservationText() : ($('#almEntradaObservacion')?.value || ''),
         clm_nota_espacio: $('#almEntradaUbicacionLabel')?.value || originLabel,
         clm_nota_proveedor: $('#almEntradaProveedor')?.value || '',
       },
@@ -691,7 +692,7 @@
         clm_alm_mov_cantidad: cantidad,
         clm_alm_mov_preciounitario: precio,
         clm_alm_mov_monto: monto,
-        clm_alm_mov_OBSERVACION: $('#almEntradaObservacion')?.value || '',
+        clm_alm_mov_OBSERVACION: isAccountingOrigin ? accountingObservationText() : ($('#almEntradaObservacion')?.value || ''),
         clm_mov_factura: $('#almEntradaFactura')?.value || '',
         clm_mov_ruc: $('#almEntradaProveedor')?.value || '',
         clm_alm_mov_ofic_destino: $('#almEntradaSede')?.value || $('#almEntradaSedeLocked')?.value || null,
@@ -828,6 +829,31 @@
     return (raw || '0000').slice(0, 4).padStart(4, '0');
   }
 
+  function accountingLocationDetail() {
+    const field = $('#almEntradaUbicacionDetalle');
+    return field && !field.disabled ? assetLocation.detail(field.value) : '';
+  }
+
+  function accountingObservationText() {
+    const sede = $('#almEntradaSede');
+    const sedeLabel = sede?.value ? selectedOptionText(sede) : '';
+    return assetLocation.observation($('#almEntradaObservacion')?.value || '', sedeLabel, accountingLocationDetail());
+  }
+
+  function updateAccountingObservation() {
+    if (!isAccountingOrigin) return;
+    const text = accountingObservationText();
+    const length = assetLocation.length(text);
+    const preview = $('#almEntradaObservacionPreview');
+    if (preview) {
+      preview.textContent = text || 'Sin observación.';
+      preview.parentElement.classList.toggle('is-invalid', length > 900);
+    }
+    const counter = $('#almEntradaObservacionCounter');
+    if (counter) counter.textContent = length + ' / 900 caracteres';
+    $('#almEntradaObservacion')?.setCustomValidity(length > 900 ? 'La observación final admite hasta 900 caracteres.' : '');
+  }
+
   function updateLocationPreview() {
     const rawField = $('#almEntradaUbicacionRaw');
     const labelField = $('#almEntradaUbicacionLabel');
@@ -847,13 +873,15 @@
       const sedeId = sede?.value || '';
       const sedeLabel = sedeId ? selectedOptionText(sede) : '';
       const raw = sedeId ? `OFI-${sedeId}` : '';
+      const locationText = assetLocation.location(sedeLabel, accountingLocationDetail());
       if (rawField) rawField.value = raw;
       if (labelField) labelField.value = sedeLabel;
       if (preview) {
         preview.innerHTML = raw
-          ? `<i class="bi bi-geo-alt-fill"></i><span>${esc(sedeLabel || raw)}</span>`
+          ? `<i class="bi bi-geo-alt-fill"></i><span>${esc(locationText || raw)}</span>`
           : '<i class="bi bi-geo-alt"></i><span>Sin ubicacion seleccionada</span>';
       }
+      updateAccountingObservation();
       return;
     }
 
@@ -934,6 +962,8 @@
   }
 
   $('#almEntradaSede')?.addEventListener('change', loadAnaquelesForSede);
+  $('#almEntradaUbicacionDetalle')?.addEventListener('input', updateLocationPreview);
+  $('#almEntradaObservacion')?.addEventListener('input', updateAccountingObservation);
   $('#almEntradaAnaquel')?.addEventListener('change', updateLocationPreview);
   $$('input[name="ubicacion_modo"]').forEach((input) => input.addEventListener('change', updateLocationPreview));
   ['#almEntradaBloque', '#almEntradaNivel', '#almEntradaSeccion'].forEach((selector) => {
@@ -988,6 +1018,14 @@
       return;
     }
 
+    if (isAccountingOrigin) {
+      updateLocationPreview();
+      if (assetLocation.length(accountingObservationText()) > 900) {
+        await alertBox('La observación final, incluido el detalle de ubicación, admite hasta 900 caracteres.', 'warning');
+        $('#almEntradaObservacion')?.focus();
+        return;
+      }
+    }
     calculateEntradaMonto();
     const confirmed = await confirmBox('Se registrara una nota de entrada y el movimiento asociado. ¿Deseas continuar?', {
       title: 'Confirmar entrada',

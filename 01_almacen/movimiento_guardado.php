@@ -232,8 +232,11 @@ function alm_sync_contabilidad_etiquetas_desde_trigger(
     mysqli $conn,
     int $movId,
     int $userId,
-    int $sedeId
+    int $sedeId,
+    string $ubicacionDetalle = ''
 ): array {
+    $hasDetail = alm_activos_detalle_disponible($conn);
+    $detailDb = $ubicacionDetalle !== '' ? $ubicacionDetalle : null;
     $labels = alm_fetch_all($conn, "
         SELECT
             clm_alm_etiquetado_id AS id,
@@ -253,11 +256,13 @@ function alm_sync_contabilidad_etiquetas_desde_trigger(
         WHERE clm_alm_etiquetadoofi_etiref = ?
         LIMIT 1
     ");
+    $detailColumns = $hasDetail ? ', clm_alm_etiquetadoofi_detalle_antes, clm_alm_etiquetadoofi_detalle_despues' : '';
+    $detailValues = $hasDetail ? ', NULL, ?' : '';
     $stmtHistory = $conn->prepare("
         INSERT INTO tb_alm_etiquetadoofi
         (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
-         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER)
-        VALUES (?, NULL, ?, ?)
+         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns)
+        VALUES (?, NULL, ?, ? $detailValues)
     ");
     $stmtMov = $conn->prepare("
         UPDATE tb_alm_movimientos
@@ -288,11 +293,24 @@ function alm_sync_contabilidad_etiquetas_desde_trigger(
 
         if (!$alreadySynced) {
             $historyParams = [$labelId, $sedeId > 0 ? $sedeId : null, $userId];
-            alm_bind($stmtHistory, 'iii', $historyParams);
-            $stmtHistory->execute();
+            if ($hasDetail) {
+                $historyParams[] = $detailDb;
+            }
+            alm_bind($stmtHistory, $hasDetail ? 'iiis' : 'iii', $historyParams);
+            if (!$stmtHistory->execute()) {
+                throw new RuntimeException('No se pudo registrar la ubicación inicial del activo.');
+            }
         }
 
         $codes[] = (string)($label['codigo'] ?? ('ETQ-' . $labelId));
+    }
+
+    if ($hasDetail) {
+        $stmtDetail = $conn->prepare('UPDATE tb_alm_etiquetado SET clm_alm_etiquetado_ubicacion_detalle = ? WHERE clm_alm_etiquetado_idMOVIMIENTO = ?');
+        if (!$stmtDetail || !$stmtDetail->bind_param('si', $detailDb, $movId) || !$stmtDetail->execute()) {
+            throw new RuntimeException('No se pudo guardar el detalle inicial de ubicación.');
+        }
+        $stmtDetail->close();
     }
 
     $movParams = [$movId];
@@ -316,6 +334,8 @@ function alm_consumir_contabilidad_etiquetas(
     $selectedLabelIds = array_values(array_unique(array_filter(array_map('intval', $selectedLabelIds), static function ($id) {
         return $id > 0;
     })));
+    $hasDetail = alm_activos_detalle_disponible($conn);
+    $detailSelect = $hasDetail ? 'clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
 
     if ($selectedLabelIds) {
         if (count($selectedLabelIds) !== $cantidad) {
@@ -333,7 +353,8 @@ function alm_consumir_contabilidad_etiquetas(
             SELECT
                 clm_alm_etiquetado_id AS id,
                 COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,
-                clm_alm_etiquetado_oficina_destino AS sede_actual
+                clm_alm_etiquetado_oficina_destino AS sede_actual,
+                $detailSelect AS ubicacion_detalle
             FROM tb_alm_etiquetado
             WHERE clm_alm_etiquetado_idPRODUCTO = ?
               AND clm_alm_etiquetado_id IN ($placeholders)
@@ -354,7 +375,8 @@ function alm_consumir_contabilidad_etiquetas(
             SELECT
                 clm_alm_etiquetado_id AS id,
                 COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,
-                clm_alm_etiquetado_oficina_destino AS sede_actual
+                clm_alm_etiquetado_oficina_destino AS sede_actual,
+                $detailSelect AS ubicacion_detalle
             FROM tb_alm_etiquetado
             WHERE clm_alm_etiquetado_idPRODUCTO = ?
               AND UPPER(COALESCE(NULLIF(TRIM(clm_alm_etiquetado_ESTADO), ''), 'GENERADO')) <> 'CONSUMIDO'
@@ -379,11 +401,13 @@ function alm_consumir_contabilidad_etiquetas(
         WHERE clm_alm_etiquetado_id = ?
         LIMIT 1
     ");
+    $detailColumns = $hasDetail ? ', clm_alm_etiquetadoofi_detalle_antes, clm_alm_etiquetadoofi_detalle_despues' : '';
+    $detailValues = $hasDetail ? ', ?, NULL' : '';
     $stmtHistory = $conn->prepare("
         INSERT INTO tb_alm_etiquetadoofi
         (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
-         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER)
-        VALUES (?, ?, NULL, ?)
+         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns)
+        VALUES (?, ?, NULL, ? $detailValues)
     ");
 
     if (!$stmtUpdate || !$stmtHistory) {
@@ -400,7 +424,10 @@ function alm_consumir_contabilidad_etiquetas(
         $stmtUpdate->execute();
 
         $historyParams = [$labelId, $sedeAntes > 0 ? $sedeAntes : null, $userId];
-        alm_bind($stmtHistory, 'iii', $historyParams);
+        if ($hasDetail) {
+            $historyParams[] = $label['ubicacion_detalle'] ?? null;
+        }
+        alm_bind($stmtHistory, $hasDetail ? 'iiis' : 'iii', $historyParams);
         $stmtHistory->execute();
 
         $codes[] = (string)($label['codigo'] ?? ('ETQ-' . $labelId));
@@ -586,7 +613,8 @@ function alm_action_save_entrada(mysqli $conn): void {
 
     $productId = (int)($payload['producto_id'] ?? 0);
     $cantidad = alm_float($payload['cantidad'] ?? 0);
-    $observacion = alm_clean_text($payload['observacion'] ?? '', 900);
+    $observacionInput = $payload['observacion'] ?? '';
+    $observacion = is_string($observacionInput) ? alm_clean_text($observacionInput, 900) : '';
     $proveedor = alm_clean_text($payload['proveedor'] ?? '', 220);
     $factura = alm_clean_text($payload['factura'] ?? '', 120);
     $sedeId = (int)($payload['sede_id'] ?? 0);
@@ -627,6 +655,7 @@ function alm_action_save_entrada(mysqli $conn): void {
     $autoPdf = !empty($payload['auto_pdf']);
     $etqCant = null;
 
+    $ubicacionDetalle = '';
     if ($originId === 12) {
         $etqCant = alm_integer_quantity_or_fail($cantidad, 'En Contabilidad la cantidad debe ser entera y mayor a cero para generar trazabilidad.');
         if ($sedeId <= 0) {
@@ -634,8 +663,15 @@ function alm_action_save_entrada(mysqli $conn): void {
         }
         $anaquelId = 0;
         $ubicacionRaw = 'OFI-' . $sedeId;
-        if ($ubicacionLabel === '') {
-            $ubicacionLabel = alm_sede_display_name($conn, $sedeId);
+        $ubicacionLabel = alm_sede_display_name($conn, $sedeId);
+        try {
+            $ubicacionDetalle = alm_activos_detalle($payload['ubicacion_detalle'] ?? '');
+            $observacion = alm_activos_observacion($observacionInput, $ubicacionLabel, $ubicacionDetalle);
+        } catch (InvalidArgumentException $e) {
+            alm_json(['ok' => false, 'message' => $e->getMessage()], 422);
+        }
+        if ($ubicacionDetalle !== '' && !alm_activos_detalle_disponible($conn)) {
+            alm_json(['ok' => false, 'message' => 'El detalle de ubicación aún no está habilitado. Contacta al administrador.'], 409);
         }
         $bb = '00';
         $nn = '00';
@@ -726,7 +762,7 @@ function alm_action_save_entrada(mysqli $conn): void {
 
     $labelCodes = [];
     if ($originId === 12 && $etqCant !== null) {
-        $labelCodes = alm_sync_contabilidad_etiquetas_desde_trigger($conn, $movId, $userId, $sedeId);
+        $labelCodes = alm_sync_contabilidad_etiquetas_desde_trigger($conn, $movId, $userId, $sedeId, $ubicacionDetalle);
     }
 
     $conn->commit();

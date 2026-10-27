@@ -85,6 +85,8 @@ $stats = [
     'sedes' => 0,
 ];
 $pageError = '';
+$locationDetailEnabled = alm_activos_detalle_disponible($conn);
+$locationDetailSql = $locationDetailEnabled ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
 
 try {
     $sedes = alm_fetch_all($conn, "
@@ -125,9 +127,10 @@ try {
             OR p.clm_alm_producto_NOMBRE LIKE CONCAT('%', ?, '%')
             OR COALESCE(n.clm_nota_sco, '') LIKE CONCAT('%', ?, '%')
             OR COALESCE(s.clm_sedes_name, '') LIKE CONCAT('%', ?, '%')
+            OR $locationDetailSql LIKE CONCAT('%', ?, '%')
         )";
-        $types .= 'sssss';
-        array_push($params, $buscar, $buscar, $buscar, $buscar, $buscar);
+        $types .= 'ssssss';
+        array_push($params, $buscar, $buscar, $buscar, $buscar, $buscar, $buscar);
     }
 
     $whereSql = implode(' AND ', $where);
@@ -158,6 +161,7 @@ try {
             COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'PENDIENTE') AS etiqueta_estado,
             e.clm_alm_etiquetado_FECHA AS etiqueta_fecha,
             e.clm_alm_etiquetado_oficina_destino AS sede_id,
+            $locationDetailSql AS ubicacion_detalle,
             p.clm_alm_producto_id AS producto_id,
             p.clm_alm_producto_codigo AS producto_codigo,
             p.clm_alm_producto_NOMBRE AS producto_nombre,
@@ -203,7 +207,7 @@ try {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=1') ?>">
 </head>
 <body>
 <?php n360_render_header(['title' => 'Trazabilidad de activos', 'subtitle' => 'Contabilidad']); ?>
@@ -212,7 +216,8 @@ try {
 <main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
     <div class="n360-main__inner trace-shell" id="contaTracePage"
          data-api="<?= trace_h(n360_base_url('01_contabilidad/trazabilidad_activos_api.php')) ?>"
-         data-csrf="<?= trace_h($_SESSION['conta_trace_csrf']) ?>">
+         data-csrf="<?= trace_h($_SESSION['conta_trace_csrf']) ?>"
+         data-location-detail="<?= $locationDetailEnabled ? '1' : '0' ?>">
         <?php n360_render_content_separator('top'); ?>
 
         <section class="trace-hero">
@@ -307,6 +312,7 @@ try {
                         $estadoRow = strtoupper(trim((string)($row['etiqueta_estado'] ?? 'PENDIENTE')));
                         $sedeId = (int)($row['sede_id'] ?? 0);
                         $sedeNombre = trim((string)($row['sede_nombre'] ?? ''));
+                        $ubicacionDetalle = (string)($row['ubicacion_detalle'] ?? '');
                         $producto = trim((string)($row['producto_nombre'] ?? 'Producto'));
                         $productoLine = trim('(' . ($row['producto_codigo'] ?? '-') . ') ' . $producto . ' - ' . ($row['producto_unidad'] ?? ''));
                         $categoriaLine = trim(($row['categoria_codigo'] ?? '') . ' ' . ($row['categoria_nombre'] ?? ''));
@@ -324,6 +330,7 @@ try {
                             </td>
                             <td>
                                 <span class="trace-location"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i><?= trace_h($sedeNombre !== '' ? $sedeNombre : 'Sin ubicacion') ?></span>
+                                <?php if ($ubicacionDetalle !== ''): ?><small class="trace-location-detail"><?= trace_h($ubicacionDetalle) ?></small><?php endif; ?>
                             </td>
                             <td>
                                 <strong><?= trace_h($row['nota_codigo'] ?? ('MOV-' . ($row['movimiento_id'] ?? ''))) ?></strong>
@@ -358,6 +365,7 @@ try {
                                             data-product="<?= trace_h($productoLine) ?>"
                                             data-current-sede-id="<?= $sedeId ?>"
                                             data-current-sede="<?= trace_h($sedeNombre !== '' ? $sedeNombre : 'Sin ubicacion') ?>"
+                                            data-current-detalle="<?= trace_h($ubicacionDetalle) ?>"
                                             <?= $canMove ? '' : 'disabled' ?>>
                                         <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
                                         <span>Mover</span>
@@ -382,6 +390,8 @@ try {
                 <p class="trace-modal__lead">No se crea movimiento de almacen. Solo cambia la ubicacion actual de la etiqueta y se registra en etiquetaofi.</p>
                 <form id="traceMoveForm">
                     <input type="hidden" id="traceMoveLabelId">
+                    <input type="hidden" id="traceMoveExpectedSede">
+                    <input type="hidden" id="traceMoveExpectedDetalle">
                     <div class="trace-modal__summary">
                         <div><span>Etiqueta</span><strong id="traceMoveCode">-</strong></div>
                         <div><span>Producto</span><strong id="traceMoveProduct">-</strong></div>
@@ -397,6 +407,16 @@ try {
                             <?php endforeach; ?>
                         </select>
                     </label>
+                    <label class="trace-modal__field">
+                        <span>Detalle de nueva ubicación (opcional)</span>
+                        <input type="text" id="traceMoveDetalle" maxlength="220" placeholder="Ej. Tercer piso, Contabilidad, puesto Mirella"
+                               <?= $locationDetailEnabled ? '' : 'disabled' ?>>
+                    </label>
+                    <?php if (!$locationDetailEnabled): ?><p class="trace-modal__lead">El detalle de ubicación aún no está habilitado. Contacta al administrador.</p><?php endif; ?>
+                    <div class="trace-location-preview" aria-live="polite">
+                        <span>Nueva ubicación que se guardará</span>
+                        <p id="traceMovePreview">Selecciona una sede/oficina.</p>
+                    </div>
                     <div class="trace-modal__actions">
                         <button type="button" class="trace-btn trace-btn--soft" data-trace-close>Cancelar</button>
                         <button type="submit" class="trace-btn trace-btn--primary" id="traceMoveSubmit"><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Guardar traslado</span></button>
@@ -463,7 +483,8 @@ try {
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

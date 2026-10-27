@@ -447,6 +447,47 @@
     align-items: stretch;
 }
 
+.alm-location--accounting .alm-location__head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.alm-location--accounting .alm-location__preview {
+    max-width: 100%;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+}
+
+.alm-observation-preview {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #d6e5f3;
+    border-radius: 8px;
+    background: #f5f9fd;
+}
+
+.alm-observation-preview > span {
+    color: #536a82;
+    font-size: .75rem;
+    font-weight: 800;
+}
+
+.alm-observation-preview p {
+    margin: 6px 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.alm-observation-preview small {
+    color: #536a82;
+}
+
+.alm-observation-preview.is-invalid {
+    border-color: #c93636;
+    color: #a12020;
+}
+
 .alm-trace-note {
     min-height: 74px;
     display: flex;

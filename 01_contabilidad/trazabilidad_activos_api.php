@@ -45,12 +45,14 @@ function trace_api_scope_sql(): string {
 
 function trace_api_label(mysqli $conn, int $labelId, bool $forUpdate = false): ?array {
     $lock = $forUpdate ? ' FOR UPDATE' : '';
+    $detailSql = alm_activos_detalle_disponible($conn) ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
     return alm_fetch_one($conn, "
         SELECT
             e.clm_alm_etiquetado_id AS etiqueta_id,
             COALESCE(NULLIF(TRIM(e.clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', e.clm_alm_etiquetado_id)) AS etiqueta_codigo,
             COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'PENDIENTE') AS etiqueta_estado,
             e.clm_alm_etiquetado_oficina_destino AS sede_actual_id,
+            $detailSql AS ubicacion_detalle,
             p.clm_alm_producto_codigo AS producto_codigo,
             p.clm_alm_producto_NOMBRE AS producto_nombre
         FROM tb_alm_etiquetado e
@@ -63,10 +65,10 @@ function trace_api_label(mysqli $conn, int $labelId, bool $forUpdate = false): ?
 }
 
 function trace_api_validate_csrf(array $payload): void {
-    $token = (string)($payload['csrf'] ?? '');
-    $sessionToken = (string)($_SESSION['conta_trace_csrf'] ?? '');
+    $token = $payload['csrf'] ?? '';
+    $sessionToken = $_SESSION['conta_trace_csrf'] ?? '';
 
-    if ($token === '' || $sessionToken === '' || !hash_equals($sessionToken, $token)) {
+    if (!is_string($token) || !is_string($sessionToken) || $token === '' || $sessionToken === '' || !hash_equals($sessionToken, $token)) {
         alm_json(['ok' => false, 'message' => 'Token de seguridad invalido. Actualiza la pagina.'], 419);
     }
 }
@@ -82,12 +84,17 @@ function trace_api_history(mysqli $conn): void {
         alm_json(['ok' => false, 'message' => 'No se encontro la etiqueta de activos.'], 404);
     }
 
+    $hasDetail = alm_activos_detalle_disponible($conn);
+    $beforeSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_antes' : 'NULL';
+    $afterSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_despues' : 'NULL';
     $rows = alm_fetch_all($conn, "
         SELECT
             h.clm_alm_etiquetadoofi_id AS id,
             h.clm_alm_etiquetadoofi_datetime AS fecha,
             h.clm_alm_etiquetadoofi_sedeIDantes AS sede_antes_id,
             h.clm_alm_etiquetadoofi_sedeIDdespues AS sede_despues_id,
+            $beforeSql AS detalle_antes,
+            $afterSql AS detalle_despues,
             COALESCE(NULLIF(TRIM(sa.clm_sedes_name), ''), IF(h.clm_alm_etiquetadoofi_sedeIDantes IS NULL, 'Sin ubicacion', CONCAT('Sede ', h.clm_alm_etiquetadoofi_sedeIDantes))) AS sede_antes,
             COALESCE(NULLIF(TRIM(sd.clm_sedes_name), ''), IF(h.clm_alm_etiquetadoofi_sedeIDdespues IS NULL, 'Sin ubicacion', CONCAT('Sede ', h.clm_alm_etiquetadoofi_sedeIDdespues))) AS sede_despues,
             COALESCE(NULLIF(TRIM(u.nombre), ''), NULLIF(TRIM(u.usuario), ''), CONCAT('Usuario ', h.clm_alm_etiquetadoofi_idUSER)) AS usuario
@@ -109,11 +116,26 @@ function trace_api_history(mysqli $conn): void {
 function trace_api_move(mysqli $conn, array $payload): void {
     trace_api_validate_csrf($payload);
 
-    $labelId = (int)($payload['label_id'] ?? 0);
-    $newSedeId = (int)($payload['new_sede_id'] ?? 0);
+    $labelId = filter_var($payload['label_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    $newSedeId = filter_var($payload['new_sede_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-    if ($labelId <= 0 || $newSedeId <= 0) {
+    if ($labelId === false || $newSedeId === false) {
         alm_json(['ok' => false, 'message' => 'Selecciona una etiqueta y una nueva ubicacion.'], 422);
+    }
+
+    $hasDetail = alm_activos_detalle_disponible($conn);
+    try {
+        $newDetail = alm_activos_detalle($payload['ubicacion_detalle'] ?? '');
+        $expectedDetail = alm_activos_detalle($payload['expected_detalle'] ?? '');
+    } catch (InvalidArgumentException $e) {
+        alm_json(['ok' => false, 'message' => $e->getMessage()], 422);
+    }
+    if (!$hasDetail && $newDetail !== '') {
+        alm_json(['ok' => false, 'message' => 'El detalle de ubicación aún no está habilitado. Contacta al administrador.'], 409);
+    }
+    $expectedSede = filter_var($payload['expected_sede_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+    if ($hasDetail && ($expectedSede === false || !array_key_exists('expected_detalle', $payload))) {
+        alm_json(['ok' => false, 'message' => 'Actualiza la página antes de mover el activo.'], 409);
     }
 
     $sede = alm_fetch_one($conn, "
@@ -132,20 +154,24 @@ function trace_api_move(mysqli $conn, array $payload): void {
         alm_json(['ok' => false, 'message' => 'No se pudo identificar al usuario de sesion.'], 422);
     }
 
-    $conn->begin_transaction();
     try {
+        $conn->begin_transaction();
         $label = trace_api_label($conn, $labelId, true);
         if (!$label) {
-            throw new RuntimeException('No se encontro la etiqueta de activos.');
+            throw new RuntimeException('No se encontro la etiqueta de activos.', 404);
         }
 
         $estado = strtoupper(trim((string)($label['etiqueta_estado'] ?? '')));
         if ($estado === 'CONSUMIDO') {
-            throw new RuntimeException('La etiqueta ya fue consumida y no puede trasladarse.');
+            throw new RuntimeException('La etiqueta ya fue consumida y no puede trasladarse.', 409);
         }
 
         $currentSedeId = (int)($label['sede_actual_id'] ?? 0);
-        if ($currentSedeId === $newSedeId) {
+        $currentDetail = (string)($label['ubicacion_detalle'] ?? '');
+        if ($hasDetail && ($expectedSede !== $currentSedeId || $expectedDetail !== $currentDetail)) {
+            throw new RuntimeException('La ubicación cambió mientras tenías el formulario abierto. Actualiza la página antes de reintentar.', 409);
+        }
+        if ($currentSedeId === $newSedeId && $currentDetail === $newDetail) {
             $conn->commit();
             alm_json([
                 'ok' => true,
@@ -156,33 +182,45 @@ function trace_api_move(mysqli $conn, array $payload): void {
 
         $before = $currentSedeId > 0 ? $currentSedeId : null;
         $after = $newSedeId;
+        $beforeDetail = $currentDetail !== '' ? $currentDetail : null;
+        $afterDetail = $newDetail !== '' ? $newDetail : null;
+        $detailColumns = $hasDetail ? ', clm_alm_etiquetadoofi_detalle_antes, clm_alm_etiquetadoofi_detalle_despues' : '';
+        $detailValues = $hasDetail ? ', ?, ?' : '';
 
         $stmtHistory = $conn->prepare("
             INSERT INTO tb_alm_etiquetadoofi
             (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
-             clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER)
-            VALUES (?, ?, ?, ?)
+             clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns)
+            VALUES (?, ?, ?, ? $detailValues)
         ");
         if (!$stmtHistory) {
-            throw new RuntimeException($conn->error ?: 'No se pudo preparar el historial de ubicacion.');
+            throw new RuntimeException('No se pudo preparar el historial de ubicación.');
         }
         $historyParams = [$labelId, $before, $after, $userId];
-        alm_bind($stmtHistory, 'iiii', $historyParams);
-        $stmtHistory->execute();
+        if ($hasDetail) {
+            array_push($historyParams, $beforeDetail, $afterDetail);
+        }
+        alm_bind($stmtHistory, $hasDetail ? 'iiiiss' : 'iiii', $historyParams);
+        if (!$stmtHistory->execute()) {
+            throw new RuntimeException('No se pudo registrar el historial de ubicación.');
+        }
         $stmtHistory->close();
 
+        $detailSet = $hasDetail ? ', clm_alm_etiquetado_ubicacion_detalle = ?' : '';
         $stmtUpdate = $conn->prepare("
             UPDATE tb_alm_etiquetado
-            SET clm_alm_etiquetado_oficina_destino = ?
+            SET clm_alm_etiquetado_oficina_destino = ? $detailSet
             WHERE clm_alm_etiquetado_id = ?
             LIMIT 1
         ");
         if (!$stmtUpdate) {
-            throw new RuntimeException($conn->error ?: 'No se pudo actualizar la ubicacion de la etiqueta.');
+            throw new RuntimeException('No se pudo actualizar la ubicación de la etiqueta.');
         }
-        $updateParams = [$after, $labelId];
-        alm_bind($stmtUpdate, 'ii', $updateParams);
-        $stmtUpdate->execute();
+        $updateParams = $hasDetail ? [$after, $afterDetail, $labelId] : [$after, $labelId];
+        alm_bind($stmtUpdate, $hasDetail ? 'isi' : 'ii', $updateParams);
+        if (!$stmtUpdate->execute()) {
+            throw new RuntimeException('No se pudo actualizar la ubicación de la etiqueta.');
+        }
         $stmtUpdate->close();
 
         $conn->commit();
@@ -192,14 +230,15 @@ function trace_api_move(mysqli $conn, array $payload): void {
             'label_id' => $labelId,
             'new_sede_id' => $newSedeId,
             'new_sede_name' => (string)($sede['nombre'] ?? ('Sede ' . $newSedeId)),
+            'new_ubicacion_detalle' => $afterDetail,
         ]);
     } catch (Throwable $e) {
-        if ($conn->errno === 0) {
+        try {
             $conn->rollback();
-        } else {
-            @mysqli_rollback($conn);
+        } catch (Throwable $ignored) {
         }
-        alm_json(['ok' => false, 'message' => $e->getMessage()], 422);
+        $status = in_array($e->getCode(), [404, 409, 422], true) ? $e->getCode() : 500;
+        alm_json(['ok' => false, 'message' => $status === 500 ? 'No se pudo guardar el traslado. Inténtalo nuevamente.' : $e->getMessage()], $status);
     }
 }
 

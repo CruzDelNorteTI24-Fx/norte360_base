@@ -98,6 +98,7 @@ if (empty($_SESSION['alm_mov_csrf'])) {
 }
 
 $pageError = '';
+$assetLocationDetailEnabled = $isAccountingContext && alm_activos_detalle_disponible($conn);
 $sedes = [];
 $anaqueles = [];
 $originSpace = [];
@@ -145,7 +146,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/almacen_movimiento_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/almacen_movimiento_n360.css?ubicacion=1') ?>">
 </head>
 <body>
 <?php n360_render_header(['title' => 'Registro de movimientos', 'subtitle' => (string)$currentContext['subtitle']]); ?>
@@ -162,6 +163,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
          data-is-admin="<?= $isAdmin ? '1' : '0' ?>"
          data-current-sede-id="<?= alm_page_h($currentSedeId) ?>"
          data-context="<?= alm_page_h($registerContext) ?>"
+         data-asset-location-detail="<?= $assetLocationDetailEnabled ? '1' : '0' ?>"
          data-origin-id="<?= alm_page_h($originSpaceId) ?>"
          data-origin-label="<?= alm_page_h($originSpaceLabel) ?>"
          data-origin-area="<?= alm_page_h($originConfig['area_control'] ?? '') ?>"
@@ -297,8 +299,15 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
 
                         <label class="alm-field alm-field--span-12">
                             <span>Observacion</span>
-                            <textarea name="observacion" id="almEntradaObservacion" rows="3" placeholder="Detalle operativo del ingreso..."></textarea>
+                            <textarea name="observacion" id="almEntradaObservacion" rows="3" placeholder="Detalle operativo del ingreso..." <?= $isAccountingContext ? 'maxlength="900"' : '' ?>></textarea>
                         </label>
+                        <?php if ($isAccountingContext): ?>
+                        <div class="alm-observation-preview alm-field--span-12" aria-live="polite">
+                            <span>Observación que se guardará</span>
+                            <p id="almEntradaObservacionPreview">Sin observación.</p>
+                            <small id="almEntradaObservacionCounter">0 / 900 caracteres</small>
+                        </div>
+                        <?php endif; ?>
 
                         <div class="alm-form__actions">
                             <button class="alm-btn alm-btn--soft alm-btn--debug" type="button" id="almEntradaDebug">
@@ -411,6 +420,13 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
                                 <?php endforeach; ?>
                             </select>
                         </label>
+                        <label class="alm-field alm-field--span-6">
+                            <span>Detalle de ubicación (opcional)</span>
+                            <input type="text" name="ubicacion_detalle" id="almEntradaUbicacionDetalle" form="almEntradaForm" maxlength="220"
+                                   placeholder="Ej. Tercer piso, Contabilidad, puesto Mirella"
+                                   <?= $assetLocationDetailEnabled ? '' : 'disabled' ?>>
+                            <small class="alm-help"><?= $assetLocationDetailEnabled ? 'Se agregará a la observación y quedará asociado a cada etiqueta.' : 'El detalle de ubicación aún no está habilitado. Contacta al administrador.' ?></small>
+                        </label>
                         <div class="alm-trace-note alm-field--span-6">
                             <i class="bi bi-upc-scan"></i>
                             <div>
@@ -515,7 +531,8 @@ window.N360_RRHH_ACTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js') ?>"></script>
+<?php if ($isAccountingContext): ?><script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=1') ?>"></script><?php endif; ?>
+<script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
