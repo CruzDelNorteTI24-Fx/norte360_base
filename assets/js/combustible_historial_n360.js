@@ -40,7 +40,7 @@
     const getPdfRows = (body) => body.map((row) => row.map((cell, index) => {
         if (index === 4) return limit(cell, 86);
         if (index === 5) return limit(cell, 110);
-        if (index === 11) return limit(cell, 160);
+        if (index === 12) return limit(cell, 160);
         return cell || '-';
     }));
 
@@ -50,6 +50,87 @@
             return;
         }
         console[type === 'danger' ? 'error' : 'log'](message);
+    };
+
+    const initEmissionEditor = () => {
+        const dialog = document.querySelector('[data-comb-emision-dialog]');
+        if (!dialog) return;
+        const form = dialog.querySelector('[data-comb-emision-form]');
+        const dateInput = form.elements.namedItem('fecha_emision');
+        const idInput = form.elements.namedItem('id_mov');
+        const movement = dialog.querySelector('[data-comb-emision-movement]');
+        const message = dialog.querySelector('[data-comb-emision-message]');
+        const buttons = Array.from(form.querySelectorAll('button'));
+        let sourceButton = null;
+        let saving = false;
+
+        document.querySelectorAll('[data-comb-emision-add]').forEach((button) => {
+            button.addEventListener('click', () => {
+                if (saving || dialog.open) return;
+                sourceButton = button;
+                idInput.value = button.dataset.movementId;
+                dateInput.value = '';
+                movement.textContent = 'Movimiento #' + idInput.value;
+                message.textContent = '';
+                dialog.showModal();
+                dateInput.focus();
+            });
+        });
+        dialog.querySelectorAll('[data-comb-emision-cancel]').forEach((button) => {
+            button.addEventListener('click', () => {
+                if (!saving) dialog.close();
+            });
+        });
+        dialog.addEventListener('cancel', (event) => {
+            if (saving) event.preventDefault();
+        });
+        dialog.addEventListener('close', () => {
+            if (sourceButton?.isConnected) sourceButton.focus({ preventScroll: true });
+        });
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (saving || !form.reportValidity()) return;
+            const payload = new FormData(form);
+            saving = true;
+            message.textContent = '';
+            form.setAttribute('aria-busy', 'true');
+            buttons.forEach((button) => { button.disabled = true; });
+            dateInput.disabled = true;
+            try {
+                const response = await fetch(form.getAttribute('action'), {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                    body: payload
+                });
+                const data = await response.json();
+                if (!response.ok || !data?.ok) {
+                    throw new Error(data?.message || 'No se pudo guardar la fecha de emisión.');
+                }
+                if (String(data.id_mov) !== idInput.value || !/^\d{2}\/\d{2}\/\d{4}$/.test(data.fecha_display)) {
+                    throw new Error('No se pudo confirmar la fecha guardada. Actualiza el historial.');
+                }
+                const cell = sourceButton.closest('td');
+                const row = sourceButton.closest('[data-combustible-row]');
+                cell.textContent = data.fecha_display;
+                cell.dataset.combExportText = data.fecha_display;
+                row.dataset.search = (row.dataset.search || '') + ' ' + data.fecha_emision + ' ' + data.fecha_display;
+                applySearch();
+                dialog.close();
+                cell.tabIndex = -1;
+                cell.focus({ preventScroll: true });
+                toast('Fecha de emisión guardada.', 'success');
+            } catch (error) {
+                message.textContent = error instanceof SyntaxError
+                    ? 'No se pudo confirmar el guardado. Actualiza el historial antes de reintentar.'
+                    : (error.message || 'No se pudo guardar la fecha de emisión.');
+            } finally {
+                saving = false;
+                form.removeAttribute('aria-busy');
+                buttons.forEach((button) => { button.disabled = false; });
+                dateInput.disabled = false;
+            }
+        });
     };
 
     const drawFilters = (doc, left, top, width, filters) => {
@@ -127,18 +208,19 @@
                         },
                         alternateRowStyles: { fillColor: [249, 251, 253] },
                         columnStyles: {
-                            0: { cellWidth: 12 },
-                            1: { cellWidth: 27 },
-                            2: { cellWidth: 17 },
-                            3: { cellWidth: 22 },
-                            4: { cellWidth: 35 },
-                            5: { cellWidth: 42 },
-                            6: { cellWidth: 10 },
-                            7: { cellWidth: 24 },
+                            0: { cellWidth: 10 },
+                            1: { cellWidth: 22 },
+                            2: { cellWidth: 16 },
+                            3: { cellWidth: 20 },
+                            4: { cellWidth: 28 },
+                            5: { cellWidth: 38 },
+                            6: { cellWidth: 9 },
+                            7: { cellWidth: 22 },
                             8: { cellWidth: 17, halign: 'right' },
                             9: { cellWidth: 16, halign: 'right' },
-                            10: { cellWidth: 19, halign: 'right' },
-                            11: { cellWidth: 30 }
+                            10: { cellWidth: 18, halign: 'right' },
+                            11: { cellWidth: 23 },
+                            12: { cellWidth: 32 }
                         },
                         didParseCell: function (data) {
                             if (data.section !== 'body') return;
@@ -406,4 +488,5 @@
     document.querySelector('[data-combustible-export-pdf]')?.addEventListener('click', exportPdf);
     document.querySelector('[data-combustible-export-excel]')?.addEventListener('click', exportExcel);
     initPriceModals();
+    initEmissionEditor();
 })();
