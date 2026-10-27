@@ -21,6 +21,39 @@ function alm_activos_detalle_disponible(mysqli $conn): bool {
     }
 }
 
+function alm_activos_detalles_sugeridos(mysqli $conn): array {
+    if (!alm_activos_detalle_disponible($conn)) {
+        return [];
+    }
+    return alm_fetch_all($conn, "
+        SELECT DISTINCT d.sede_id, TRIM(d.detalle) AS detalle
+        FROM (
+            SELECT e.clm_alm_etiquetado_id AS etiqueta_id,
+                   e.clm_alm_etiquetado_oficina_destino AS sede_id,
+                   CONVERT(e.clm_alm_etiquetado_ubicacion_detalle USING utf8mb4) COLLATE utf8mb4_unicode_ci AS detalle
+            FROM tb_alm_etiquetado e
+            UNION ALL
+            SELECT h.clm_alm_etiquetadoofi_etiref,
+                   h.clm_alm_etiquetadoofi_sedeIDantes,
+                   CONVERT(h.clm_alm_etiquetadoofi_detalle_antes USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM tb_alm_etiquetadoofi h
+            UNION ALL
+            SELECT h.clm_alm_etiquetadoofi_etiref,
+                   h.clm_alm_etiquetadoofi_sedeIDdespues,
+                   CONVERT(h.clm_alm_etiquetadoofi_detalle_despues USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM tb_alm_etiquetadoofi h
+        ) d
+        JOIN tb_alm_etiquetado e ON e.clm_alm_etiquetado_id = d.etiqueta_id
+        JOIN tb_alm_producto p ON p.clm_alm_producto_id = e.clm_alm_etiquetado_idPRODUCTO
+        JOIN tb_alm_movimientos m ON m.clm_alm_mov_id = e.clm_alm_etiquetado_idMOVIMIENTO
+        WHERE d.sede_id > 0 AND TRIM(COALESCE(d.detalle, '')) <> ''
+          AND (m.clm_alm_mov_orgn = 12
+            OR UPPER(TRIM(COALESCE(p.clm_alm_producto_area_control, ''))) = 'ACTIVOS'
+            OR UPPER(TRIM(COALESCE(p.clm_alm_producto_tipo_control, ''))) = 'ACTIVO_FIJO')
+        ORDER BY detalle ASC, d.sede_id ASC
+    ");
+}
+
 function alm_activos_texto($value): string {
     if (!is_string($value)) {
         throw new InvalidArgumentException('Ingresa un texto válido.');

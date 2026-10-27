@@ -13,6 +13,11 @@
   const moveForm = document.getElementById('traceMoveForm');
   const assetLocation = window.N360AssetLocation;
   const locationDetailEnabled = page.dataset.locationDetail === '1';
+  const refreshDetailSuggestions = assetLocation.bindSuggestions(
+    document.getElementById('traceMoveDetalle'),
+    document.getElementById('traceMoveDetalleSugerencias'),
+    document.getElementById('traceMoveSede')
+  );
   let moveSaving = false;
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -144,6 +149,7 @@
       });
     }
 
+    refreshDetailSuggestions();
     updateMovePreview();
     openModal(moveModal);
   }

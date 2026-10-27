@@ -87,8 +87,10 @@ $stats = [
 $pageError = '';
 $locationDetailEnabled = alm_activos_detalle_disponible($conn);
 $locationDetailSql = $locationDetailEnabled ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
+$locationSuggestions = [];
 
 try {
+    $locationSuggestions = alm_activos_detalles_sugeridos($conn);
     $sedes = alm_fetch_all($conn, "
         SELECT clm_sedes_id AS id, clm_sedes_name AS nombre
         FROM tb_sedes
@@ -410,7 +412,14 @@ try {
                     <label class="trace-modal__field">
                         <span>Detalle de nueva ubicación (opcional)</span>
                         <input type="text" id="traceMoveDetalle" maxlength="220" placeholder="Ej. Tercer piso, Contabilidad, puesto Mirella"
+                               list="traceMoveDetalleSugerencias" autocomplete="off"
                                <?= $locationDetailEnabled ? '' : 'disabled' ?>>
+                        <datalist id="traceMoveDetalleSugerencias">
+                            <?php foreach ($locationSuggestions as $suggestion): ?>
+                            <option value="<?= trace_h($suggestion['detalle']) ?>" data-sede="<?= (int)$suggestion['sede_id'] ?>"></option>
+                            <?php endforeach; ?>
+                        </datalist>
+                        <?php if ($locationDetailEnabled): ?><small>Elige un detalle anterior de la sede o escribe uno nuevo.</small><?php endif; ?>
                     </label>
                     <?php if (!$locationDetailEnabled): ?><p class="trace-modal__lead">El detalle de ubicación aún no está habilitado. Contacta al administrador.</p><?php endif; ?>
                     <div class="trace-location-preview" aria-live="polite">
@@ -483,8 +492,8 @@ try {
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=1') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

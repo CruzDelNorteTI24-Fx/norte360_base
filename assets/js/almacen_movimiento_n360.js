@@ -962,6 +962,9 @@
   }
 
   $('#almEntradaSede')?.addEventListener('change', loadAnaquelesForSede);
+  if (isAccountingOrigin) {
+    assetLocation.bindSuggestions($('#almEntradaUbicacionDetalle'), $('#almEntradaUbicacionSugerencias'), $('#almEntradaSede'));
+  }
   $('#almEntradaUbicacionDetalle')?.addEventListener('input', updateLocationPreview);
   $('#almEntradaObservacion')?.addEventListener('input', updateAccountingObservation);
   $('#almEntradaAnaquel')?.addEventListener('change', updateLocationPreview);

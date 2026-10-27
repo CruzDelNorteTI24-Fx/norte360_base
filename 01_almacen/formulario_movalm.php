@@ -99,6 +99,7 @@ if (empty($_SESSION['alm_mov_csrf'])) {
 
 $pageError = '';
 $assetLocationDetailEnabled = $isAccountingContext && alm_activos_detalle_disponible($conn);
+$assetLocationSuggestions = [];
 $sedes = [];
 $anaqueles = [];
 $originSpace = [];
@@ -112,6 +113,9 @@ $stats = [
 
 try {
     $sedes = alm_select_sedes($conn);
+    if ($assetLocationDetailEnabled) {
+        $assetLocationSuggestions = alm_activos_detalles_sugeridos($conn);
+    }
     $anaqueles = alm_select_anaqueles($conn);
     $originSpace = alm_select_espacio($conn, $originSpaceId) ?: [];
     $stats = array_merge($stats, alm_select_stats($conn, $originSpaceId));
@@ -423,9 +427,15 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
                         <label class="alm-field alm-field--span-6">
                             <span>Detalle de ubicación (opcional)</span>
                             <input type="text" name="ubicacion_detalle" id="almEntradaUbicacionDetalle" form="almEntradaForm" maxlength="220"
+                                   list="almEntradaUbicacionSugerencias" autocomplete="off"
                                    placeholder="Ej. Tercer piso, Contabilidad, puesto Mirella"
                                    <?= $assetLocationDetailEnabled ? '' : 'disabled' ?>>
-                            <small class="alm-help"><?= $assetLocationDetailEnabled ? 'Se agregará a la observación y quedará asociado a cada etiqueta.' : 'El detalle de ubicación aún no está habilitado. Contacta al administrador.' ?></small>
+                            <datalist id="almEntradaUbicacionSugerencias">
+                                <?php foreach ($assetLocationSuggestions as $suggestion): ?>
+                                <option value="<?= alm_page_h($suggestion['detalle']) ?>" data-sede="<?= (int)$suggestion['sede_id'] ?>"></option>
+                                <?php endforeach; ?>
+                            </datalist>
+                            <small class="alm-help"><?= $assetLocationDetailEnabled ? 'Elige un detalle anterior de la sede o escribe uno nuevo. Se agregará a la observación.' : 'El detalle de ubicación aún no está habilitado. Contacta al administrador.' ?></small>
                         </label>
                         <div class="alm-trace-note alm-field--span-6">
                             <i class="bi bi-upc-scan"></i>
@@ -531,8 +541,8 @@ window.N360_RRHH_ACTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
-<?php if ($isAccountingContext): ?><script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=1') ?>"></script><?php endif; ?>
-<script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=1') ?>"></script>
+<?php if ($isAccountingContext): ?><script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=2') ?>"></script><?php endif; ?>
+<script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
