@@ -761,8 +761,19 @@ function alm_action_save_entrada(mysqli $conn): void {
     $stmtMov->close();
 
     $labelCodes = [];
+    $labelYears = [];
     if ($originId === 12 && $etqCant !== null) {
         $labelCodes = alm_sync_contabilidad_etiquetas_desde_trigger($conn, $movId, $userId, $sedeId, $ubicacionDetalle);
+        $labelDates = alm_fetch_all($conn, "
+            SELECT
+                COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,
+                YEAR(clm_alm_etiquetado_FECHA) AS anio
+            FROM tb_alm_etiquetado
+            WHERE clm_alm_etiquetado_idMOVIMIENTO = ?
+        ", 'i', [$movId]);
+        foreach ($labelDates as $labelDate) {
+            $labelYears[(string)$labelDate['codigo']] = (int)($labelDate['anio'] ?? 0);
+        }
     }
 
     $conn->commit();
@@ -776,6 +787,7 @@ function alm_action_save_entrada(mysqli $conn): void {
         'nota_codigo' => $notaCodigo,
         'etiquetas_generadas' => count($labelCodes),
         'etiquetas' => $labelCodes,
+        'etiquetas_anios' => $labelYears,
         'auto_pdf' => $autoPdf,
         'pdf_params' => [
             'id_nota' => $notaId,

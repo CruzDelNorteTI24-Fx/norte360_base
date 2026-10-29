@@ -1572,7 +1572,7 @@ body.drawer-open{
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=1') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/almacen_movimiento_n360.css') ?>">
 </head>
 
@@ -1861,7 +1861,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>

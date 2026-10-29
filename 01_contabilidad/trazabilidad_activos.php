@@ -162,6 +162,7 @@ try {
             COALESCE(NULLIF(TRIM(e.clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', e.clm_alm_etiquetado_id)) AS etiqueta_codigo,
             COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'PENDIENTE') AS etiqueta_estado,
             e.clm_alm_etiquetado_FECHA AS etiqueta_fecha,
+            YEAR(e.clm_alm_etiquetado_FECHA) AS etiqueta_anio,
             e.clm_alm_etiquetado_oficina_destino AS sede_id,
             $locationDetailSql AS ubicacion_detalle,
             p.clm_alm_producto_id AS producto_id,
@@ -208,7 +209,7 @@ try {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=1') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=1') ?>">
 </head>
 <body>
@@ -345,6 +346,7 @@ try {
                                             class="trace-row-btn"
                                             data-trace-label
                                             data-code="<?= trace_h($etiquetaCodigo) ?>"
+                                            data-year="<?= (int)($row['etiqueta_anio'] ?? 0) ?>"
                                             data-name="<?= trace_h($productoLine) ?>"
                                             data-category="<?= trace_h($categoriaLine) ?>"
                                             data-filename="<?= trace_h('ETQ_' . trace_safe_file($etiquetaCodigo)) ?>">
@@ -491,9 +493,9 @@ try {
 <?php n360_render_footer(); ?>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/barcode_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2&etiqueta=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

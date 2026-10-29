@@ -49,8 +49,10 @@
         const kind = clean(el.dataset.barcodeKind, 'producto').toLowerCase();
         const logo = clean(el.dataset.barcodeLogo, '');
         const filename = clean(el.dataset.barcodeFilename, '');
+        const storedYear = String(el.dataset.barcodeYear ?? '').trim();
+        const year = kind === 'etiqueta' && /^[1-9]\d{3}$/.test(storedYear) ? storedYear : '';
 
-        return { code, name, category, kind, logo, filename };
+        return { code, name, category, kind, logo, filename, year };
     };
 
     const codeValues = (code) => {
@@ -196,7 +198,7 @@
         const maxTextW = barcodeW - 10;
 
         canvas.width = Math.max(barcodeW, logoW) + margin * 2;
-        canvas.height = margin + barcodeH + textGap1 + 16 + textGap2 + 16 + logoGap + logoH + margin;
+        canvas.height = margin + barcodeH + textGap1 + 16 + textGap2 + 16 + logoGap + logoH + margin + (data.year ? 16 : 0);
 
         ctx.fillStyle = '#fff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -233,6 +235,14 @@
             ctx.fillText('NORTE 360', canvas.width / 2, y + 25);
         }
 
+        if (data.year) {
+            ctx.fillStyle = '#000';
+            ctx.font = '700 10px N360Consola, Consolas, Courier New, monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(data.year, canvas.width - margin, canvas.height - margin);
+        }
+
         const link = document.createElement('a');
         link.href = canvas.toDataURL('image/png');
         link.download = defaultFileName(data);
@@ -256,6 +266,7 @@
                         <span title="${esc(data.name)}">${esc(data.name)}</span>
                     </div>
                     ${data.logo && data.logo !== '-' ? `<img class="n360-barcode-logo" src="${esc(data.logo)}" alt="Norte 360">` : '<div class="n360-barcode-logo" aria-hidden="true"></div>'}
+                    ${data.year ? `<div class="n360-barcode-year" title="Año de creación de la etiqueta: ${data.year}">${data.year}</div>` : ''}
                 </div>
             `;
             el.dataset.barcodeRendered = '1';

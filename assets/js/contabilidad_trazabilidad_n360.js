@@ -104,6 +104,7 @@
     if (!barcodeModal || !barcodeCard) return;
     const code = button.dataset.code || 'ETQ';
     barcodeCard.dataset.barcodeCode = code;
+    barcodeCard.dataset.barcodeYear = button.dataset.year || '';
     barcodeCard.dataset.barcodeName = button.dataset.name || 'Activo fijo';
     barcodeCard.dataset.barcodeCategory = button.dataset.category || 'Contabilidad';
     barcodeCard.dataset.barcodeFilename = button.dataset.filename || `ETQ_${code}`;

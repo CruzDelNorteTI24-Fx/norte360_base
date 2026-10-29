@@ -94,6 +94,7 @@
                      data-barcode-name="${escapeHtml(product.nombre || 'Producto sin nombre')}"
                      data-barcode-category="${escapeHtml(product.categoria || 'Sin categoria')}"
                      data-barcode-kind="${escapeHtml(kind)}"
+                     data-barcode-year="${escapeHtml(payload.trace?.anio_etiquetado ?? '')}"
                      data-barcode-logo="${escapeHtml(barcodeLogo)}">
                     <div class="n360-barcode-card__head">
                         <div class="n360-barcode-card__title">

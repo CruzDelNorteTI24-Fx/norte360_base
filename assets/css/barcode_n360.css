@@ -105,6 +105,18 @@
     object-fit: contain;
 }
 
+.n360-barcode-year {
+    width: 350px;
+    max-width: 100%;
+    margin: 4px auto 0;
+    color: #000;
+    font-family: "N360Consola", Consolas, "Courier New", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: right;
+}
+
 .n360-barcode-actions {
     display: flex;
     align-items: center;
@@ -198,6 +210,12 @@
     height: 32px;
 }
 
+.n360-barcode-card--compact .n360-barcode-year {
+    width: 226px;
+    margin-top: 3px;
+    font-size: 8px;
+}
+
 .n360-barcode-card--compact .n360-barcode-actions {
     gap: 7px;
     margin-top: 8px;
@@ -249,6 +267,12 @@
 .n360-barcode-card--mini .n360-barcode-logo {
     width: 114px;
     height: 17px;
+}
+
+.n360-barcode-card--mini .n360-barcode-year {
+    width: 114px;
+    margin-top: 2px;
+    font-size: 7px;
 }
 
 .n360-barcode-card--mini .n360-barcode-actions {

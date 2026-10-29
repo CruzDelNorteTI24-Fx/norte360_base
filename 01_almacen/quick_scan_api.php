@@ -129,6 +129,7 @@ if ($isEtiqueta) {
     $stmt = $conn->prepare("
         SELECT
             e.clm_alm_etiquetado_FECHA AS fecha_etiquetado,
+            YEAR(e.clm_alm_etiquetado_FECHA) AS anio_etiquetado,
             e.clm_alm_etiquetado_ESTADO AS estado_etiqueta,
             e.clm_alm_etiquetado_idPRODUCTO AS id_producto,
             e.clm_alm_etiquetado_idMOVIMIENTO AS id_movimiento,
@@ -172,6 +173,7 @@ if ($isEtiqueta) {
                 'anaquel' => n360_qs_text($row['anaquel'] ?? ''),
                 'fecha_ingreso' => n360_qs_text($row['fecha_movimiento'] ?? ''),
                 'fecha_etiquetado' => n360_qs_text($row['fecha_etiquetado'] ?? ''),
+                'anio_etiquetado' => (int)($row['anio_etiquetado'] ?? 0),
                 'estado_etiqueta' => n360_qs_text($row['estado_etiqueta'] ?? ''),
                 'cantidad_movimiento' => n360_qs_number($row['cantidad_movimiento'] ?? null),
                 'observacion' => n360_qs_text($row['observacion_movimiento'] ?? ''),
