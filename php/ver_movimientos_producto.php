@@ -1,6 +1,7 @@
 <?php
 define('ACCESS_GRANTED', true);
 require_once("../.c0nn3ct/db_securebd2.php");
+require_once __DIR__ . '/../01_almacen/producto_movimientos_helpers.php';
 // php\ver_movimientos_producto.php:
 if ($conn->connect_error) {
     http_response_code(500);
@@ -62,28 +63,8 @@ if (!$info) {
     exit;
 }
 
-// Obtener movimientos del producto
-$mov_sql = "
-SELECT 
-    m.clm_alm_mov_id AS id_movimiento,
-    m.clm_alm_mov_fecha_registro AS fecha_registro_MOV, 
-    m.clm_alm_mov_TIPO AS tipo_MOV, 
-    m.clm_alm_mov_cantidad AS cantidad_MOV,
-    m.clm_alm_mov_idNOTA AS id_nota,
-    UPPER(TRIM(COALESCE(ns.clm_nota_serie, ''))) AS nota_serie,
-    COALESCE(CAST(ns.clm_nota_sco AS CHAR), CAST(m.clm_alm_mov_idNOTA AS CHAR)) AS nota_label,
-    m.clm_alm_mov_observacion AS observacion_MOV
-FROM tb_alm_movimientos m
-LEFT JOIN tb_notas_salida ns ON ns.clm_nota_id = m.clm_alm_mov_idNOTA
-WHERE m.clm_alm_mov_idPRODUCTO = ?
-ORDER BY m.clm_alm_mov_fecha_registro DESC, m.clm_alm_mov_id DESC
-";
-
-$stmt = $conn->prepare($mov_sql);
-$stmt->bind_param('i', $id);
-$stmt->execute();
-$movimientos = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
+// Consulta compartida con la ficha de trazabilidad de activos.
+$movimientos = alm_producto_movimientos($conn, $id);
 
 $total_movs = count($movimientos);
 $cant_entradas = 0.0;

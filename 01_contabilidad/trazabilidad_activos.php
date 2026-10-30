@@ -64,13 +64,27 @@ function trace_safe_file($value): string {
     return $text !== '' ? substr($text, 0, 120) : 'etiqueta';
 }
 
+function trace_filter_value(string $key): string {
+    return isset($_GET[$key]) && is_string($_GET[$key]) ? trim($_GET[$key]) : '';
+}
+
 if (empty($_SESSION['conta_trace_csrf'])) {
     $_SESSION['conta_trace_csrf'] = bin2hex(random_bytes(24));
 }
 
-$buscar = trim((string)($_GET['buscar'] ?? ''));
-$estado = strtoupper(trim((string)($_GET['estado'] ?? 'ACTIVOS')));
-$sede = (int)($_GET['sede'] ?? 0);
+$buscar = trace_filter_value('buscar');
+$estado = strtoupper(trace_filter_value('estado') ?: 'ACTIVOS');
+$sede = max(-1, (int)trace_filter_value('sede'));
+$productoFiltro = max(0, (int)trace_filter_value('producto'));
+$categoriaFiltro = max(0, (int)trace_filter_value('categoria'));
+$usuarioFiltro = max(0, (int)trace_filter_value('usuario'));
+$detalleFiltro = trace_filter_value('detalle');
+$notaFiltro = trace_filter_value('nota');
+$dates = [];
+foreach (['etiqueta_desde', 'etiqueta_hasta', 'movimiento_desde', 'movimiento_hasta'] as $key) {
+    $dates[$key] = trace_filter_value($key);
+}
+$moreFilters = $productoFiltro || $categoriaFiltro || $usuarioFiltro || $notaFiltro !== '' || implode('', $dates) !== '';
 $allowedEstados = ['ACTIVOS', 'TODOS', 'GENERADO', 'PENDIENTE', 'CONSUMIDO'];
 if (!in_array($estado, $allowedEstados, true)) {
     $estado = 'ACTIVOS';
@@ -78,6 +92,9 @@ if (!in_array($estado, $allowedEstados, true)) {
 
 $labels = [];
 $sedes = [];
+$productos = [];
+$categorias = [];
+$usuarios = [];
 $stats = [
     'total' => 0,
     'activos' => 0,
@@ -90,6 +107,18 @@ $locationDetailSql = $locationDetailEnabled ? 'e.clm_alm_etiquetado_ubicacion_de
 $locationSuggestions = [];
 
 try {
+    foreach ($dates as $value) {
+        if ($value !== '' && (!preg_match('/^([1-9][0-9]{3})-([0-9]{2})-([0-9]{2})$/D', $value, $parts)
+            || !checkdate((int)$parts[2], (int)$parts[3], (int)$parts[1]))) {
+            throw new InvalidArgumentException('Selecciona fechas validas para los filtros.');
+        }
+    }
+    foreach (['etiqueta', 'movimiento'] as $prefix) {
+        if ($dates[$prefix . '_desde'] !== '' && $dates[$prefix . '_hasta'] !== ''
+            && $dates[$prefix . '_desde'] > $dates[$prefix . '_hasta']) {
+            [$dates[$prefix . '_desde'], $dates[$prefix . '_hasta']] = [$dates[$prefix . '_hasta'], $dates[$prefix . '_desde']];
+        }
+    }
     $locationSuggestions = alm_activos_detalles_sugeridos($conn);
     $sedes = alm_fetch_all($conn, "
         SELECT clm_sedes_id AS id, clm_sedes_name AS nombre
@@ -105,6 +134,31 @@ try {
     )";
 
     $where = [$scopeExpr];
+    $productos = alm_fetch_all($conn, "
+        SELECT DISTINCT p.clm_alm_producto_id AS id, p.clm_alm_producto_codigo AS codigo,
+            p.clm_alm_producto_NOMBRE AS nombre, c.clm_alm_categoria_id AS categoria_id,
+            CONCAT_WS(' ', c.clm_alm_categoria_NOMBRE, c.clm_alm_categoria_DESCRIPCION) AS categoria
+        FROM tb_alm_etiquetado e
+        JOIN tb_alm_producto p ON p.clm_alm_producto_id = e.clm_alm_etiquetado_idPRODUCTO
+        JOIN tb_alm_movimientos m ON m.clm_alm_mov_id = e.clm_alm_etiquetado_idMOVIMIENTO
+        JOIN tb_alm_categoria c ON c.clm_alm_categoria_id = p.clm_alm_producto_idCATEGORIA
+        WHERE $scopeExpr
+        ORDER BY p.clm_alm_producto_NOMBRE, p.clm_alm_producto_id
+    ");
+    foreach ($productos as $productOption) {
+        $categorias[(int)$productOption['categoria_id']] = $productOption['categoria'];
+    }
+    asort($categorias);
+    $usuarios = alm_fetch_all($conn, "
+        SELECT DISTINCT m.clm_alm_mov_iduser AS id,
+            COALESCE(NULLIF(TRIM(u.nombre), ''), NULLIF(TRIM(u.usuario), ''), CONCAT('Usuario ', m.clm_alm_mov_iduser)) AS nombre
+        FROM tb_alm_etiquetado e
+        JOIN tb_alm_producto p ON p.clm_alm_producto_id = e.clm_alm_etiquetado_idPRODUCTO
+        JOIN tb_alm_movimientos m ON m.clm_alm_mov_id = e.clm_alm_etiquetado_idMOVIMIENTO
+        LEFT JOIN tb_usuarios u ON u.id_usuario = m.clm_alm_mov_iduser
+        WHERE $scopeExpr
+        ORDER BY nombre
+    ");
     $types = '';
     $params = [];
 
@@ -120,6 +174,35 @@ try {
         $where[] = 'e.clm_alm_etiquetado_oficina_destino = ?';
         $types .= 'i';
         $params[] = $sede;
+    } elseif ($sede === -1) {
+        $where[] = '(e.clm_alm_etiquetado_oficina_destino IS NULL OR e.clm_alm_etiquetado_oficina_destino = 0)';
+    }
+    foreach (['p.clm_alm_producto_id' => $productoFiltro, 'p.clm_alm_producto_idCATEGORIA' => $categoriaFiltro,
+        'm.clm_alm_mov_iduser' => $usuarioFiltro] as $column => $value) {
+        if ($value > 0) {
+            $where[] = "$column = ?";
+            $types .= 'i';
+            $params[] = $value;
+        }
+    }
+    foreach ([$locationDetailSql => $detalleFiltro, "COALESCE(NULLIF(TRIM(n.clm_nota_sco), ''), CONCAT('MOV-', m.clm_alm_mov_id))" => $notaFiltro] as $column => $value) {
+        if ($value !== '') {
+            $where[] = "$column LIKE CONCAT('%', ?, '%')";
+            $types .= 's';
+            $params[] = $value;
+        }
+    }
+    foreach (['etiqueta' => 'e.clm_alm_etiquetado_FECHA', 'movimiento' => 'm.clm_alm_mov_fecha_registro'] as $prefix => $column) {
+        if ($dates[$prefix . '_desde'] !== '') {
+            $where[] = "$column >= ?";
+            $types .= 's';
+            $params[] = $dates[$prefix . '_desde'] . ' 00:00:00';
+        }
+        if ($dates[$prefix . '_hasta'] !== '') {
+            $where[] = "$column <= ?";
+            $types .= 's';
+            $params[] = $dates[$prefix . '_hasta'] . ' 23:59:59.999999';
+        }
     }
 
     if ($buscar !== '') {
@@ -145,6 +228,7 @@ try {
             COUNT(DISTINCT CASE WHEN e.clm_alm_etiquetado_oficina_destino IS NOT NULL THEN e.clm_alm_etiquetado_oficina_destino END) AS sedes
         FROM tb_alm_etiquetado e
         JOIN tb_alm_producto p ON e.clm_alm_etiquetado_idPRODUCTO = p.clm_alm_producto_id
+        JOIN tb_alm_categoria c ON p.clm_alm_producto_idCATEGORIA = c.clm_alm_categoria_id
         JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
         LEFT JOIN tb_notas_salida n ON m.clm_alm_mov_idNOTA = n.clm_nota_id
         LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
@@ -174,22 +258,33 @@ try {
             m.clm_alm_mov_id AS movimiento_id,
             m.clm_alm_mov_fecha_registro AS movimiento_fecha,
             m.clm_alm_mov_TIPO AS movimiento_tipo,
-            n.clm_nota_sco AS nota_codigo,
+            COALESCE(NULLIF(TRIM(n.clm_nota_sco), ''), CONCAT('MOV-', m.clm_alm_mov_id)) AS nota_codigo,
             s.clm_sedes_name AS sede_nombre,
-            COALESCE(NULLIF(TRIM(u.nombre), ''), NULLIF(TRIM(u.usuario), ''), CONCAT('Usuario ', e.clm_alm_etiquetado_USUARIO)) AS usuario_nombre
+            COALESCE(NULLIF(TRIM(u.nombre), ''), NULLIF(TRIM(u.usuario), ''), CONCAT('Usuario ', m.clm_alm_mov_iduser)) AS usuario_nombre
         FROM tb_alm_etiquetado e
         JOIN tb_alm_producto p ON e.clm_alm_etiquetado_idPRODUCTO = p.clm_alm_producto_id
         JOIN tb_alm_categoria c ON p.clm_alm_producto_idCATEGORIA = c.clm_alm_categoria_id
         JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
         LEFT JOIN tb_notas_salida n ON m.clm_alm_mov_idNOTA = n.clm_nota_id
         LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
-        LEFT JOIN tb_usuarios u ON e.clm_alm_etiquetado_USUARIO = u.id_usuario
+        LEFT JOIN tb_usuarios u ON m.clm_alm_mov_iduser = u.id_usuario
         WHERE $whereSql
         ORDER BY e.clm_alm_etiquetado_id DESC
         LIMIT ?
     ", $listTypes, $listParams);
 } catch (Throwable $e) {
-    $pageError = $e->getMessage();
+    $pageError = $e instanceof InvalidArgumentException ? $e->getMessage() : 'No se pudo consultar la trazabilidad. Intenta nuevamente.';
+}
+$exportFilters = ['Buscar' => $buscar, 'Estado' => $estado, 'Sede' => $sede === -1 ? 'Sin ubicacion' : 'Todas',
+    'Detalle de ubicacion' => $detalleFiltro, 'Nota de origen' => $notaFiltro,
+    'Categoria' => $categoriaFiltro ? ($categorias[$categoriaFiltro] ?? (string)$categoriaFiltro) : 'Todas',
+    'Producto' => 'Todos', 'Usuario del movimiento' => 'Todos'];
+foreach ($sedes as $option) { if ((int)$option['id'] === $sede) $exportFilters['Sede'] = $option['nombre']; }
+foreach ($productos as $option) { if ((int)$option['id'] === $productoFiltro) $exportFilters['Producto'] = $option['codigo'] . ' ' . $option['nombre']; }
+foreach ($usuarios as $option) { if ((int)$option['id'] === $usuarioFiltro) $exportFilters['Usuario del movimiento'] = $option['nombre']; }
+foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => $name) {
+    $exportFilters[$name . ' desde'] = $dates[$prefix . '_desde'];
+    $exportFilters[$name . ' hasta'] = $dates[$prefix . '_hasta'];
 }
 ?>
 <!DOCTYPE html>
@@ -210,7 +305,7 @@ try {
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=1') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=1&consulta=1') ?>">
 </head>
 <body>
 <?php n360_render_header(['title' => 'Trazabilidad de activos', 'subtitle' => 'Contabilidad']); ?>
@@ -252,7 +347,7 @@ try {
             <article><span>Ubicaciones</span><strong><?= (int)($stats['sedes'] ?? 0) ?></strong></article>
         </section>
 
-        <form class="trace-filters" method="get" autocomplete="off">
+        <form class="trace-filters" id="traceFilters" method="get" autocomplete="off">
             <label>
                 <span>Buscar</span>
                 <div class="trace-input-icon">
@@ -272,12 +367,49 @@ try {
                 <span>Ubicacion</span>
                 <select name="sede">
                     <option value="0">Todas las sedes/oficinas</option>
+                    <option value="-1" <?= $sede === -1 ? 'selected' : '' ?>>Sin ubicacion</option>
                     <?php foreach ($sedes as $sedeRow): ?>
                         <?php $sedeId = (int)($sedeRow['id'] ?? 0); ?>
                         <option value="<?= $sedeId ?>" <?= $sede === $sedeId ? 'selected' : '' ?>><?= trace_h($sedeRow['nombre'] ?? ('Sede ' . $sedeId)) ?></option>
                     <?php endforeach; ?>
                 </select>
             </label>
+            <label>
+                <span>Detalle de ubicacion</span>
+                <input name="detalle" id="traceFilterDetalle" list="traceFilterDetalleList" value="<?= trace_h($detalleFiltro) ?>" placeholder="Piso, ambiente o puesto..." <?= !$locationDetailEnabled ? 'disabled' : '' ?>>
+                <datalist id="traceFilterDetalleList">
+                    <?php foreach ($locationSuggestions as $option): ?>
+                        <option value="<?= trace_h($option['detalle']) ?>" data-sede="<?= (int)$option['sede_id'] ?>"></option>
+                    <?php endforeach; ?>
+                </datalist>
+            </label>
+            <details class="trace-more-filters" <?= $moreFilters ? 'open' : '' ?>>
+                <summary>Mas filtros: producto, origen y fechas</summary>
+                <div class="trace-extra-grid">
+                    <label><span>Producto</span><select name="producto">
+                        <option value="0">Todos los productos</option>
+                        <?php foreach ($productos as $option): ?>
+                            <option value="<?= (int)$option['id'] ?>" <?= $productoFiltro === (int)$option['id'] ? 'selected' : '' ?>><?= trace_h($option['codigo'] . ' ' . $option['nombre']) ?></option>
+                        <?php endforeach; ?>
+                    </select></label>
+                    <label><span>Categoria</span><select name="categoria">
+                        <option value="0">Todas las categorias</option>
+                        <?php foreach ($categorias as $id => $name): ?>
+                            <option value="<?= (int)$id ?>" <?= $categoriaFiltro === (int)$id ? 'selected' : '' ?>><?= trace_h($name) ?></option>
+                        <?php endforeach; ?>
+                    </select></label>
+                    <label><span>Nota de origen</span><input name="nota" value="<?= trace_h($notaFiltro) ?>" placeholder="Nota o MOV-123..."></label>
+                    <label><span>Usuario del movimiento</span><select name="usuario">
+                        <option value="0">Todos los usuarios</option>
+                        <?php foreach ($usuarios as $option): ?>
+                            <option value="<?= (int)$option['id'] ?>" <?= $usuarioFiltro === (int)$option['id'] ? 'selected' : '' ?>><?= trace_h($option['nombre']) ?></option>
+                        <?php endforeach; ?>
+                    </select></label>
+                    <?php foreach (['etiqueta_desde' => 'Etiqueta desde', 'etiqueta_hasta' => 'Etiqueta hasta', 'movimiento_desde' => 'Movimiento desde', 'movimiento_hasta' => 'Movimiento hasta'] as $key => $name): ?>
+                        <label><span><?= trace_h($name) ?></span><input type="date" name="<?= trace_h($key) ?>" value="<?= trace_h($dates[$key]) ?>" min="1000-01-01" max="9999-12-31"></label>
+                    <?php endforeach; ?>
+                </div>
+            </details>
             <div class="trace-filter-actions">
                 <button type="submit" class="trace-btn trace-btn--primary"><i class="bi bi-funnel" aria-hidden="true"></i><span>Filtrar</span></button>
                 <a class="trace-btn trace-btn--soft" href="<?= trace_h(n360_base_url('01_contabilidad/trazabilidad_activos.php')) ?>"><i class="bi bi-x-circle" aria-hidden="true"></i><span>Limpiar</span></a>
@@ -290,8 +422,12 @@ try {
                     <h2>Etiquetas y ubicacion</h2>
                     <p>Doble lectura: codigo estable de etiqueta y bitacora de sede/oficina.</p>
                 </div>
-                <span><?= count($labels) ?> registros</span>
+                <div class="trace-panel-tools">
+                    <span class="trace-count"><?= count($labels) ?> mostrados de <?= (int)$stats['total'] ?> encontrados</span>
+                    <button type="button" class="trace-btn trace-btn--soft" id="traceExportExcel" <?= !$labels || $pageError !== '' ? 'disabled' : '' ?>><i class="bi bi-file-earmark-excel" aria-hidden="true"></i><span>Exportar Excel</span></button>
+                </div>
             </div>
+            <?php if ((int)$stats['total'] > count($labels)): ?><p class="trace-limit-note">Se muestran las 600 etiquetas mas recientes. Ajusta los filtros para consultar otras etiquetas; Excel incluye las filas mostradas.</p><?php endif; ?>
 
             <div class="trace-table-wrap">
                 <table class="trace-table">
@@ -322,7 +458,7 @@ try {
                         $etiquetaCodigo = (string)($row['etiqueta_codigo'] ?? ('ETQ-' . $etiquetaId));
                         $canMove = $estadoRow !== 'CONSUMIDO';
                         ?>
-                        <tr>
+                        <tr data-trace-row data-label-id="<?= $etiquetaId ?>">
                             <td>
                                 <strong class="trace-code"><?= trace_h($row['etiqueta_codigo'] ?? ('ETQ-' . $etiquetaId)) ?></strong>
                                 <small>Creada <?= trace_h(trace_fmt_dt($row['etiqueta_fecha'] ?? '')) ?></small>
@@ -338,10 +474,14 @@ try {
                             <td>
                                 <strong><?= trace_h($row['nota_codigo'] ?? ('MOV-' . ($row['movimiento_id'] ?? ''))) ?></strong>
                                 <small><?= trace_h(trace_fmt_dt($row['movimiento_fecha'] ?? '')) ?> · <?= trace_h($row['usuario_nombre'] ?? '') ?></small>
+                                <small>MOV-<?= (int)$row['movimiento_id'] ?> · <?= trace_h($row['movimiento_tipo']) ?></small>
                             </td>
                             <td><span class="trace-status <?= trace_h(trace_status_class($estadoRow)) ?>"><?= trace_h($estadoRow) ?></span></td>
                             <td>
                                 <div class="trace-actions">
+                                    <button type="button" class="trace-row-btn" data-trace-info data-label-id="<?= $etiquetaId ?>" data-label-code="<?= trace_h($etiquetaCodigo) ?>">
+                                        <i class="bi bi-info-circle" aria-hidden="true"></i><span>Informacion</span>
+                                    </button>
                                     <button type="button"
                                             class="trace-row-btn"
                                             data-trace-label
@@ -436,6 +576,19 @@ try {
             </section>
         </div>
 
+        <div class="trace-modal" id="traceInfoModal" hidden>
+            <div class="trace-modal__backdrop" data-trace-close></div>
+            <section class="trace-modal__panel trace-info-panel" role="dialog" aria-modal="true" aria-labelledby="traceInfoTitle">
+                <header class="trace-info-head">
+                    <button type="button" class="trace-modal__close" data-trace-close aria-label="Cerrar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    <span class="trace-kicker">Ficha del activo</span><h2 id="traceInfoTitle">Informacion de etiqueta</h2>
+                    <p id="traceInfoCode" class="trace-modal__lead"></p>
+                </header>
+                <div class="trace-info-body" id="traceInfoBody" aria-live="polite"></div>
+                <footer class="trace-info-footer"><button type="button" class="trace-btn trace-btn--soft" data-trace-close>Cerrar</button></footer>
+            </section>
+        </div>
+
         <div class="trace-modal" id="traceHistoryModal" hidden>
             <div class="trace-modal__backdrop" data-trace-close></div>
             <section class="trace-modal__panel trace-modal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="traceHistoryTitle">
@@ -491,11 +644,14 @@ try {
 </main>
 
 <?php n360_render_footer(); ?>
+<script type="application/json" id="traceExportData"><?= json_encode(['rows' => $pageError === '' ? $labels : [], 'filters' => $exportFilters, 'total' => (int)$stats['total']], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_excel.js?consulta=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2&etiqueta=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2&etiqueta=1&consulta=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

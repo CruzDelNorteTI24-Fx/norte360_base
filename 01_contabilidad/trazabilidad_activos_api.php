@@ -4,6 +4,7 @@ session_start();
 date_default_timezone_set('America/Lima');
 
 require_once __DIR__ . '/../01_almacen/movimiento_backend.php';
+require_once __DIR__ . '/../01_almacen/producto_movimientos_helpers.php';
 
 if (!isset($_SESSION['usuario'])) {
     alm_json(['ok' => false, 'message' => 'Sesion no iniciada.'], 401);
@@ -73,21 +74,11 @@ function trace_api_validate_csrf(array $payload): void {
     }
 }
 
-function trace_api_history(mysqli $conn): void {
-    $labelId = (int)($_GET['id'] ?? 0);
-    if ($labelId <= 0) {
-        alm_json(['ok' => false, 'message' => 'Etiqueta invalida.'], 422);
-    }
-
-    $label = trace_api_label($conn, $labelId);
-    if (!$label) {
-        alm_json(['ok' => false, 'message' => 'No se encontro la etiqueta de activos.'], 404);
-    }
-
+function trace_api_history_rows(mysqli $conn, int $labelId): array {
     $hasDetail = alm_activos_detalle_disponible($conn);
     $beforeSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_antes' : 'NULL';
     $afterSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_despues' : 'NULL';
-    $rows = alm_fetch_all($conn, "
+    return alm_fetch_all($conn, "
         SELECT
             h.clm_alm_etiquetadoofi_id AS id,
             h.clm_alm_etiquetadoofi_datetime AS fecha,
@@ -106,10 +97,71 @@ function trace_api_history(mysqli $conn): void {
         ORDER BY h.clm_alm_etiquetadoofi_datetime DESC, h.clm_alm_etiquetadoofi_id DESC
     ", 'i', [$labelId]);
 
+}
+
+function trace_api_history(mysqli $conn): void {
+    $labelId = (int)($_GET['id'] ?? 0);
+    if ($labelId <= 0) {
+        alm_json(['ok' => false, 'message' => 'Etiqueta invalida.'], 422);
+    }
+    $label = trace_api_label($conn, $labelId);
+    if (!$label) {
+        alm_json(['ok' => false, 'message' => 'No se encontro la etiqueta de activos.'], 404);
+    }
     alm_json([
         'ok' => true,
         'label' => $label,
-        'rows' => $rows,
+        'rows' => trace_api_history_rows($conn, $labelId),
+    ]);
+}
+
+function trace_api_detail(mysqli $conn): void {
+    $labelId = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ($labelId === false) {
+        alm_json(['ok' => false, 'message' => 'Etiqueta invalida.'], 422);
+    }
+    $detailSql = alm_activos_detalle_disponible($conn) ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
+    $label = alm_fetch_one($conn, "
+        SELECT
+            e.clm_alm_etiquetado_id AS etiqueta_id,
+            COALESCE(NULLIF(TRIM(e.clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', e.clm_alm_etiquetado_id)) AS etiqueta_codigo,
+            COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'PENDIENTE') AS etiqueta_estado,
+            e.clm_alm_etiquetado_FECHA AS etiqueta_fecha,
+            $detailSql AS ubicacion_detalle,
+            COALESCE(NULLIF(TRIM(s.clm_sedes_name), ''), 'Sin ubicacion') AS sede_nombre,
+            p.clm_alm_producto_id AS producto_id,
+            p.clm_alm_producto_codigo AS producto_codigo,
+            p.clm_alm_producto_NOMBRE AS producto_nombre,
+            p.clm_alm_producto_unidad AS producto_unidad,
+            p.clm_alm_producto_DESCRIPCION AS producto_descripcion,
+            CONCAT_WS(' ', c.clm_alm_categoria_NOMBRE, c.clm_alm_categoria_DESCRIPCION) AS categoria,
+            m.clm_alm_mov_id AS movimiento_id,
+            m.clm_alm_mov_TIPO AS movimiento_tipo,
+            m.clm_alm_mov_fecha_registro AS movimiento_fecha,
+            m.clm_alm_mov_cantidad AS movimiento_cantidad,
+            m.clm_alm_mov_OBSERVACION AS movimiento_observacion,
+            m.clm_mov_factura AS documento_referencia,
+            m.clm_mov_ruc AS proveedor,
+            COALESCE(NULLIF(TRIM(n.clm_nota_sco), ''), CONCAT('MOV-', m.clm_alm_mov_id)) AS nota_codigo,
+            COALESCE(NULLIF(TRIM(u.nombre), ''), NULLIF(TRIM(u.usuario), ''), CONCAT('Usuario ', m.clm_alm_mov_iduser)) AS movimiento_usuario
+        FROM tb_alm_etiquetado e
+        JOIN tb_alm_producto p ON p.clm_alm_producto_id = e.clm_alm_etiquetado_idPRODUCTO
+        JOIN tb_alm_movimientos m ON m.clm_alm_mov_id = e.clm_alm_etiquetado_idMOVIMIENTO
+        LEFT JOIN tb_alm_categoria c ON c.clm_alm_categoria_id = p.clm_alm_producto_idCATEGORIA
+        LEFT JOIN tb_sedes s ON s.clm_sedes_id = e.clm_alm_etiquetado_oficina_destino
+        LEFT JOIN tb_notas_salida n ON n.clm_nota_id = m.clm_alm_mov_idNOTA
+        LEFT JOIN tb_usuarios u ON u.id_usuario = m.clm_alm_mov_iduser
+        WHERE e.clm_alm_etiquetado_id = ? AND " . trace_api_scope_sql() . "
+        LIMIT 1
+    ", 'i', [$labelId]);
+    if (!$label) {
+        alm_json(['ok' => false, 'message' => 'No se encontro la etiqueta de activos.'], 404);
+    }
+    alm_json([
+        'ok' => true,
+        'label' => $label,
+        'history' => trace_api_history_rows($conn, $labelId),
+        'product_movements' => alm_producto_movimientos($conn, (int)$label['producto_id']),
     ]);
 }
 
@@ -257,6 +309,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'history') {
     trace_api_history($conn);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'detail') {
+    try {
+        trace_api_detail($conn);
+    } catch (Throwable $e) {
+        alm_json(['ok' => false, 'message' => 'No se pudo consultar la informacion del activo. Intenta nuevamente.'], 500);
+    }
 }
 
 alm_json(['ok' => false, 'message' => 'Accion no reconocida.'], 400);
