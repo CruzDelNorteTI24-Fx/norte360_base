@@ -533,6 +533,8 @@ $barcode_logo = '../img/completo.png';
             data-barcode-code="<?= h($barcode_codigo) ?>"
             data-barcode-name="<?= h($barcode_nombre) ?>"
             data-barcode-category="<?= h($barcode_categoria) ?>"
+            data-barcode-category-code="<?= h($info['categoria'] ?? '') ?>"
+            data-barcode-category-name="<?= h($info['descategoria'] ?? '') ?>"
             data-barcode-kind="producto"
             data-barcode-logo="<?= h($barcode_logo) ?>">
           <div class="n360-barcode-card__head">

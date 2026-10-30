@@ -91,9 +91,22 @@
 
 .n360-barcode-text span {
     display: block;
+}
+
+.n360-barcode-text .n360-barcode-category {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 11px;
+    line-height: 13px;
+}
+
+.n360-barcode-text .n360-barcode-name {
+    margin-top: 3px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 18px;
 }
 
 .n360-barcode-logo {
@@ -260,10 +273,6 @@
     line-height: 1.08;
 }
 
-.n360-barcode-card--mini .n360-barcode-text span:last-child {
-    display: none;
-}
-
 .n360-barcode-card--mini .n360-barcode-logo {
     width: 114px;
     height: 17px;
@@ -295,6 +304,38 @@
 .n360-barcode-card--mini .n360-barcode-download span {
     display: none;
 }
+
+.n360-barcode-footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 6px;
+    width: 350px;
+    max-width: 100%;
+    min-height: 23px;
+    margin: 0 auto;
+}
+.n360-barcode-footer .n360-barcode-logo {
+    width: 200px;
+    max-width: 57%;
+    height: 23px;
+    object-position: left bottom;
+    margin: 0;
+}
+.n360-barcode-footer .n360-barcode-year {
+    width: auto;
+    max-width: none;
+    white-space: nowrap;
+    margin: 0;
+}
+.n360-barcode-card--compact .n360-barcode-text .n360-barcode-category { font-size: 7px; line-height: 8.4px; }
+.n360-barcode-card--compact .n360-barcode-text .n360-barcode-name { font-size: 10px; line-height: 11.6px; margin-top: 2px; }
+.n360-barcode-card--compact .n360-barcode-footer { width: 226px; min-height: 15px; }
+.n360-barcode-card--compact .n360-barcode-footer .n360-barcode-logo { width: 129px; height: 15px; }
+.n360-barcode-card--mini .n360-barcode-text .n360-barcode-category { font-size: 4px; line-height: 5px; }
+.n360-barcode-card--mini .n360-barcode-text .n360-barcode-name { font-size: 5px; line-height: 6px; margin-top: 1px; }
+.n360-barcode-card--mini .n360-barcode-footer { width: 114px; min-height: 9px; gap: 2px; }
+.n360-barcode-card--mini .n360-barcode-footer .n360-barcode-logo { width: 65px; height: 8px; }
 
 @media (max-width: 520px) {
     .n360-barcode-card {

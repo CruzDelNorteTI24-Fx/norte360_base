@@ -93,8 +93,11 @@
                      data-barcode-code="${escapeHtml(code)}"
                      data-barcode-name="${escapeHtml(product.nombre || 'Producto sin nombre')}"
                      data-barcode-category="${escapeHtml(product.categoria || 'Sin categoria')}"
+                     data-barcode-category-code="${escapeHtml(product.categoria_codigo || '')}"
+                     data-barcode-category-name="${escapeHtml(product.categoria_nombre || '')}"
                      data-barcode-kind="${escapeHtml(kind)}"
                      data-barcode-year="${escapeHtml(payload.trace?.anio_etiquetado ?? '')}"
+                     data-barcode-month="${escapeHtml(payload.trace?.mes_etiquetado ?? '')}"
                      data-barcode-logo="${escapeHtml(barcodeLogo)}">
                     <div class="n360-barcode-card__head">
                         <div class="n360-barcode-card__title">

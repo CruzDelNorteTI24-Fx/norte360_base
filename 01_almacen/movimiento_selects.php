@@ -143,6 +143,7 @@ function alm_action_catalogo_productos(mysqli $conn): void {
             p.clm_alm_producto_NOMBRE AS producto,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_DESCRIPCION), ''), '') AS descripcion,
             COALESCE(NULLIF(TRIM(c.clm_alm_categoria_DESCRIPCION), ''), 'Sin categoria') AS categoria,
+            c.clm_alm_categoria_NOMBRE AS categoria_codigo,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_unidad), ''), '-') AS unidad,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN') AS area_control,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE') AS tipo_control,

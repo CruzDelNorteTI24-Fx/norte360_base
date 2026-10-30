@@ -300,7 +300,7 @@
     .replace(/\s+/g, '_')
     .slice(0, 90) || 'ETQ';
 
-  async function downloadGeneratedLabels(codes, product, years) {
+  async function downloadGeneratedLabels(codes, product, years, months) {
     if (!isAccountingOrigin || !Array.isArray(codes) || !codes.length || !window.N360Barcode?.downloadPng) {
       return;
     }
@@ -316,7 +316,10 @@
       temp.dataset.barcodeCode = String(code || '').trim();
       temp.dataset.barcodeName = name;
       temp.dataset.barcodeCategory = category;
+      temp.dataset.barcodeCategoryCode = product?.categoria_codigo || '';
+      temp.dataset.barcodeCategoryName = product?.categoria || '';
       temp.dataset.barcodeYear = String(years?.[code] ?? '');
+      temp.dataset.barcodeMonth = String(months?.[code] ?? '');
       temp.dataset.barcodeFilename = `ETQ_${safeBarcodeFile(code)}_${safeBarcodeFile(name)}.png`;
       await window.N360Barcode.downloadPng(temp);
     }
@@ -1055,7 +1058,7 @@
       if (data.auto_pdf && data.nota_id && window.N360NotaPDF) {
         await window.N360NotaPDF.downloadByNotaId(data.nota_id);
       }
-      await downloadGeneratedLabels(data.etiquetas || [], state.selectedEntrada, data.etiquetas_anios);
+      await downloadGeneratedLabels(data.etiquetas || [], state.selectedEntrada, data.etiquetas_anios, data.etiquetas_meses);
       const labelText = data.etiquetas_generadas
         ? `\nEtiquetas generadas: ${(data.etiquetas || []).join(', ')}`
         : '';

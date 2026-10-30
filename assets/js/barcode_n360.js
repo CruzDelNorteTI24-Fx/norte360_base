@@ -45,14 +45,19 @@
     const getData = (el) => {
         const code = clean(el.dataset.barcodeCode, '-');
         const name = clean(el.dataset.barcodeName, 'Producto sin nombre');
-        const category = clean(el.dataset.barcodeCategory, 'Sin categoria');
+        const categoryCode = String(el.dataset.barcodeCategoryCode ?? '').trim();
+        const categoryName = String(el.dataset.barcodeCategoryName ?? '').trim();
+        const category = categoryCode ? `(${categoryCode}) ${categoryName || categoryCode}` : clean(el.dataset.barcodeCategory, 'Sin categoria');
         const kind = clean(el.dataset.barcodeKind, 'producto').toLowerCase();
         const logo = clean(el.dataset.barcodeLogo, '');
         const filename = clean(el.dataset.barcodeFilename, '');
         const storedYear = String(el.dataset.barcodeYear ?? '').trim();
         const year = kind === 'etiqueta' && /^[1-9]\d{3}$/.test(storedYear) ? storedYear : '';
+        const storedMonth = String(el.dataset.barcodeMonth ?? '').trim();
+        const month = /^(?:0?[1-9]|1[0-2])$/.test(storedMonth) ? storedMonth.padStart(2, '0') : '';
+        const period = year ? (month ? `${month} - ${year}` : year) : '';
 
-        return { code, name, category, kind, logo, filename, year };
+        return { code, name, category, kind, logo, filename, year, period };
     };
 
     const codeValues = (code) => {
@@ -170,6 +175,55 @@
         return { text: `${output}...`, size: minSize };
     };
 
+    const wrapName = (ctx, value, maxWidth) => {
+        ctx.font = '700 16px N360Consola, Consolas, Courier New, monospace';
+        const tokens = [];
+        for (const word of clean(value, '-').split(/\s+/)) {
+            let part = '';
+            for (const char of word) {
+                if (part && ctx.measureText(part + char).width > maxWidth) {
+                    tokens.push(part);
+                    part = '';
+                }
+                part += char;
+            }
+            if (part) tokens.push(part);
+        }
+        const lines = [[]];
+        for (const word of tokens) {
+            const line = lines[lines.length - 1];
+            if (line.length && ctx.measureText([...line, word].join(' ')).width > maxWidth) lines.push([word]);
+            else line.push(word);
+        }
+        if (lines.length <= 3) {
+            let changed;
+            do {
+                changed = false;
+                for (let i = lines.length - 2; i >= 0; i -= 1) {
+                    while (lines[i].length > 1) {
+                        const before = ctx.measureText(lines[i].join(' ')).width;
+                        const after = ctx.measureText(lines[i + 1].join(' ')).width;
+                        const left = lines[i].slice(0, -1);
+                        const right = [lines[i][lines[i].length - 1], ...lines[i + 1]];
+                        const leftWidth = ctx.measureText(left.join(' ')).width;
+                        const rightWidth = ctx.measureText(right.join(' ')).width;
+                        if (rightWidth > maxWidth || Math.abs(leftWidth - rightWidth) >= Math.abs(before - after)) break;
+                        lines[i] = left;
+                        lines[i + 1] = right;
+                        changed = true;
+                    }
+                }
+            } while (changed);
+        }
+        const output = lines.slice(0, 3).map(line => line.join(' '));
+        if (lines.length > 3) {
+            let last = Array.from(output[2]);
+            while (last.length && ctx.measureText(last.join('') + '...').width > maxWidth) last.pop();
+            output[2] = last.join('') + '...';
+        }
+        return output;
+    };
+
     const loadImage = (src) => new Promise((resolve) => {
         if (!src || src === '-') {
             resolve(null);
@@ -185,54 +239,50 @@
 
     const downloadPng = async (el) => {
         const data = getData(el);
+        if (document.fonts?.load) {
+            try { await document.fonts.load('700 16px N360Consola'); } catch (error) { /* Use the available system font. */ }
+        }
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const margin = 10;
         const barcodeW = 350;
         const barcodeH = 120;
-        const logoW = 350;
-        const logoH = 50;
-        const textGap1 = 6;
-        const textGap2 = 4;
-        const logoGap = 7;
         const maxTextW = barcodeW - 10;
 
-        canvas.width = Math.max(barcodeW, logoW) + margin * 2;
-        canvas.height = margin + barcodeH + textGap1 + 16 + textGap2 + 16 + logoGap + logoH + margin + (data.year ? 16 : 0);
+        canvas.width = 370;
+        canvas.height = data.year ? 255 : 239;
 
         ctx.fillStyle = '#fff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         const xBarcode = Math.floor((canvas.width - barcodeW) / 2);
-        let y = margin;
-        drawBarcodeCanvas(ctx, data.code, xBarcode, y, barcodeW, barcodeH);
-        y += barcodeH + textGap1;
+        drawBarcodeCanvas(ctx, data.code, xBarcode, margin, barcodeW, barcodeH);
 
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
 
-        const cat = fitText(ctx, data.category, maxTextW, 14, 8);
+        const cat = fitText(ctx, data.category, maxTextW, 11, 10);
         ctx.font = `700 ${cat.size}px N360Consola, Consolas, Courier New, monospace`;
-        ctx.fillText(cat.text, xBarcode, y);
-        y += 16 + textGap2;
+        ctx.fillText(cat.text, xBarcode, 134);
 
-        const name = fitText(ctx, data.name, maxTextW, 14, 8);
-        ctx.font = `700 ${name.size}px N360Consola, Consolas, Courier New, monospace`;
-        ctx.fillText(name.text, xBarcode, y);
-        y += 16 + logoGap;
+        const lines = wrapName(ctx, data.name, maxTextW);
+        ctx.font = '700 16px N360Consola, Consolas, Courier New, monospace';
+        lines.forEach((line, index) => ctx.fillText(line, xBarcode, 150 + index * 18));
 
         const logo = await loadImage(data.logo);
+        const logoY = canvas.height - margin - 23;
         if (logo) {
-            ctx.drawImage(logo, Math.floor((canvas.width - logoW) / 2), y, logoW, logoH);
+            const scale = Math.min(200 / logo.naturalWidth, 23 / logo.naturalHeight);
+            ctx.drawImage(logo, margin, logoY, logo.naturalWidth * scale, logo.naturalHeight * scale);
         } else {
             ctx.fillStyle = '#143149';
-            ctx.fillRect(Math.floor((canvas.width - 150) / 2), y + 10, 150, 30);
+            ctx.fillRect(margin, logoY, 120, 23);
             ctx.fillStyle = '#fff';
             ctx.font = '900 13px N360Consola, Consolas, Courier New, monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('NORTE 360', canvas.width / 2, y + 25);
+            ctx.fillText('NORTE 360', margin + 60, logoY + 11.5);
         }
 
         if (data.year) {
@@ -240,7 +290,7 @@
             ctx.font = '700 10px N360Consola, Consolas, Courier New, monospace';
             ctx.textAlign = 'right';
             ctx.textBaseline = 'bottom';
-            ctx.fillText(data.year, canvas.width - margin, canvas.height - margin);
+            ctx.fillText(data.period, canvas.width - margin, canvas.height - margin);
         }
 
         const link = document.createElement('a');
@@ -258,15 +308,19 @@
         const stage = el.querySelector('[data-barcode-stage]') || el;
 
         try {
+            const measure = document.createElement('canvas').getContext('2d');
+            const lines = wrapName(measure, data.name, 340);
             stage.innerHTML = `
                 <div class="n360-barcode-paper">
                     ${makeSvg(data.code)}
                     <div class="n360-barcode-text">
-                        <span title="${esc(data.category)}">${esc(data.category)}</span>
-                        <span title="${esc(data.name)}">${esc(data.name)}</span>
+                        <span class="n360-barcode-category" title="${esc(data.category)}">${esc(data.category)}</span>
+                        <span class="n360-barcode-name" title="${esc(data.name)}">${lines.map(esc).join('<br>')}</span>
                     </div>
-                    ${data.logo && data.logo !== '-' ? `<img class="n360-barcode-logo" src="${esc(data.logo)}" alt="Norte 360">` : '<div class="n360-barcode-logo" aria-hidden="true"></div>'}
-                    ${data.year ? `<div class="n360-barcode-year" title="Año de creación de la etiqueta: ${data.year}">${data.year}</div>` : ''}
+                    <div class="n360-barcode-footer">
+                        ${data.logo && data.logo !== '-' ? `<img class="n360-barcode-logo" src="${esc(data.logo)}" alt="Norte 360">` : '<div class="n360-barcode-logo" aria-hidden="true"></div>'}
+                        ${data.period ? `<div class="n360-barcode-year" title="Creación de la etiqueta: ${data.period}">${data.period}</div>` : ''}
+                    </div>
                 </div>
             `;
             el.dataset.barcodeRendered = '1';

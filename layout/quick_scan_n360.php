@@ -39,7 +39,7 @@ if (!function_exists('n360_render_quick_scan')) {
         $barcodeLogo = htmlspecialchars(n360_base_url('img/completo.png'), ENT_QUOTES, 'UTF-8');
 
         echo '
-            <link rel="stylesheet" href="' . n360_asset('assets/css/barcode_n360.css?etiqueta=1') . '">
+            <link rel="stylesheet" href="' . n360_asset('assets/css/barcode_n360.css?etiqueta=2') . '">
             <link rel="stylesheet" href="' . n360_asset('assets/css/quick_scan_n360.css') . '">
             <div class="n360-quick-scan" id="n360QuickScanModal" aria-hidden="true" data-endpoint="' . $endpoint . '" data-image-endpoint="' . $imageEndpoint . '" data-barcode-logo="' . $barcodeLogo . '">
                 <div class="n360-quick-scan__backdrop" data-n360-qs-close></div>
@@ -80,8 +80,8 @@ if (!function_exists('n360_render_quick_scan')) {
                     <div class="n360-quick-scan__result" id="n360QuickScanResult"></div>
                 </section>
             </div>
-            <script src="' . n360_asset('assets/js/barcode_n360.js?etiqueta=1') . '"></script>
-            <script src="' . n360_asset('assets/js/quick_scan_n360.js?etiqueta=1') . '"></script>
+            <script src="' . n360_asset('assets/js/barcode_n360.js?etiqueta=2') . '"></script>
+            <script src="' . n360_asset('assets/js/quick_scan_n360.js?etiqueta=2') . '"></script>
         ';
     }
 }

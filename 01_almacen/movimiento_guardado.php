@@ -127,6 +127,7 @@ function alm_action_crear_producto(mysqli $conn): void {
             p.clm_alm_producto_NOMBRE AS producto,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_DESCRIPCION), ''), '') AS descripcion,
             COALESCE(NULLIF(TRIM(c.clm_alm_categoria_DESCRIPCION), ''), 'Sin categoria') AS categoria,
+            c.clm_alm_categoria_NOMBRE AS categoria_codigo,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_unidad), ''), '-') AS unidad,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN') AS area_control,
             COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE') AS tipo_control,
@@ -762,17 +763,20 @@ function alm_action_save_entrada(mysqli $conn): void {
 
     $labelCodes = [];
     $labelYears = [];
+    $labelMonths = [];
     if ($originId === 12 && $etqCant !== null) {
         $labelCodes = alm_sync_contabilidad_etiquetas_desde_trigger($conn, $movId, $userId, $sedeId, $ubicacionDetalle);
         $labelDates = alm_fetch_all($conn, "
             SELECT
                 COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,
-                YEAR(clm_alm_etiquetado_FECHA) AS anio
+                YEAR(clm_alm_etiquetado_FECHA) AS anio,
+                MONTH(clm_alm_etiquetado_FECHA) AS mes
             FROM tb_alm_etiquetado
             WHERE clm_alm_etiquetado_idMOVIMIENTO = ?
         ", 'i', [$movId]);
         foreach ($labelDates as $labelDate) {
             $labelYears[(string)$labelDate['codigo']] = (int)($labelDate['anio'] ?? 0);
+            $labelMonths[(string)$labelDate['codigo']] = (int)($labelDate['mes'] ?? 0);
         }
     }
 
@@ -788,6 +792,7 @@ function alm_action_save_entrada(mysqli $conn): void {
         'etiquetas_generadas' => count($labelCodes),
         'etiquetas' => $labelCodes,
         'etiquetas_anios' => $labelYears,
+        'etiquetas_meses' => $labelMonths,
         'auto_pdf' => $autoPdf,
         'pdf_params' => [
             'id_nota' => $notaId,

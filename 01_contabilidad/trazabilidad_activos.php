@@ -247,6 +247,7 @@ try {
             COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'PENDIENTE') AS etiqueta_estado,
             e.clm_alm_etiquetado_FECHA AS etiqueta_fecha,
             YEAR(e.clm_alm_etiquetado_FECHA) AS etiqueta_anio,
+            MONTH(e.clm_alm_etiquetado_FECHA) AS etiqueta_mes,
             e.clm_alm_etiquetado_oficina_destino AS sede_id,
             $locationDetailSql AS ubicacion_detalle,
             p.clm_alm_producto_id AS producto_id,
@@ -304,7 +305,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=2') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=1&consulta=1') ?>">
 </head>
 <body>
@@ -488,8 +489,11 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                                             data-trace-label
                                             data-code="<?= trace_h($etiquetaCodigo) ?>"
                                             data-year="<?= (int)($row['etiqueta_anio'] ?? 0) ?>"
-                                            data-name="<?= trace_h($productoLine) ?>"
+                                            data-month="<?= (int)($row['etiqueta_mes'] ?? 0) ?>"
+                                            data-name="<?= trace_h($producto) ?>"
                                             data-category="<?= trace_h($categoriaLine) ?>"
+                                            data-category-code="<?= trace_h($row['categoria_codigo'] ?? '') ?>"
+                                            data-category-name="<?= trace_h($row['categoria_nombre'] ?? '') ?>"
                                             data-filename="<?= trace_h('ETQ_' . trace_safe_file($etiquetaCodigo)) ?>">
                                         <i class="bi bi-upc-scan" aria-hidden="true"></i>
                                         <span>Etiqueta</span>
@@ -659,9 +663,9 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
 <script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=3') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2&etiqueta=1&consulta=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2&etiqueta=2&consulta=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
