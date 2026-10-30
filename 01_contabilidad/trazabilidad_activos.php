@@ -424,10 +424,11 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                 </div>
                 <div class="trace-panel-tools">
                     <span class="trace-count"><?= count($labels) ?> mostrados de <?= (int)$stats['total'] ?> encontrados</span>
+                    <button type="button" class="trace-btn trace-btn--primary" id="traceExportPdf" <?= !$labels || $pageError !== '' ? 'disabled' : '' ?>><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i><span>Descargar PDF</span></button>
                     <button type="button" class="trace-btn trace-btn--soft" id="traceExportExcel" <?= !$labels || $pageError !== '' ? 'disabled' : '' ?>><i class="bi bi-file-earmark-excel" aria-hidden="true"></i><span>Exportar Excel</span></button>
                 </div>
             </div>
-            <?php if ((int)$stats['total'] > count($labels)): ?><p class="trace-limit-note">Se muestran las 600 etiquetas mas recientes. Ajusta los filtros para consultar otras etiquetas; Excel incluye las filas mostradas.</p><?php endif; ?>
+            <?php if ((int)$stats['total'] > count($labels)): ?><p class="trace-limit-note">Se muestran las 600 etiquetas mas recientes. Ajusta los filtros para consultar otras etiquetas; las exportaciones incluyen las filas mostradas.</p><?php endif; ?>
 
             <div class="trace-table-wrap">
                 <table class="trace-table">
@@ -644,14 +645,23 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
 </main>
 
 <?php n360_render_footer(); ?>
-<script type="application/json" id="traceExportData"><?= json_encode(['rows' => $pageError === '' ? $labels : [], 'filters' => $exportFilters, 'total' => (int)$stats['total']], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?></script>
+<script type="application/json" id="traceExportData"><?= json_encode(['rows' => $pageError === '' ? $labels : [], 'filters' => $exportFilters, 'total' => (int)$stats['total'], 'pdf' => [
+    'userName' => (string)($_SESSION['usuario'] ?? 'Usuario'),
+    'dni' => (string)($_SESSION['DNI'] ?? ''),
+    'logoLeft' => n360_base_url('img/icon.png'),
+    'logoRight' => n360_base_url('img/norte360_black.png'),
+]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_excel.js?consulta=1') ?>"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=3') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2&etiqueta=1&consulta=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2&etiqueta=1&consulta=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

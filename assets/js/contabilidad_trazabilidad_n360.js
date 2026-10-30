@@ -286,15 +286,38 @@
   sedeFilter?.addEventListener('change', filterDetailSuggestions);
   filterDetailSuggestions();
 
+  function visibleReport() {
+    const report = JSON.parse($('#traceExportData').textContent);
+    const byId = new Map(report.rows.map(row => [String(row.etiqueta_id), row]));
+    report.rows = Array.from(page.querySelectorAll('[data-trace-row]')).filter(row => !row.hidden).map(row => byId.get(row.dataset.labelId)).filter(Boolean);
+    return report;
+  }
+
+  $('#traceExportPdf')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    if (button.disabled) return;
+    const original = button.innerHTML;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.innerHTML = '<i class="bi bi-hourglass-split" aria-hidden="true"></i><span>Generando PDF...</span>';
+    try {
+      if (!window.N360ActivosPDF) throw new Error('No se cargo el generador de PDF. Actualiza la pagina.');
+      await window.N360ActivosPDF.exportPdf(visibleReport());
+    } catch (error) {
+      await alertBox(error.message || 'No se pudo generar el PDF.', 'error');
+    } finally {
+      button.innerHTML = original;
+      button.removeAttribute('aria-busy');
+      button.disabled = false;
+    }
+  });
+
   $('#traceExportExcel')?.addEventListener('click', async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
     try {
       if (!window.N360ActivosExcel) throw new Error('No se cargo el generador de Excel. Actualiza la pagina.');
-      const report = JSON.parse($('#traceExportData').textContent);
-      const byId = new Map(report.rows.map(row => [String(row.etiqueta_id), row]));
-      report.rows = Array.from(page.querySelectorAll('[data-trace-row]')).filter(row => !row.hidden).map(row => byId.get(row.dataset.labelId)).filter(Boolean);
-      window.N360ActivosExcel.exportExcel(report);
+      window.N360ActivosExcel.exportExcel(visibleReport());
     } catch (error) {
       await alertBox(error.message || 'No se pudo exportar el Excel.', 'error');
     } finally {
