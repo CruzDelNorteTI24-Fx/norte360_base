@@ -249,6 +249,15 @@
     min-width: 260px;
 }
 
+.comb-table .comb-observation-code,
+.comb-table .comb-observation-return {
+    font-weight: 700;
+}
+
+.comb-table .comb-observation-return {
+    color: #B83227;
+}
+
 .comb-product strong {
     color: #09213b;
     font-size: .86rem;

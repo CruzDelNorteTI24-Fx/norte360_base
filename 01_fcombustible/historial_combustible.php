@@ -158,6 +158,32 @@ function comb_text($value, string $fallback = '-'): string
     return $text !== '' ? $text : $fallback;
 }
 
+function comb_observacion_html($value): string
+{
+    $text = comb_text($value);
+    $parts = preg_split(
+        '/((?<![\p{L}\p{N}_])(?:DEVOLUCI[OÓ]N|VDC-[0-9]+)(?![\p{L}\p{N}_]))/iu',
+        $text,
+        -1,
+        PREG_SPLIT_DELIM_CAPTURE
+    );
+    if ($parts === false) {
+        return comb_h($text);
+    }
+
+    $html = '';
+    foreach ($parts as $index => $part) {
+        $escaped = comb_h($part);
+        if ($index % 2 === 0) {
+            $html .= $escaped;
+            continue;
+        }
+        $class = strncasecmp($part, 'VDC-', 4) === 0 ? 'comb-observation-code' : 'comb-observation-return';
+        $html .= '<strong class="' . $class . '">' . $escaped . '</strong>';
+    }
+    return $html;
+}
+
 function comb_vehicle_label($bus, $placa): string
 {
     $bus = trim((string)($bus ?? ''));
@@ -641,7 +667,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=1') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -884,7 +910,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                             </button>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?= comb_h(comb_text($row['observacion'] ?? '')) ?></td>
+                                    <td><?= comb_observacion_html($row['observacion'] ?? '') ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
