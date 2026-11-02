@@ -181,7 +181,11 @@ function comb_observacion_html($value): string
         $class = strncasecmp($part, 'VDC-', 4) === 0 ? 'comb-observation-code' : 'comb-observation-return';
         $html .= '<strong class="' . $class . '">' . $escaped . '</strong>';
     }
-    return $html;
+    return preg_replace(
+        '/([ \t]*\|[ \t]*PU[ \t]+adicional[ \t]*:[^|\r\n]*)/iu',
+        '<span data-comb-additional-price>$1</span>',
+        $html
+    ) ?? $html;
 }
 
 function comb_vehicle_label($bus, $placa): string
@@ -667,7 +671,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -822,6 +826,10 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 <div>
                     <h2>Bitacora de movimientos</h2>
                     <p>Columnas operativas equivalentes al historial de combustible del sistema de escritorio.</p>
+                    <label class="comb-additional-price-toggle">
+                        <input type="checkbox" data-comb-hide-additional-price autocomplete="off">
+                        <span>Ocultar precio adicional</span>
+                    </label>
                 </div>
                 <span class="stock-pill" data-combustible-visible-pill><?= number_format($kpis['movimientos']) ?> registros</span>
             </header>
@@ -1195,7 +1203,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>

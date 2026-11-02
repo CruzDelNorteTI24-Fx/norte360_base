@@ -249,6 +249,29 @@
     min-width: 260px;
 }
 
+.comb-additional-price-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 10px;
+    color: #26384d;
+    font-size: .82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.comb-additional-price-toggle input {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin: 0;
+    accent-color: #218bd0;
+}
+
+.comb-table [data-comb-additional-price][hidden] {
+    display: none;
+}
+
 .comb-table .comb-observation-code,
 .comb-table .comb-observation-return {
     font-weight: 700;

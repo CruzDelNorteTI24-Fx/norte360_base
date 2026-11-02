@@ -6,6 +6,7 @@
     const countNode = document.querySelector('[data-combustible-visible-count]');
     const pillNode = document.querySelector('[data-combustible-visible-pill]');
     const table = document.querySelector('[data-combustible-table]');
+    const hideAdditionalPrice = document.querySelector('[data-comb-hide-additional-price]');
 
     const visibleRows = () => rows.filter((row) => row.style.display !== 'none');
     const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
@@ -30,10 +31,24 @@
         updateCount();
     };
 
+    const applyAdditionalPriceVisibility = () => {
+        table?.querySelectorAll('[data-comb-additional-price]').forEach((part) => {
+            part.hidden = Boolean(hideAdditionalPrice?.checked);
+        });
+    };
+
+    const getCellExportText = (cell) => {
+        if (cell.dataset.combExportText) return clean(cell.dataset.combExportText);
+        if (!cell.querySelector('[data-comb-additional-price][hidden]')) return clean(cell.textContent);
+        const copy = cell.cloneNode(true);
+        copy.querySelectorAll('[data-comb-additional-price][hidden]').forEach((part) => part.remove());
+        return clean(copy.textContent) || '-';
+    };
+
     const getTablePayload = () => {
         if (!table) return { head: [], body: [] };
         const head = Array.from(table.querySelectorAll('thead th')).map((th) => clean(th.textContent));
-        const body = visibleRows().map((row) => Array.from(row.children).map((td) => clean(td.dataset.combExportText || td.textContent)));
+        const body = visibleRows().map((row) => Array.from(row.children).map(getCellExportText));
         return { head, body };
     };
 
@@ -487,6 +502,8 @@
 
     document.querySelector('[data-combustible-export-pdf]')?.addEventListener('click', exportPdf);
     document.querySelector('[data-combustible-export-excel]')?.addEventListener('click', exportExcel);
+    hideAdditionalPrice?.addEventListener('change', applyAdditionalPriceVisibility);
+    applyAdditionalPriceVisibility();
     initPriceModals();
     initEmissionEditor();
 })();
