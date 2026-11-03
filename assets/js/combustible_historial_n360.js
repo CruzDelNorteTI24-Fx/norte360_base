@@ -7,6 +7,7 @@
     const pillNode = document.querySelector('[data-combustible-visible-pill]');
     const table = document.querySelector('[data-combustible-table]');
     const hideAdditionalPrice = document.querySelector('[data-comb-hide-additional-price]');
+    const showOwners = document.querySelector('[data-comb-show-owners]');
 
     const visibleRows = () => rows.filter((row) => row.style.display !== 'none');
     const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
@@ -37,6 +38,16 @@
         });
     };
 
+    const applyOwnerVisibility = () => {
+        const show = Boolean(showOwners?.checked);
+        table?.querySelectorAll('[data-comb-owner-column]').forEach((cell) => {
+            cell.hidden = !show;
+        });
+        table?.classList.toggle('comb-table--owners', show);
+        const emptyCell = table?.querySelector('[data-combustible-empty] td');
+        if (emptyCell) emptyCell.colSpan = table.querySelectorAll('thead th:not([hidden])').length;
+    };
+
     const getCellExportText = (cell) => {
         if (cell.dataset.combExportText) return clean(cell.dataset.combExportText);
         if (!cell.querySelector('[data-comb-additional-price][hidden]')) return clean(cell.textContent);
@@ -46,16 +57,19 @@
     };
 
     const getTablePayload = () => {
-        if (!table) return { head: [], body: [] };
-        const head = Array.from(table.querySelectorAll('thead th')).map((th) => clean(th.textContent));
-        const body = visibleRows().map((row) => Array.from(row.children).map(getCellExportText));
-        return { head, body };
+        if (!table) return { head: [], body: [], columns: [] };
+        const headers = Array.from(table.querySelectorAll('thead th'));
+        const columns = headers.flatMap((th, index) => th.hidden ? [] : [index]);
+        const head = columns.map((index) => clean(headers[index].textContent));
+        const body = visibleRows().map((row) => columns.map((index) => getCellExportText(row.children[index])));
+        return { head, body, columns };
     };
 
-    const getPdfRows = (body) => body.map((row) => row.map((cell, index) => {
-        if (index === 4) return limit(cell, 86);
-        if (index === 5) return limit(cell, 110);
-        if (index === 12) return limit(cell, 160);
+    const getPdfRows = (payload) => payload.body.map((row) => row.map((cell, index) => {
+        const column = payload.columns[index];
+        if (column === 4) return limit(cell, 86);
+        if (column === 5) return limit(cell, 110);
+        if (column === 13) return limit(cell, 160);
         return cell || '-';
     }));
 
@@ -197,9 +211,17 @@
 
                     drawFilters(doc, left, y, width, `Periodo: ${report.period || '-'} | ${filters || '-'}`);
 
+                    const columnWidths = payload.columns.includes(8)
+                        ? [9, 21, 15, 18, 24, 31, 8, 21, 24, 16, 15, 17, 22, 30]
+                        : [10, 22, 16, 20, 28, 38, 9, 22, 0, 17, 16, 18, 23, 32];
+                    const columnStyles = Object.fromEntries(payload.columns.map((column, index) => [index, {
+                        cellWidth: columnWidths[column],
+                        ...([9, 10, 11].includes(column) ? { halign: 'right' } : {})
+                    }]));
+
                     doc.autoTable({
                         head: [payload.head],
-                        body: getPdfRows(payload.body),
+                        body: getPdfRows(payload),
                         startY: y + 25,
                         margin: { left, right, top: 32, bottom: 22 },
                         tableWidth: 'wrap',
@@ -222,25 +244,12 @@
                             textColor: [17, 24, 39]
                         },
                         alternateRowStyles: { fillColor: [249, 251, 253] },
-                        columnStyles: {
-                            0: { cellWidth: 10 },
-                            1: { cellWidth: 22 },
-                            2: { cellWidth: 16 },
-                            3: { cellWidth: 20 },
-                            4: { cellWidth: 28 },
-                            5: { cellWidth: 38 },
-                            6: { cellWidth: 9 },
-                            7: { cellWidth: 22 },
-                            8: { cellWidth: 17, halign: 'right' },
-                            9: { cellWidth: 16, halign: 'right' },
-                            10: { cellWidth: 18, halign: 'right' },
-                            11: { cellWidth: 23 },
-                            12: { cellWidth: 32 }
-                        },
+                        columnStyles,
                         didParseCell: function (data) {
                             if (data.section !== 'body') return;
-                            if ([8, 9, 10].includes(data.column.index)) data.cell.styles.halign = 'right';
-                            if (data.column.index !== 2) return;
+                            const column = payload.columns[data.column.index];
+                            if ([9, 10, 11].includes(column)) data.cell.styles.halign = 'right';
+                            if (column !== 2) return;
                             const value = String(data.cell.raw || '').toLowerCase();
                             if (value.includes('entrada')) data.cell.styles.textColor = [8, 118, 79];
                             if (value.includes('salida')) data.cell.styles.textColor = [184, 50, 39];
@@ -504,6 +513,8 @@
     document.querySelector('[data-combustible-export-excel]')?.addEventListener('click', exportExcel);
     hideAdditionalPrice?.addEventListener('change', applyAdditionalPriceVisibility);
     applyAdditionalPriceVisibility();
+    showOwners?.addEventListener('change', applyOwnerVisibility);
+    applyOwnerVisibility();
     initPriceModals();
     initEmissionEditor();
 })();

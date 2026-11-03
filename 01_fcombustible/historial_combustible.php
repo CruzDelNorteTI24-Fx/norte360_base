@@ -569,6 +569,7 @@ try {
             p.clm_alm_producto_id AS id_producto,
             COALESCE(NULLIF(TRIM(pl.clm_placas_BUS), ''), '') AS bus,
             COALESCE(NULLIF(TRIM(pl.clm_placas_PLACA), ''), NULLIF(TRIM(m.clm_alm_mov_placa), ''), '') AS placa,
+            COALESCE(NULLIF(TRIM(pl.`clm_placas_DUEÑO`), ''), '') AS dueno,
             COALESCE(m.clm_alm_mov_cantidad, 0) AS cantidad,
             CASE
                 WHEN COALESCE(m.clm_alm_mov_cantidad, 0) > 0 THEN COALESCE(m.clm_alm_mov_monto, 0) / m.clm_alm_mov_cantidad
@@ -671,7 +672,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -826,10 +827,16 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 <div>
                     <h2>Bitacora de movimientos</h2>
                     <p>Columnas operativas equivalentes al historial de combustible del sistema de escritorio.</p>
-                    <label class="comb-additional-price-toggle">
-                        <input type="checkbox" data-comb-hide-additional-price autocomplete="off">
-                        <span>Ocultar precio adicional</span>
-                    </label>
+                    <div class="comb-table-options">
+                        <label class="comb-additional-price-toggle">
+                            <input type="checkbox" data-comb-hide-additional-price autocomplete="off">
+                            <span>Ocultar precio adicional</span>
+                        </label>
+                        <label class="comb-owner-toggle">
+                            <input type="checkbox" data-comb-show-owners autocomplete="off">
+                            <span>Mostrar dueños de placas</span>
+                        </label>
+                    </div>
                 </div>
                 <span class="stock-pill" data-combustible-visible-pill><?= number_format($kpis['movimientos']) ?> registros</span>
             </header>
@@ -846,6 +853,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                             <th>Producto</th>
                             <th>Und</th>
                             <th>Placa</th>
+                            <th data-comb-owner-column hidden>Dueño</th>
                             <th class="stock-num">Cantidad</th>
                             <th class="stock-num">PU (calc)</th>
                             <th class="stock-num">Monto</th>
@@ -905,6 +913,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                     <td><div class="comb-product"><strong><?= comb_h(comb_text($row['producto'] ?? '')) ?></strong></div></td>
                                     <td><?= comb_h(comb_text($row['unidad'] ?? '')) ?></td>
                                     <td><span class="comb-unit"><?= comb_h($unidadTxt) ?></span></td>
+                                    <td class="comb-owner-cell" data-comb-owner-column hidden><?= comb_h(comb_text($row['dueno'] ?? '', '—')) ?></td>
                                     <td class="stock-num"><?= comb_h(comb_fmt_qty($row['cantidad'] ?? 0)) ?></td>
                                     <td class="stock-num"><?= comb_h(comb_fmt_pu($row['precio_unitario'] ?? null)) ?></td>
                                     <td class="stock-num"><?= comb_h(comb_fmt_money($row['monto'] ?? 0)) ?></td>
@@ -1203,7 +1212,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>
