@@ -8,6 +8,7 @@
     const table = document.querySelector('[data-combustible-table]');
     const hideAdditionalPrice = document.querySelector('[data-comb-hide-additional-price]');
     const showOwners = document.querySelector('[data-comb-show-owners]');
+    const showClassification = document.querySelector('[data-comb-show-classification]');
 
     const visibleRows = () => rows.filter((row) => row.style.display !== 'none');
     const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
@@ -38,12 +39,17 @@
         });
     };
 
-    const applyOwnerVisibility = () => {
+    const applyOptionalColumnsVisibility = () => {
         const show = Boolean(showOwners?.checked);
         table?.querySelectorAll('[data-comb-owner-column]').forEach((cell) => {
             cell.hidden = !show;
         });
         table?.classList.toggle('comb-table--owners', show);
+        const classificationVisible = Boolean(showClassification?.checked);
+        table?.querySelectorAll('[data-comb-classification-column]').forEach((cell) => {
+            cell.hidden = !classificationVisible;
+        });
+        table?.classList.toggle('comb-table--classification', classificationVisible);
         const emptyCell = table?.querySelector('[data-combustible-empty] td');
         if (emptyCell) emptyCell.colSpan = table.querySelectorAll('thead th:not([hidden])').length;
     };
@@ -211,9 +217,15 @@
 
                     drawFilters(doc, left, y, width, `Periodo: ${report.period || '-'} | ${filters || '-'}`);
 
-                    const columnWidths = payload.columns.includes(8)
-                        ? [9, 21, 15, 18, 24, 31, 8, 21, 24, 16, 15, 17, 22, 30]
-                        : [10, 22, 16, 20, 28, 38, 9, 22, 0, 17, 16, 18, 23, 32];
+                    const ownersVisible = payload.columns.includes(8);
+                    const classificationVisible = payload.columns.includes(14);
+                    const columnWidths = classificationVisible
+                        ? (ownersVisible
+                            ? [8, 20, 14, 16, 22, 27, 7, 20, 22, 15, 14, 16, 21, 25, 24]
+                            : [9, 21, 15, 18, 24, 31, 8, 21, 0, 16, 15, 17, 22, 28, 26])
+                        : (ownersVisible
+                            ? [9, 21, 15, 18, 24, 31, 8, 21, 24, 16, 15, 17, 22, 30, 0]
+                            : [10, 22, 16, 20, 28, 38, 9, 22, 0, 17, 16, 18, 23, 32, 0]);
                     const columnStyles = Object.fromEntries(payload.columns.map((column, index) => [index, {
                         cellWidth: columnWidths[column],
                         ...([9, 10, 11].includes(column) ? { halign: 'right' } : {})
@@ -513,8 +525,9 @@
     document.querySelector('[data-combustible-export-excel]')?.addEventListener('click', exportExcel);
     hideAdditionalPrice?.addEventListener('change', applyAdditionalPriceVisibility);
     applyAdditionalPriceVisibility();
-    showOwners?.addEventListener('change', applyOwnerVisibility);
-    applyOwnerVisibility();
+    showOwners?.addEventListener('change', applyOptionalColumnsVisibility);
+    showClassification?.addEventListener('change', applyOptionalColumnsVisibility);
+    applyOptionalColumnsVisibility();
     initPriceModals();
     initEmissionEditor();
 })();

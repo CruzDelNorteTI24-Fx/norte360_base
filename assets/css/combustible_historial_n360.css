@@ -135,13 +135,52 @@
     min-width: 1800px;
 }
 
+.comb-table--classification {
+    min-width: 1820px;
+}
+
+.comb-table--owners.comb-table--classification {
+    min-width: 2000px;
+}
+
+.comb-classification-cell {
+    min-width: 200px;
+    max-width: 260px;
+}
+
+.comb-classification {
+    display: inline-flex;
+    max-width: 230px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: .74rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.comb-classification--correcto {
+    background: rgba(31, 157, 85, .12);
+    color: #08764f;
+}
+
+.comb-classification--devolucion {
+    background: rgba(184, 50, 39, .12);
+    color: #B83227;
+}
+
+.comb-classification--sin-correlativo {
+    background: #fffbeb;
+    color: #92400e;
+}
+
 .comb-owner-cell {
     min-width: 180px;
     max-width: 280px;
     overflow-wrap: anywhere;
 }
 
-.comb-table [data-comb-owner-column][hidden] {
+.comb-table [data-comb-owner-column][hidden],
+.comb-table [data-comb-classification-column][hidden] {
     display: none;
 }
 
@@ -271,7 +310,8 @@
 }
 
 .comb-additional-price-toggle,
-.comb-owner-toggle {
+.comb-owner-toggle,
+.comb-classification-toggle {
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -282,7 +322,8 @@
 }
 
 .comb-additional-price-toggle input,
-.comb-owner-toggle input {
+.comb-owner-toggle input,
+.comb-classification-toggle input {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
