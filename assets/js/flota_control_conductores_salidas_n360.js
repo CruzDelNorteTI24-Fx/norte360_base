@@ -318,18 +318,16 @@
     box._fccTimer = window.setTimeout(() => box.classList.remove('is-visible'), 3000);
   }
 
-  function syncSelectClass(select) {
-    if (!select) return;
-    if (!select.matches('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]')) return;
-    select.classList.remove('fcc-pay--ok', 'fcc-pay--pending', 'fcc-pay--empty');
-    const value = String(select.value || '').toUpperCase();
-    if (select.disabled || !value) {
-      select.classList.add('fcc-pay--empty');
-    } else if (value === 'PAGADO') {
-      select.classList.add('fcc-pay--ok');
-    } else {
-      select.classList.add('fcc-pay--pending');
-    }
+  function syncPaymentState(input) {
+    if (!input?.matches('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]')) return;
+    const value = String(input.value || '').toUpperCase();
+    input.checked = value === 'PAGADO';
+    const label = input.closest('.fcc-pay-check');
+    if (!label) return;
+    label.classList.remove('fcc-pay--ok', 'fcc-pay--pending', 'fcc-pay--empty');
+    label.classList.add(!value ? 'fcc-pay--empty' : (input.checked ? 'fcc-pay--ok' : 'fcc-pay--pending'));
+    label.classList.toggle('is-disabled', input.disabled);
+    label.querySelector('[data-fcc-pay-label]').textContent = !value ? '-' : (input.checked ? 'OK' : 'PENDIENTE');
   }
 
   function rowFields(row) {
@@ -474,7 +472,6 @@
     setMoneyInputValue(fields.cond1_importe, baseline.cond1_importe || '', false);
     setMoneyInputValue(fields.cond2_importe, baseline.cond2_importe || '', false);
     applyRoundTripState(row, false);
-    row.querySelectorAll('select').forEach(syncSelectClass);
     row.classList.remove('is-bulk-dirty');
   }
 
@@ -521,7 +518,7 @@
       }
     });
 
-    row.querySelectorAll('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]').forEach(syncSelectClass);
+    row.querySelectorAll('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]').forEach(syncPaymentState);
     updateTripTotalState(row);
   }
 
@@ -595,7 +592,6 @@
     if (fields.cond2_estado && data && Object.prototype.hasOwnProperty.call(data, 'cond2_estado')) fields.cond2_estado.value = data.cond2_estado || '';
     if (fields.cond2_importe) setMoneyInputValue(fields.cond2_importe, data?.cond2_importe ?? moneyInputRaw(fields.cond2_importe), false);
     applyRoundTripState(row, false);
-    row.querySelectorAll('select').forEach(syncSelectClass);
 
     const id = row.dataset.fccRow || '';
     const savedTrip = tripMap.get(String(id));
@@ -778,14 +774,17 @@
     cancel?.addEventListener('click', cancelBulkChanges);
 
     document.querySelectorAll('[data-fcc-field]').forEach((field) => {
-      const eventName = field.matches('select') ? 'change' : 'input';
+      const eventName = field.matches('select, input[type="checkbox"]') ? 'change' : 'input';
       field.addEventListener(eventName, () => {
         const row = field.closest('[data-fcc-row]');
+        if (field.matches('input[type="checkbox"]')) {
+          field.value = field.checked ? 'PAGADO' : 'PENDIENTE';
+          syncPaymentState(field);
+        }
         if (field.matches('[data-fcc-field="ida_vuelta"]')) {
           applyRoundTripState(row, true);
           refreshDayAmountCoverage();
         }
-        if (field.matches('select')) syncSelectClass(field);
         updateTripTotalState(row);
         markRowChange(row);
       });
@@ -2510,10 +2509,7 @@
   document.querySelectorAll('[data-fcc-save]').forEach((button) => {
     if (canEdit) button.addEventListener('click', () => saveRow(button));
   });
-  document.querySelectorAll('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]').forEach((select) => {
-    syncSelectClass(select);
-    if (canEdit) select.addEventListener('change', () => syncSelectClass(select));
-  });
+  document.querySelectorAll('[data-fcc-field="cond1_estado"], [data-fcc-field="cond2_estado"]').forEach(syncPaymentState);
   document.querySelectorAll('[data-fcc-field="viaje_importe"], [data-fcc-field="cond1_importe"], [data-fcc-field="cond2_importe"]').forEach((input) => {
     setMoneyInputValue(input, input.value, false);
     if (!canEdit) return;

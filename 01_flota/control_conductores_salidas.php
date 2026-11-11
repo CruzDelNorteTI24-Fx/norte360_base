@@ -1031,7 +1031,7 @@ $monthLabel = fcc_month_label($monthStart);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/main_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=date-column-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_control_conductores_salidas_n360.css') . '&ctrl=payment-check-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body class="fcc-screen">
@@ -1369,7 +1369,7 @@ $monthLabel = fcc_month_label($monthStart);
                                                         <option value="RETORNO" <?= $unitRow['ida_vuelta'] === 'RETORNO' ? 'selected' : '' ?>>RETORNO</option>
                                                     </select>
                                                 <?php elseif ($hasSchedule): ?>
-                                                    <span class="fcc-roundtrip-badge"><?= fcc_h($unitRow['ida_vuelta'] ?: '-') ?></span>
+                                                    <span class="fcc-roundtrip-badge <?= fcc_h($fccIdaVueltaClass) ?>"><?= fcc_h($unitRow['ida_vuelta'] ?: '-') ?></span>
                                                 <?php else: ?>
                                                     <span class="fcc-muted">-</span>
                                                 <?php endif; ?>
@@ -1408,11 +1408,10 @@ $monthLabel = fcc_month_label($monthStart);
                                                 <?php if ($isAnulado): ?>
                                                     <span class="fcc-muted">-</span>
                                                 <?php else: ?>
-                                                    <select data-fcc-field="cond1_estado" class="<?= fcc_conductor_class($unitRow['cond1_estado']) ?>" <?= $cond1Enabled ? '' : 'disabled' ?>>
-                                                        <option value="" <?= $unitRow['cond1_estado'] === '' ? 'selected' : '' ?>>-</option>
-                                                        <option value="PENDIENTE" <?= $unitRow['cond1_estado'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
-                                                        <option value="PAGADO" <?= $unitRow['cond1_estado'] === 'PAGADO' ? 'selected' : '' ?>>OK</option>
-                                                    </select>
+                                                    <label class="fcc-pay-check <?= fcc_conductor_class($unitRow['cond1_estado']) ?><?= $cond1Enabled ? '' : ' is-disabled' ?>">
+                                                        <input type="checkbox" data-fcc-field="cond1_estado" value="<?= fcc_h($unitRow['cond1_estado']) ?>" aria-label="Pago del conductor 1: marcado OK, desmarcado pendiente" <?= $unitRow['cond1_estado'] === 'PAGADO' ? 'checked' : '' ?> <?= $cond1Enabled ? '' : 'disabled' ?>>
+                                                        <span data-fcc-pay-label><?= $unitRow['cond1_estado'] === 'PAGADO' ? 'OK' : ($unitRow['cond1_estado'] === 'PENDIENTE' ? 'PENDIENTE' : '-') ?></span>
+                                                    </label>
                                                 <?php endif; ?>
                                             </td>
                                             <td data-fcc-col="cond1_pago">
@@ -1437,11 +1436,10 @@ $monthLabel = fcc_month_label($monthStart);
                                                 <?php if ($isAnulado): ?>
                                                     <span class="fcc-muted">-</span>
                                                 <?php else: ?>
-                                                    <select data-fcc-field="cond2_estado" class="<?= fcc_conductor_class($unitRow['cond2_estado']) ?>" <?= $cond2Enabled ? '' : 'disabled' ?>>
-                                                        <option value="" <?= $unitRow['cond2_estado'] === '' ? 'selected' : '' ?>>-</option>
-                                                        <option value="PENDIENTE" <?= $unitRow['cond2_estado'] === 'PENDIENTE' ? 'selected' : '' ?>>PENDIENTE</option>
-                                                        <option value="PAGADO" <?= $unitRow['cond2_estado'] === 'PAGADO' ? 'selected' : '' ?>>OK</option>
-                                                    </select>
+                                                    <label class="fcc-pay-check <?= fcc_conductor_class($unitRow['cond2_estado']) ?><?= $cond2Enabled ? '' : ' is-disabled' ?>">
+                                                        <input type="checkbox" data-fcc-field="cond2_estado" value="<?= fcc_h($unitRow['cond2_estado']) ?>" aria-label="Pago del conductor 2: marcado OK, desmarcado pendiente" <?= $unitRow['cond2_estado'] === 'PAGADO' ? 'checked' : '' ?> <?= $cond2Enabled ? '' : 'disabled' ?>>
+                                                        <span data-fcc-pay-label><?= $unitRow['cond2_estado'] === 'PAGADO' ? 'OK' : ($unitRow['cond2_estado'] === 'PENDIENTE' ? 'PENDIENTE' : '-') ?></span>
+                                                    </label>
                                                 <?php endif; ?>
                                             </td>
                                             <td data-fcc-col="cond2_pago">
@@ -1819,7 +1817,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=driver-order-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_control_conductores_salidas_n360.js') . '&ctrl=payment-check-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>

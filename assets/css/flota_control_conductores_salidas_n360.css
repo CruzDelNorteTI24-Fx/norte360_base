@@ -1025,6 +1025,12 @@ body.fcc-bulk-mode .fcc-action-buttons {
     font-weight: 900;
 }
 
+.fcc-table tr.is-anulado .fcc-roundtrip-badge.is-pending {
+    border-color: #cbd5e1;
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
 .fcc-table textarea {
     min-width: 180px;
     min-height: 40px;
@@ -1187,6 +1193,41 @@ body.fcc-screen .modal-backdrop {
 .fcc-pay--ok { background: #e5f8ee !important; color: #0f6b42 !important; }
 .fcc-pay--pending { background: #fff8e6 !important; color: #936000 !important; }
 .fcc-pay--empty { background: #f2f6fa !important; color: #8aa0b6 !important; }
+
+.fcc-table .fcc-pay-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 122px;
+    min-height: 40px;
+    margin: 0;
+    padding: 0 10px;
+    border: 1px solid #c7d9eb;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.fcc-table .fcc-pay-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    flex-shrink: 0;
+    margin: 0;
+    accent-color: #15803d;
+    cursor: inherit;
+}
+
+.fcc-table .fcc-pay-check.is-disabled {
+    cursor: default;
+}
+
+.fcc-table .fcc-pay-check input:focus-visible {
+    outline: 2px solid #248ed2;
+    outline-offset: 3px;
+}
 
 .fcc-actions {
     width: 70px;
