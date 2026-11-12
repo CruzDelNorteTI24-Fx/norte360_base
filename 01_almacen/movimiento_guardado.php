@@ -234,9 +234,11 @@ function alm_sync_contabilidad_etiquetas_desde_trigger(
     int $movId,
     int $userId,
     int $sedeId,
-    string $ubicacionDetalle = ''
+    string $ubicacionDetalle = '',
+    ?int $espacioId = null
 ): array {
     $hasDetail = alm_activos_detalle_disponible($conn);
+    $hasSpace = alm_activos_espacios_disponibles($conn);
     $detailDb = $ubicacionDetalle !== '' ? $ubicacionDetalle : null;
     $labels = alm_fetch_all($conn, "
         SELECT
@@ -259,11 +261,13 @@ function alm_sync_contabilidad_etiquetas_desde_trigger(
     ");
     $detailColumns = $hasDetail ? ', clm_alm_etiquetadoofi_detalle_antes, clm_alm_etiquetadoofi_detalle_despues' : '';
     $detailValues = $hasDetail ? ', NULL, ?' : '';
+    $spaceColumns = $hasSpace ? ', clm_alm_etiquetadoofi_espacio_id_antes, clm_alm_etiquetadoofi_espacio_id_despues' : '';
+    $spaceValues = $hasSpace ? ', NULL, ?' : '';
     $stmtHistory = $conn->prepare("
         INSERT INTO tb_alm_etiquetadoofi
         (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
-         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns)
-        VALUES (?, NULL, ?, ? $detailValues)
+         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns $spaceColumns)
+        VALUES (?, NULL, ?, ? $detailValues $spaceValues)
     ");
     $stmtMov = $conn->prepare("
         UPDATE tb_alm_movimientos
@@ -297,7 +301,8 @@ function alm_sync_contabilidad_etiquetas_desde_trigger(
             if ($hasDetail) {
                 $historyParams[] = $detailDb;
             }
-            alm_bind($stmtHistory, $hasDetail ? 'iiis' : 'iii', $historyParams);
+            if ($hasSpace) $historyParams[] = $espacioId;
+            alm_bind($stmtHistory, 'iii' . ($hasDetail ? 's' : '') . ($hasSpace ? 'i' : ''), $historyParams);
             if (!$stmtHistory->execute()) {
                 throw new RuntimeException('No se pudo registrar la ubicación inicial del activo.');
             }
@@ -312,6 +317,14 @@ function alm_sync_contabilidad_etiquetas_desde_trigger(
             throw new RuntimeException('No se pudo guardar el detalle inicial de ubicación.');
         }
         $stmtDetail->close();
+    }
+
+    if ($hasSpace) {
+        $params = [$espacioId, $movId];
+        $stmtSpace = $conn->prepare('UPDATE tb_alm_etiquetado SET clm_alm_etiquetado_espacio_id = ? WHERE clm_alm_etiquetado_idMOVIMIENTO = ?');
+        alm_bind($stmtSpace, 'ii', $params);
+        if (!$stmtSpace->execute()) throw new RuntimeException('No se pudo guardar el espacio inicial del artículo.');
+        $stmtSpace->close();
     }
 
     $movParams = [$movId];
@@ -337,6 +350,8 @@ function alm_consumir_contabilidad_etiquetas(
     })));
     $hasDetail = alm_activos_detalle_disponible($conn);
     $detailSelect = $hasDetail ? 'clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
+    $hasSpace = alm_activos_espacios_disponibles($conn);
+    $spaceSelect = $hasSpace ? 'clm_alm_etiquetado_espacio_id' : 'NULL';
 
     if ($selectedLabelIds) {
         if (count($selectedLabelIds) !== $cantidad) {
@@ -355,6 +370,7 @@ function alm_consumir_contabilidad_etiquetas(
                 clm_alm_etiquetado_id AS id,
                 COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,
                 clm_alm_etiquetado_oficina_destino AS sede_actual,
+                $spaceSelect AS espacio_id,
                 $detailSelect AS ubicacion_detalle
             FROM tb_alm_etiquetado
             WHERE clm_alm_etiquetado_idPRODUCTO = ?
@@ -377,6 +393,7 @@ function alm_consumir_contabilidad_etiquetas(
                 clm_alm_etiquetado_id AS id,
                 COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,
                 clm_alm_etiquetado_oficina_destino AS sede_actual,
+                $spaceSelect AS espacio_id,
                 $detailSelect AS ubicacion_detalle
             FROM tb_alm_etiquetado
             WHERE clm_alm_etiquetado_idPRODUCTO = ?
@@ -404,11 +421,13 @@ function alm_consumir_contabilidad_etiquetas(
     ");
     $detailColumns = $hasDetail ? ', clm_alm_etiquetadoofi_detalle_antes, clm_alm_etiquetadoofi_detalle_despues' : '';
     $detailValues = $hasDetail ? ', ?, NULL' : '';
+    $spaceColumns = $hasSpace ? ', clm_alm_etiquetadoofi_espacio_id_antes, clm_alm_etiquetadoofi_espacio_id_despues' : '';
+    $spaceValues = $hasSpace ? ', ?, NULL' : '';
     $stmtHistory = $conn->prepare("
         INSERT INTO tb_alm_etiquetadoofi
         (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
-         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns)
-        VALUES (?, ?, NULL, ? $detailValues)
+         clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns $spaceColumns)
+        VALUES (?, ?, NULL, ? $detailValues $spaceValues)
     ");
 
     if (!$stmtUpdate || !$stmtHistory) {
@@ -428,7 +447,8 @@ function alm_consumir_contabilidad_etiquetas(
         if ($hasDetail) {
             $historyParams[] = $label['ubicacion_detalle'] ?? null;
         }
-        alm_bind($stmtHistory, $hasDetail ? 'iiis' : 'iii', $historyParams);
+        if ($hasSpace) $historyParams[] = $label['espacio_id'];
+        alm_bind($stmtHistory, 'iii' . ($hasDetail ? 's' : '') . ($hasSpace ? 'i' : ''), $historyParams);
         $stmtHistory->execute();
 
         $codes[] = (string)($label['codigo'] ?? ('ETQ-' . $labelId));
@@ -472,18 +492,24 @@ function alm_action_etiquetas_contabilidad(mysqli $conn): void {
         alm_json(['ok' => false, 'message' => 'Producto no disponible para trazabilidad contable.'], 422);
     }
 
+    $spaceSql = alm_activos_espacio_sql($conn);
+    $detailSql = alm_activos_detalle_disponible($conn) ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
     $rows = alm_fetch_all($conn, "
         SELECT
             e.clm_alm_etiquetado_id AS id,
             COALESCE(NULLIF(TRIM(e.clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', e.clm_alm_etiquetado_id)) AS codigo,
             e.clm_alm_etiquetado_FECHA AS fecha,
             e.clm_alm_etiquetado_oficina_destino AS sede_id,
+            {$spaceSql['id']} AS espacio_id,
+            {$spaceSql['nombre']} AS espacio_nombre,
+            $detailSql AS ubicacion_detalle,
             COALESCE(NULLIF(TRIM(s.clm_sedes_name), ''), IF(e.clm_alm_etiquetado_oficina_destino IS NULL, 'Sin ubicacion', CONCAT('Sede ', e.clm_alm_etiquetado_oficina_destino))) AS sede,
             COALESCE(NULLIF(TRIM(n.clm_nota_sco), ''), CONCAT('MOV-', m.clm_alm_mov_id)) AS nota
         FROM tb_alm_etiquetado e
         JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
         LEFT JOIN tb_notas_salida n ON m.clm_alm_mov_idNOTA = n.clm_nota_id
         LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
+        {$spaceSql['join']}
         WHERE e.clm_alm_etiquetado_idPRODUCTO = ?
           AND UPPER(COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'GENERADO')) <> 'CONSUMIDO'
         ORDER BY e.clm_alm_etiquetado_id ASC
@@ -656,6 +682,15 @@ function alm_action_save_entrada(mysqli $conn): void {
     $autoPdf = !empty($payload['auto_pdf']);
     $etqCant = null;
 
+    try {
+        $espacioId = alm_activos_espacio_id($payload['espacio_id'] ?? null);
+        $espacioRow = alm_activos_validar_espacio($conn, $espacioId, $sedeId);
+    } catch (InvalidArgumentException $e) {
+        alm_json(['ok' => false, 'message' => $e->getMessage()], 422);
+    }
+    if ($espacioId !== null && !in_array($originId, [1, 12], true)) {
+        alm_json(['ok' => false, 'message' => 'Este registro no admite espacios por sede.'], 422);
+    }
     $ubicacionDetalle = '';
     if ($originId === 12) {
         $etqCant = alm_integer_quantity_or_fail($cantidad, 'En Contabilidad la cantidad debe ser entera y mayor a cero para generar trazabilidad.');
@@ -667,7 +702,8 @@ function alm_action_save_entrada(mysqli $conn): void {
         $ubicacionLabel = alm_sede_display_name($conn, $sedeId);
         try {
             $ubicacionDetalle = alm_activos_detalle($payload['ubicacion_detalle'] ?? '');
-            $observacion = alm_activos_observacion($observacionInput, $ubicacionLabel, $ubicacionDetalle);
+            $locationText = alm_activos_ubicacion(alm_activos_espacio_nombre($espacioRow ?? []), $ubicacionDetalle);
+            $observacion = alm_activos_observacion($observacionInput, $ubicacionLabel, $locationText);
         } catch (InvalidArgumentException $e) {
             alm_json(['ok' => false, 'message' => $e->getMessage()], 422);
         }
@@ -690,7 +726,7 @@ function alm_action_save_entrada(mysqli $conn): void {
     $tipo = alm_producto_tiene_movimientos($conn, $productId) ? 'ENTRADA' : 'INVENTARIADO';
     $generarEtq = (
         ($originId === 12 && $sedeId > 0)
-        || ($originId === 1 && !empty($payload['gen_etq']) && $sedeId > 0)
+        || ($originId === 1 && (!empty($payload['gen_etq']) || $espacioId !== null) && $sedeId > 0)
     ) ? 1 : 0;
 
     if ($generarEtq && $etqCant === null) {
@@ -721,6 +757,9 @@ function alm_action_save_entrada(mysqli $conn): void {
     $placaNull = null;
 
     $conn->begin_transaction();
+
+    // El bloqueo impide asignar un espacio desactivado durante el guardado.
+    alm_activos_validar_espacio($conn, $espacioId, $sedeId, null, true);
 
     $notaParams = [$fecha, $responsable, $notaModulo, $observacion, $placaNull, $espacio, $proveedor, $dni, $serie];
     $stmtNota = $conn->prepare("
@@ -764,8 +803,8 @@ function alm_action_save_entrada(mysqli $conn): void {
     $labelCodes = [];
     $labelYears = [];
     $labelMonths = [];
-    if ($originId === 12 && $etqCant !== null) {
-        $labelCodes = alm_sync_contabilidad_etiquetas_desde_trigger($conn, $movId, $userId, $sedeId, $ubicacionDetalle);
+    if (($originId === 12 || $espacioId !== null) && $etqCant !== null) {
+        $labelCodes = alm_sync_contabilidad_etiquetas_desde_trigger($conn, $movId, $userId, $sedeId, $ubicacionDetalle, $espacioId);
         $labelDates = alm_fetch_all($conn, "
             SELECT
                 COALESCE(NULLIF(TRIM(clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', clm_alm_etiquetado_id)) AS codigo,

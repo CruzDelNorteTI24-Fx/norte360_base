@@ -44,7 +44,7 @@
           body: report.rows.map(row => [
             `${text(row.etiqueta_codigo)}\n${date(row.etiqueta_fecha)}`,
             `(${text(row.producto_codigo)}) ${text(row.producto_nombre)}\nUnidad: ${text(row.producto_unidad)}\n${[row.categoria_codigo, row.categoria_nombre].filter(Boolean).join(' ')}`,
-            `${row.sede_nombre || 'Sin ubicacion'}\n${text(row.ubicacion_detalle)}`,
+            [row.sede_nombre || 'Sin ubicacion', row.espacio_nombre, row.ubicacion_detalle].filter(Boolean).join('\n'),
             `MOV-${row.movimiento_id} - ${text(row.movimiento_tipo)}\n${row.nota_codigo || `MOV-${row.movimiento_id}`}\n${date(row.movimiento_fecha)}\n${text(row.usuario_nombre)}`,
             text(row.etiqueta_estado)
           ]),

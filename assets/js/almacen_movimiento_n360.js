@@ -443,7 +443,7 @@
           <input class="alm-salida-label-check" type="checkbox" value="${esc(id)}" ${picked ? 'disabled' : ''}>
           <span>
             <strong>${esc(row.codigo || `ETQ-${id}`)}</strong>
-            <small>${esc(row.sede || 'Sin ubicacion')} ${row.fecha ? `- ${esc(row.fecha)}` : ''}</small>
+            <small>${esc(assetLocation.location(row.sede || 'Sin ubicacion', assetLocation.description(row.espacio_nombre, row.ubicacion_detalle)))} ${row.fecha ? `- ${esc(row.fecha)}` : ''}</small>
           </span>
           <span class="alm-label-option__note">${picked ? 'Agregada' : esc(row.nota || 'Disponible')}</span>
         </label>
@@ -841,7 +841,8 @@
   function accountingObservationText() {
     const sede = $('#almEntradaSede');
     const sedeLabel = sede?.value ? selectedOptionText(sede) : '';
-    return assetLocation.observation($('#almEntradaObservacion')?.value || '', sedeLabel, accountingLocationDetail());
+    return assetLocation.observation($('#almEntradaObservacion')?.value || '', sedeLabel,
+      assetLocation.description(assetLocation.selectedSpace($('#almEntradaEspacio')), accountingLocationDetail()));
   }
 
   function updateAccountingObservation() {
@@ -877,7 +878,8 @@
       const sedeId = sede?.value || '';
       const sedeLabel = sedeId ? selectedOptionText(sede) : '';
       const raw = sedeId ? `OFI-${sedeId}` : '';
-      const locationText = assetLocation.location(sedeLabel, accountingLocationDetail());
+      const locationText = assetLocation.location(sedeLabel,
+        assetLocation.description(assetLocation.selectedSpace($('#almEntradaEspacio')), accountingLocationDetail()));
       if (rawField) rawField.value = raw;
       if (labelField) labelField.value = sedeLabel;
       if (preview) {
@@ -938,8 +940,10 @@
     if (rawField) rawField.value = raw;
     if (labelField) labelField.value = raw ? `${selectedOptionText($('#almEntradaSede'))} | ${selectedOptionText(anaquel)}` : '';
     if (preview) {
-      preview.innerHTML = raw
-        ? `<i class="bi bi-geo-alt-fill"></i><span>${esc(raw.replace(/\./g, ' '))}</span>`
+      const spaceName = assetLocation.selectedSpace($('#almEntradaEspacio'));
+      const label = spaceName ? assetLocation.location(selectedOptionText($('#almEntradaSede')), spaceName) : raw.replace(/\./g, ' ');
+      preview.innerHTML = raw || spaceName
+        ? `<i class="bi bi-geo-alt-fill"></i><span>${esc(label)}</span>`
         : '<i class="bi bi-geo-alt"></i><span>Sin ubicacion seleccionada</span>';
     }
   }
@@ -965,6 +969,11 @@
     updateLocationPreview();
   }
 
+  assetLocation.bindSpaces($('#almEntradaEspacio'), $('#almEntradaSede'));
+  $('#almEntradaEspacio')?.addEventListener('change', () => {
+    if ($('#almEntradaEspacio').value && $('#almEntradaGenEtq')) $('#almEntradaGenEtq').checked = true;
+    updateLocationPreview();
+  });
   $('#almEntradaSede')?.addEventListener('change', loadAnaquelesForSede);
   if (isAccountingOrigin) {
     assetLocation.bindSuggestions($('#almEntradaUbicacionDetalle'), $('#almEntradaUbicacionSugerencias'), $('#almEntradaSede'));

@@ -69,6 +69,7 @@ define('ACCESS_GRANTED', true);
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 require_once __DIR__ . '/movimiento_backend.php';
 require_once __DIR__ . '/movimiento_selects.php';
+require_once __DIR__ . '/../layout/activos_espacio_n360.php';
 
 $originConfig = alm_context_config_from_origin($originSpaceId);
 $isRrhhContext = $registerContext === 'rrhh';
@@ -100,6 +101,8 @@ if (empty($_SESSION['alm_mov_csrf'])) {
 $pageError = '';
 $assetLocationDetailEnabled = $isAccountingContext && alm_activos_detalle_disponible($conn);
 $assetLocationSuggestions = [];
+$assetLocationSpacesEnabled = !$isRrhhContext && alm_activos_espacios_disponibles($conn);
+$assetLocationSpaces = [];
 $sedes = [];
 $anaqueles = [];
 $originSpace = [];
@@ -113,6 +116,7 @@ $stats = [
 
 try {
     $sedes = alm_select_sedes($conn);
+    if ($assetLocationSpacesEnabled) $assetLocationSpaces = alm_activos_espacios($conn);
     if ($assetLocationDetailEnabled) {
         $assetLocationSuggestions = alm_activos_detalles_sugeridos($conn);
     }
@@ -393,6 +397,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
                                     <label class="alm-radio-pill"><input type="radio" name="ubicacion_modo" form="almEntradaForm" value="completo"> Completo</label>
                                     <label class="alm-radio-pill"><input type="radio" name="ubicacion_modo" form="almEntradaForm" value="fila"> Fila completa</label>
                                 </div>
+                                <?php n360_render_asset_space_select($assetLocationSpaces, 'almEntradaEspacio', $assetLocationSpacesEnabled, 'alm-field alm-field--span-6', 'almEntradaForm'); ?>
                                 <label class="alm-check">
                                     <input type="checkbox" name="gen_etq" id="almEntradaGenEtq" form="almEntradaForm" value="1">
                                     <span>Generar etiquetas si la cantidad es entera.</span>
@@ -424,18 +429,19 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
                                 <?php endforeach; ?>
                             </select>
                         </label>
+                        <?php n360_render_asset_space_select($assetLocationSpaces, 'almEntradaEspacio', $assetLocationSpacesEnabled, 'alm-field alm-field--span-6', 'almEntradaForm'); ?>
                         <label class="alm-field alm-field--span-6">
-                            <span>Detalle de ubicación (opcional)</span>
+                            <span>Detalle adicional de ubicación (opcional)</span>
                             <input type="text" name="ubicacion_detalle" id="almEntradaUbicacionDetalle" form="almEntradaForm" maxlength="220"
                                    list="almEntradaUbicacionSugerencias" autocomplete="off"
-                                   placeholder="Ej. Tercer piso, Contabilidad, puesto Mirella"
+                                   placeholder="Ej. Cajón superior, lado de la ventana"
                                    <?= $assetLocationDetailEnabled ? '' : 'disabled' ?>>
                             <datalist id="almEntradaUbicacionSugerencias">
                                 <?php foreach ($assetLocationSuggestions as $suggestion): ?>
                                 <option value="<?= alm_page_h($suggestion['detalle']) ?>" data-sede="<?= (int)$suggestion['sede_id'] ?>"></option>
                                 <?php endforeach; ?>
                             </datalist>
-                            <small class="alm-help"><?= $assetLocationDetailEnabled ? 'Elige un detalle anterior de la sede o escribe uno nuevo. Se agregará a la observación.' : 'El detalle de ubicación aún no está habilitado. Contacta al administrador.' ?></small>
+                            <small class="alm-help"><?= $assetLocationDetailEnabled ? 'Precisa el punto dentro del espacio elegido. Es opcional y se agregará a la observación.' : 'El detalle de ubicación aún no está habilitado. Contacta al administrador.' ?></small>
                         </label>
                         <div class="alm-trace-note alm-field--span-6">
                             <i class="bi bi-upc-scan"></i>
@@ -541,8 +547,8 @@ window.N360_RRHH_ACTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=2') ?>"></script>
-<?php if ($isAccountingContext): ?><script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=2') ?>"></script><?php endif; ?>
-<script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=2&etiqueta=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=4') ?>"></script>
+<script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=3&etiqueta=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>

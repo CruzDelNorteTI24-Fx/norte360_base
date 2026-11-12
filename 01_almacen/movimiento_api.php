@@ -74,5 +74,6 @@ try {
         }
     }
     error_log('movimiento_api.php: ' . $e->getMessage());
-    alm_json(['ok' => false, 'message' => 'No se pudo completar la operacion: ' . $e->getMessage()], 500);
+    $status = $e instanceof InvalidArgumentException ? 422 : ($e->getCode() === 409 ? 409 : 500);
+    alm_json(['ok' => false, 'message' => $status === 500 ? 'No se pudo completar la operación. Inténtalo nuevamente.' : $e->getMessage()], $status);
 }

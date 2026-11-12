@@ -108,6 +108,7 @@ if (!n360_qs_allowed()) {
 }
 
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
+require_once __DIR__ . '/movimiento_backend.php';
 
 $query = trim((string)($_GET['q'] ?? $_GET['codigo'] ?? ''));
 
@@ -128,6 +129,8 @@ if (mb_strlen($query, 'UTF-8') > 80) {
 $isEtiqueta = strpos($query, '-') !== false;
 
 if ($isEtiqueta) {
+    $spaceSql = alm_activos_espacio_sql($conn);
+    $detailSql = alm_activos_detalle_disponible($conn) ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
     $stmt = $conn->prepare("
         SELECT
             e.clm_alm_etiquetado_FECHA AS fecha_etiquetado,
@@ -138,6 +141,9 @@ if ($isEtiqueta) {
             e.clm_alm_etiquetado_idMOVIMIENTO AS id_movimiento,
             a.clm_alm_anaquel_nombre AS anaquel,
             s.clm_sedes_name AS sede_nombre,
+            {$spaceSql['id']} AS espacio_id,
+            {$spaceSql['nombre']} AS espacio_nombre,
+            $detailSql AS ubicacion_detalle,
             p.clm_alm_producto_codigo AS codigo_producto,
             p.clm_alm_producto_NOMBRE AS producto_nombre,
             p.clm_alm_producto_unidad AS unidproducto,
@@ -155,6 +161,7 @@ if ($isEtiqueta) {
         JOIN tb_alm_codigo cod ON c.clm_alm_categoria_idCODIGO = cod.clm_alm_codigo_id
         JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
         LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
+        {$spaceSql['join']}
         LEFT JOIN tb_alm_anaquel a ON e.clm_alm_etiquetado_anaquel = a.clm_alm_anaquel_id
         LEFT JOIN vw_control_inventario v ON v.ID = p.clm_alm_producto_id
         WHERE e.clm_etiquetado_CODIGO = ?
@@ -173,6 +180,8 @@ if ($isEtiqueta) {
             'product' => n360_qs_product_payload($row),
             'trace' => [
                 'sede' => n360_qs_text($row['sede_nombre'] ?? ''),
+                'espacio' => n360_qs_text($row['espacio_nombre'] ?? ''),
+                'detalle_ubicacion' => n360_qs_text($row['ubicacion_detalle'] ?? ''),
                 'anaquel' => n360_qs_text($row['anaquel'] ?? ''),
                 'fecha_ingreso' => n360_qs_text($row['fecha_movimiento'] ?? ''),
                 'fecha_etiquetado' => n360_qs_text($row['fecha_etiquetado'] ?? ''),

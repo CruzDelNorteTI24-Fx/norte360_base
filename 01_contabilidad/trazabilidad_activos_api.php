@@ -47,18 +47,22 @@ function trace_api_scope_sql(): string {
 function trace_api_label(mysqli $conn, int $labelId, bool $forUpdate = false): ?array {
     $lock = $forUpdate ? ' FOR UPDATE' : '';
     $detailSql = alm_activos_detalle_disponible($conn) ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
+    $spaceSql = alm_activos_espacio_sql($conn);
     return alm_fetch_one($conn, "
         SELECT
             e.clm_alm_etiquetado_id AS etiqueta_id,
             COALESCE(NULLIF(TRIM(e.clm_etiquetado_CODIGO), ''), CONCAT('ETQ-', e.clm_alm_etiquetado_id)) AS etiqueta_codigo,
             COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'PENDIENTE') AS etiqueta_estado,
             e.clm_alm_etiquetado_oficina_destino AS sede_actual_id,
+            {$spaceSql['id']} AS espacio_id,
+            {$spaceSql['nombre']} AS espacio_nombre,
             $detailSql AS ubicacion_detalle,
             p.clm_alm_producto_codigo AS producto_codigo,
             p.clm_alm_producto_NOMBRE AS producto_nombre
         FROM tb_alm_etiquetado e
         JOIN tb_alm_producto p ON e.clm_alm_etiquetado_idPRODUCTO = p.clm_alm_producto_id
         JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
+        {$spaceSql['join']}
         WHERE e.clm_alm_etiquetado_id = ?
           AND " . trace_api_scope_sql() . "
         LIMIT 1$lock
@@ -78,6 +82,11 @@ function trace_api_history_rows(mysqli $conn, int $labelId): array {
     $hasDetail = alm_activos_detalle_disponible($conn);
     $beforeSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_antes' : 'NULL';
     $afterSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_despues' : 'NULL';
+    $hasSpace = alm_activos_espacios_disponibles($conn);
+    $beforeSpace = $hasSpace ? "CONCAT_WS(' — ', NULLIF(TRIM(ea.clm_sedeesp_area), ''), NULLIF(TRIM(ea.clm_sedeesp_espacio), ''))" : "''";
+    $afterSpace = $hasSpace ? "CONCAT_WS(' — ', NULLIF(TRIM(ed.clm_sedeesp_area), ''), NULLIF(TRIM(ed.clm_sedeesp_espacio), ''))" : "''";
+    $spaceJoin = $hasSpace ? 'LEFT JOIN tb_sedes_espacios ea ON ea.clm_sedeesp_id = h.clm_alm_etiquetadoofi_espacio_id_antes
+        LEFT JOIN tb_sedes_espacios ed ON ed.clm_sedeesp_id = h.clm_alm_etiquetadoofi_espacio_id_despues' : '';
     return alm_fetch_all($conn, "
         SELECT
             h.clm_alm_etiquetadoofi_id AS id,
@@ -86,6 +95,8 @@ function trace_api_history_rows(mysqli $conn, int $labelId): array {
             h.clm_alm_etiquetadoofi_sedeIDdespues AS sede_despues_id,
             $beforeSql AS detalle_antes,
             $afterSql AS detalle_despues,
+            $beforeSpace AS espacio_antes,
+            $afterSpace AS espacio_despues,
             COALESCE(NULLIF(TRIM(sa.clm_sedes_name), ''), IF(h.clm_alm_etiquetadoofi_sedeIDantes IS NULL, 'Sin ubicacion', CONCAT('Sede ', h.clm_alm_etiquetadoofi_sedeIDantes))) AS sede_antes,
             COALESCE(NULLIF(TRIM(sd.clm_sedes_name), ''), IF(h.clm_alm_etiquetadoofi_sedeIDdespues IS NULL, 'Sin ubicacion', CONCAT('Sede ', h.clm_alm_etiquetadoofi_sedeIDdespues))) AS sede_despues,
             COALESCE(NULLIF(TRIM(u.nombre), ''), NULLIF(TRIM(u.usuario), ''), CONCAT('Usuario ', h.clm_alm_etiquetadoofi_idUSER)) AS usuario
@@ -93,6 +104,7 @@ function trace_api_history_rows(mysqli $conn, int $labelId): array {
         LEFT JOIN tb_sedes sa ON h.clm_alm_etiquetadoofi_sedeIDantes = sa.clm_sedes_id
         LEFT JOIN tb_sedes sd ON h.clm_alm_etiquetadoofi_sedeIDdespues = sd.clm_sedes_id
         LEFT JOIN tb_usuarios u ON h.clm_alm_etiquetadoofi_idUSER = u.id_usuario
+        $spaceJoin
         WHERE h.clm_alm_etiquetadoofi_etiref = ?
         ORDER BY h.clm_alm_etiquetadoofi_datetime DESC, h.clm_alm_etiquetadoofi_id DESC
     ", 'i', [$labelId]);
@@ -121,6 +133,7 @@ function trace_api_detail(mysqli $conn): void {
         alm_json(['ok' => false, 'message' => 'Etiqueta invalida.'], 422);
     }
     $detailSql = alm_activos_detalle_disponible($conn) ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
+    $spaceSql = alm_activos_espacio_sql($conn);
     $label = alm_fetch_one($conn, "
         SELECT
             e.clm_alm_etiquetado_id AS etiqueta_id,
@@ -128,6 +141,8 @@ function trace_api_detail(mysqli $conn): void {
             COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'PENDIENTE') AS etiqueta_estado,
             e.clm_alm_etiquetado_FECHA AS etiqueta_fecha,
             $detailSql AS ubicacion_detalle,
+            {$spaceSql['id']} AS espacio_id,
+            {$spaceSql['nombre']} AS espacio_nombre,
             COALESCE(NULLIF(TRIM(s.clm_sedes_name), ''), 'Sin ubicacion') AS sede_nombre,
             p.clm_alm_producto_id AS producto_id,
             p.clm_alm_producto_codigo AS producto_codigo,
@@ -149,6 +164,7 @@ function trace_api_detail(mysqli $conn): void {
         JOIN tb_alm_movimientos m ON m.clm_alm_mov_id = e.clm_alm_etiquetado_idMOVIMIENTO
         LEFT JOIN tb_alm_categoria c ON c.clm_alm_categoria_id = p.clm_alm_producto_idCATEGORIA
         LEFT JOIN tb_sedes s ON s.clm_sedes_id = e.clm_alm_etiquetado_oficina_destino
+        {$spaceSql['join']}
         LEFT JOIN tb_notas_salida n ON n.clm_nota_id = m.clm_alm_mov_idNOTA
         LEFT JOIN tb_usuarios u ON u.id_usuario = m.clm_alm_mov_iduser
         WHERE e.clm_alm_etiquetado_id = ? AND " . trace_api_scope_sql() . "
@@ -176,7 +192,10 @@ function trace_api_move(mysqli $conn, array $payload): void {
     }
 
     $hasDetail = alm_activos_detalle_disponible($conn);
+    $hasSpace = alm_activos_espacios_disponibles($conn);
     try {
+        $newSpace = alm_activos_espacio_id($payload['espacio_id'] ?? null);
+        $expectedSpace = alm_activos_espacio_id($payload['expected_espacio_id'] ?? null);
         $newDetail = alm_activos_detalle($payload['ubicacion_detalle'] ?? '');
         $expectedDetail = alm_activos_detalle($payload['expected_detalle'] ?? '');
     } catch (InvalidArgumentException $e) {
@@ -185,8 +204,14 @@ function trace_api_move(mysqli $conn, array $payload): void {
     if (!$hasDetail && $newDetail !== '') {
         alm_json(['ok' => false, 'message' => 'El detalle de ubicación aún no está habilitado. Contacta al administrador.'], 409);
     }
+    if (!$hasSpace && $newSpace !== null) {
+        alm_json(['ok' => false, 'message' => 'Los espacios por sede aún no están habilitados. Contacta al administrador.'], 409);
+    }
+    if ($hasSpace && (!array_key_exists('expected_espacio_id', $payload) || !array_key_exists('espacio_id', $payload))) {
+        alm_json(['ok' => false, 'message' => 'Actualiza la página antes de mover el activo.'], 409);
+    }
     $expectedSede = filter_var($payload['expected_sede_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-    if ($hasDetail && ($expectedSede === false || !array_key_exists('expected_detalle', $payload))) {
+    if (($hasDetail || $hasSpace) && ($expectedSede === false || ($hasDetail && !array_key_exists('expected_detalle', $payload)))) {
         alm_json(['ok' => false, 'message' => 'Actualiza la página antes de mover el activo.'], 409);
     }
 
@@ -220,10 +245,15 @@ function trace_api_move(mysqli $conn, array $payload): void {
 
         $currentSedeId = (int)($label['sede_actual_id'] ?? 0);
         $currentDetail = (string)($label['ubicacion_detalle'] ?? '');
-        if ($hasDetail && ($expectedSede !== $currentSedeId || $expectedDetail !== $currentDetail)) {
+        $currentSpace = $label['espacio_id'] !== null ? (int)$label['espacio_id'] : null;
+        if ($hasSpace && $expectedSpace !== $currentSpace) {
+            throw new RuntimeException('El espacio cambió mientras tenías el formulario abierto. Actualiza la página antes de reintentar.', 409);
+        }
+        if (($hasDetail || $hasSpace) && ($expectedSede !== $currentSedeId || $expectedDetail !== $currentDetail)) {
             throw new RuntimeException('La ubicación cambió mientras tenías el formulario abierto. Actualiza la página antes de reintentar.', 409);
         }
-        if ($currentSedeId === $newSedeId && $currentDetail === $newDetail) {
+        alm_activos_validar_espacio($conn, $newSpace, $newSedeId, $currentSpace, true);
+        if ($currentSedeId === $newSedeId && $currentDetail === $newDetail && $currentSpace === $newSpace) {
             $conn->commit();
             alm_json([
                 'ok' => true,
@@ -238,12 +268,14 @@ function trace_api_move(mysqli $conn, array $payload): void {
         $afterDetail = $newDetail !== '' ? $newDetail : null;
         $detailColumns = $hasDetail ? ', clm_alm_etiquetadoofi_detalle_antes, clm_alm_etiquetadoofi_detalle_despues' : '';
         $detailValues = $hasDetail ? ', ?, ?' : '';
+        $spaceColumns = $hasSpace ? ', clm_alm_etiquetadoofi_espacio_id_antes, clm_alm_etiquetadoofi_espacio_id_despues' : '';
+        $spaceValues = $hasSpace ? ', ?, ?' : '';
 
         $stmtHistory = $conn->prepare("
             INSERT INTO tb_alm_etiquetadoofi
             (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
-             clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns)
-            VALUES (?, ?, ?, ? $detailValues)
+             clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns $spaceColumns)
+            VALUES (?, ?, ?, ? $detailValues $spaceValues)
         ");
         if (!$stmtHistory) {
             throw new RuntimeException('No se pudo preparar el historial de ubicación.');
@@ -252,24 +284,29 @@ function trace_api_move(mysqli $conn, array $payload): void {
         if ($hasDetail) {
             array_push($historyParams, $beforeDetail, $afterDetail);
         }
-        alm_bind($stmtHistory, $hasDetail ? 'iiiiss' : 'iiii', $historyParams);
+        if ($hasSpace) array_push($historyParams, $currentSpace, $newSpace);
+        alm_bind($stmtHistory, 'iiii' . ($hasDetail ? 'ss' : '') . ($hasSpace ? 'ii' : ''), $historyParams);
         if (!$stmtHistory->execute()) {
             throw new RuntimeException('No se pudo registrar el historial de ubicación.');
         }
         $stmtHistory->close();
 
         $detailSet = $hasDetail ? ', clm_alm_etiquetado_ubicacion_detalle = ?' : '';
+        $spaceSet = $hasSpace ? ', clm_alm_etiquetado_espacio_id = ?' : '';
         $stmtUpdate = $conn->prepare("
             UPDATE tb_alm_etiquetado
-            SET clm_alm_etiquetado_oficina_destino = ? $detailSet
+            SET clm_alm_etiquetado_oficina_destino = ? $detailSet $spaceSet
             WHERE clm_alm_etiquetado_id = ?
             LIMIT 1
         ");
         if (!$stmtUpdate) {
             throw new RuntimeException('No se pudo actualizar la ubicación de la etiqueta.');
         }
-        $updateParams = $hasDetail ? [$after, $afterDetail, $labelId] : [$after, $labelId];
-        alm_bind($stmtUpdate, $hasDetail ? 'isi' : 'ii', $updateParams);
+        $updateParams = [$after];
+        if ($hasDetail) $updateParams[] = $afterDetail;
+        if ($hasSpace) $updateParams[] = $newSpace;
+        $updateParams[] = $labelId;
+        alm_bind($stmtUpdate, 'i' . ($hasDetail ? 's' : '') . ($hasSpace ? 'i' : '') . 'i', $updateParams);
         if (!$stmtUpdate->execute()) {
             throw new RuntimeException('No se pudo actualizar la ubicación de la etiqueta.');
         }
@@ -283,13 +320,14 @@ function trace_api_move(mysqli $conn, array $payload): void {
             'new_sede_id' => $newSedeId,
             'new_sede_name' => (string)($sede['nombre'] ?? ('Sede ' . $newSedeId)),
             'new_ubicacion_detalle' => $afterDetail,
+            'new_espacio_id' => $newSpace,
         ]);
     } catch (Throwable $e) {
         try {
             $conn->rollback();
         } catch (Throwable $ignored) {
         }
-        $status = in_array($e->getCode(), [404, 409, 422], true) ? $e->getCode() : 500;
+        $status = $e instanceof InvalidArgumentException ? 422 : (in_array($e->getCode(), [404, 409, 422], true) ? $e->getCode() : 500);
         alm_json(['ok' => false, 'message' => $status === 500 ? 'No se pudo guardar el traslado. Inténtalo nuevamente.' : $e->getMessage()], $status);
     }
 }

@@ -56,6 +56,8 @@
 
         const items = [
             ['Sede actual', trace.sede],
+            ['Área / espacio', trace.espacio],
+            ['Detalle de ubicación', trace.detalle_ubicacion],
             ['Anaquel', trace.anaquel],
             ['Fecha de ingreso', trace.fecha_ingreso],
             ['Fecha de etiquetado', trace.fecha_etiquetado],

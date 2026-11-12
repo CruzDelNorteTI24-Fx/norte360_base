@@ -14,6 +14,8 @@
   const moveForm = document.getElementById('traceMoveForm');
   const assetLocation = window.N360AssetLocation;
   const locationDetailEnabled = page.dataset.locationDetail === '1';
+  const locationSpacesEnabled = page.dataset.locationSpaces === '1';
+  const refreshSpaces = assetLocation.bindSpaces(document.getElementById('traceMoveEspacio'), document.getElementById('traceMoveSede'));
   const refreshDetailSuggestions = assetLocation.bindSuggestions(
     document.getElementById('traceMoveDetalle'),
     document.getElementById('traceMoveDetalleSugerencias'),
@@ -132,7 +134,8 @@
     const sedeText = sede?.value ? sede.selectedOptions[0]?.textContent?.trim() || '' : '';
     const detail = locationDetailEnabled ? assetLocation.detail($('#traceMoveDetalle')?.value || '') : '';
     const preview = $('#traceMovePreview');
-    if (preview) preview.textContent = sedeText ? assetLocation.location(sedeText, detail) : 'Selecciona una sede/oficina.';
+    if (preview) preview.textContent = sedeText ? assetLocation.location(sedeText,
+      assetLocation.description(assetLocation.selectedSpace($('#traceMoveEspacio')), detail)) : 'Selecciona una sede/oficina.';
   }
 
   function setMoveSaving(value) {
@@ -140,6 +143,7 @@
     $('#traceMoveSubmit').disabled = value;
     $('#traceMoveSede').disabled = value;
     $('#traceMoveDetalle').disabled = value || !locationDetailEnabled;
+    refreshSpaces.setDisabled(value || !locationSpacesEnabled);
     moveModal.querySelectorAll('[data-trace-close]').forEach((button) => { button.disabled = value; });
   }
 
@@ -150,9 +154,11 @@
     $('#traceMoveCode').textContent = button.dataset.labelCode || '-';
     $('#traceMoveProduct').textContent = button.dataset.product || '-';
     const currentDetail = button.dataset.currentDetalle || '';
-    $('#traceMoveCurrent').textContent = assetLocation.location(button.dataset.currentSede || 'Sin ubicacion', currentDetail);
+    $('#traceMoveCurrent').textContent = assetLocation.location(button.dataset.currentSede || 'Sin ubicacion',
+      assetLocation.description(button.dataset.currentEspacio, currentDetail));
     $('#traceMoveExpectedSede').value = button.dataset.currentSedeId || '0';
     $('#traceMoveExpectedDetalle').value = currentDetail;
+    $('#traceMoveExpectedEspacio').value = button.dataset.currentEspacioId || '0';
     $('#traceMoveDetalle').value = currentDetail;
 
     const select = $('#traceMoveSede');
@@ -163,6 +169,7 @@
       });
     }
 
+    refreshSpaces(button.dataset.currentEspacioId || '');
     refreshDetailSuggestions();
     updateMovePreview();
     openModal(moveModal);
@@ -170,6 +177,7 @@
 
   $('#traceMoveSede')?.addEventListener('change', updateMovePreview);
   $('#traceMoveDetalle')?.addEventListener('input', updateMovePreview);
+  $('#traceMoveEspacio')?.addEventListener('change', updateMovePreview);
 
   async function openHistory(button) {
     if (!historyModal) return;
@@ -205,9 +213,9 @@
         <time>${esc(formatDate(row.fecha))}</time>
         <div>
           <div class="trace-history-route">
-            <strong>${esc(assetLocation.location(row.sede_antes || 'Sin ubicacion', row.detalle_antes || ''))}</strong>
+            <strong>${esc(assetLocation.location(row.sede_antes || 'Sin ubicacion', assetLocation.description(row.espacio_antes, row.detalle_antes)))}</strong>
             <i class="bi bi-arrow-right" aria-hidden="true"></i>
-            <strong>${esc(assetLocation.location(row.sede_despues || 'Sin ubicacion', row.detalle_despues || ''))}</strong>
+            <strong>${esc(assetLocation.location(row.sede_despues || 'Sin ubicacion', assetLocation.description(row.espacio_despues, row.detalle_despues)))}</strong>
           </div>
           <div class="trace-history-user">Registrado por ${esc(row.usuario || 'Usuario')}</div>
         </div>
@@ -225,7 +233,7 @@
         ${field('Producto', `(${label.producto_codigo || '-'}) ${label.producto_nombre || '-'}`)}
         ${field('Categoria', label.categoria)}${field('Unidad', label.producto_unidad)}
         ${field('Estado de etiqueta', label.etiqueta_estado)}${field('Creacion de etiqueta', formatDate(label.etiqueta_fecha))}
-        ${field('Ubicacion actual', assetLocation.location(label.sede_nombre || 'Sin ubicacion', label.ubicacion_detalle || ''))}
+        ${field('Ubicacion actual', assetLocation.location(label.sede_nombre || 'Sin ubicacion', assetLocation.description(label.espacio_nombre, label.ubicacion_detalle)))}
       </dl><dl class="trace-info-grid trace-info-grid--full">${field('Descripcion del producto', label.producto_descripcion)}</dl></section>
       <section class="trace-info-section"><h3>Movimiento que genero la etiqueta</h3><dl class="trace-info-grid">
         ${field('Movimiento', `MOV-${label.movimiento_id}`)}${field('Tipo', label.movimiento_tipo)}
@@ -287,6 +295,17 @@
     detailList.replaceChildren(...options);
   }
   sedeFilter?.addEventListener('change', filterDetailSuggestions);
+  const spaceFilter = $('#traceFilterEspacio');
+  const spaceFilterOptions = Array.from(spaceFilter?.options || []).map(option => option.cloneNode(true));
+  function filterSpaces() {
+    if (!spaceFilter || !sedeFilter) return;
+    const selected = spaceFilter.value;
+    const options = spaceFilterOptions.filter(option => !option.dataset.sede || sedeFilter.value === '0' || option.dataset.sede === sedeFilter.value);
+    spaceFilter.replaceChildren(...options.map(option => option.cloneNode(true)));
+    spaceFilter.value = options.some(option => option.value === selected) ? selected : '0';
+  }
+  sedeFilter?.addEventListener('change', filterSpaces);
+  filterSpaces();
   filterDetailSuggestions();
 
   function visibleReport() {
@@ -387,7 +406,8 @@
     const newSedeId = $('#traceMoveSede')?.value || '';
     const labelCode = $('#traceMoveCode')?.textContent || 'Etiqueta';
     const detail = locationDetailEnabled ? assetLocation.detail($('#traceMoveDetalle')?.value || '') : '';
-    const targetText = assetLocation.location($('#traceMoveSede')?.selectedOptions?.[0]?.textContent?.trim() || 'la nueva ubicacion', detail);
+    const targetText = assetLocation.location($('#traceMoveSede')?.selectedOptions?.[0]?.textContent?.trim() || 'la nueva ubicacion',
+      assetLocation.description(assetLocation.selectedSpace($('#traceMoveEspacio')), detail));
 
     if (!labelId || !newSedeId) {
       await alertBox('Selecciona la nueva ubicacion del activo.', 'warning');
@@ -418,6 +438,8 @@
           label_id: Number(labelId),
           new_sede_id: Number(newSedeId),
           ubicacion_detalle: detail,
+          espacio_id: Number($('#traceMoveEspacio').value) || null,
+          expected_espacio_id: Number($('#traceMoveExpectedEspacio').value) || null,
           expected_sede_id: Number($('#traceMoveExpectedSede').value),
           expected_detalle: $('#traceMoveExpectedDetalle').value,
         }),

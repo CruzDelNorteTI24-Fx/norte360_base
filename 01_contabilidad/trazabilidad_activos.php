@@ -26,6 +26,7 @@ if (!$canTraceContabilidad) {
 define('ACCESS_GRANTED', true);
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 require_once __DIR__ . '/../01_almacen/movimiento_backend.php';
+require_once __DIR__ . '/../layout/activos_espacio_n360.php';
 
 if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
     die('No se pudo conectar a la base de datos.');
@@ -79,12 +80,13 @@ $productoFiltro = max(0, (int)trace_filter_value('producto'));
 $categoriaFiltro = max(0, (int)trace_filter_value('categoria'));
 $usuarioFiltro = max(0, (int)trace_filter_value('usuario'));
 $detalleFiltro = trace_filter_value('detalle');
+$espacioFiltro = max(-1, (int)trace_filter_value('espacio'));
 $notaFiltro = trace_filter_value('nota');
 $dates = [];
 foreach (['etiqueta_desde', 'etiqueta_hasta', 'movimiento_desde', 'movimiento_hasta'] as $key) {
     $dates[$key] = trace_filter_value($key);
 }
-$moreFilters = $productoFiltro || $categoriaFiltro || $usuarioFiltro || $notaFiltro !== '' || implode('', $dates) !== '';
+$moreFilters = $espacioFiltro || $productoFiltro || $categoriaFiltro || $usuarioFiltro || $notaFiltro !== '' || implode('', $dates) !== '';
 $allowedEstados = ['ACTIVOS', 'TODOS', 'GENERADO', 'PENDIENTE', 'CONSUMIDO'];
 if (!in_array($estado, $allowedEstados, true)) {
     $estado = 'ACTIVOS';
@@ -105,6 +107,9 @@ $pageError = '';
 $locationDetailEnabled = alm_activos_detalle_disponible($conn);
 $locationDetailSql = $locationDetailEnabled ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
 $locationSuggestions = [];
+$spaceSql = alm_activos_espacio_sql($conn);
+$locationSpacesEnabled = alm_activos_espacios_disponibles($conn);
+$locationSpaces = [];
 
 try {
     foreach ($dates as $value) {
@@ -120,6 +125,8 @@ try {
         }
     }
     $locationSuggestions = alm_activos_detalles_sugeridos($conn);
+    $locationSpaces = alm_activos_espacios($conn, false);
+    if ($espacioFiltro !== 0 && !$locationSpacesEnabled) throw new InvalidArgumentException('Los espacios por sede aún no están habilitados.');
     $sedes = alm_fetch_all($conn, "
         SELECT clm_sedes_id AS id, clm_sedes_name AS nombre
         FROM tb_sedes
@@ -177,6 +184,12 @@ try {
     } elseif ($sede === -1) {
         $where[] = '(e.clm_alm_etiquetado_oficina_destino IS NULL OR e.clm_alm_etiquetado_oficina_destino = 0)';
     }
+    if ($espacioFiltro > 0) {
+        $where[] = "{$spaceSql['id']} = ?";
+        $types .= 'i'; $params[] = $espacioFiltro;
+    } elseif ($espacioFiltro === -1) {
+        $where[] = "{$spaceSql['id']} IS NULL";
+    }
     foreach (['p.clm_alm_producto_id' => $productoFiltro, 'p.clm_alm_producto_idCATEGORIA' => $categoriaFiltro,
         'm.clm_alm_mov_iduser' => $usuarioFiltro] as $column => $value) {
         if ($value > 0) {
@@ -213,9 +226,10 @@ try {
             OR COALESCE(n.clm_nota_sco, '') LIKE CONCAT('%', ?, '%')
             OR COALESCE(s.clm_sedes_name, '') LIKE CONCAT('%', ?, '%')
             OR $locationDetailSql LIKE CONCAT('%', ?, '%')
+            OR {$spaceSql['nombre']} LIKE CONCAT('%', ?, '%')
         )";
-        $types .= 'ssssss';
-        array_push($params, $buscar, $buscar, $buscar, $buscar, $buscar, $buscar);
+        $types .= 'sssssss';
+        array_push($params, $buscar, $buscar, $buscar, $buscar, $buscar, $buscar, $buscar);
     }
 
     $whereSql = implode(' AND ', $where);
@@ -232,6 +246,7 @@ try {
         JOIN tb_alm_movimientos m ON e.clm_alm_etiquetado_idMOVIMIENTO = m.clm_alm_mov_id
         LEFT JOIN tb_notas_salida n ON m.clm_alm_mov_idNOTA = n.clm_nota_id
         LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
+        {$spaceSql['join']}
         WHERE $whereSql
     ", $types, $params) ?: []);
 
@@ -250,6 +265,8 @@ try {
             MONTH(e.clm_alm_etiquetado_FECHA) AS etiqueta_mes,
             e.clm_alm_etiquetado_oficina_destino AS sede_id,
             $locationDetailSql AS ubicacion_detalle,
+            {$spaceSql['id']} AS espacio_id,
+            {$spaceSql['nombre']} AS espacio_nombre,
             p.clm_alm_producto_id AS producto_id,
             p.clm_alm_producto_codigo AS producto_codigo,
             p.clm_alm_producto_NOMBRE AS producto_nombre,
@@ -269,6 +286,7 @@ try {
         LEFT JOIN tb_notas_salida n ON m.clm_alm_mov_idNOTA = n.clm_nota_id
         LEFT JOIN tb_sedes s ON e.clm_alm_etiquetado_oficina_destino = s.clm_sedes_id
         LEFT JOIN tb_usuarios u ON m.clm_alm_mov_iduser = u.id_usuario
+        {$spaceSql['join']}
         WHERE $whereSql
         ORDER BY e.clm_alm_etiquetado_id DESC
         LIMIT ?
@@ -281,6 +299,8 @@ $exportFilters = ['Buscar' => $buscar, 'Estado' => $estado, 'Sede' => $sede === 
     'Categoria' => $categoriaFiltro ? ($categorias[$categoriaFiltro] ?? (string)$categoriaFiltro) : 'Todas',
     'Producto' => 'Todos', 'Usuario del movimiento' => 'Todos'];
 foreach ($sedes as $option) { if ((int)$option['id'] === $sede) $exportFilters['Sede'] = $option['nombre']; }
+$exportFilters['Área / espacio'] = $espacioFiltro === -1 ? 'Sin espacio específico' : 'Todos';
+foreach ($locationSpaces as $option) { if ((int)$option['id'] === $espacioFiltro) $exportFilters['Área / espacio'] = alm_activos_espacio_nombre($option); }
 foreach ($productos as $option) { if ((int)$option['id'] === $productoFiltro) $exportFilters['Producto'] = $option['codigo'] . ' ' . $option['nombre']; }
 foreach ($usuarios as $option) { if ((int)$option['id'] === $usuarioFiltro) $exportFilters['Usuario del movimiento'] = $option['nombre']; }
 foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => $name) {
@@ -316,6 +336,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
     <div class="n360-main__inner trace-shell" id="contaTracePage"
          data-api="<?= trace_h(n360_base_url('01_contabilidad/trazabilidad_activos_api.php')) ?>"
          data-csrf="<?= trace_h($_SESSION['conta_trace_csrf']) ?>"
+         data-location-spaces="<?= $locationSpacesEnabled ? '1' : '0' ?>"
          data-location-detail="<?= $locationDetailEnabled ? '1' : '0' ?>">
         <?php n360_render_content_separator('top'); ?>
 
@@ -377,7 +398,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
             </label>
             <label>
                 <span>Detalle de ubicacion</span>
-                <input name="detalle" id="traceFilterDetalle" list="traceFilterDetalleList" value="<?= trace_h($detalleFiltro) ?>" placeholder="Piso, ambiente o puesto..." <?= !$locationDetailEnabled ? 'disabled' : '' ?>>
+                <input name="detalle" id="traceFilterDetalle" list="traceFilterDetalleList" value="<?= trace_h($detalleFiltro) ?>" placeholder="Cajón, repisa o punto exacto..." <?= !$locationDetailEnabled ? 'disabled' : '' ?>>
                 <datalist id="traceFilterDetalleList">
                     <?php foreach ($locationSuggestions as $option): ?>
                         <option value="<?= trace_h($option['detalle']) ?>" data-sede="<?= (int)$option['sede_id'] ?>"></option>
@@ -387,6 +408,11 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
             <details class="trace-more-filters" <?= $moreFilters ? 'open' : '' ?>>
                 <summary>Mas filtros: producto, origen y fechas</summary>
                 <div class="trace-extra-grid">
+                    <label><span>Área / espacio</span><select name="espacio" id="traceFilterEspacio" <?= $locationSpacesEnabled ? '' : 'disabled' ?>>
+                        <option value="0">Todos los espacios</option>
+                        <option value="-1" <?= $espacioFiltro === -1 ? 'selected' : '' ?>>Sin espacio específico</option>
+                        <?php foreach ($locationSpaces as $option): ?><option value="<?= (int)$option['id'] ?>" data-sede="<?= (int)$option['sede_id'] ?>" <?= $espacioFiltro === (int)$option['id'] ? 'selected' : '' ?>><?= trace_h(alm_activos_espacio_nombre($option)) ?><?= (int)$option['estado'] !== 1 ? ' (inactivo)' : '' ?></option><?php endforeach; ?>
+                    </select></label>
                     <label><span>Producto</span><select name="producto">
                         <option value="0">Todos los productos</option>
                         <?php foreach ($productos as $option): ?>
@@ -471,6 +497,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                             </td>
                             <td>
                                 <span class="trace-location"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i><?= trace_h($sedeNombre !== '' ? $sedeNombre : 'Sin ubicacion') ?></span>
+                                <?php if ($row['espacio_nombre'] !== ''): ?><small class="trace-location-detail"><?= trace_h($row['espacio_nombre']) ?></small><?php endif; ?>
                                 <?php if ($ubicacionDetalle !== ''): ?><small class="trace-location-detail"><?= trace_h($ubicacionDetalle) ?></small><?php endif; ?>
                             </td>
                             <td>
@@ -515,6 +542,8 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                                             data-current-sede-id="<?= $sedeId ?>"
                                             data-current-sede="<?= trace_h($sedeNombre !== '' ? $sedeNombre : 'Sin ubicacion') ?>"
                                             data-current-detalle="<?= trace_h($ubicacionDetalle) ?>"
+                                            data-current-espacio-id="<?= (int)($row['espacio_id'] ?? 0) ?>"
+                                            data-current-espacio="<?= trace_h($row['espacio_nombre']) ?>"
                                             <?= $canMove ? '' : 'disabled' ?>>
                                         <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
                                         <span>Mover</span>
@@ -536,11 +565,12 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                 <button type="button" class="trace-modal__close" data-trace-close aria-label="Cerrar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                 <span class="trace-kicker"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> Movimiento de ubicacion</span>
                 <h2 id="traceMoveTitle">Mover activo</h2>
-                <p class="trace-modal__lead">No se crea movimiento de almacen. Solo cambia la ubicacion actual de la etiqueta y se registra en etiquetaofi.</p>
+                <p class="trace-modal__lead">Actualiza la sede, el espacio o el detalle del activo y conserva el historial de sus ubicaciones.</p>
                 <form id="traceMoveForm">
                     <input type="hidden" id="traceMoveLabelId">
                     <input type="hidden" id="traceMoveExpectedSede">
                     <input type="hidden" id="traceMoveExpectedDetalle">
+                    <input type="hidden" id="traceMoveExpectedEspacio">
                     <div class="trace-modal__summary">
                         <div><span>Etiqueta</span><strong id="traceMoveCode">-</strong></div>
                         <div><span>Producto</span><strong id="traceMoveProduct">-</strong></div>
@@ -556,9 +586,10 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                             <?php endforeach; ?>
                         </select>
                     </label>
+                    <?php n360_render_asset_space_select($locationSpaces, 'traceMoveEspacio', $locationSpacesEnabled, 'trace-modal__field'); ?>
                     <label class="trace-modal__field">
-                        <span>Detalle de nueva ubicación (opcional)</span>
-                        <input type="text" id="traceMoveDetalle" maxlength="220" placeholder="Ej. Tercer piso, Contabilidad, puesto Mirella"
+                        <span>Detalle adicional de ubicación (opcional)</span>
+                        <input type="text" id="traceMoveDetalle" maxlength="220" placeholder="Ej. Cajón superior, lado de la ventana"
                                list="traceMoveDetalleSugerencias" autocomplete="off"
                                <?= $locationDetailEnabled ? '' : 'disabled' ?>>
                         <datalist id="traceMoveDetalleSugerencias">
@@ -566,7 +597,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                             <option value="<?= trace_h($suggestion['detalle']) ?>" data-sede="<?= (int)$suggestion['sede_id'] ?>"></option>
                             <?php endforeach; ?>
                         </datalist>
-                        <?php if ($locationDetailEnabled): ?><small>Elige un detalle anterior de la sede o escribe uno nuevo.</small><?php endif; ?>
+                        <?php if ($locationDetailEnabled): ?><small>Indica el punto exacto dentro del espacio elegido. Puedes dejarlo vacío si la ubicación ya es suficiente.</small><?php endif; ?>
                     </label>
                     <?php if (!$locationDetailEnabled): ?><p class="trace-modal__lead">El detalle de ubicación aún no está habilitado. Contacta al administrador.</p><?php endif; ?>
                     <div class="trace-location-preview" aria-live="polite">
@@ -656,16 +687,16 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
     'logoRight' => n360_base_url('img/norte360_black.png'),
 ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_excel.js?consulta=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_excel.js?consulta=2') ?>"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=3') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=4') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=2&etiqueta=2&consulta=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=4') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=4&etiqueta=2&consulta=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

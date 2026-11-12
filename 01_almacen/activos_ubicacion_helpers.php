@@ -1,5 +1,82 @@
 <?php
 
+function alm_activos_espacios_disponibles(mysqli $conn): bool {
+    static $cache = [];
+    $key = spl_object_hash($conn);
+    if (array_key_exists($key, $cache)) return $cache[$key];
+    $row = alm_fetch_one($conn, "
+        SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND (
+            (TABLE_NAME = 'tb_sedes_espacios' AND COLUMN_NAME IN
+                ('clm_sedeesp_id', 'clm_sedeesp_idsede', 'clm_sedeesp_area', 'clm_sedeesp_espacio',
+                 'clm_sedeesp_referencia_id', 'clm_sedeesp_referencia_texto', 'clm_sedeesp_estado'))
+            OR (TABLE_NAME = 'tb_alm_etiquetado' AND COLUMN_NAME = 'clm_alm_etiquetado_espacio_id')
+            OR (TABLE_NAME = 'tb_alm_etiquetadoofi' AND COLUMN_NAME IN
+                ('clm_alm_etiquetadoofi_espacio_id_antes', 'clm_alm_etiquetadoofi_espacio_id_despues'))
+        )
+    ");
+    return $cache[$key] = (int)($row['total'] ?? 0) === 10;
+}
+
+function alm_activos_espacio_nombre(array $row): string {
+    return implode(' — ', array_filter([
+        trim((string)($row['area'] ?? '')), trim((string)($row['espacio'] ?? '')),
+    ], static function ($value) { return $value !== ''; }));
+}
+
+function alm_activos_espacios(mysqli $conn, bool $soloActivos = true): array {
+    if (!alm_activos_espacios_disponibles($conn)) return [];
+    $where = $soloActivos ? 'WHERE clm_sedeesp_estado = 1' : '';
+    return alm_fetch_all($conn, "
+        SELECT clm_sedeesp_id AS id, clm_sedeesp_idsede AS sede_id,
+            clm_sedeesp_area AS area, clm_sedeesp_espacio AS espacio,
+            clm_sedeesp_referencia_id AS referencia_id,
+            clm_sedeesp_referencia_texto AS referencia_texto, clm_sedeesp_estado AS estado
+        FROM tb_sedes_espacios $where
+        ORDER BY clm_sedeesp_area, clm_sedeesp_espacio, clm_sedeesp_id
+    ");
+}
+
+function alm_activos_espacio_id($value): ?int {
+    if ($value === null || $value === '' || $value === 0 || $value === '0') return null;
+    $id = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 2147483647]]);
+    if ($id === false) throw new InvalidArgumentException('Selecciona un espacio válido.');
+    return $id;
+}
+
+function alm_activos_validar_espacio(mysqli $conn, ?int $id, int $sedeId, ?int $actual = null, bool $bloquear = false): ?array {
+    if ($id === null) return null;
+    if (!alm_activos_espacios_disponibles($conn)) {
+        throw new RuntimeException('Los espacios por sede aún no están habilitados. Contacta al administrador.', 409);
+    }
+    $lock = $bloquear ? ' FOR UPDATE' : '';
+    $row = alm_fetch_one($conn, "
+        SELECT clm_sedeesp_id AS id, clm_sedeesp_idsede AS sede_id,
+            clm_sedeesp_area AS area, clm_sedeesp_espacio AS espacio, clm_sedeesp_estado AS estado
+        FROM tb_sedes_espacios WHERE clm_sedeesp_id = ? LIMIT 1$lock
+    ", 'i', [$id]);
+    if (!$row || (int)$row['sede_id'] !== $sedeId) {
+        throw new InvalidArgumentException('El espacio seleccionado no pertenece a la sede indicada.');
+    }
+    if ((int)$row['estado'] !== 1 && $id !== $actual) {
+        throw new RuntimeException('El espacio seleccionado está inactivo. Selecciona otro espacio.', 409);
+    }
+    return $row;
+}
+
+// SQL interno compartido: mantiene las consultas anteriores sin la migración completa.
+function alm_activos_espacio_sql(mysqli $conn, string $etiqueta = 'e', string $espacio = 'ue'): array {
+    if (!preg_match('/^[a-z][a-z0-9_]*$/D', $etiqueta) || !preg_match('/^[a-z][a-z0-9_]*$/D', $espacio)) {
+        throw new InvalidArgumentException('Alias de ubicación inválido.');
+    }
+    if (!alm_activos_espacios_disponibles($conn)) return ['id' => 'NULL', 'nombre' => "''", 'join' => ''];
+    return [
+        'id' => "$etiqueta.clm_alm_etiquetado_espacio_id",
+        'nombre' => "CONCAT_WS(' — ', NULLIF(TRIM($espacio.clm_sedeesp_area), ''), NULLIF(TRIM($espacio.clm_sedeesp_espacio), ''))",
+        'join' => "LEFT JOIN tb_sedes_espacios $espacio ON $espacio.clm_sedeesp_id = $etiqueta.clm_alm_etiquetado_espacio_id",
+    ];
+}
+
 function alm_activos_detalle_disponible(mysqli $conn): bool {
     static $cache = [];
     $key = spl_object_hash($conn);
