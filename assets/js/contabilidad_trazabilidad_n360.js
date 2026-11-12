@@ -6,6 +6,7 @@
 
   const api = page.dataset.api || 'trazabilidad_activos_api.php';
   const csrf = page.dataset.csrf || '';
+  const itemName = page.dataset.itemName === 'artículo' ? 'artículo' : 'activo';
   const moveModal = document.getElementById('traceMoveModal');
   const historyModal = document.getElementById('traceHistoryModal');
   const barcodeModal = document.getElementById('traceBarcodeModal');
@@ -125,6 +126,7 @@
     barcodeCard.dataset.barcodeFilename = button.dataset.filename || `ETQ_${code}`;
     const codeText = $('#traceBarcodeCode');
     if (codeText) codeText.textContent = code;
+    $('#traceBarcodeHeroCode').textContent = code;
     rerenderBarcodeCard();
     openModal(barcodeModal);
   }
@@ -185,6 +187,8 @@
     const labelCode = button.dataset.labelCode || 'Etiqueta';
 
     $('#traceHistoryCode').textContent = labelCode;
+    $('#traceHistoryCount').textContent = '-';
+    $('#traceHistoryLatest').textContent = '-';
     $('#traceHistoryBody').innerHTML = '<div class="trace-empty">Cargando historial...</div>';
     openModal(historyModal);
 
@@ -202,6 +206,10 @@
 
   function renderHistory(rows, body = $('#traceHistoryBody')) {
     if (!body) return;
+    if (body.id === 'traceHistoryBody') {
+      $('#traceHistoryCount').textContent = rows.length;
+      $('#traceHistoryLatest').textContent = rows.length ? formatDate(rows[0].fecha) : 'Sin registros';
+    }
 
     if (!rows.length) {
       body.innerHTML = '<div class="trace-empty">Esta etiqueta aun no tiene historial de ubicacion.</div>';
@@ -210,39 +218,38 @@
 
     body.innerHTML = rows.map((row) => `
       <article class="trace-history-item">
-        <time>${esc(formatDate(row.fecha))}</time>
-        <div>
+        <div class="trace-history-meta"><time><i class="bi bi-calendar3" aria-hidden="true"></i>${esc(formatDate(row.fecha))}</time><span class="trace-history-user"><i class="bi bi-person" aria-hidden="true"></i> ${esc(row.usuario || 'Usuario')}</span></div>
           <div class="trace-history-route">
-            <strong>${esc(assetLocation.location(row.sede_antes || 'Sin ubicacion', assetLocation.description(row.espacio_antes, row.detalle_antes)))}</strong>
+            <div class="trace-history-place"><span>Origen</span><strong>${esc(assetLocation.location(row.sede_antes || 'Sin ubicacion', assetLocation.description(row.espacio_antes, row.detalle_antes)))}</strong></div>
             <i class="bi bi-arrow-right" aria-hidden="true"></i>
-            <strong>${esc(assetLocation.location(row.sede_despues || 'Sin ubicacion', assetLocation.description(row.espacio_despues, row.detalle_despues)))}</strong>
+            <div class="trace-history-place"><span>Destino</span><strong>${esc(assetLocation.location(row.sede_despues || 'Sin ubicacion', assetLocation.description(row.espacio_despues, row.detalle_despues)))}</strong></div>
           </div>
-          <div class="trace-history-user">Registrado por ${esc(row.usuario || 'Usuario')}</div>
-        </div>
       </article>
     `).join('');
   }
 
-  const field = (name, value) => `<div><dt>${esc(name)}</dt><dd>${esc(value == null || String(value).trim() === '' ? '-' : value)}</dd></div>`;
+  const fieldIcons = {'Producto': 'bi-box-seam', 'Categoria': 'bi-grid', 'Unidad': 'bi-rulers', 'Estado de etiqueta': 'bi-shield-check', 'Creacion de etiqueta': 'bi-calendar3', 'Ubicacion actual': 'bi-geo-alt', 'Clasificación de ubicación': 'bi-diagram-3', 'Descripcion del producto': 'bi-card-text', 'Movimiento': 'bi-arrow-left-right', 'Tipo': 'bi-tag', 'Fecha de registro': 'bi-calendar3', 'Registrado por': 'bi-person-badge', 'Nota de origen': 'bi-receipt', 'Cantidad total del movimiento': 'bi-boxes', 'Documento de referencia': 'bi-file-earmark-text', 'Proveedor': 'bi-building', 'Observacion del movimiento': 'bi-chat-left-text'};
+  const field = (name, value, wide = false) => `<div${wide ? ' class="trace-field-wide"' : ''}><dt><i class="bi ${fieldIcons[name] || 'bi-info-circle'}" aria-hidden="true"></i><span>${esc(name)}</span></dt><dd>${esc(value == null || String(value).trim() === '' ? '-' : value)}</dd></div>`;
 
   function renderInfo(data) {
     const label = data.label;
     const movements = data.product_movements || [];
     $('#traceInfoBody').innerHTML = `
-      <section class="trace-info-section"><h3>Producto y etiqueta</h3><dl class="trace-info-grid">
-        ${field('Producto', `(${label.producto_codigo || '-'}) ${label.producto_nombre || '-'}`)}
+      <section class="trace-info-section"><h3><i class="bi bi-box-seam" aria-hidden="true"></i> Producto y etiqueta</h3><dl class="trace-info-grid">
+        ${field('Producto', `(${label.producto_codigo || '-'}) ${label.producto_nombre || '-'}`, true)}
         ${field('Categoria', label.categoria)}${field('Unidad', label.producto_unidad)}
         ${field('Estado de etiqueta', label.etiqueta_estado)}${field('Creacion de etiqueta', formatDate(label.etiqueta_fecha))}
-        ${field('Ubicacion actual', assetLocation.location(label.sede_nombre || 'Sin ubicacion', assetLocation.description(label.espacio_nombre, label.ubicacion_detalle)))}
+        ${field('Ubicacion actual', assetLocation.location(label.sede_nombre || 'Sin ubicacion', assetLocation.description(label.espacio_nombre, label.ubicacion_detalle)), true)}
+        ${field('Clasificación de ubicación', label.clasificacion_nombre || 'Sin clasificar', true)}
       </dl><dl class="trace-info-grid trace-info-grid--full">${field('Descripcion del producto', label.producto_descripcion)}</dl></section>
-      <section class="trace-info-section"><h3>Movimiento que genero la etiqueta</h3><dl class="trace-info-grid">
+      <section class="trace-info-section"><h3><i class="bi bi-receipt" aria-hidden="true"></i> Movimiento de origen</h3><dl class="trace-info-grid">
         ${field('Movimiento', `MOV-${label.movimiento_id}`)}${field('Tipo', label.movimiento_tipo)}
         ${field('Fecha de registro', formatDate(label.movimiento_fecha))}${field('Registrado por', label.movimiento_usuario)}
         ${field('Nota de origen', label.nota_codigo)}${field('Cantidad total del movimiento', label.movimiento_cantidad)}
         ${field('Documento de referencia', label.documento_referencia)}${field('Proveedor', label.proveedor)}
       </dl><p class="trace-info-help">La cantidad corresponde al movimiento de origen y puede incluir varias etiquetas.</p>
       <dl class="trace-info-grid trace-info-grid--full">${field('Observacion del movimiento', label.movimiento_observacion)}</dl></section>
-      <section class="trace-info-section"><h3>Historial de ubicaciones (${(data.history || []).length})</h3><div class="trace-history-list" id="traceInfoHistory"></div></section>
+      <section class="trace-info-section"><h3><i class="bi bi-clock-history" aria-hidden="true"></i> Historial de ubicaciones (${(data.history || []).length})</h3><div class="trace-history-list" id="traceInfoHistory"></div></section>
       <details class="trace-info-section trace-product-movements"><summary>Movimientos generales del producto (${movements.length})</summary>
         <p class="trace-info-help">Incluye entradas, salidas e inventariados de todas las unidades de este producto. El movimiento que genero esta etiqueta se identifica como Origen.</p>
         <div class="trace-info-table-wrap"><table class="trace-info-table"><thead><tr><th>Movimiento</th><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Nota</th><th>Observacion</th></tr></thead><tbody>
@@ -265,7 +272,7 @@
     const id = button.dataset.labelId || '';
     const code = button.dataset.labelCode || 'Etiqueta';
     $('#traceInfoCode').textContent = code;
-    $('#traceInfoBody').innerHTML = '<p class="trace-empty">Consultando informacion del activo...</p>';
+    $('#traceInfoBody').textContent = `Consultando información del ${itemName}...`;
     openModal(infoModal);
     try {
       const data = await fetchJson(`${api}?action=detail&id=${encodeURIComponent(id)}`, {credentials: 'same-origin', signal: request.signal});
@@ -296,15 +303,21 @@
   }
   sedeFilter?.addEventListener('change', filterDetailSuggestions);
   const spaceFilter = $('#traceFilterEspacio');
+  const classificationFilter = $('#traceFilterClasificacion');
   const spaceFilterOptions = Array.from(spaceFilter?.options || []).map(option => option.cloneNode(true));
   function filterSpaces() {
     if (!spaceFilter || !sedeFilter) return;
     const selected = spaceFilter.value;
-    const options = spaceFilterOptions.filter(option => !option.dataset.sede || sedeFilter.value === '0' || option.dataset.sede === sedeFilter.value);
+    const classification = classificationFilter?.value || '0';
+    const options = spaceFilterOptions.filter(option => !option.dataset.sede || (
+      (sedeFilter.value === '0' || option.dataset.sede === sedeFilter.value)
+      && (classification === '0' || (classification === '-1' ? option.dataset.clasificacion === '0' : option.dataset.clasificacion === classification))
+    ));
     spaceFilter.replaceChildren(...options.map(option => option.cloneNode(true)));
     spaceFilter.value = options.some(option => option.value === selected) ? selected : '0';
   }
   sedeFilter?.addEventListener('change', filterSpaces);
+  classificationFilter?.addEventListener('change', filterSpaces);
   filterSpaces();
   filterDetailSuggestions();
 
@@ -384,12 +397,13 @@
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Tab' && infoModal && !infoModal.hidden) {
-      const focusable = Array.from(infoModal.querySelectorAll('button:not(:disabled), summary, [href], input, select, [tabindex="0"]')).filter(item => item.getClientRects().length);
+    const activeModal = [infoModal, moveModal, historyModal, barcodeModal].find(modal => modal && !modal.hidden);
+    if (event.key === 'Tab' && activeModal && !moveSaving) {
+      const focusable = Array.from(activeModal.querySelectorAll('button:not(:disabled), summary, [href], input:not(:disabled), select:not(:disabled), [tabindex="0"]')).filter(item => item.getClientRects().length);
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && (document.activeElement === first || !infoModal.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
-      if (!event.shiftKey && (document.activeElement === last || !infoModal.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
+      if (event.shiftKey && (document.activeElement === first || !activeModal.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+      if (!event.shiftKey && (document.activeElement === last || !activeModal.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
     }
     if (event.key !== 'Escape') return;
     if (infoModal && !infoModal.hidden) { closeModal(infoModal); return; }
@@ -410,7 +424,7 @@
       assetLocation.description(assetLocation.selectedSpace($('#traceMoveEspacio')), detail));
 
     if (!labelId || !newSedeId) {
-      await alertBox('Selecciona la nueva ubicacion del activo.', 'warning');
+      await alertBox(`Selecciona la nueva ubicación del ${itemName}.`, 'warning');
       return;
     }
 
@@ -423,7 +437,7 @@
     try {
       const confirmed = await confirmBox(`Se movera ${labelCode} hacia ${targetText}. No se creara movimiento de almacen.`, {
         title: 'Confirmar traslado',
-        confirmText: 'Mover activo',
+        confirmText: `Mover ${itemName}`,
         cancelText: 'Cancelar',
         variant: 'warning',
       });
@@ -444,7 +458,7 @@
           expected_detalle: $('#traceMoveExpectedDetalle').value,
         }),
       }), {
-        title: 'Moviendo activo',
+        title: `Moviendo ${itemName}`,
         detail: 'Actualizando ubicacion y bitacora...',
         button: '#traceMoveSubmit',
       });

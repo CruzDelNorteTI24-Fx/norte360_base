@@ -547,7 +547,7 @@ window.N360_RRHH_ACTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=4') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=5') ?>"></script>
 <script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=3&etiqueta=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>

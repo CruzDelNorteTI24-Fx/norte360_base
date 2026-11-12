@@ -4,7 +4,7 @@
   const detail = (value) => text(value).replace(/\s+/g, ' ');
   const location = (sede, value) => {
     const extra = detail(value);
-    return text(sede) + (text(sede) && extra ? ' — ' : '') + extra;
+    return text(sede) + (text(sede) && extra ? ' - ' : '') + extra;
   };
   const observation = (value, sede, extra) => {
     const base = text(value);
@@ -103,6 +103,6 @@
     return refresh;
   };
   const selectedSpace = select => select && !select.disabled && select.value ? select.selectedOptions[0]?.dataset.name || '' : '';
-  const description = (space, extra) => [text(space), detail(extra)].filter(Boolean).join(' — ');
+  const description = (space, extra) => [text(space), detail(extra)].filter(Boolean).join(' - ');
   window.N360AssetLocation = Object.freeze({ text, detail, location, observation, bindSuggestions, bindSpaces, selectedSpace, description, length: (value) => Array.from(value).length });
 })();

@@ -20,8 +20,8 @@
       ...(report.pdf || {}),
       orientation: 'portrait',
       useCover: false,
-      title: 'TRAZABILIDAD DE ACTIVOS',
-      docCode: 'N360-CONT-ACTIVOS',
+      title: String(report.title || 'Trazabilidad de activos').toLocaleUpperCase('es-PE'),
+      docCode: report.doc_code || 'N360-CONT-ACTIVOS',
       dateText: now.toLocaleString('es-PE', {timeZone: 'America/Lima'}),
       content(pdf) {
         const margin = {top: 32, right: 12.7, bottom: 20, left: 12.7};
@@ -44,7 +44,7 @@
           body: report.rows.map(row => [
             `${text(row.etiqueta_codigo)}\n${date(row.etiqueta_fecha)}`,
             `(${text(row.producto_codigo)}) ${text(row.producto_nombre)}\nUnidad: ${text(row.producto_unidad)}\n${[row.categoria_codigo, row.categoria_nombre].filter(Boolean).join(' ')}`,
-            [row.sede_nombre || 'Sin ubicacion', row.espacio_nombre, row.ubicacion_detalle].filter(Boolean).join('\n'),
+            [row.sede_nombre || 'Sin ubicacion', row.espacio_nombre, row.clasificacion_nombre || 'Sin clasificar', row.ubicacion_detalle].filter(Boolean).join('\n'),
             `MOV-${row.movimiento_id} - ${text(row.movimiento_tipo)}\n${row.nota_codigo || `MOV-${row.movimiento_id}`}\n${date(row.movimiento_fecha)}\n${text(row.usuario_nombre)}`,
             text(row.etiqueta_estado)
           ]),
@@ -56,7 +56,7 @@
       }
     });
     const stamp = new Intl.DateTimeFormat('sv-SE', {timeZone: 'America/Lima'}).format(now);
-    doc.save(`trazabilidad_activos_${stamp}.pdf`);
+    doc.save(`${report.filename || 'trazabilidad_activos'}_${stamp}.pdf`);
   }
   window.N360ActivosPDF = Object.freeze({exportPdf});
 })();

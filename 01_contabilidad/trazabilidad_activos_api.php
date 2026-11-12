@@ -10,21 +10,8 @@ if (!isset($_SESSION['usuario'])) {
     alm_json(['ok' => false, 'message' => 'Sesion no iniciada.'], 401);
 }
 
-function trace_api_can_contabilidad(): bool {
-    if (($_SESSION['web_rol'] ?? '') === 'Admin') {
-        return true;
-    }
-
-    $moduleIds = alm_session_module_ids();
-    if ($moduleIds === ['all']) {
-        return true;
-    }
-
-    return in_array(12, $moduleIds, true);
-}
-
-if (!trace_api_can_contabilidad()) {
-    alm_json(['ok' => false, 'message' => 'No tienes permiso para gestionar activos fijos.'], 403);
+if (!n360_trace_permitido()) {
+    alm_json(['ok' => false, 'message' => 'No tienes permiso para acceder a esta trazabilidad.'], 403);
 }
 
 define('ACCESS_GRANTED', true);
@@ -37,11 +24,7 @@ if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
 $conn->set_charset('utf8mb4');
 
 function trace_api_scope_sql(): string {
-    return "(
-        m.clm_alm_mov_orgn = 12
-        OR UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), '')) = 'ACTIVOS'
-        OR UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), '')) = 'ACTIVO_FIJO'
-    )";
+    return n360_trace_scope_sql();
 }
 
 function trace_api_label(mysqli $conn, int $labelId, bool $forUpdate = false): ?array {
@@ -56,6 +39,7 @@ function trace_api_label(mysqli $conn, int $labelId, bool $forUpdate = false): ?
             e.clm_alm_etiquetado_oficina_destino AS sede_actual_id,
             {$spaceSql['id']} AS espacio_id,
             {$spaceSql['nombre']} AS espacio_nombre,
+            {$spaceSql['clasificacion_nombre']} AS clasificacion_nombre,
             $detailSql AS ubicacion_detalle,
             p.clm_alm_producto_codigo AS producto_codigo,
             p.clm_alm_producto_NOMBRE AS producto_nombre
@@ -83,8 +67,8 @@ function trace_api_history_rows(mysqli $conn, int $labelId): array {
     $beforeSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_antes' : 'NULL';
     $afterSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_despues' : 'NULL';
     $hasSpace = alm_activos_espacios_disponibles($conn);
-    $beforeSpace = $hasSpace ? "CONCAT_WS(' — ', NULLIF(TRIM(ea.clm_sedeesp_area), ''), NULLIF(TRIM(ea.clm_sedeesp_espacio), ''))" : "''";
-    $afterSpace = $hasSpace ? "CONCAT_WS(' — ', NULLIF(TRIM(ed.clm_sedeesp_area), ''), NULLIF(TRIM(ed.clm_sedeesp_espacio), ''))" : "''";
+    $beforeSpace = $hasSpace ? "CONCAT_WS(' - ', NULLIF(TRIM(ea.clm_sedeesp_area), ''), NULLIF(TRIM(ea.clm_sedeesp_espacio), ''))" : "''";
+    $afterSpace = $hasSpace ? "CONCAT_WS(' - ', NULLIF(TRIM(ed.clm_sedeesp_area), ''), NULLIF(TRIM(ed.clm_sedeesp_espacio), ''))" : "''";
     $spaceJoin = $hasSpace ? 'LEFT JOIN tb_sedes_espacios ea ON ea.clm_sedeesp_id = h.clm_alm_etiquetadoofi_espacio_id_antes
         LEFT JOIN tb_sedes_espacios ed ON ed.clm_sedeesp_id = h.clm_alm_etiquetadoofi_espacio_id_despues' : '';
     return alm_fetch_all($conn, "
@@ -118,7 +102,7 @@ function trace_api_history(mysqli $conn): void {
     }
     $label = trace_api_label($conn, $labelId);
     if (!$label) {
-        alm_json(['ok' => false, 'message' => 'No se encontro la etiqueta de activos.'], 404);
+        alm_json(['ok' => false, 'message' => 'No se encontró la etiqueta en esta trazabilidad.'], 404);
     }
     alm_json([
         'ok' => true,
@@ -143,6 +127,7 @@ function trace_api_detail(mysqli $conn): void {
             $detailSql AS ubicacion_detalle,
             {$spaceSql['id']} AS espacio_id,
             {$spaceSql['nombre']} AS espacio_nombre,
+            {$spaceSql['clasificacion_nombre']} AS clasificacion_nombre,
             COALESCE(NULLIF(TRIM(s.clm_sedes_name), ''), 'Sin ubicacion') AS sede_nombre,
             p.clm_alm_producto_id AS producto_id,
             p.clm_alm_producto_codigo AS producto_codigo,
@@ -171,7 +156,7 @@ function trace_api_detail(mysqli $conn): void {
         LIMIT 1
     ", 'i', [$labelId]);
     if (!$label) {
-        alm_json(['ok' => false, 'message' => 'No se encontro la etiqueta de activos.'], 404);
+        alm_json(['ok' => false, 'message' => 'No se encontró la etiqueta en esta trazabilidad.'], 404);
     }
     alm_json([
         'ok' => true,
@@ -235,7 +220,7 @@ function trace_api_move(mysqli $conn, array $payload): void {
         $conn->begin_transaction();
         $label = trace_api_label($conn, $labelId, true);
         if (!$label) {
-            throw new RuntimeException('No se encontro la etiqueta de activos.', 404);
+            throw new RuntimeException('No se encontró la etiqueta en esta trazabilidad.', 404);
         }
 
         $estado = strtoupper(trim((string)($label['etiqueta_estado'] ?? '')));
@@ -353,7 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'detail') {
     try {
         trace_api_detail($conn);
     } catch (Throwable $e) {
-        alm_json(['ok' => false, 'message' => 'No se pudo consultar la informacion del activo. Intenta nuevamente.'], 500);
+        alm_json(['ok' => false, 'message' => 'No se pudo consultar la información de la etiqueta. Intenta nuevamente.'], 500);
     }
 }
 

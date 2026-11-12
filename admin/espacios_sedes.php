@@ -7,10 +7,12 @@ $conn->set_charset('utf8mb4');
 if (empty($_SESSION['sede_espacios_csrf'])) $_SESSION['sede_espacios_csrf'] = bin2hex(random_bytes(24));
 $csrf = $_SESSION['sede_espacios_csrf'];
 $ready = alm_activos_espacios_disponibles($conn);
+$classReady = $ready && alm_espacios_clasificacion_disponible($conn);
+$clasificaciones = alm_espacios_clasificaciones($conn);
 $error = '';
 $success = (string)($_SESSION['sede_espacios_flash'] ?? '');
 unset($_SESSION['sede_espacios_flash']);
-$values = ['sede_id' => '', 'area' => '', 'espacio' => ''];
+$values = ['sede_id' => '', 'area' => '', 'espacio' => '', 'clasificacion_id' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -27,6 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sedeId = alm_activos_espacio_id($values['sede_id']);
             $area = preg_replace('/\s+/u', ' ', $values['area']);
             $space = preg_replace('/\s+/u', ' ', $values['espacio']);
+            $classificationId = alm_activos_espacio_id($values['clasificacion_id']);
+            alm_espacios_validar_clasificacion($conn, $classificationId);
             if (!$sedeId || $area === '') throw new InvalidArgumentException('Selecciona la sede e indica el nombre del área.');
             if (alm_activos_longitud($area) > 150 || alm_activos_longitud($space) > 150) {
                 throw new InvalidArgumentException('Área y espacio admiten hasta 150 caracteres cada uno.');
@@ -41,10 +45,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Referencias reservadas para una futura actualización de personal.
             // Esta interfaz no las lee del POST ni modifica valores existentes.
             $params = [$sedeId, $area, $space !== '' ? $space : null];
+            $classColumn = $classReady ? ', clm_sedeesp_idespacio' : '';
+            $classPlaceholder = $classReady ? ', ?' : '';
+            if ($classReady) $params[] = $classificationId;
             $stmt = $conn->prepare('INSERT INTO tb_sedes_espacios
-                (clm_sedeesp_idsede, clm_sedeesp_area, clm_sedeesp_espacio)
-                VALUES (?, ?, ?)');
-            alm_bind($stmt, 'iss', $params);
+                (clm_sedeesp_idsede, clm_sedeesp_area, clm_sedeesp_espacio' . $classColumn . ')
+                VALUES (?, ?, ?' . $classPlaceholder . ')');
+            alm_bind($stmt, 'iss' . ($classReady ? 'i' : ''), $params);
             if (!$stmt->execute()) throw new RuntimeException('No se pudo crear el espacio.');
             $stmt->close();
             $conn->commit();
@@ -63,6 +70,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
             $conn->commit();
             $_SESSION['sede_espacios_flash'] = $expected ? 'Espacio desactivado. Sus asignaciones e historial se conservan.' : 'Espacio activado correctamente.';
+        } elseif ($action === 'classify') {
+            if (!$classReady) throw new RuntimeException('La clasificación de espacios aún no está habilitada.', 409);
+            $id = alm_activos_espacio_id($_POST['id'] ?? null);
+            $classificationId = alm_activos_espacio_id($_POST['clasificacion_id'] ?? null);
+            $expected = alm_activos_espacio_id($_POST['expected_clasificacion_id'] ?? null);
+            if (!$id || !array_key_exists('expected_clasificacion_id', $_POST)) throw new InvalidArgumentException('Selecciona una ubicación válida.');
+            alm_espacios_validar_clasificacion($conn, $classificationId);
+            $conn->begin_transaction();
+            $row = alm_fetch_one($conn, 'SELECT clm_sedeesp_idespacio AS clasificacion_id FROM tb_sedes_espacios WHERE clm_sedeesp_id = ? FOR UPDATE', 'i', [$id]);
+            if (!$row) throw new InvalidArgumentException('El espacio ya no existe.');
+            $current = $row['clasificacion_id'] === null ? null : (int)$row['clasificacion_id'];
+            if ($current !== $expected) throw new RuntimeException('La clasificación cambió. Revisa el valor actual antes de guardar.', 409);
+            $params = [$classificationId, $id];
+            $stmt = $conn->prepare('UPDATE tb_sedes_espacios SET clm_sedeesp_idespacio = ? WHERE clm_sedeesp_id = ?');
+            alm_bind($stmt, 'ii', $params);
+            if (!$stmt->execute()) throw new RuntimeException('No se pudo guardar la clasificación.');
+            $stmt->close();
+            $conn->commit();
+            $_SESSION['sede_espacios_flash'] = 'Clasificación actualizada correctamente.';
         } else {
             throw new InvalidArgumentException('Operación inválida.');
         }
@@ -80,6 +106,10 @@ $sedes = alm_fetch_all($conn, 'SELECT clm_sedes_id AS id, clm_sedes_name AS nomb
 $filterSede = max(0, (int)(is_string($_GET['sede'] ?? null) ? $_GET['sede'] : 0));
 $filterState = is_string($_GET['estado'] ?? null) && in_array($_GET['estado'], ['0', '1', 'todos'], true) ? $_GET['estado'] : '1';
 $query = is_string($_GET['q'] ?? null) ? trim($_GET['q']) : '';
+$filterClass = max(-1, (int)(is_string($_GET['clasificacion'] ?? null) ? $_GET['clasificacion'] : 0));
+$classExpr = $classReady ? 'e.clm_sedeesp_idespacio' : 'NULL';
+$className = $classReady ? "CONCAT_WS(' - ', NULLIF(TRIM(ce.clm_esp_nombre), ''), NULLIF(TRIM(ce.clm_esp_desc), ''))" : "''";
+$classJoin = $classReady ? 'LEFT JOIN tb_espacio ce ON ce.clm_esp_id = e.clm_sedeesp_idespacio' : '';
 $rows = [];
 $areas = [];
 if ($ready) {
@@ -88,19 +118,28 @@ if ($ready) {
     $where = ['1 = 1']; $types = ''; $params = [];
     if ($filterSede) { $where[] = 'e.clm_sedeesp_idsede = ?'; $types .= 'i'; $params[] = $filterSede; }
     if ($filterState !== 'todos') { $where[] = 'e.clm_sedeesp_estado = ?'; $types .= 'i'; $params[] = (int)$filterState; }
+    if ($classReady && $filterClass > 0) { $where[] = "$classExpr = ?"; $types .= 'i'; $params[] = $filterClass; }
+    if ($classReady && $filterClass === -1) $where[] = "$classExpr IS NULL";
     if ($query !== '') {
         $where[] = "CONCAT_WS(' ', s.clm_sedes_name, e.clm_sedeesp_area, e.clm_sedeesp_espacio) LIKE CONCAT('%', ?, '%')";
         $types .= 's'; $params[] = $query;
     }
     $rows = alm_fetch_all($conn, 'SELECT e.clm_sedeesp_id, e.clm_sedeesp_area, e.clm_sedeesp_espacio,
-        e.clm_sedeesp_estado, s.clm_sedes_name AS sede_nombre FROM tb_sedes_espacios e
-        JOIN tb_sedes s ON s.clm_sedes_id = e.clm_sedeesp_idsede WHERE ' . implode(' AND ', $where) . '
+        e.clm_sedeesp_estado, s.clm_sedes_name AS sede_nombre, ' . $classExpr . ' AS clasificacion_id, ' . $className . ' AS clasificacion_nombre FROM tb_sedes_espacios e
+        JOIN tb_sedes s ON s.clm_sedes_id = e.clm_sedeesp_idsede ' . $classJoin . ' WHERE ' . implode(' AND ', $where) . '
         ORDER BY s.clm_sedes_name, e.clm_sedeesp_area, e.clm_sedeesp_espacio, e.clm_sedeesp_id LIMIT 1000', $types, $params);
 }
 $createError = $ready && $error !== '' && ($_POST['action'] ?? '') === 'create';
+$classifyError = $classReady && $error !== '' && ($_POST['action'] ?? '') === 'classify';
+$classifyRow = null;
+if ($classifyError && filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT)) {
+    $classifyRow = alm_fetch_one($conn, 'SELECT e.clm_sedeesp_id AS id, e.clm_sedeesp_idespacio AS clasificacion_id,
+        CONCAT_WS(" - ", s.clm_sedes_name, e.clm_sedeesp_area, e.clm_sedeesp_espacio) AS nombre
+        FROM tb_sedes_espacios e JOIN tb_sedes s ON s.clm_sedes_id = e.clm_sedeesp_idsede WHERE e.clm_sedeesp_id = ?', 'i', [(int)$_POST['id']]);
+}
 n360_admin_render_head('Espacios por sede');
 ?>
-<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_espacios_sedes_n360.css?espacios=2') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_espacios_sedes_n360.css?espacios=3') ?>">
 <?php n360_render_header(['title' => 'Espacios por sede', 'subtitle' => 'Administración']); ?>
 <?php n360_render_sidebar(); ?>
 <main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
@@ -111,8 +150,9 @@ n360_admin_render_head('Espacios por sede');
         <h1>Espacios por sede</h1><p>Organiza las áreas, ambientes y puestos donde se ubican los artículos etiquetados.</p>
     </div></section>
     <?php if ($success !== ''): ?><div class="admin-cat-note sedeesp-success" role="status"><i class="bi bi-check-circle-fill" aria-hidden="true"></i><?= n360_admin_h($success) ?></div><?php endif; ?>
-    <?php if ($error !== '' && !$createError): ?><div class="admin-cat-note sedeesp-error" role="alert"><?= n360_admin_h($error) ?></div><?php endif; ?>
+    <?php if ($error !== '' && !$createError && !$classifyRow): ?><div class="admin-cat-note sedeesp-error" role="alert"><?= n360_admin_h($error) ?></div><?php endif; ?>
     <?php if (!$ready): ?><div class="admin-cat-note" role="status">La gestión de espacios por sede aún no está habilitada. Contacta al administrador.</div><?php endif; ?>
+    <?php if ($ready && !$classReady): ?><div class="admin-cat-note" role="status">La clasificación de ubicaciones aún no está habilitada. Puedes continuar gestionando los espacios existentes.</div><?php endif; ?>
     <section class="admin-cat-panel sedeesp-catalog">
         <div class="sedeesp-catalog__head">
             <div class="sedeesp-catalog__title"><span class="sedeesp-icon"><i class="bi bi-layout-text-sidebar-reverse" aria-hidden="true"></i></span><div><h2>Espacios registrados <span class="sedeesp-total"><?= count($rows) ?></span></h2><p>Consulta las áreas y puestos de cada sede.</p></div></div>
@@ -121,6 +161,7 @@ n360_admin_render_head('Espacios por sede');
         <form method="get" class="sedeesp-filters" id="sedeespFilters">
             <label>Sede / oficina<select name="sede" id="sedeespFilterSede"><option value="0">Todas las sedes</option><?php foreach ($sedes as $s): ?><option value="<?= (int)$s['id'] ?>" <?= (int)$s['id'] === $filterSede ? 'selected' : '' ?>><?= n360_admin_h($s['nombre']) ?></option><?php endforeach; ?></select></label>
             <label>Estado<select name="estado"><?php foreach (['1' => 'Activos', '0' => 'Inactivos', 'todos' => 'Todos'] as $key => $name): ?><option value="<?= $key ?>" <?= (string)$key === $filterState ? 'selected' : '' ?>><?= $name ?></option><?php endforeach; ?></select></label>
+            <label>Clasificación<select name="clasificacion" <?= $classReady ? '' : 'disabled' ?>><option value="0">Todas</option><option value="-1" <?= $filterClass === -1 ? 'selected' : '' ?>>Sin clasificar</option><?php foreach ($clasificaciones as $option): ?><option value="<?= (int)$option['id'] ?>" <?= (int)$option['id'] === $filterClass ? 'selected' : '' ?>><?= n360_admin_h($option['nombre']) ?></option><?php endforeach; ?></select></label>
             <label>Buscar<div class="sedeesp-search"><i class="bi bi-search" aria-hidden="true"></i><input type="search" name="q" value="<?= n360_admin_h($query) ?>" placeholder="Sede, área o espacio..."></div></label>
             <div class="sedeesp-filter-actions"><button class="sedeesp-button sedeesp-button--soft" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Filtrar</button><a href="espacios_sedes.php" class="sedeesp-reset" aria-label="Limpiar filtros" title="Limpiar filtros"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></a></div>
         </form>
@@ -129,11 +170,12 @@ n360_admin_render_head('Espacios por sede');
                 <?php if ($ready): ?><button type="button" class="sedeesp-button sedeesp-button--soft" data-sedeesp-open><i class="bi bi-plus-lg" aria-hidden="true"></i> Crear espacio</button><?php endif; ?>
             </div>
         <?php else: ?>
-        <div class="admin-cat-table-wrap"><table class="admin-cat-table sedeesp-table"><thead><tr><th>Sede / oficina</th><th>Área</th><th>Espacio</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
+        <div class="admin-cat-table-wrap"><table class="admin-cat-table sedeesp-table"><thead><tr><th>Sede / oficina</th><th>Área</th><th>Espacio</th><th>Clasificación</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
         <?php foreach ($rows as $row): ?><tr>
             <td><span class="sedeesp-sede"><i class="bi bi-building" aria-hidden="true"></i><?= n360_admin_h($row['sede_nombre']) ?></span></td><td><strong><?= n360_admin_h($row['clm_sedeesp_area']) ?></strong></td><td><?= n360_admin_h($row['clm_sedeesp_espacio'] ?? 'Sin espacio específico') ?></td>
+            <td><?= n360_admin_h($row['clasificacion_nombre'] !== '' ? $row['clasificacion_nombre'] : 'Sin clasificar') ?></td>
             <td><span class="sedeesp-status <?= (int)$row['clm_sedeesp_estado'] === 1 ? 'is-active' : '' ?>"><span aria-hidden="true"></span><?= (int)$row['clm_sedeesp_estado'] === 1 ? 'Activo' : 'Inactivo' ?></span></td>
-            <td><form method="post"><input type="hidden" name="csrf" value="<?= n360_admin_h($csrf) ?>"><input type="hidden" name="action" value="state"><input type="hidden" name="id" value="<?= (int)$row['clm_sedeesp_id'] ?>"><input type="hidden" name="expected_estado" value="<?= (int)$row['clm_sedeesp_estado'] ?>"><button class="sedeesp-state-button" type="submit"><?= (int)$row['clm_sedeesp_estado'] === 1 ? 'Desactivar' : 'Activar' ?></button></form></td>
+            <td><div class="sedeesp-row-actions"><button type="button" class="sedeesp-state-button" data-sedeesp-classify data-id="<?= (int)$row['clm_sedeesp_id'] ?>" data-classification="<?= (int)($row['clasificacion_id'] ?? 0) ?>" data-location="<?= n360_admin_h($row['sede_nombre'] . ' - ' . $row['clm_sedeesp_area'] . ($row['clm_sedeesp_espacio'] ? ' - ' . $row['clm_sedeesp_espacio'] : '')) ?>" <?= $classReady ? '' : 'disabled' ?>>Clasificar</button><form method="post"><input type="hidden" name="csrf" value="<?= n360_admin_h($csrf) ?>"><input type="hidden" name="action" value="state"><input type="hidden" name="id" value="<?= (int)$row['clm_sedeesp_id'] ?>"><input type="hidden" name="expected_estado" value="<?= (int)$row['clm_sedeesp_estado'] ?>"><button class="sedeesp-state-button" type="submit"><?= (int)$row['clm_sedeesp_estado'] === 1 ? 'Desactivar' : 'Activar' ?></button></form></div></td>
         </tr><?php endforeach; ?>
         </tbody></table></div>
         <?php endif; ?>
@@ -159,6 +201,7 @@ n360_admin_render_head('Espacios por sede');
                     <datalist id="sedeespAreas"><?php foreach ($areas as $area): ?><option value="<?= n360_admin_h($area['area']) ?>" data-sede="<?= (int)$area['sede_id'] ?>"></option><?php endforeach; ?></datalist>
                 </label>
                 <label for="sedeespCreateEspacio">Espacio <span class="sedeesp-optional">Opcional</span><input name="espacio" id="sedeespCreateEspacio" maxlength="150" placeholder="Ej. Escritorio 1" value="<?= n360_admin_h($values['espacio']) ?>"></label>
+                <label class="sedeesp-wide" for="sedeespCreateClassification">Clasificación <span class="sedeesp-optional">Opcional</span><select name="clasificacion_id" id="sedeespCreateClassification" <?= $classReady ? '' : 'disabled' ?>><option value="">Sin clasificar</option><?php foreach ($clasificaciones as $option): ?><option value="<?= (int)$option['id'] ?>" <?= (string)$option['id'] === $values['clasificacion_id'] ? 'selected' : '' ?>><?= n360_admin_h($option['nombre']) ?></option><?php endforeach; ?></select></label>
                 <p class="sedeesp-field-help sedeesp-wide">Puedes elegir un área existente o escribir una nueva. Deja el espacio vacío para registrar solo el área.</p>
             </fieldset>
             <div class="sedeesp-preview" aria-live="polite"><span>Así quedará la ubicación</span><p id="sedeespCreatePreview">Selecciona una sede y completa el área.</p></div>
@@ -166,5 +209,18 @@ n360_admin_render_head('Espacios por sede');
         <footer class="sedeesp-dialog__footer"><button type="button" class="sedeesp-button sedeesp-button--soft" data-sedeesp-close>Cancelar</button><button type="submit" class="sedeesp-button" id="sedeespCreateSubmit" <?= $ready ? '' : 'disabled' ?>><i class="bi bi-check2" aria-hidden="true"></i><span>Guardar espacio</span></button></footer>
     </form>
 </dialog>
-<script src="<?= n360_asset('assets/js/admin_espacios_sedes_n360.js?espacios=2') ?>"></script>
+<dialog class="sedeesp-dialog" id="sedeespClassifyDialog" aria-labelledby="sedeespClassifyTitle" data-open="<?= $classifyRow ? '1' : '0' ?>">
+    <header class="sedeesp-dialog__head"><span class="sedeesp-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></span><div><h2 id="sedeespClassifyTitle">Clasificar ubicación</h2><p>Organiza este espacio para los filtros de trazabilidad.</p></div><button type="button" class="sedeesp-dialog__close" data-classify-close aria-label="Cerrar clasificación"><span aria-hidden="true">&times;</span></button></header>
+    <form method="post" class="sedeesp-form" id="sedeespClassifyForm">
+        <input type="hidden" name="csrf" value="<?= n360_admin_h($csrf) ?>"><input type="hidden" name="action" value="classify"><input type="hidden" name="id" id="sedeespClassifyId" value="<?= (int)($classifyRow['id'] ?? 0) ?>"><input type="hidden" name="expected_clasificacion_id" id="sedeespClassifyExpected" value="<?= (int)($classifyRow['clasificacion_id'] ?? 0) ?>">
+        <div class="sedeesp-dialog__body">
+            <?php if ($classifyRow): ?><div class="sedeesp-form-error" role="alert"><?= n360_admin_h($error) ?></div><?php endif; ?>
+            <div class="sedeesp-preview sedeesp-classify-location"><span>Ubicación</span><p id="sedeespClassifyLocation"><?= n360_admin_h($classifyRow['nombre'] ?? '') ?></p></div>
+            <label for="sedeespClassifySelect">Clasificación<select name="clasificacion_id" id="sedeespClassifySelect" <?= $classReady ? '' : 'disabled' ?>><option value="">Sin clasificar</option><?php foreach ($clasificaciones as $option): ?><option value="<?= (int)$option['id'] ?>" <?= $classifyRow && (int)$classifyRow['clasificacion_id'] === (int)$option['id'] ? 'selected' : '' ?>><?= n360_admin_h($option['nombre']) ?></option><?php endforeach; ?></select></label>
+            <p class="sedeesp-classify-help">Se aplica a la clasificación actual de esta ubicación. Conserva sus artículos e historial.</p>
+        </div>
+        <footer class="sedeesp-dialog__footer"><button type="button" class="sedeesp-button sedeesp-button--soft" data-classify-close>Cancelar</button><button type="submit" class="sedeesp-button" <?= $classReady ? '' : 'disabled' ?>>Guardar clasificación</button></footer>
+    </form>
+</dialog>
+<script src="<?= n360_asset('assets/js/admin_espacios_sedes_n360.js?espacios=3') ?>"></script>
 <?php n360_render_footer(); n360_admin_render_close(); $conn->close(); ?>

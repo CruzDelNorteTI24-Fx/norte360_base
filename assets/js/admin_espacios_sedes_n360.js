@@ -92,3 +92,67 @@
   });
   if (dialog.dataset.open === '1') open();
 })();
+
+(function () {
+  'use strict';
+  const dialog = document.getElementById('sedeespClassifyDialog');
+  const form = document.getElementById('sedeespClassifyForm');
+  if (!dialog || !form) return;
+  const id = document.getElementById('sedeespClassifyId');
+  const expected = document.getElementById('sedeespClassifyExpected');
+  const location = document.getElementById('sedeespClassifyLocation');
+  const select = document.getElementById('sedeespClassifySelect');
+  const submit = form.querySelector('[type=submit]');
+  let saving = false;
+  let opener = null;
+  let backdropStart = false;
+  function open(button) {
+    if (dialog.open) return;
+    opener = button || document.activeElement;
+    if (button) {
+      id.value = button.dataset.id;
+      expected.value = button.dataset.classification;
+      select.value = Number(button.dataset.classification) > 0 ? button.dataset.classification : '';
+      location.textContent = button.dataset.location;
+      const error = form.querySelector('[role=alert]');
+      if (error) error.hidden = true;
+    }
+    dialog.showModal();
+    document.body.classList.add('sedeesp-dialog-open');
+    select.focus();
+  }
+  function close() { if (!saving) dialog.close(); }
+  document.querySelectorAll('[data-sedeesp-classify]').forEach(button => {
+    button.addEventListener('click', () => open(button));
+  });
+  dialog.querySelectorAll('[data-classify-close]').forEach(button => button.addEventListener('click', close));
+  dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
+  dialog.addEventListener('close', () => {
+    document.body.classList.remove('sedeesp-dialog-open');
+    if (opener?.isConnected) opener.focus({preventScroll: true});
+  });
+  const outside = event => {
+    const rect = dialog.getBoundingClientRect();
+    return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+  };
+  dialog.addEventListener('pointerdown', event => { backdropStart = event.target === dialog && outside(event); });
+  dialog.addEventListener('click', event => {
+    if (backdropStart && event.target === dialog && outside(event)) close();
+    backdropStart = false;
+  });
+  form.addEventListener('submit', event => {
+    if (saving) { event.preventDefault(); return; }
+    saving = true;
+    submit.disabled = true;
+    submit.textContent = 'Guardando...';
+    dialog.querySelectorAll('[data-classify-close]').forEach(button => { button.disabled = true; });
+  });
+  window.addEventListener('pageshow', event => {
+    if (!event.persisted) return;
+    saving = false;
+    submit.disabled = false;
+    submit.textContent = 'Guardar clasificación';
+    dialog.querySelectorAll('[data-classify-close]').forEach(button => { button.disabled = false; });
+  });
+  if (dialog.dataset.open === '1') open();
+})();

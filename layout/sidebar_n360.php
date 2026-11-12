@@ -391,6 +391,12 @@ function n360_menu_config(): array {
                                 'modulo' => 3
                             ],
                             [
+                                'titulo' => 'Trazabilidad de etiquetas',
+                                'icono' => 'bi bi-upc-scan',
+                                'url' => '01_almacen/trazabilidad_etiquetas.php',
+                                'modulo' => 3
+                            ],
+                            [
                                 'titulo' => 'Catálogo productos',
                                 'icono' => 'bi bi-card-list',
                                 'url' => '01_almacen/gen_np9823.php',

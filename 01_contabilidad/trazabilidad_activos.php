@@ -17,9 +17,10 @@ require_once __DIR__ . '/../layout/content_n360.php';
 require_once __DIR__ . '/../layout/quick_scan_n360.php';
 require_once __DIR__ . '/../layout/bus_lookup_n360.php';
 
-$canTraceContabilidad = n360_is_admin() || ($_SESSION['permisos'] ?? null) === 'all' || n360_puede_modulo(12);
-if (!$canTraceContabilidad) {
-    header('Location: ../login/none_permisos.php?vista=' . urlencode('Trazabilidad de activos'));
+require_once __DIR__ . '/../01_almacen/trazabilidad_contexto.php';
+$traceConfig = n360_trace_config();
+if (!n360_trace_permitido()) {
+    header('Location: ../login/none_permisos.php?vista=' . urlencode($traceConfig['title']));
     exit;
 }
 
@@ -81,12 +82,13 @@ $categoriaFiltro = max(0, (int)trace_filter_value('categoria'));
 $usuarioFiltro = max(0, (int)trace_filter_value('usuario'));
 $detalleFiltro = trace_filter_value('detalle');
 $espacioFiltro = max(-1, (int)trace_filter_value('espacio'));
+$clasificacionFiltro = max(-1, (int)trace_filter_value('clasificacion'));
 $notaFiltro = trace_filter_value('nota');
 $dates = [];
 foreach (['etiqueta_desde', 'etiqueta_hasta', 'movimiento_desde', 'movimiento_hasta'] as $key) {
     $dates[$key] = trace_filter_value($key);
 }
-$moreFilters = $espacioFiltro || $productoFiltro || $categoriaFiltro || $usuarioFiltro || $notaFiltro !== '' || implode('', $dates) !== '';
+$moreFilters = $clasificacionFiltro || $espacioFiltro || $productoFiltro || $categoriaFiltro || $usuarioFiltro || $notaFiltro !== '' || implode('', $dates) !== '';
 $allowedEstados = ['ACTIVOS', 'TODOS', 'GENERADO', 'PENDIENTE', 'CONSUMIDO'];
 if (!in_array($estado, $allowedEstados, true)) {
     $estado = 'ACTIVOS';
@@ -110,6 +112,8 @@ $locationSuggestions = [];
 $spaceSql = alm_activos_espacio_sql($conn);
 $locationSpacesEnabled = alm_activos_espacios_disponibles($conn);
 $locationSpaces = [];
+$classificationEnabled = $locationSpacesEnabled && alm_espacios_clasificacion_disponible($conn);
+$clasificaciones = [];
 
 try {
     foreach ($dates as $value) {
@@ -124,8 +128,10 @@ try {
             [$dates[$prefix . '_desde'], $dates[$prefix . '_hasta']] = [$dates[$prefix . '_hasta'], $dates[$prefix . '_desde']];
         }
     }
-    $locationSuggestions = alm_activos_detalles_sugeridos($conn);
+    $locationSuggestions = alm_activos_detalles_sugeridos($conn, $traceConfig['context']);
     $locationSpaces = alm_activos_espacios($conn, false);
+    $clasificaciones = alm_espacios_clasificaciones($conn);
+    if ($clasificacionFiltro !== 0 && !$classificationEnabled) throw new InvalidArgumentException('La clasificación de espacios aún no está habilitada.');
     if ($espacioFiltro !== 0 && !$locationSpacesEnabled) throw new InvalidArgumentException('Los espacios por sede aún no están habilitados.');
     $sedes = alm_fetch_all($conn, "
         SELECT clm_sedes_id AS id, clm_sedes_name AS nombre
@@ -134,11 +140,7 @@ try {
     ");
 
     $stateExpr = "UPPER(COALESCE(NULLIF(TRIM(e.clm_alm_etiquetado_ESTADO), ''), 'PENDIENTE'))";
-    $scopeExpr = "(
-        m.clm_alm_mov_orgn = 12
-        OR UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), '')) = 'ACTIVOS'
-        OR UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), '')) = 'ACTIVO_FIJO'
-    )";
+    $scopeExpr = n360_trace_scope_sql();
 
     $where = [$scopeExpr];
     $productos = alm_fetch_all($conn, "
@@ -183,6 +185,12 @@ try {
         $params[] = $sede;
     } elseif ($sede === -1) {
         $where[] = '(e.clm_alm_etiquetado_oficina_destino IS NULL OR e.clm_alm_etiquetado_oficina_destino = 0)';
+    }
+    if ($clasificacionFiltro > 0) {
+        $where[] = "{$spaceSql['clasificacion_id']} = ?";
+        $types .= 'i'; $params[] = $clasificacionFiltro;
+    } elseif ($clasificacionFiltro === -1) {
+        $where[] = "{$spaceSql['clasificacion_id']} IS NULL";
     }
     if ($espacioFiltro > 0) {
         $where[] = "{$spaceSql['id']} = ?";
@@ -267,6 +275,7 @@ try {
             $locationDetailSql AS ubicacion_detalle,
             {$spaceSql['id']} AS espacio_id,
             {$spaceSql['nombre']} AS espacio_nombre,
+            {$spaceSql['clasificacion_nombre']} AS clasificacion_nombre,
             p.clm_alm_producto_id AS producto_id,
             p.clm_alm_producto_codigo AS producto_codigo,
             p.clm_alm_producto_NOMBRE AS producto_nombre,
@@ -300,6 +309,8 @@ $exportFilters = ['Buscar' => $buscar, 'Estado' => $estado, 'Sede' => $sede === 
     'Producto' => 'Todos', 'Usuario del movimiento' => 'Todos'];
 foreach ($sedes as $option) { if ((int)$option['id'] === $sede) $exportFilters['Sede'] = $option['nombre']; }
 $exportFilters['Área / espacio'] = $espacioFiltro === -1 ? 'Sin espacio específico' : 'Todos';
+$exportFilters['Clasificación de ubicación'] = $clasificacionFiltro === -1 ? 'Sin clasificar' : 'Todas';
+foreach ($clasificaciones as $option) { if ((int)$option['id'] === $clasificacionFiltro) $exportFilters['Clasificación de ubicación'] = $option['nombre']; }
 foreach ($locationSpaces as $option) { if ((int)$option['id'] === $espacioFiltro) $exportFilters['Área / espacio'] = alm_activos_espacio_nombre($option); }
 foreach ($productos as $option) { if ((int)$option['id'] === $productoFiltro) $exportFilters['Producto'] = $option['codigo'] . ' ' . $option['nombre']; }
 foreach ($usuarios as $option) { if ((int)$option['id'] === $usuarioFiltro) $exportFilters['Usuario del movimiento'] = $option['nombre']; }
@@ -312,7 +323,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Trazabilidad de activos | Norte360</title>
+    <title><?= trace_h($traceConfig['title']) ?> | Norte360</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="<?= n360_asset('img/norte360.png') ?>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -326,16 +337,18 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=2') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=1&consulta=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=2&consulta=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_modales_n360.css?modal=2') ?>">
 </head>
 <body>
-<?php n360_render_header(['title' => 'Trazabilidad de activos', 'subtitle' => 'Contabilidad']); ?>
+<?php n360_render_header(['title' => $traceConfig['title'], 'subtitle' => $traceConfig['area']]); ?>
 <?php n360_render_sidebar(); ?>
 
 <main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
     <div class="n360-main__inner trace-shell" id="contaTracePage"
-         data-api="<?= trace_h(n360_base_url('01_contabilidad/trazabilidad_activos_api.php')) ?>"
+         data-api="<?= trace_h(n360_base_url($traceConfig['api'])) ?>"
          data-csrf="<?= trace_h($_SESSION['conta_trace_csrf']) ?>"
+         data-item-name="<?= trace_h($traceConfig['item']) ?>"
          data-location-spaces="<?= $locationSpacesEnabled ? '1' : '0' ?>"
          data-location-detail="<?= $locationDetailEnabled ? '1' : '0' ?>">
         <?php n360_render_content_separator('top'); ?>
@@ -345,13 +358,13 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                 <i class="bi bi-upc-scan" aria-hidden="true"></i>
             </div>
             <div class="trace-hero__copy">
-                <span class="trace-kicker"><i class="bi bi-calculator-fill" aria-hidden="true"></i> Contabilidad - activos fijos</span>
-                <h1>Trazabilidad de activos</h1>
-                <p>Control por etiqueta, ubicacion vigente e historial de traslados sin alterar los movimientos de almacen.</p>
+                <span class="trace-kicker"><i class="bi bi-upc-scan" aria-hidden="true"></i> <?= trace_h($traceConfig['kicker']) ?></span>
+                <h1><?= trace_h($traceConfig['title']) ?></h1>
+                <p><?= trace_h($traceConfig['description']) ?></p>
             </div>
-            <a class="trace-hero__action" href="<?= trace_h(n360_base_url('01_contabilidad/registro_activos.php')) ?>">
+            <a class="trace-hero__action" href="<?= trace_h(n360_base_url($traceConfig['register'])) ?>">
                 <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                <span>Registrar activo</span>
+                <span><?= trace_h($traceConfig['register_label']) ?></span>
             </a>
         </section>
 
@@ -364,7 +377,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
 
         <section class="trace-kpis" aria-label="Resumen de etiquetas">
             <article><span>Etiquetas</span><strong><?= (int)($stats['total'] ?? 0) ?></strong></article>
-            <article><span>Activos vigentes</span><strong><?= (int)($stats['activos'] ?? 0) ?></strong></article>
+            <article><span>Etiquetas vigentes</span><strong><?= (int)($stats['activos'] ?? 0) ?></strong></article>
             <article><span>Consumidos</span><strong><?= (int)($stats['consumidos'] ?? 0) ?></strong></article>
             <article><span>Ubicaciones</span><strong><?= (int)($stats['sedes'] ?? 0) ?></strong></article>
         </section>
@@ -408,10 +421,15 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
             <details class="trace-more-filters" <?= $moreFilters ? 'open' : '' ?>>
                 <summary>Mas filtros: producto, origen y fechas</summary>
                 <div class="trace-extra-grid">
+                    <label><span>Clasificación de ubicación</span><select name="clasificacion" id="traceFilterClasificacion" <?= $classificationEnabled ? '' : 'disabled' ?>>
+                        <option value="0">Todas las clasificaciones</option>
+                        <option value="-1" <?= $clasificacionFiltro === -1 ? 'selected' : '' ?>>Sin clasificar</option>
+                        <?php foreach ($clasificaciones as $option): ?><option value="<?= (int)$option['id'] ?>" <?= $clasificacionFiltro === (int)$option['id'] ? 'selected' : '' ?>><?= trace_h($option['nombre']) ?></option><?php endforeach; ?>
+                    </select></label>
                     <label><span>Área / espacio</span><select name="espacio" id="traceFilterEspacio" <?= $locationSpacesEnabled ? '' : 'disabled' ?>>
                         <option value="0">Todos los espacios</option>
                         <option value="-1" <?= $espacioFiltro === -1 ? 'selected' : '' ?>>Sin espacio específico</option>
-                        <?php foreach ($locationSpaces as $option): ?><option value="<?= (int)$option['id'] ?>" data-sede="<?= (int)$option['sede_id'] ?>" <?= $espacioFiltro === (int)$option['id'] ? 'selected' : '' ?>><?= trace_h(alm_activos_espacio_nombre($option)) ?><?= (int)$option['estado'] !== 1 ? ' (inactivo)' : '' ?></option><?php endforeach; ?>
+                        <?php foreach ($locationSpaces as $option): ?><option value="<?= (int)$option['id'] ?>" data-sede="<?= (int)$option['sede_id'] ?>" data-clasificacion="<?= (int)($option['clasificacion_id'] ?? 0) ?>" <?= $espacioFiltro === (int)$option['id'] ? 'selected' : '' ?>><?= trace_h(alm_activos_espacio_nombre($option)) ?><?= (int)$option['estado'] !== 1 ? ' (inactivo)' : '' ?></option><?php endforeach; ?>
                     </select></label>
                     <label><span>Producto</span><select name="producto">
                         <option value="0">Todos los productos</option>
@@ -439,7 +457,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
             </details>
             <div class="trace-filter-actions">
                 <button type="submit" class="trace-btn trace-btn--primary"><i class="bi bi-funnel" aria-hidden="true"></i><span>Filtrar</span></button>
-                <a class="trace-btn trace-btn--soft" href="<?= trace_h(n360_base_url('01_contabilidad/trazabilidad_activos.php')) ?>"><i class="bi bi-x-circle" aria-hidden="true"></i><span>Limpiar</span></a>
+                <a class="trace-btn trace-btn--soft" href="<?= trace_h(n360_base_url($traceConfig['view'])) ?>"><i class="bi bi-x-circle" aria-hidden="true"></i><span>Limpiar</span></a>
             </div>
         </form>
 
@@ -498,6 +516,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                             <td>
                                 <span class="trace-location"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i><?= trace_h($sedeNombre !== '' ? $sedeNombre : 'Sin ubicacion') ?></span>
                                 <?php if ($row['espacio_nombre'] !== ''): ?><small class="trace-location-detail"><?= trace_h($row['espacio_nombre']) ?></small><?php endif; ?>
+                                <?php if ($classificationEnabled): ?><small><?= trace_h($row['clasificacion_nombre'] !== '' ? $row['clasificacion_nombre'] : 'Sin clasificar') ?></small><?php endif; ?>
                                 <?php if ($ubicacionDetalle !== ''): ?><small class="trace-location-detail"><?= trace_h($ubicacionDetalle) ?></small><?php endif; ?>
                             </td>
                             <td>
@@ -508,11 +527,12 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                             <td><span class="trace-status <?= trace_h(trace_status_class($estadoRow)) ?>"><?= trace_h($estadoRow) ?></span></td>
                             <td>
                                 <div class="trace-actions">
-                                    <button type="button" class="trace-row-btn" data-trace-info data-label-id="<?= $etiquetaId ?>" data-label-code="<?= trace_h($etiquetaCodigo) ?>">
-                                        <i class="bi bi-info-circle" aria-hidden="true"></i><span>Informacion</span>
+                                    <button type="button" class="trace-row-btn" title="Ver información del <?= trace_h($traceConfig['item']) ?>" data-trace-info data-label-id="<?= $etiquetaId ?>" data-label-code="<?= trace_h($etiquetaCodigo) ?>">
+                                        <i class="bi bi-info-circle" aria-hidden="true"></i><span>Información</span>
                                     </button>
                                     <button type="button"
                                             class="trace-row-btn"
+                                            title="Ver y descargar etiqueta"
                                             data-trace-label
                                             data-code="<?= trace_h($etiquetaCodigo) ?>"
                                             data-year="<?= (int)($row['etiqueta_anio'] ?? 0) ?>"
@@ -527,6 +547,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                                     </button>
                                     <button type="button"
                                             class="trace-row-btn"
+                                            title="Ver historial de ubicaciones"
                                             data-trace-history
                                             data-label-id="<?= $etiquetaId ?>"
                                             data-label-code="<?= trace_h($etiquetaCodigo) ?>">
@@ -535,6 +556,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                                     </button>
                                     <button type="button"
                                             class="trace-row-btn trace-row-btn--primary"
+                                            title="Mover <?= trace_h($traceConfig['item']) ?> a otra ubicación"
                                             data-trace-move
                                             data-label-id="<?= $etiquetaId ?>"
                                             data-label-code="<?= trace_h($etiquetaCodigo) ?>"
@@ -561,23 +583,27 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
 
         <div class="trace-modal" id="traceMoveModal" hidden>
             <div class="trace-modal__backdrop" data-trace-close></div>
-            <section class="trace-modal__panel" role="dialog" aria-modal="true" aria-labelledby="traceMoveTitle">
-                <button type="button" class="trace-modal__close" data-trace-close aria-label="Cerrar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                <span class="trace-kicker"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> Movimiento de ubicacion</span>
-                <h2 id="traceMoveTitle">Mover activo</h2>
-                <p class="trace-modal__lead">Actualiza la sede, el espacio o el detalle del activo y conserva el historial de sus ubicaciones.</p>
-                <form id="traceMoveForm">
+            <section class="trace-modal__panel trace-dialog trace-dialog--move" role="dialog" aria-modal="true" aria-labelledby="traceMoveTitle" aria-describedby="traceMoveDescription">
+                <button type="button" class="trace-dialog-close" data-trace-close aria-label="Cerrar traslado"><span aria-hidden="true">&times;</span></button>
+                <header class="trace-dialog-head">
+                    <div class="trace-dialog-hero">
+                        <div><span class="trace-dialog-kicker"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> <?= trace_h($traceConfig['title']) ?></span><h2 id="traceMoveTitle">Mover <?= trace_h($traceConfig['item']) ?></h2><p id="traceMoveDescription">Actualiza su ubicación y conserva el historial.</p></div>
+                        <div class="trace-dialog-stamp"><span>Etiqueta</span><strong id="traceMoveCode">-</strong></div>
+                    </div>
+                </header>
+                <form id="traceMoveForm" class="trace-dialog-form">
                     <input type="hidden" id="traceMoveLabelId">
                     <input type="hidden" id="traceMoveExpectedSede">
                     <input type="hidden" id="traceMoveExpectedDetalle">
                     <input type="hidden" id="traceMoveExpectedEspacio">
-                    <div class="trace-modal__summary">
-                        <div><span>Etiqueta</span><strong id="traceMoveCode">-</strong></div>
-                        <div><span>Producto</span><strong id="traceMoveProduct">-</strong></div>
-                        <div><span>Ubicacion actual</span><strong id="traceMoveCurrent">-</strong></div>
+                    <div class="trace-dialog-body trace-move-body">
+                    <div class="trace-modal__summary trace-move-summary">
+                        <div><i class="bi bi-box-seam trace-card-icon" aria-hidden="true"></i><span>Producto</span><strong id="traceMoveProduct">-</strong></div>
+                        <div><i class="bi bi-geo-alt trace-card-icon" aria-hidden="true"></i><span>Ubicación actual</span><strong id="traceMoveCurrent">-</strong></div>
                     </div>
-                    <label class="trace-modal__field">
-                        <span>Nueva ubicacion</span>
+                    <div class="trace-move-fields">
+                    <label class="trace-modal__field trace-move-wide">
+                        <span>Nueva sede / oficina</span>
                         <select id="traceMoveSede" required>
                             <option value="">Seleccionar sede/oficina...</option>
                             <?php foreach ($sedes as $sedeRow): ?>
@@ -587,7 +613,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                         </select>
                     </label>
                     <?php n360_render_asset_space_select($locationSpaces, 'traceMoveEspacio', $locationSpacesEnabled, 'trace-modal__field'); ?>
-                    <label class="trace-modal__field">
+                    <label class="trace-modal__field trace-move-wide">
                         <span>Detalle adicional de ubicación (opcional)</span>
                         <input type="text" id="traceMoveDetalle" maxlength="220" placeholder="Ej. Cajón superior, lado de la ventana"
                                list="traceMoveDetalleSugerencias" autocomplete="off"
@@ -599,50 +625,61 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                         </datalist>
                         <?php if ($locationDetailEnabled): ?><small>Indica el punto exacto dentro del espacio elegido. Puedes dejarlo vacío si la ubicación ya es suficiente.</small><?php endif; ?>
                     </label>
+                    </div>
                     <?php if (!$locationDetailEnabled): ?><p class="trace-modal__lead">El detalle de ubicación aún no está habilitado. Contacta al administrador.</p><?php endif; ?>
                     <div class="trace-location-preview" aria-live="polite">
                         <span>Nueva ubicación que se guardará</span>
                         <p id="traceMovePreview">Selecciona una sede/oficina.</p>
                     </div>
-                    <div class="trace-modal__actions">
+                    </div>
+                    <footer class="trace-dialog-footer">
                         <button type="button" class="trace-btn trace-btn--soft" data-trace-close>Cancelar</button>
                         <button type="submit" class="trace-btn trace-btn--primary" id="traceMoveSubmit"><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Guardar traslado</span></button>
-                    </div>
+                    </footer>
                 </form>
             </section>
         </div>
 
         <div class="trace-modal" id="traceInfoModal" hidden>
             <div class="trace-modal__backdrop" data-trace-close></div>
-            <section class="trace-modal__panel trace-info-panel" role="dialog" aria-modal="true" aria-labelledby="traceInfoTitle">
-                <header class="trace-info-head">
-                    <button type="button" class="trace-modal__close" data-trace-close aria-label="Cerrar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                    <span class="trace-kicker">Ficha del activo</span><h2 id="traceInfoTitle">Informacion de etiqueta</h2>
-                    <p id="traceInfoCode" class="trace-modal__lead"></p>
+            <section class="trace-modal__panel trace-dialog trace-dialog--info" role="dialog" aria-modal="true" aria-labelledby="traceInfoTitle">
+                <button type="button" class="trace-dialog-close" data-trace-close aria-label="Cerrar información"><span aria-hidden="true">&times;</span></button>
+                <header class="trace-dialog-head">
+                    <div class="trace-dialog-hero">
+                        <div><span class="trace-dialog-kicker"><i class="bi bi-info-circle" aria-hidden="true"></i> Ficha del <?= trace_h($traceConfig['item']) ?></span><h2 id="traceInfoTitle">Información del <?= trace_h($traceConfig['item']) ?></h2><p>Producto, ubicación y movimiento de origen.</p></div>
+                        <div class="trace-dialog-stamp"><span>Etiqueta</span><strong id="traceInfoCode">-</strong></div>
+                    </div>
                 </header>
-                <div class="trace-info-body" id="traceInfoBody" aria-live="polite"></div>
-                <footer class="trace-info-footer"><button type="button" class="trace-btn trace-btn--soft" data-trace-close>Cerrar</button></footer>
+                <div class="trace-dialog-body trace-info-body" id="traceInfoBody" aria-live="polite"></div>
+                <footer class="trace-dialog-footer"><button type="button" class="trace-btn trace-btn--soft" data-trace-close>Cerrar</button></footer>
             </section>
         </div>
 
         <div class="trace-modal" id="traceHistoryModal" hidden>
             <div class="trace-modal__backdrop" data-trace-close></div>
-            <section class="trace-modal__panel trace-modal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="traceHistoryTitle">
-                <button type="button" class="trace-modal__close" data-trace-close aria-label="Cerrar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                <span class="trace-kicker"><i class="bi bi-clock-history" aria-hidden="true"></i> Historial de ubicacion</span>
-                <h2 id="traceHistoryTitle">Bitacora de etiqueta</h2>
-                <p class="trace-modal__lead" id="traceHistoryCode">-</p>
-                <div id="traceHistoryBody" class="trace-history-list"></div>
+            <section class="trace-modal__panel trace-dialog trace-dialog--history" role="dialog" aria-modal="true" aria-labelledby="traceHistoryTitle">
+                <button type="button" class="trace-dialog-close" data-trace-close aria-label="Cerrar historial"><span aria-hidden="true">&times;</span></button>
+                <header class="trace-dialog-head"><div class="trace-dialog-hero">
+                    <div><span class="trace-dialog-kicker"><i class="bi bi-clock-history" aria-hidden="true"></i> <?= trace_h($traceConfig['title']) ?></span><h2 id="traceHistoryTitle">Historial de ubicaciones</h2><p>Origen, destino y usuario de cada registro.</p></div>
+                    <div class="trace-dialog-stamp"><span>Etiqueta</span><strong id="traceHistoryCode">-</strong></div>
+                </div></header>
+                <div class="trace-dialog-body">
+                    <div class="trace-history-metrics"><div><span>Registros de ubicación</span><strong id="traceHistoryCount">-</strong></div><div><span>Último registro</span><strong id="traceHistoryLatest">-</strong></div></div>
+                    <div id="traceHistoryBody" class="trace-history-list"></div>
+                </div>
+                <footer class="trace-dialog-footer"><button type="button" class="trace-btn trace-btn--soft" data-trace-close>Cerrar</button></footer>
             </section>
         </div>
 
         <div class="trace-modal" id="traceBarcodeModal" hidden>
             <div class="trace-modal__backdrop" data-trace-close></div>
-            <section class="trace-modal__panel trace-modal__panel--barcode" role="dialog" aria-modal="true" aria-labelledby="traceBarcodeTitle">
-                <button type="button" class="trace-modal__close" data-trace-close aria-label="Cerrar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                <span class="trace-kicker"><i class="bi bi-upc-scan" aria-hidden="true"></i> Imagen de etiqueta</span>
-                <h2 id="traceBarcodeTitle">Regenerar etiqueta</h2>
-                <p class="trace-modal__lead">Previsualiza y descarga nuevamente el PNG de la etiqueta seleccionada.</p>
+            <section class="trace-modal__panel trace-dialog trace-dialog--barcode" role="dialog" aria-modal="true" aria-labelledby="traceBarcodeTitle">
+                <button type="button" class="trace-dialog-close" data-trace-close aria-label="Cerrar etiqueta"><span aria-hidden="true">&times;</span></button>
+                <header class="trace-dialog-head"><div class="trace-dialog-hero">
+                    <div><span class="trace-dialog-kicker"><i class="bi bi-upc-scan" aria-hidden="true"></i> Imagen de etiqueta</span><h2 id="traceBarcodeTitle">Etiqueta del <?= trace_h($traceConfig['item']) ?></h2><p>Previsualiza y descarga su imagen original.</p></div>
+                    <div class="trace-dialog-stamp"><span>Código</span><strong id="traceBarcodeHeroCode">-</strong></div>
+                </div></header>
+                <div class="trace-dialog-body">
                 <div class="trace-barcode-box">
                     <div class="n360-barcode-card n360-barcode-card--compact"
                          id="traceBarcodeCard"
@@ -670,33 +707,34 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                         </div>
                     </div>
                 </div>
-                <div class="trace-modal__actions">
+                </div>
+                <footer class="trace-dialog-footer">
                     <button type="button" class="trace-btn trace-btn--soft" data-trace-barcode-rerender><i class="bi bi-arrow-clockwise" aria-hidden="true"></i><span>Regenerar imagen</span></button>
                     <button type="button" class="trace-btn trace-btn--soft" data-trace-close>Cerrar</button>
-                </div>
+                </footer>
             </section>
         </div>
     </div>
 </main>
 
 <?php n360_render_footer(); ?>
-<script type="application/json" id="traceExportData"><?= json_encode(['rows' => $pageError === '' ? $labels : [], 'filters' => $exportFilters, 'total' => (int)$stats['total'], 'pdf' => [
+<script type="application/json" id="traceExportData"><?= json_encode(['rows' => $pageError === '' ? $labels : [], 'filters' => $exportFilters, 'total' => (int)$stats['total'], 'title' => $traceConfig['title'], 'filename' => $traceConfig['filename'], 'doc_code' => $traceConfig['doc_code'], 'pdf' => [
     'userName' => (string)($_SESSION['usuario'] ?? 'Usuario'),
     'dni' => (string)($_SESSION['DNI'] ?? ''),
     'logoLeft' => n360_base_url('img/icon.png'),
     'logoRight' => n360_base_url('img/norte360_black.png'),
 ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_excel.js?consulta=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_excel.js?consulta=3') ?>"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=4') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=5') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=4') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=4&etiqueta=2&consulta=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=5') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=4&etiqueta=2&consulta=4') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>
