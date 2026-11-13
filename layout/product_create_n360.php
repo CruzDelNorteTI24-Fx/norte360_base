@@ -29,15 +29,19 @@ if (!function_exists('n360_render_product_create_config')) {
              data-product-origin-area="<?= n360_prod_h($originArea) ?>"
              data-product-origin-tipo="<?= n360_prod_h($originTipo) ?>"
              data-product-is-admin="<?= $isAdmin ? '1' : '0' ?>"
+             data-product-context="<?= n360_prod_h($options['context'] ?? '') ?>"
+             data-product-fixed-category="<?= (int)($options['fixed_category'] ?? 0) ?>"
+             data-product-category-label="<?= n360_prod_h($options['category_label'] ?? '') ?>"
              data-product-after-create="<?= n360_prod_h($afterCreate) ?>"></div>
         <?php
     }
 }
 
 if (!function_exists('n360_render_product_create_modal')) {
-    function n360_render_product_create_modal(): void {
+    function n360_render_product_create_modal(array $options = []): void {
+        $fuel = ($options['context'] ?? '') === 'combustible';
         ?>
-        <div class="alm-modal n360-product-create" id="n360ProductCreateModal" aria-hidden="true" data-alm-modal="product-create">
+        <div class="alm-modal n360-product-create<?= $fuel ? ' n360-product-create--combustible' : '' ?>" id="n360ProductCreateModal" aria-hidden="true" data-alm-modal="product-create">
             <div class="alm-modal__backdrop" data-alm-modal-close data-n360-product-create-close></div>
             <section class="alm-modal__panel n360-product-create__panel" role="dialog" aria-modal="true" aria-labelledby="n360ProductCreateTitle">
                 <header class="alm-modal__header">
@@ -45,11 +49,11 @@ if (!function_exists('n360_render_product_create_modal')) {
                         <i class="bi bi-plus-square-dotted"></i>
                     </div>
                     <div>
-                        <p class="alm-modal__eyebrow">Catalogo reutilizable</p>
-                        <h2 id="n360ProductCreateTitle">Nuevo producto</h2>
+                        <p class="alm-modal__eyebrow"><?= $fuel ? 'Catálogo de Combustible' : 'Catalogo reutilizable' ?></p>
+                        <h2 id="n360ProductCreateTitle"><?= $fuel ? 'Nuevo combustible' : 'Nuevo producto' ?></h2>
                     </div>
                     <button class="alm-modal__close" type="button" aria-label="Cerrar nuevo producto" data-alm-modal-close data-n360-product-create-close>
-                        <i class="bi bi-x-lg"></i>
+                        <?php if ($fuel): ?><span aria-hidden="true">&times;</span><?php else: ?><i class="bi bi-x-lg"></i><?php endif; ?>
                     </button>
                 </header>
 
@@ -60,8 +64,8 @@ if (!function_exists('n360_render_product_create_modal')) {
                     <input type="hidden" name="tipo_control" id="n360ProductCreateTipo">
 
                     <div class="n360-product-create__context">
-                        <span><i class="bi bi-compass"></i> Origen: <strong id="n360ProductCreateOriginText">ALMACEN</strong></span>
-                        <span><i class="bi bi-sliders"></i> Control: <strong id="n360ProductCreateControlText">ALMACEN / CONSUMIBLE</strong></span>
+                        <span><i class="bi bi-compass"></i> <?= $fuel ? 'Gestión' : 'Origen' ?>: <strong id="n360ProductCreateOriginText"><?= $fuel ? 'COMBUSTIBLE' : 'ALMACEN' ?></strong></span>
+                        <span><i class="bi bi-sliders"></i> Control: <strong id="n360ProductCreateControlText"><?= $fuel ? 'COMBUSTIBLE / CONSUMIBLE' : 'ALMACEN / CONSUMIBLE' ?></strong></span>
                     </div>
 
                     <div class="n360-product-create__grid">
@@ -70,12 +74,12 @@ if (!function_exists('n360_render_product_create_modal')) {
                             <select name="categoria_id" id="n360ProductCreateCategoria" required>
                                 <option value="">Cargando categorias...</option>
                             </select>
-                            <small class="alm-help">Categorías habilitadas para nuevas altas en este módulo.</small>
+                            <small class="alm-help"><?= $fuel ? 'Categoría fija para productos de combustible.' : 'Categorías habilitadas para nuevas altas en este módulo.' ?></small>
                         </label>
 
                         <label class="alm-field alm-field--span-6">
                             <span>Unidad *</span>
-                            <input name="unidad" id="n360ProductCreateUnidad" type="text" maxlength="30" placeholder="UN, GLN, UND..." required>
+                            <input name="unidad" id="n360ProductCreateUnidad" type="text" maxlength="30" placeholder="<?= $fuel ? 'GLN, LT...' : 'UN, GLN, UND...' ?>" value="<?= $fuel ? 'GLN' : '' ?>" required>
                         </label>
 
                         <label class="alm-field alm-field--span-8">
@@ -85,7 +89,7 @@ if (!function_exists('n360_render_product_create_modal')) {
 
                         <label class="alm-field alm-field--span-4">
                             <span>Stock minimo *</span>
-                            <input name="stock_minimo" id="n360ProductCreateStockMin" type="number" min="0" step="0.001" value="0" required>
+                            <input name="stock_minimo" id="n360ProductCreateStockMin" type="number" min="0" step="<?= $fuel ? '1' : '0.001' ?>" <?= $fuel ? 'max="2147483647"' : '' ?> value="0" required>
                         </label>
 
                         <label class="alm-field alm-field--span-12">
@@ -101,7 +105,7 @@ if (!function_exists('n360_render_product_create_modal')) {
                     </div>
 
                     <div class="n360-product-create__status" id="n360ProductCreateStatus" role="status" aria-live="polite">
-                        Completa los datos para crear el producto.
+                        <?= $fuel ? 'El producto se crea sin existencias. Después registra su primera entrada.' : 'Completa los datos para crear el producto.' ?>
                     </div>
 
                     <footer class="n360-product-create__actions">

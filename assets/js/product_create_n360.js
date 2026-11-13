@@ -24,6 +24,9 @@
       originTipo,
       isAdmin: (dataset.productIsAdmin || dataset.isAdmin) === '1',
       afterCreate: dataset.productAfterCreate || 'event',
+      context: dataset.productContext || '',
+      fixedCategory: dataset.productFixedCategory || '',
+      categoryLabel: dataset.productCategoryLabel || '',
     };
   };
 
@@ -60,22 +63,31 @@
     document.body.classList.toggle('alm-modal-open', $$('.alm-modal.is-open').length > 0);
   };
 
-  const openModal = () => {
+  let returnFocus = null;
+  const openModal = (opener) => {
+    returnFocus = opener || document.activeElement;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
     syncModalOpenClass();
   };
 
-  const closeModal = () => {
+  const closeModal = (force = false) => {
+    if (!force && getConfig().context === 'combustible' && form.dataset.busy === '1') return;
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     syncModalOpenClass();
+    if (getConfig().context === 'combustible' && returnFocus?.isConnected) returnFocus.focus();
   };
 
   const setBusy = (busy) => {
     const btn = $('#n360ProductCreateSubmit');
     if (btn) btn.disabled = busy;
     form.dataset.busy = busy ? '1' : '0';
+    if (getConfig().context === 'combustible') {
+      $$('input, select, textarea, button', modal).forEach((field) => {
+        field.disabled = busy || field.id === 'n360ProductCreateCategoria';
+      });
+    }
   };
 
   async function fetchJson(action, options = {}) {
@@ -128,15 +140,22 @@
     form.reset();
     $('#n360ProductCreateStockMin').value = '0';
     $('#n360ProductCreateFileHint').textContent = 'Opcional. Maximo 4 MB.';
-    status('Completa los datos para crear el producto.');
+    status(getConfig().context === 'combustible'
+      ? 'El producto se crea sin existencias. Después registra su primera entrada.'
+      : 'Completa los datos para crear el producto.');
     applyContext();
   }
 
   async function loadCategories() {
     const select = $('#n360ProductCreateCategoria');
     if (!select) return;
-    select.innerHTML = '<option value="">Cargando categorias...</option>';
     const cfg = getConfig();
+    if (cfg.context === 'combustible' && cfg.fixedCategory === '11') {
+      select.replaceChildren(new Option(cfg.categoryLabel || '11 - Combustible', '11', true, true));
+      select.disabled = true;
+      return;
+    }
+    select.innerHTML = '<option value="">Cargando categorias...</option>';
     const data = await fetchJson(`categorias_producto&origin_id=${encodeURIComponent(cfg.originId)}`);
     const rows = data.rows || [];
 
@@ -151,12 +170,16 @@
     }).join('');
   }
 
-  async function openCreate() {
+  async function openCreate(opener) {
+    if (form.dataset.busy === '1') return;
     resetForm();
-    openModal();
+    openModal(opener);
     try {
       await loadCategories();
-      window.setTimeout(() => $('#n360ProductCreateCategoria')?.focus(), 50);
+      window.setTimeout(() => {
+        if (!modal.classList.contains('is-open')) return;
+        $(getConfig().context === 'combustible' ? '#n360ProductCreateNombre' : '#n360ProductCreateCategoria')?.focus();
+      }, 50);
     } catch (error) {
       status(error.message, 'error');
       alertBox(error.message, 'error', 'Nuevo producto');
@@ -187,7 +210,7 @@
     const openBtn = event.target.closest('[data-n360-product-create-open]');
     if (openBtn) {
       event.preventDefault();
-      openCreate();
+      openCreate(openBtn);
       return;
     }
 
@@ -201,6 +224,14 @@
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && modal.classList.contains('is-open')) {
       closeModal();
+    }
+    if (event.key === 'Tab' && getConfig().context === 'combustible' && modal.classList.contains('is-open')
+        && modal.contains(document.activeElement)) {
+      const fields = $$('button:not(:disabled), input:not(:disabled):not([type="hidden"]), textarea:not(:disabled)', modal)
+        .filter((field) => field.offsetParent !== null);
+      const first = fields[0]; const last = fields[fields.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }
   });
 
@@ -230,7 +261,7 @@
         () => fetchJson('crear_producto', { method: 'POST', body: payload }),
         { text: 'Guardando producto...' }
       );
-      closeModal();
+      closeModal(true);
       handleAfterCreate(data);
     } catch (error) {
       status(error.message, 'error');

@@ -16,6 +16,7 @@ require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
 require_once __DIR__ . '/../layout/quick_scan_n360.php';
 require_once __DIR__ . '/../layout/bus_lookup_n360.php';
+require_once __DIR__ . '/../layout/product_create_n360.php';
 
 if (!n360_puede_modulo(9) || !n360_puede_vista('registdialga-combust')) {
     header('Location: ../login/none_permisos.php?vista=' . urlencode('Registro de combustible'));
@@ -95,7 +96,8 @@ $firstGrifo = $grifos[0] ?? null;
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_registro_n360.css') ?>">
+    <?php if ($isAdmin): ?><link rel="stylesheet" href="<?= n360_asset('assets/css/almacen_movimiento_n360.css') ?>"><?php endif; ?>
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_registro_n360.css?producto=1') ?>">
 </head>
 <body>
 <?php n360_render_header(['title' => 'Combustible', 'subtitle' => 'Registro operativo']); ?>
@@ -186,6 +188,7 @@ $firstGrifo = $grifos[0] ?? null;
                     <i class="bi bi-droplet-half"></i>
                 </header>
 
+                <?php if ($isAdmin): ?><div class="comb-reg-catalog-actions"><button type="button" class="stock-btn stock-btn--primary" data-n360-product-create-open><i class="bi bi-plus-circle" aria-hidden="true"></i> Nuevo combustible</button></div><?php endif; ?>
                 <div class="comb-reg-search">
                     <i class="bi bi-search"></i>
                     <input type="search" id="fuelSearch" placeholder="Filtrar combustible..." autocomplete="off">
@@ -571,15 +574,24 @@ $firstGrifo = $grifos[0] ?? null;
 
 <?php n360_render_quick_scan(); ?>
 <?php n360_render_bus_lookup(); ?>
+<?php if ($isAdmin):
+    n360_render_product_create_config([
+        'api' => n360_base_url('01_fcombustible/api/registro_combustible_api.php'), 'csrf' => $csrf,
+        'origin_id' => 0, 'origin_label' => 'COMBUSTIBLE', 'origin_area' => 'COMBUSTIBLE',
+        'origin_tipo' => 'CONSUMIBLE', 'context' => 'combustible', 'fixed_category' => 11,
+        'category_label' => '11 - Combustible', 'is_admin' => true,
+    ]);
+    n360_render_product_create_modal(['context' => 'combustible']);
+endif; ?>
 <?php n360_render_footer(); ?>
 
 <script>
 window.N360_COMB_REG_BOOTSTRAP = {
-    productos: <?= json_encode($productos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    productos: <?= json_encode($productos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
     grifos: <?= json_encode($grifos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     buses: <?= json_encode($buses, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     stats: <?= json_encode($stats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-    recent: <?= json_encode($recent, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    recent: <?= json_encode($recent, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
     fuelStocks: <?= json_encode($fuelStocks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
     isAdmin: <?= $isAdmin ? 'true' : 'false' ?>
 };
@@ -598,7 +610,8 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_registro_n360.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_registro_n360.js?producto=1') ?>"></script>
+<?php if ($isAdmin): ?><script src="<?= n360_asset('assets/js/product_create_n360.js?producto=1') ?>"></script><?php endif; ?>
 <script src="<?= n360_asset('assets/js/quick_scan_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>

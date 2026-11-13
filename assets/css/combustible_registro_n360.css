@@ -1101,3 +1101,13 @@ body.n360-modal-open {
         align-items: flex-start;
     }
 }
+.comb-reg-catalog-actions { padding: 14px 14px 0; }
+.comb-reg-catalog-actions .stock-btn { width: 100%; justify-content: center; }
+#n360ProductCreateModal.n360-product-create--combustible { z-index: 10060; padding: 18px; align-items: center; }
+#n360ProductCreateModal.n360-product-create--combustible *,
+#n360ProductCreateModal.n360-product-create--combustible *::before,
+#n360ProductCreateModal.n360-product-create--combustible *::after { box-sizing: border-box; }
+#n360ProductCreateModal.n360-product-create--combustible :is(.alm-field, input, textarea, select) { min-width: 0; }
+#n360ProductCreateModal.n360-product-create--combustible .alm-modal__panel { width: min(800px, 100%); max-height: calc(100dvh - 36px); border-radius: 14px; }
+#n360ProductCreateModal.n360-product-create--combustible select:disabled { color: #536b80; background: #f0f5fa; opacity: 1; }
+#n360ProductCreateModal.n360-product-create--combustible :is(input, textarea, button):focus-visible { outline: 3px solid #208ed0; outline-offset: 2px; }

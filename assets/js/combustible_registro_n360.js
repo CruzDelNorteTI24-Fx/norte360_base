@@ -1097,17 +1097,49 @@
   el.salidaCantidad?.addEventListener('input', recalcSalida);
   el.salidaPuExtra?.addEventListener('input', recalcSalida);
 
-  $$('[data-product-button]').forEach((button) => {
-    button.addEventListener('click', () => {
-      if (el.producto) el.producto.value = button.dataset.productId || '';
-      setActiveProductButton(button.dataset.productId || 0);
-      refreshState(true, {
-        button,
-        label: 'Actualizando combustible...',
-        title: 'Cargando combustible',
-        detail: 'Consultando stock, saldo y precio del producto seleccionado...',
-      });
+  $('[data-fuel-list]')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-product-button]');
+    if (!button) return;
+    if (el.producto) el.producto.value = button.dataset.productId || '';
+    setActiveProductButton(button.dataset.productId || 0);
+    refreshState(true, {
+      button,
+      label: 'Actualizando combustible...',
+      title: 'Cargando combustible',
+      detail: 'Consultando stock, saldo y precio del producto seleccionado...',
     });
+  });
+
+  document.addEventListener('n360:product-created', (event) => {
+    if (!isAdmin || event.detail?.context?.context !== 'combustible') return;
+    const product = event.detail.product;
+    const list = $('[data-fuel-list]');
+    if (!product?.id || !el.producto || !list) return;
+    const option = new Option(`(${product.codigo}) ${product.nombre} - ${product.unidad}`, String(product.id));
+    Object.assign(option.dataset, {code: product.codigo, name: product.nombre, unit: product.unidad,
+      price: String(product.precio_unitario || 0), extra: String(product.precio_extra || 0)});
+    el.producto.append(option);
+    el.producto.value = String(product.id);
+    list.querySelector('.stock-empty')?.remove();
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'comb-reg-fuel-btn';
+    Object.assign(button.dataset, option.dataset, {productButton: '', productId: String(product.id)});
+    for (const [tag, value] of [['span', product.codigo], ['strong', product.nombre], ['small', product.unidad]]) {
+      const node = document.createElement(tag); node.textContent = value; button.append(node);
+    }
+    const stock = document.createElement('em');
+    const icon = document.createElement('i'); icon.className = 'bi bi-fuel-pump'; icon.setAttribute('aria-hidden', 'true');
+    const badge = document.createElement('b'); badge.dataset.productStockBadge = String(product.id); badge.textContent = '0';
+    stock.append(icon, badge); button.append(stock); list.append(button);
+    if (el.fuelSearch) { el.fuelSearch.value = ''; el.fuelSearch.dispatchEvent(new Event('input')); }
+    applyState({product, stock_producto_grifo: 0, stock_grifo: state.stockGrifo,
+      pu_ref_salida: null, pu_extra_salida: 0, fuel_stocks: {...state.fuelStocks, [product.id]: 0}});
+    selectMode('entrada');
+    resetEntrada();
+    if (el.entradaCantidad) el.entradaCantidad.value = '';
+    if (el.entradaPrecio) el.entradaPrecio.value = '';
+    recalcEntrada();
+    refreshState(false);
   });
 
   $$('[data-grifo-button]').forEach((button) => {

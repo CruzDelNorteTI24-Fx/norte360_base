@@ -462,6 +462,10 @@ try {
         case 'bootstrap':
             comb_reg_api_bootstrap($conn);
             break;
+        case 'crear_producto':
+            require_once __DIR__ . '/../lib/combustible_productos.php';
+            comb_reg_api_crear_producto($conn, $_POST ?: $payload);
+            break;
         case 'state':
             comb_reg_api_state($conn);
             break;
