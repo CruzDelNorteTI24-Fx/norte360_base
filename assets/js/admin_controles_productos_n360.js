@@ -80,7 +80,7 @@
       if (!response.ok || !data.ok) throw new Error(data.message || 'No se pudo consultar el catálogo.');
       title.textContent = data.context.title;
       filters.replaceChildren();
-      [['Área', data.context.area], ['Tipo', data.context.tipo]].forEach(([name, value]) => {
+      [['Categoría', data.context.categoria], ['Área', data.context.area], ['Tipo', data.context.tipo]].forEach(([name, value]) => {
         if (!value) return;
         const badge = document.createElement('span');
         badge.textContent = name + ': ' + value;
@@ -90,7 +90,8 @@
       pages = data.pages;
       pageText.textContent = `Página ${formatter.format(page)} de ${formatter.format(pages)}`;
       if (!data.rows.length) {
-        message(search ? 'No se encontraron productos para esta búsqueda.' : 'No hay productos asignados a este control.');
+        message(search ? 'No se encontraron productos para esta búsqueda.' : (selected.scope === 'categorias'
+          ? 'Esta categoría no tiene productos registrados.' : 'No hay productos asignados a este control.'));
         status.textContent = '0 productos encontrados';
       } else {
         renderProducts(data.rows);
@@ -134,6 +135,8 @@
     }
   });
   dialog.addEventListener('close', () => {
+    // Un cierre anterior puede notificarse después de abrir otra categoría.
+    if (dialog.open) return;
     clearTimeout(timer);
     sequence++;
     controller?.abort();

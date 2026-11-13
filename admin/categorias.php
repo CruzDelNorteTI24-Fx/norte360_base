@@ -1,6 +1,7 @@
 <?php
 define('N360_ADMIN_CATALOG', true);
 require_once __DIR__ . '/_admin_catalogos.php';
+require_once __DIR__ . '/../layout/admin_catalogo_productos_n360.php';
 require_once __DIR__ . '/../php/categorias_modulos.php';
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -127,7 +128,8 @@ try {
 
 n360_admin_render_head('Categorías');
 ?>
-<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_categorias_n360.css?categorias=1') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_controles_productos_n360.css?controles=2') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_categorias_n360.css?categorias=2') ?>">
 <?php n360_render_header(['title' => 'Categorías', 'subtitle' => 'Administración']); n360_render_sidebar(); ?>
 <main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
 <div class="n360-main__inner admin-cat-shell categorias-page">
@@ -154,7 +156,7 @@ n360_admin_render_head('Categorías');
                         <?php foreach ([3, 6, 12] as $moduleId): $enabled = !$protected && (int)($settings[$id][$moduleId]['habilitado'] ?? 1) === 1; ?><td>
                             <?php if ($protected): ?><span class="categorias-na">No aplica</span><?php else: ?><label class="categorias-choice"><input type="checkbox" name="modulos[]" value="<?= $moduleId ?>" form="<?= $formId ?>" <?= $enabled ? 'checked' : '' ?> <?= !$ready ? 'disabled' : '' ?> aria-label="Permitir nuevas altas de <?= n360_admin_h($row['codigo']) ?> en <?= n360_admin_h($modules[$moduleId] ?? '') ?>"><span>Mostrar</span></label><?php endif; ?>
                         </td><?php endforeach; ?>
-                        <td><span class="categorias-products"><?= (int)$row['productos'] ?></span></td><td>
+                        <td><div class="categorias-product-actions"><span class="categorias-products"><?= (int)$row['productos'] ?></span><button type="button" class="controles-search-button" data-control-catalog data-control-scope="categorias" data-control-id="<?= $id ?>" data-control-label="<?= n360_admin_h(trim($row['codigo'] . ' - ' . ($row['nombre'] ?: $row['codigo']))) ?>" title="Ver productos de esta categoría" aria-label="Ver productos de la categoría <?= n360_admin_h($row['nombre'] ?: $row['codigo']) ?>"><i class="bi bi-search" aria-hidden="true"></i></button></div></td><td>
                             <?php if ($protected): ?><span class="categorias-na">Protegida</span><?php else: ?><form method="post" id="<?= $formId ?>" action="categorias.php?<?= n360_admin_h(http_build_query(['q' => $query, 'page' => $page])) ?>">
                                 <input type="hidden" name="csrf" value="<?= n360_admin_h($csrf) ?>"><input type="hidden" name="categoria_id" value="<?= $id ?>"><input type="hidden" name="expected" value="<?= n360_categorias_version($id, $settings[$id] ?? []) ?>">
                                 <button type="submit" class="categorias-save" <?= !$ready ? 'disabled' : '' ?> aria-label="Guardar disponibilidad de <?= n360_admin_h($row['codigo']) ?>"><i class="bi bi-check2" aria-hidden="true"></i> Guardar</button>
@@ -171,4 +173,5 @@ n360_admin_render_head('Categorías');
     </section>
     <?php n360_render_content_separator('bottom'); ?>
 </div></main>
+<?php n360_render_admin_catalogo_productos('Categorías de productos'); ?>
 <?php n360_render_footer(); n360_admin_render_close(); $conn->close(); ?>

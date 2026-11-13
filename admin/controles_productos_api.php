@@ -22,7 +22,7 @@ $scope = $_GET['scope'] ?? '';
 $id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 2147483647]]);
 $page = filter_var($_GET['page'] ?? '1', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 1000000]]);
 $query = $_GET['q'] ?? '';
-if (!is_string($scope) || !in_array($scope, ['mapa', 'areas', 'tipos'], true) || $id === false || $page === false || !is_string($query)) {
+if (!is_string($scope) || !in_array($scope, ['mapa', 'areas', 'tipos', 'categorias'], true) || $id === false || $page === false || !is_string($query)) {
     n360_controles_json(['ok' => false, 'message' => 'Revisa el control y los filtros seleccionados.'], 422);
 }
 $query = trim($query);
@@ -37,12 +37,20 @@ try {
     require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
     if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) throw new RuntimeException('Conexión no disponible.');
     $conn->set_charset('utf8mb4');
-    $schema = n360_controles_schema($conn);
-    if (!$schema[$scope === 'tipos' ? 'tipos' : 'mapa']) {
-        n360_controles_json(['ok' => false, 'message' => 'El catálogo de controles aún está pendiente de habilitación.'], 409);
+    if ($scope !== 'categorias') {
+        $schema = n360_controles_schema($conn);
+        if (!$schema[$scope === 'tipos' ? 'tipos' : 'mapa']) {
+            n360_controles_json(['ok' => false, 'message' => 'El catálogo de controles aún está pendiente de habilitación.'], 409);
+        }
     }
-    $area = null; $type = null;
-    if ($scope === 'tipos') {
+    $area = null; $type = null; $categoryLabel = null;
+    if ($scope === 'categorias') {
+        $category = n360_controles_rows($conn, 'SELECT clm_alm_categoria_NOMBRE AS codigo,
+            clm_alm_categoria_DESCRIPCION AS nombre FROM tb_alm_categoria WHERE clm_alm_categoria_id = ?', 'i', [$id])[0] ?? null;
+        if (!$category) n360_controles_json(['ok' => false, 'message' => 'La categoría seleccionada no existe.'], 404);
+        $categoryLabel = trim(implode(' - ', array_filter([$category['codigo'], $category['nombre']], static fn($value) => trim((string)$value) !== '')));
+        $title = 'Productos de la categoría ' . ($category['nombre'] ?: $category['codigo']);
+    } elseif ($scope === 'tipos') {
         $control = n360_controles_rows($conn, 'SELECT clm_alm_tipo_control_codigo AS codigo,
             clm_alm_tipo_control_nombre AS nombre FROM tb_alm_tipo_control WHERE clm_alm_tipo_control_id = ?', 'i', [$id])[0] ?? null;
         if (!$control) n360_controles_json(['ok' => false, 'message' => 'El tipo de control seleccionado no existe.'], 404);
@@ -69,6 +77,7 @@ try {
     $areaSql = "UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_area_control), ''), 'ALMACEN'))";
     $typeSql = "UPPER(COALESCE(NULLIF(TRIM(p.clm_alm_producto_tipo_control), ''), 'CONSUMIBLE'))";
     $where = []; $paramTypes = ''; $params = [];
+    if ($scope === 'categorias') { $where[] = 'p.clm_alm_producto_idCATEGORIA = ?'; $paramTypes .= 'i'; $params[] = $id; }
     if ($area !== null) { $where[] = "$areaSql = ?"; $paramTypes .= 's'; $params[] = $area; }
     if ($type !== null) { $where[] = "$typeSql = ?"; $paramTypes .= 's'; $params[] = $type; }
     if ($query !== '') {
@@ -92,7 +101,7 @@ try {
         $areaSql AS area, $typeSql AS tipo $from WHERE $predicate
         ORDER BY p.clm_alm_producto_NOMBRE, p.clm_alm_producto_id LIMIT ? OFFSET ?",
         $paramTypes . 'ii', array_merge($params, [$pageSize, ($page - 1) * $pageSize]));
-    n360_controles_json(['ok' => true, 'context' => ['title' => $title, 'area' => $area, 'tipo' => $type],
+    n360_controles_json(['ok' => true, 'context' => ['title' => $title, 'area' => $area, 'tipo' => $type, 'categoria' => $categoryLabel],
         'rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => $pages, 'page_size' => $pageSize]);
 } catch (Throwable $e) {
     error_log('controles_productos_api.php: ' . $e->getMessage());
