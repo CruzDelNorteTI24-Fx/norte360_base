@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/movimiento_backend.php';
+require_once __DIR__ . '/../php/categorias_modulos.php';
 
 function alm_select_sedes(mysqli $conn): array {
     return alm_fetch_all($conn, "
@@ -88,6 +89,7 @@ function alm_select_recent_movements(mysqli $conn, int $originId = 1, int $limit
 function alm_action_categorias_producto(mysqli $conn): void {
     $originId = alm_origin_id_from_payload(['orgn_id' => (int)($_GET['origin_id'] ?? 0)]);
     $context = alm_context_config_from_origin($originId);
+    $categoryFilter = n360_categorias_filtro_alta($conn, n360_categorias_modulo_origen($originId));
 
     $rows = alm_fetch_all($conn, "
         SELECT
@@ -98,7 +100,7 @@ function alm_action_categorias_producto(mysqli $conn): void {
             COALESCE(NULLIF(TRIM(cod.clm_alm_codigo_NOMBRE), ''), '') AS codigo_grupo
         FROM tb_alm_categoria c
         JOIN tb_alm_codigo cod ON cod.clm_alm_codigo_id = c.clm_alm_categoria_idCODIGO
-        WHERE c.clm_alm_categoria_id <> 11
+        WHERE $categoryFilter
         ORDER BY c.clm_alm_categoria_DESCRIPCION ASC, c.clm_alm_categoria_NOMBRE ASC
     ");
 

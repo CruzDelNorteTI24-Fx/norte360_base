@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/movimiento_backend.php';
+require_once __DIR__ . '/../php/categorias_modulos.php';
 
 function alm_debug_sanitize($value) {
     if (is_array($value)) {
@@ -53,23 +54,6 @@ function alm_action_crear_producto(mysqli $conn): void {
         alm_json(['ok' => false, 'message' => 'El stock minimo no puede ser negativo.'], 422);
     }
 
-    $category = alm_fetch_one($conn, "
-        SELECT
-            c.clm_alm_categoria_id,
-            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_NOMBRE), ''), 'PR') AS categoria_abv,
-            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_DESCRIPCION), ''), 'Sin categoria') AS categoria,
-            COALESCE(NULLIF(TRIM(cod.clm_alm_codigo_NOMBRE), ''), '') AS codigo_grupo
-        FROM tb_alm_categoria c
-        JOIN tb_alm_codigo cod ON cod.clm_alm_codigo_id = c.clm_alm_categoria_idCODIGO
-        WHERE c.clm_alm_categoria_id = ?
-          AND c.clm_alm_categoria_id <> 11
-        LIMIT 1
-    ", 'i', [$categoriaId]);
-
-    if (!$category) {
-        alm_json(['ok' => false, 'message' => 'Categoria no disponible para crear productos.'], 422);
-    }
-
     $imagenBin = null;
     if (isset($_FILES['imagen']) && is_uploaded_file($_FILES['imagen']['tmp_name'])) {
         $size = (int)($_FILES['imagen']['size'] ?? 0);
@@ -88,6 +72,22 @@ function alm_action_crear_producto(mysqli $conn): void {
 
     $fecha = date('Y-m-d H:i:s');
     $conn->begin_transaction();
+
+    // Serializa el alta con los cambios de disponibilidad realizados en Administración.
+    $category = alm_fetch_one($conn, "
+        SELECT c.clm_alm_categoria_id,
+            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_NOMBRE), ''), 'PR') AS categoria_abv,
+            COALESCE(NULLIF(TRIM(c.clm_alm_categoria_DESCRIPCION), ''), 'Sin categoria') AS categoria,
+            COALESCE(NULLIF(TRIM(cod.clm_alm_codigo_NOMBRE), ''), '') AS codigo_grupo
+        FROM tb_alm_categoria c
+        JOIN tb_alm_codigo cod ON cod.clm_alm_codigo_id = c.clm_alm_categoria_idCODIGO
+        WHERE c.clm_alm_categoria_id = ? AND c.clm_alm_categoria_id <> 11
+        LIMIT 1 FOR UPDATE
+    ", 'i', [$categoriaId]);
+    if (!$category || !n360_categorias_permite_alta($conn, $categoriaId, n360_categorias_modulo_origen($originId))) {
+        $conn->rollback();
+        alm_json(['ok' => false, 'message' => 'La categoría no está habilitada para nuevas altas en este módulo. Actualiza las categorías del formulario.'], 422);
+    }
 
     $params = [$categoriaId, $nombre, $unidad, $stockMinimo, $descripcion, $imagenBin, $fecha, $areaControl, $tipoControl];
     $stmt = $conn->prepare("

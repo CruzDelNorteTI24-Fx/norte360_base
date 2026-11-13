@@ -70,7 +70,7 @@ if (!function_exists('n360_render_product_create_modal')) {
                             <select name="categoria_id" id="n360ProductCreateCategoria" required>
                                 <option value="">Cargando categorias...</option>
                             </select>
-                            <small class="alm-help">La categoria combustible no se muestra en este registro.</small>
+                            <small class="alm-help">Categorías habilitadas para nuevas altas en este módulo.</small>
                         </label>
 
                         <label class="alm-field alm-field--span-6">

@@ -133,6 +133,12 @@ function n360_menu_config(): array {
                                 'admin' => true
                             ],
                             [
+                                'titulo' => 'Categorías',
+                                'icono' => 'bi bi-tags',
+                                'url' => 'admin/categorias.php',
+                                'admin' => true
+                            ],
+                            [
                                 'titulo' => 'Espacios',
                                 'icono' => 'bi bi-grid-1x2-fill',
                                 'url' => 'admin/espacios.php',
