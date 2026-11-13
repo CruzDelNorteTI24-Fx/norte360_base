@@ -1,6 +1,7 @@
 <?php
 define('N360_ADMIN_CATALOG', true);
 require_once __DIR__ . '/_admin_catalogos.php';
+require_once __DIR__ . '/_controles_productos.php';
 
 if (!in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
     header('Allow: GET, HEAD');
@@ -8,18 +9,6 @@ if (!in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
     exit('Esta vista permite únicamente consultar los controles de productos.');
 }
 $conn->set_charset('utf8mb4');
-
-function n360_controles_rows(mysqli $conn, string $sql): array {
-    $result = $conn->query($sql);
-    if (!$result) throw new RuntimeException('No se pudo consultar el catálogo de controles.');
-    return $result->fetch_all(MYSQLI_ASSOC);
-}
-
-function n360_controles_module_name($value): string {
-    $name = trim((string)$value);
-    if ($name === '') return 'Sin módulo relacionado';
-    return function_exists('mb_convert_case') ? mb_convert_case($name, MB_CASE_TITLE, 'UTF-8') : ucwords($name);
-}
 
 $tabs = [
     'mapa' => ['nombre' => 'Mapa por módulo', 'icono' => 'bi-diagram-3',
@@ -34,21 +23,8 @@ $areas = []; $types = []; $modulesByType = [];
 $areaReady = false; $typeReady = false; $mapReady = false; $error = '';
 
 try {
-    $columns = [];
-    foreach (n360_controles_rows($conn, "SELECT TABLE_NAME AS tabla, COLUMN_NAME AS columna
-        FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
-        AND TABLE_NAME IN ('tb_alm_area_control', 'tb_alm_tipo_control')") as $column) {
-        $columns[$column['tabla']][] = $column['columna'];
-    }
-    $areaReady = !array_diff([
-        'clm_alm_area_control_id', 'clm_alm_area_control_codigo', 'clm_alm_area_control_nombre',
-        'clm_alm_area_control_descripcion', 'clm_alm_area_control_idmodulo', 'clm_alm_area_control_idtipo',
-    ], $columns['tb_alm_area_control'] ?? []);
-    $typeReady = !array_diff([
-        'clm_alm_tipo_control_id', 'clm_alm_tipo_control_codigo',
-        'clm_alm_tipo_control_nombre', 'clm_alm_tipo_control_descripcion',
-    ], $columns['tb_alm_tipo_control'] ?? []);
-    $mapReady = $areaReady && $typeReady;
+    $schema = n360_controles_schema($conn);
+    $areaReady = $schema['areas']; $typeReady = $schema['tipos']; $mapReady = $schema['mapa'];
     if ($typeReady) {
         $types = n360_controles_rows($conn, 'SELECT clm_alm_tipo_control_id AS id,
             clm_alm_tipo_control_codigo AS codigo, clm_alm_tipo_control_nombre AS nombre,
@@ -56,7 +32,7 @@ try {
             ORDER BY clm_alm_tipo_control_id');
     }
     if ($mapReady) {
-        $areas = n360_controles_rows($conn, 'SELECT a.clm_alm_area_control_codigo AS codigo,
+        $areas = n360_controles_rows($conn, 'SELECT a.clm_alm_area_control_id AS id, a.clm_alm_area_control_codigo AS codigo,
             a.clm_alm_area_control_nombre AS nombre, a.clm_alm_area_control_descripcion AS descripcion,
             a.clm_alm_area_control_idmodulo AS modulo_id, m.nombre_modulo AS modulo_nombre,
             a.clm_alm_area_control_idtipo AS tipo_id, t.clm_alm_tipo_control_codigo AS tipo_codigo,
@@ -77,10 +53,10 @@ try {
 $moduleCount = count(array_unique(array_column($areas, 'modulo_id')));
 $available = $view === 'tipos' ? $typeReady : $mapReady;
 $rows = $view === 'tipos' ? $types : $areas;
-$columnCount = $view === 'areas' ? 5 : 4;
+$columnCount = $view === 'areas' ? 6 : 5;
 n360_admin_render_head('Controles de productos');
 ?>
-<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_controles_productos_n360.css?controles=1') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_controles_productos_n360.css?controles=2') ?>">
 <?php n360_render_header(['title' => 'Controles de productos', 'subtitle' => 'Administración']); ?>
 <?php n360_render_sidebar(); ?>
 <main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
@@ -109,6 +85,7 @@ n360_admin_render_head('Controles de productos');
                 <?php if ($view === 'mapa'): ?><th scope="col">Gestión (módulo)</th><th scope="col">Área de control</th><th scope="col">Tipo de control</th><th scope="col">Descripción</th>
                 <?php elseif ($view === 'areas'): ?><th scope="col">Código</th><th scope="col">Área</th><th scope="col">Módulo relacionado</th><th scope="col">Tipo asociado</th><th scope="col">Descripción</th>
                 <?php else: ?><th scope="col">Código</th><th scope="col">Tipo de control</th><th scope="col">Descripción</th><th scope="col">Usado en</th><?php endif; ?>
+                <th scope="col" class="controles-products-column">Productos</th>
             </tr></thead><tbody>
                 <?php if (!$available || !$rows): ?><tr><td colspan="<?= $columnCount ?>" class="admin-cat-empty"><?= $error !== '' ? 'La consulta no está disponible temporalmente.' : (!$available ? 'Este catálogo está pendiente de habilitación.' : 'No hay registros en este catálogo.') ?></td></tr>
                 <?php else: foreach ($rows as $row): ?><tr>
@@ -124,6 +101,7 @@ n360_admin_render_head('Controles de productos');
                         <td><span class="controles-code"><?= n360_admin_h($row['codigo']) ?></span></td><td><strong><?= n360_admin_h($row['nombre']) ?></strong></td><td class="controles-description"><?= n360_admin_h($row['descripcion']) ?></td>
                         <td><?php if (!$mapReady): ?><span class="controles-caption">Pendiente de relación</span><?php elseif (empty($modulesByType[(int)$row['id']])): ?><span class="controles-caption">Sin módulos relacionados</span><?php else: ?><div class="controles-uses"><?php foreach ($modulesByType[(int)$row['id']] as $module): ?><span><?= n360_admin_h($module) ?></span><?php endforeach; ?></div><?php endif; ?></td>
                     <?php endif; ?>
+                    <td class="controles-products-column"><button type="button" class="controles-search-button" data-control-catalog data-control-scope="<?= $view ?>" data-control-id="<?= (int)$row['id'] ?>" data-control-label="<?= n360_admin_h($row['nombre']) ?>" title="Ver catálogo: <?= n360_admin_h($row['nombre']) ?>" aria-label="Ver catálogo de productos: <?= n360_admin_h($row['nombre']) ?>"><i class="bi bi-search" aria-hidden="true"></i></button></td>
                 </tr><?php endforeach; endif; ?>
             </tbody></table>
         </div>
@@ -132,4 +110,18 @@ n360_admin_render_head('Controles de productos');
     <aside class="controles-location-note"><i class="bi bi-geo-alt" aria-hidden="true"></i><div><strong>El control pertenece al producto</strong><p>El área y el tipo describen su gestión. Una ubicación física puede contener productos de distintas gestiones.</p></div></aside>
     <?php n360_render_content_separator('bottom'); ?>
 </div></main>
+<dialog class="controles-catalog" id="controlesCatalogDialog" aria-labelledby="controlesCatalogTitle" data-api="<?= n360_admin_h(n360_base_url('admin/controles_productos_api.php')) ?>">
+    <header class="controles-catalog__head"><div><span class="controles-catalog__kicker"><i class="bi bi-search" aria-hidden="true"></i> Controles de productos</span><h2 id="controlesCatalogTitle">Catálogo de productos</h2><p id="controlesCatalogContext"></p></div><button type="button" class="controles-catalog__close" data-catalog-close aria-label="Cerrar catálogo"><span aria-hidden="true">&times;</span></button></header>
+    <div class="controles-catalog__body">
+        <div class="controles-catalog__filters" id="controlesCatalogFilters"></div>
+        <form class="controles-catalog__search" id="controlesCatalogSearch" role="search"><label for="controlesCatalogQuery">Buscar en este catálogo</label><div><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="controlesCatalogQuery" maxlength="120" placeholder="Código, producto o categoría..." autocomplete="off"><button type="submit">Buscar</button></div></form>
+        <p class="controles-catalog__status" id="controlesCatalogStatus" role="status" aria-live="polite"></p>
+        <div class="controles-catalog__error" id="controlesCatalogError" role="alert" hidden><span></span><button type="button" id="controlesCatalogRetry">Reintentar</button></div>
+        <div class="controles-catalog__table-wrap" tabindex="0" role="region" aria-label="Productos del catálogo">
+            <table class="controles-catalog__table"><thead><tr><th scope="col">Código</th><th scope="col">Producto / categoría</th><th scope="col">Unidad</th><th scope="col">Área</th><th scope="col">Tipo</th></tr></thead><tbody id="controlesCatalogRows"></tbody></table>
+        </div>
+    </div>
+    <footer class="controles-catalog__footer"><div class="controles-catalog__pagination"><button type="button" id="controlesCatalogPrev" aria-label="Página anterior">Anterior</button><span id="controlesCatalogPage"></span><button type="button" id="controlesCatalogNext" aria-label="Página siguiente">Siguiente</button></div><button type="button" data-catalog-close>Cerrar</button></footer>
+</dialog>
+<script src="<?= n360_asset('assets/js/admin_controles_productos_n360.js?controles=1') ?>"></script>
 <?php n360_render_footer(); n360_admin_render_close(); $conn->close(); ?>
