@@ -127,6 +127,12 @@ function n360_menu_config(): array {
                                 'admin' => true
                             ],
                             [
+                                'titulo' => 'Controles de productos',
+                                'icono' => 'bi bi-sliders',
+                                'url' => 'admin/controles_productos.php',
+                                'admin' => true
+                            ],
+                            [
                                 'titulo' => 'Espacios',
                                 'icono' => 'bi bi-grid-1x2-fill',
                                 'url' => 'admin/espacios.php',

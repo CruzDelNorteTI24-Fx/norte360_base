@@ -1,0 +1,46 @@
+.controles-page { min-width: 0; }
+.controles-page .admin-cat-hero h1 { font-size: clamp(26px, 3vw, 38px); }
+.controles-readonly { display: inline-flex; align-items: center; gap: 8px; justify-self: end; padding: 9px 14px; border: 1px solid #ffffff35; border-radius: 20px; background: #ffffff12; color: #e5f1fa; font-size: 12px; font-weight: 700; }
+.controles-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.controles-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 18px; border-bottom: 1px solid #e5edf4; }
+.controles-tab { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid #d8e4ee; border-radius: 7px; color: #557086; background: #fff; font-size: 13px; font-weight: 800; text-decoration: none; }
+.controles-tab:hover { color: #214d70; border-color: #aac7dc; background: #f5f9fc; }
+.controles-tab.is-current { color: #fff; border-color: #214d70; background: #214d70; }
+.controles-page :is(a, .admin-cat-table-wrap):focus-visible { outline: 3px solid #edb526; outline-offset: 3px; }
+.controles-count { padding: 5px 10px; border: 1px solid #d8e4ef; border-radius: 14px; color: #54718b; background: #edf5fc; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.controles-table { min-width: 780px; }
+.controles-table td { padding: 20px 16px; font-size: 13px; line-height: 1.65; vertical-align: top; }
+.controles-table--mapa th:nth-child(1) { width: 17%; }
+.controles-table--mapa th:nth-child(2) { width: 20%; }
+.controles-table--mapa th:nth-child(3) { width: 22%; }
+.controles-table--mapa th:nth-child(4) { width: 41%; }
+.controles-table--areas { min-width: 900px; }
+.controles-module { display: inline-flex; gap: 9px; align-items: baseline; color: #21415a; font-weight: 800; overflow-wrap: anywhere; }
+.controles-module i { flex: 0 0 auto; color: #6f8ca4; }
+.controles-code { display: inline-block; padding: 4px 9px; border: 1px solid #d3e3f0; border-radius: 6px; background: #edf5fc; color: #214d70; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.controles-code--soft { border-color: #e0e7ed; background: #f4f7fa; color: #405a70; }
+.controles-caption { display: block; margin-top: 6px; color: #718497; font-size: 12px; line-height: 1.5; }
+.controles-table .controles-description { color: #557086; overflow-wrap: anywhere; }
+.controles-uses { display: flex; flex-wrap: wrap; gap: 6px; }
+.controles-uses span { padding: 3px 8px; border: 1px solid #dce8e1; border-radius: 5px; background: #f0f7f3; color: #3d6a51; font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
+.controles-panel-note { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 15px 18px; color: #718497; background: #fafcfe; font-size: 12px; line-height: 1.6; }
+.controles-location-note { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px; border: 1px solid #d7e6f2; border-radius: 8px; background: #f3f8fd; color: #52718a; }
+.controles-location-note > i { flex: 0 0 auto; padding-top: 2px; color: #4083b3; font-size: 18px; }
+.controles-location-note strong { color: #315571; font-size: 13px; }
+.controles-location-note p { margin: 4px 0 0; font-size: 12px; line-height: 1.6; }
+.controles-page .controles-error { border-color: #edcbc6; background: #fff3f1; color: #923c32; }
+@media (max-width: 620px) {
+    .controles-page .admin-cat-hero { grid-template-columns: minmax(0, 1fr); padding: 24px 20px; }
+    .controles-readonly { justify-self: start; }
+    .controles-kpis { gap: 8px; }
+    .controles-kpis .admin-cat-kpi { padding: 12px 10px; }
+    .controles-kpis .admin-cat-kpi span { font-size: 10px; }
+    .controles-kpis .admin-cat-kpi strong { font-size: 25px; }
+    .controles-tabs { padding: 12px; gap: 7px; }
+    .controles-tab { flex: 1 1 130px; padding: 9px; font-size: 12px; }
+    .controles-page .admin-cat-panel__head { gap: 9px; padding: 16px 14px; }
+    .controles-page .admin-cat-panel__head h2 { font-size: 17px; }
+    .controles-page .admin-cat-panel__head p { line-height: 1.5; }
+    .controles-count { font-size: 10px; padding: 4px 7px; }
+    .controles-panel-note { padding: 14px; }
+}
