@@ -57,7 +57,8 @@
         const month = /^(?:0?[1-9]|1[0-2])$/.test(storedMonth) ? storedMonth.padStart(2, '0') : '';
         const period = year ? (month ? `${month} - ${year}` : year) : '';
 
-        return { code, name, category, kind, logo, filename, year, period };
+        const location = kind === 'etiqueta' ? String(el.dataset.barcodeLocation ?? '').trim().replace(/\s+/g, ' ') : '';
+        return { code, name, category, kind, logo, filename, year, period, location };
     };
 
     const codeValues = (code) => {
@@ -250,7 +251,7 @@
         const maxTextW = barcodeW - 10;
 
         canvas.width = 370;
-        canvas.height = data.year ? 255 : 239;
+        canvas.height = (data.year ? 255 : 239) + (data.location ? 18 : 0);
 
         ctx.fillStyle = '#fff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -269,6 +270,11 @@
         const lines = wrapName(ctx, data.name, maxTextW);
         ctx.font = '700 16px N360Consola, Consolas, Courier New, monospace';
         lines.forEach((line, index) => ctx.fillText(line, xBarcode, 150 + index * 18));
+        if (data.location) {
+            const place = fitText(ctx, data.location, maxTextW, 11, 10);
+            ctx.font = `700 ${place.size}px N360Consola, Consolas, Courier New, monospace`;
+            ctx.fillText(place.text, xBarcode, 208);
+        }
 
         const logo = await loadImage(data.logo);
         const logoY = canvas.height - margin - 23;
@@ -316,6 +322,7 @@
                     <div class="n360-barcode-text">
                         <span class="n360-barcode-category" title="${esc(data.category)}">${esc(data.category)}</span>
                         <span class="n360-barcode-name" title="${esc(data.name)}">${lines.map(esc).join('<br>')}</span>
+                        ${data.location ? `<span class="n360-barcode-location" title="${esc(data.location)}">${esc(data.location)}</span>` : ''}
                     </div>
                     <div class="n360-barcode-footer">
                         ${data.logo && data.logo !== '-' ? `<img class="n360-barcode-logo" src="${esc(data.logo)}" alt="Norte 360">` : '<div class="n360-barcode-logo" aria-hidden="true"></div>'}

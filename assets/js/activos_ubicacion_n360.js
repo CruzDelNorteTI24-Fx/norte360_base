@@ -34,6 +34,7 @@
     const noop = () => {};
     noop.setDisabled = () => {};
     const area = select ? document.getElementById(select.id + 'Area') : null;
+    const pabellon = select ? document.getElementById(select.id + 'Pabellon') : null;
     if (!select || !sede || !area) return noop;
     const options = Array.from(select.options).filter(option => option.value).map(option => option.cloneNode(true));
     const enabled = select.dataset.spacesEnabled === '1';
@@ -43,8 +44,22 @@
     let locked = !enabled;
     const available = () => options.filter(option => option.dataset.sede === String(sede.value)
       && (option.dataset.active === '1' || option.value === retainedId));
+    const pavilionKey = option => key(option.dataset.pabellon) || '__sin_pabellon__';
+    const areaKey = option => (key(option.dataset.pabellon) ? pavilionKey(option) + '|' : '') + key(option.dataset.area);
+    const filtered = () => available().filter(option => !pabellon?.value || pavilionKey(option) === pabellon.value);
+    const rebuildPavilions = (selected = '') => {
+      if (!pabellon) return;
+      const entries = available();
+      const groups = new Map();
+      entries.forEach(option => groups.set(pavilionKey(option), detail(option.dataset.pabellon) || 'Sin pabellón definido'));
+      pabellon.replaceChildren(new Option(sede.value ? 'Todos los pabellones' : 'Selecciona primero una sede', ''),
+        ...Array.from(groups, ([value, name]) => new Option(name, value)));
+      const current = entries.find(option => option.value === String(selected));
+      pabellon.value = current && detail(current.dataset.pabellon) ? pavilionKey(current) : '';
+    };
 
     const syncDisabled = () => {
+      if (pabellon) pabellon.disabled = locked || !sede.value || !available().some(option => detail(option.dataset.pabellon));
       area.disabled = locked || !sede.value || area.options.length < 2;
       select.disabled = locked || !sede.value || !area.value;
       select.required = !select.disabled && Boolean(area.value);
@@ -56,7 +71,7 @@
     };
 
     const updateSpaces = (selected = '') => {
-      const entries = available().filter(option => key(option.dataset.area) === area.value);
+      const entries = filtered().filter(option => areaKey(option) === area.value);
       select.replaceChildren(new Option(area.value ? 'Selecciona un espacio...' : 'Selecciona primero un área', ''),
         ...entries.map(option => option.cloneNode(true)));
       // Una fila de "solo área" ya tiene un ID real; no se inventa una asignación.
@@ -66,33 +81,40 @@
     };
 
     const rebuild = (selected = '', selectedArea = '') => {
-      const entries = available();
+      const entries = filtered();
       const groups = new Map();
       entries.forEach(option => {
-        const group = key(option.dataset.area);
-        if (!groups.has(group)) groups.set(group, {name: option.dataset.area, active: false});
+        const group = areaKey(option);
+        const suffix = !pabellon?.value && detail(option.dataset.pabellon) ? ' - ' + detail(option.dataset.pabellon) : '';
+        if (!groups.has(group)) groups.set(group, {name: option.dataset.area + suffix, active: false});
         if (option.dataset.active === '1') groups.get(group).active = true;
       });
       const current = entries.find(option => option.value === String(selected));
       const placeholder = !sede.value ? 'Selecciona primero una sede' : groups.size ? 'Sin área específica' : 'Sin áreas disponibles';
       area.replaceChildren(new Option(placeholder, ''), ...Array.from(groups, ([value, group]) =>
         new Option(group.name + (group.active ? '' : ' (inactivo)'), value)));
-      const desiredArea = current ? key(current.dataset.area) : selectedArea;
+      const desiredArea = current ? areaKey(current) : selectedArea;
       area.value = groups.has(desiredArea) ? desiredArea : '';
       updateSpaces(selected);
     };
 
     const refresh = (selected = select.value) => {
       retainedId = String(selected || '');
+      rebuildPavilions(retainedId);
       rebuild(retainedId);
     };
     refresh.setDisabled = value => { locked = Boolean(value) || !enabled; syncDisabled(); };
     sede.addEventListener('change', () => {
+      rebuildPavilions();
       rebuild();
       select.dispatchEvent(new Event('change'));
     });
     area.addEventListener('change', () => {
       updateSpaces();
+      select.dispatchEvent(new Event('change'));
+    });
+    pabellon?.addEventListener('change', () => {
+      rebuild();
       select.dispatchEvent(new Event('change'));
     });
     (select.form || sede.form)?.addEventListener('reset', () => queueMicrotask(() => {

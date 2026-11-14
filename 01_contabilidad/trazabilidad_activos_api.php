@@ -67,8 +67,8 @@ function trace_api_history_rows(mysqli $conn, int $labelId): array {
     $beforeSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_antes' : 'NULL';
     $afterSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_despues' : 'NULL';
     $hasSpace = alm_activos_espacios_disponibles($conn);
-    $beforeSpace = $hasSpace ? "CONCAT_WS(' - ', NULLIF(TRIM(ea.clm_sedeesp_area), ''), NULLIF(TRIM(ea.clm_sedeesp_espacio), ''))" : "''";
-    $afterSpace = $hasSpace ? "CONCAT_WS(' - ', NULLIF(TRIM(ed.clm_sedeesp_area), ''), NULLIF(TRIM(ed.clm_sedeesp_espacio), ''))" : "''";
+    $beforeSpace = $hasSpace ? alm_espacios_nombre_sql($conn, 'ea') : "''";
+    $afterSpace = $hasSpace ? alm_espacios_nombre_sql($conn, 'ed') : "''";
     $spaceJoin = $hasSpace ? 'LEFT JOIN tb_sedes_espacios ea ON ea.clm_sedeesp_id = h.clm_alm_etiquetadoofi_espacio_id_antes
         LEFT JOIN tb_sedes_espacios ed ON ed.clm_sedeesp_id = h.clm_alm_etiquetadoofi_espacio_id_despues' : '';
     return alm_fetch_all($conn, "

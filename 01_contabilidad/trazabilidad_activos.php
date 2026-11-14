@@ -275,6 +275,7 @@ try {
             $locationDetailSql AS ubicacion_detalle,
             {$spaceSql['id']} AS espacio_id,
             {$spaceSql['nombre']} AS espacio_nombre,
+            {$spaceSql['nombre_corto']} AS espacio_corto,
             {$spaceSql['clasificacion_nombre']} AS clasificacion_nombre,
             p.clm_alm_producto_id AS producto_id,
             p.clm_alm_producto_codigo AS producto_codigo,
@@ -336,7 +337,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=2') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=3') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=2&consulta=1') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_modales_n360.css?modal=2') ?>">
 </head>
@@ -534,6 +535,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                                             class="trace-row-btn"
                                             title="Ver y descargar etiqueta"
                                             data-trace-label
+                                            data-location="<?= trace_h(implode(' - ', array_filter([$sedeNombre, $row['espacio_corto'] ?? ''], static fn($v) => $v !== ''))) ?>"
                                             data-code="<?= trace_h($etiquetaCodigo) ?>"
                                             data-year="<?= (int)($row['etiqueta_anio'] ?? 0) ?>"
                                             data-month="<?= (int)($row['etiqueta_mes'] ?? 0) ?>"
@@ -732,9 +734,9 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
 <script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=5') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=5') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=4&etiqueta=2&consulta=4') ?>"></script>
+<script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=3') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=6') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=5&etiqueta=3&consulta=4') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

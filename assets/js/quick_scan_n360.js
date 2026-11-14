@@ -100,6 +100,7 @@
                      data-barcode-kind="${escapeHtml(kind)}"
                      data-barcode-year="${escapeHtml(payload.trace?.anio_etiquetado ?? '')}"
                      data-barcode-month="${escapeHtml(payload.trace?.mes_etiquetado ?? '')}"
+                     data-barcode-location="${escapeHtml(payload.trace?.ubicacion_etiqueta ?? '')}"
                      data-barcode-logo="${escapeHtml(barcodeLogo)}">
                     <div class="n360-barcode-card__head">
                         <div class="n360-barcode-card__title">

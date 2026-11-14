@@ -119,6 +119,7 @@
     barcodeCard.dataset.barcodeCode = code;
     barcodeCard.dataset.barcodeYear = button.dataset.year || '';
     barcodeCard.dataset.barcodeMonth = button.dataset.month || '';
+    barcodeCard.dataset.barcodeLocation = button.dataset.location || '';
     barcodeCard.dataset.barcodeName = button.dataset.name || 'Activo fijo';
     barcodeCard.dataset.barcodeCategory = button.dataset.category || 'Contabilidad';
     barcodeCard.dataset.barcodeCategoryCode = button.dataset.categoryCode || '';

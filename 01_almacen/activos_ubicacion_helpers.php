@@ -1,6 +1,24 @@
 <?php
 require_once __DIR__ . '/trazabilidad_contexto.php';
 
+function alm_espacios_pabellon_disponible(mysqli $conn): bool {
+    static $cache = [];
+    $key = spl_object_hash($conn);
+    if (!array_key_exists($key, $cache)) {
+        $row = alm_fetch_one($conn, "SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tb_sedes_espacios'
+            AND COLUMN_NAME = 'clm_sedeesp_pabellon'");
+        $cache[$key] = (int)$row['total'] === 1;
+    }
+    return $cache[$key];
+}
+
+function alm_espacios_nombre_sql(mysqli $conn, string $alias, bool $conPabellon = true): string {
+    if (!preg_match('/^[a-z][a-z0-9_]*$/D', $alias)) throw new InvalidArgumentException('Alias no válido.');
+    $pabellon = $conPabellon && alm_espacios_pabellon_disponible($conn) ? "NULLIF(TRIM($alias.clm_sedeesp_pabellon), ''), " : '';
+    return "CONCAT_WS(' - ', $pabellon NULLIF(TRIM($alias.clm_sedeesp_area), ''), NULLIF(TRIM($alias.clm_sedeesp_espacio), ''))";
+}
+
 function alm_espacios_clasificacion_disponible(mysqli $conn): bool {
     static $cache = [];
     $key = spl_object_hash($conn);
@@ -45,6 +63,7 @@ function alm_activos_espacios_disponibles(mysqli $conn): bool {
 
 function alm_activos_espacio_nombre(array $row): string {
     return implode(' - ', array_filter([
+        trim((string)($row['pabellon'] ?? '')),
         trim((string)($row['area'] ?? '')), trim((string)($row['espacio'] ?? '')),
     ], static function ($value) { return $value !== ''; }));
 }
@@ -53,14 +72,15 @@ function alm_activos_espacios(mysqli $conn, bool $soloActivos = true): array {
     if (!alm_activos_espacios_disponibles($conn)) return [];
     $where = $soloActivos ? 'WHERE clm_sedeesp_estado = 1' : '';
     $classId = alm_espacios_clasificacion_disponible($conn) ? 'clm_sedeesp_idespacio' : 'NULL';
+    $pabellon = alm_espacios_pabellon_disponible($conn) ? 'clm_sedeesp_pabellon' : 'NULL';
     return alm_fetch_all($conn, "
         SELECT clm_sedeesp_id AS id, clm_sedeesp_idsede AS sede_id,
             clm_sedeesp_area AS area, clm_sedeesp_espacio AS espacio,
             clm_sedeesp_referencia_id AS referencia_id,
             clm_sedeesp_referencia_texto AS referencia_texto, clm_sedeesp_estado AS estado
-            , $classId AS clasificacion_id
+            , $classId AS clasificacion_id, $pabellon AS pabellon
         FROM tb_sedes_espacios $where
-        ORDER BY clm_sedeesp_area, clm_sedeesp_espacio, clm_sedeesp_id
+        ORDER BY pabellon, clm_sedeesp_area, clm_sedeesp_espacio, clm_sedeesp_id
     ");
 }
 
@@ -77,9 +97,10 @@ function alm_activos_validar_espacio(mysqli $conn, ?int $id, int $sedeId, ?int $
         throw new RuntimeException('Los espacios por sede aún no están habilitados. Contacta al administrador.', 409);
     }
     $lock = $bloquear ? ' FOR UPDATE' : '';
+    $pavilion = alm_espacios_pabellon_disponible($conn) ? 'clm_sedeesp_pabellon' : 'NULL';
     $row = alm_fetch_one($conn, "
         SELECT clm_sedeesp_id AS id, clm_sedeesp_idsede AS sede_id,
-            clm_sedeesp_area AS area, clm_sedeesp_espacio AS espacio, clm_sedeesp_estado AS estado
+            clm_sedeesp_area AS area, clm_sedeesp_espacio AS espacio, $pavilion AS pabellon, clm_sedeesp_estado AS estado
         FROM tb_sedes_espacios WHERE clm_sedeesp_id = ? LIMIT 1$lock
     ", 'i', [$id]);
     if (!$row || (int)$row['sede_id'] !== $sedeId) {
@@ -96,12 +117,13 @@ function alm_activos_espacio_sql(mysqli $conn, string $etiqueta = 'e', string $e
     if (!preg_match('/^[a-z][a-z0-9_]*$/D', $etiqueta) || !preg_match('/^[a-z][a-z0-9_]*$/D', $espacio)) {
         throw new InvalidArgumentException('Alias de ubicación inválido.');
     }
-    if (!alm_activos_espacios_disponibles($conn)) return ['id' => 'NULL', 'nombre' => "''", 'join' => '', 'clasificacion_id' => 'NULL', 'clasificacion_nombre' => "''"];
+    if (!alm_activos_espacios_disponibles($conn)) return ['id' => 'NULL', 'nombre' => "''", 'nombre_corto' => "''", 'join' => '', 'clasificacion_id' => 'NULL', 'clasificacion_nombre' => "''"];
     $hasClass = alm_espacios_clasificacion_disponible($conn);
     $classAlias = $espacio . '_clas';
     return [
         'id' => "$etiqueta.clm_alm_etiquetado_espacio_id",
-        'nombre' => "CONCAT_WS(' - ', NULLIF(TRIM($espacio.clm_sedeesp_area), ''), NULLIF(TRIM($espacio.clm_sedeesp_espacio), ''))",
+        'nombre' => alm_espacios_nombre_sql($conn, $espacio),
+        'nombre_corto' => alm_espacios_nombre_sql($conn, $espacio, false),
         'join' => "LEFT JOIN tb_sedes_espacios $espacio ON $espacio.clm_sedeesp_id = $etiqueta.clm_alm_etiquetado_espacio_id"
             . ($hasClass ? " LEFT JOIN tb_espacio $classAlias ON $classAlias.clm_esp_id = $espacio.clm_sedeesp_idespacio" : ''),
         'clasificacion_id' => $hasClass ? "$espacio.clm_sedeesp_idespacio" : 'NULL',

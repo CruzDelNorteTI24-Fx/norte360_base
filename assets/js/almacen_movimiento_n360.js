@@ -300,7 +300,7 @@
     .replace(/\s+/g, '_')
     .slice(0, 90) || 'ETQ';
 
-  async function downloadGeneratedLabels(codes, product, years, months) {
+  async function downloadGeneratedLabels(codes, product, years, months, location) {
     if (!isAccountingOrigin || !Array.isArray(codes) || !codes.length || !window.N360Barcode?.downloadPng) {
       return;
     }
@@ -320,6 +320,7 @@
       temp.dataset.barcodeCategoryName = product?.categoria || '';
       temp.dataset.barcodeYear = String(years?.[code] ?? '');
       temp.dataset.barcodeMonth = String(months?.[code] ?? '');
+      temp.dataset.barcodeLocation = location || '';
       temp.dataset.barcodeFilename = `ETQ_${safeBarcodeFile(code)}_${safeBarcodeFile(name)}.png`;
       await window.N360Barcode.downloadPng(temp);
     }
@@ -1067,7 +1068,7 @@
       if (data.auto_pdf && data.nota_id && window.N360NotaPDF) {
         await window.N360NotaPDF.downloadByNotaId(data.nota_id);
       }
-      await downloadGeneratedLabels(data.etiquetas || [], state.selectedEntrada, data.etiquetas_anios, data.etiquetas_meses);
+      await downloadGeneratedLabels(data.etiquetas || [], state.selectedEntrada, data.etiquetas_anios, data.etiquetas_meses, data.etiquetas_ubicacion);
       const labelText = data.etiquetas_generadas
         ? `\nEtiquetas generadas: ${(data.etiquetas || []).join(', ')}`
         : '';

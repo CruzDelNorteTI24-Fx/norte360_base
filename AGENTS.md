@@ -64,6 +64,8 @@ No copiar cambios de Norte360 a EYC sin validar que EYC solo usa combustible.
 
 ## Reglas obligatorias
 
+- Respetar el límite informado de Hostinger: `max_connections_per_hour = 500` por cuenta MySQL (conexiones nuevas por hora; no consultas ni conexiones simultáneas). Antes de cambios con acceso a BD, leer [la política central](C:/00_core_norte360/docs/gestion_conexiones_mysql.md). Reutilizar la conexión de la petición, evaluar pooling/persistencia real cuando corresponda y reducir peticiones repetidas mediante caché apropiada. No abrir conexiones por consulta ni en bucles, no asumir que un debounce basta y cerrar/devolver recursos correctamente. Preservar seguridad y funcionalidad; esta regla no autoriza tocar archivos de conexión, credenciales ni el límite del alojamiento.
+
 - No modificar archivos sin mostrar primero un plan.
 - No tocar .env, .config.env, .configbd2.env, credenciales, backups, trash, uploads ni archivos sensibles.
 - No cambiar nombres de tablas, columnas, rutas, permisos ni sesiones sin autorización.

@@ -143,6 +143,7 @@ if ($isEtiqueta) {
             s.clm_sedes_name AS sede_nombre,
             {$spaceSql['id']} AS espacio_id,
             {$spaceSql['nombre']} AS espacio_nombre,
+            {$spaceSql['nombre_corto']} AS espacio_corto,
             $detailSql AS ubicacion_detalle,
             p.clm_alm_producto_codigo AS codigo_producto,
             p.clm_alm_producto_NOMBRE AS producto_nombre,
@@ -181,6 +182,7 @@ if ($isEtiqueta) {
             'trace' => [
                 'sede' => n360_qs_text($row['sede_nombre'] ?? ''),
                 'espacio' => n360_qs_text($row['espacio_nombre'] ?? ''),
+                'ubicacion_etiqueta' => alm_activos_ubicacion($row['sede_nombre'] ?? '', $row['espacio_corto'] ?? ''),
                 'detalle_ubicacion' => n360_qs_text($row['ubicacion_detalle'] ?? ''),
                 'anaquel' => n360_qs_text($row['anaquel'] ?? ''),
                 'fecha_ingreso' => n360_qs_text($row['fecha_movimiento'] ?? ''),

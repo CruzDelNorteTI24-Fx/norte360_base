@@ -1,35 +1,62 @@
 .controles-page { min-width: 0; }
 .controles-page .admin-cat-hero h1 { font-size: clamp(26px, 3vw, 38px); }
-.controles-readonly { display: inline-flex; align-items: center; gap: 8px; justify-self: end; padding: 9px 14px; border-radius: 20px; background: #ffffff12; color: #e5f1fa; font-size: 12px; font-weight: 700; }
+.controles-readonly { display: inline-flex; align-items: center; gap: 8px; justify-self: end; padding: 9px 14px; border: 1px solid #ffffff26; border-radius: 20px; background: #ffffff12; color: #e5f1fa; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .controles-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.controles-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 18px; border-bottom: 1px solid #e5edf4; }
-.controles-tab { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid #d8e4ee; border-radius: 7px; color: #557086; background: #fff; font-size: 13px; font-weight: 800; text-decoration: none; }
-.controles-tab:hover { color: #214d70; border-color: #aac7dc; background: #f5f9fc; }
-.controles-tab.is-current { color: #fff; border-color: #214d70; background: #214d70; }
-.controles-page :is(a, .admin-cat-table-wrap):focus-visible { outline: 3px solid #edb526; outline-offset: 3px; }
-.controles-count { padding: 5px 10px; border: 1px solid #d8e4ef; border-radius: 14px; color: #54718b; background: #edf5fc; font-size: 11px; font-weight: 800; white-space: nowrap; }
-.controles-table { min-width: 780px; }
-.controles-table td { padding: 20px 16px; font-size: 13px; line-height: 1.65; vertical-align: top; }
+.controles-kpis .controles-kpi { --control-accent: #208fd1; display: flex; align-items: center; gap: 14px; padding: 18px; border-left: 3px solid var(--control-accent); }
+.controles-kpis .controles-kpi--tipos { --control-accent: #7764b5; }
+.controles-kpis .controles-kpi--modulos { --control-accent: #16956b; }
+.controles-kpi__icon { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #d9e9f5; border-radius: 11px; color: var(--control-accent); background: #f1f8fe; font-size: 21px; }
+.controles-kpi--tipos .controles-kpi__icon { border-color: #e6dff4; background: #f7f4fd; }
+.controles-kpi--modulos .controles-kpi__icon { border-color: #d7ebe3; background: #f0faf5; }
+.controles-kpis .controles-kpi strong { margin-top: 3px; font-size: 30px; line-height: 1.1; }
+.controles-kpi small { display: block; margin-top: 5px; color: #7e90a1; font-size: 11px; line-height: 1.5; }
+.controles-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 16px 18px; background: #f8fbfd; border-bottom: 1px solid #e5edf4; }
+.controles-tab { display: flex; align-items: center; gap: 11px; min-width: 0; min-height: 70px; padding: 12px; border: 1px solid #d8e4ee; border-radius: 9px; color: #557086; background: #fff; font-size: 13px; text-decoration: none; }
+.controles-tab:hover { color: #214d70; border-color: #9bc8e5; background: #f1f8fe; }
+.controles-tab.is-current { color: #fff; border-color: #197eb9; background: #208fd1; box-shadow: 0 5px 12px #208fd11c; }
+.controles-tab__icon { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border: 1px solid #ddebf6; border-radius: 8px; color: #2586c4; background: #edf6fd; font-size: 16px; }
+.controles-tab__copy { flex: 1; min-width: 0; }
+.controles-tab__copy strong { display: block; font-size: 12px; font-weight: 800; line-height: 1.4; }
+.controles-tab__copy small { display: block; margin-top: 3px; color: #8596a6; font-size: 10px; line-height: 1.5; }
+.controles-tab__count { flex: 0 0 auto; min-width: 23px; padding: 4px 6px; border-radius: 6px; text-align: center; color: #658198; background: #edf4f9; font-size: 11px; font-weight: 800; }
+.controles-tab.is-current .controles-tab__icon { color: #fff; background: #ffffff18; border-color: #ffffff30; }
+.controles-tab.is-current .controles-tab__copy small { color: #e0f2ff; }
+.controles-tab.is-current .controles-tab__count { color: #fff; background: #ffffff20; }
+.controles-page :is(a, button, .admin-cat-table-wrap):focus-visible { outline: 3px solid #edb526; outline-offset: 3px; }
+.controles-count { padding: 5px 10px; border: 1px solid #d3e6f6; border-radius: 16px; color: #1675b3; background: #eaf5ff; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.controles-page .controles-panel__head { padding: 18px; align-items: center; background: #fff; }
+.controles-panel__head h2 { font-size: 18px; }
+.controles-table { min-width: 860px; }
+.controles-table th { padding: 12px 14px; font-size: 11px; }
+.controles-table td { padding: 17px 14px; font-size: 12px; line-height: 1.6; vertical-align: middle; }
 .controles-table--mapa th:nth-child(1) { width: 16%; }
 .controles-table--mapa th:nth-child(2) { width: 18%; }
 .controles-table--mapa th:nth-child(3) { width: 22%; }
-.controles-table--mapa th:nth-child(4) { width: 36%; }
+.controles-table--mapa th:nth-child(4) { width: 30%; }
 .controles-table--areas { min-width: 900px; }
-.controles-module { display: inline-flex; gap: 9px; align-items: baseline; color: #21415a; font-weight: 800; overflow-wrap: anywhere; }
-.controles-module i { flex: 0 0 auto; color: #6f8ca4; }
-.controles-code { display: inline-block; padding: 4px 9px; border: 1px solid #d3e3f0; border-radius: 6px; background: #edf5fc; color: #214d70; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.controles-table--tipos th:nth-child(1) { width: 18%; }
+.controles-table--tipos th:nth-child(2) { width: 18%; }
+.controles-table--tipos th:nth-child(3) { width: 34%; }
+.controles-module { display: inline-flex; gap: 9px; align-items: center; color: #21415a; font-weight: 800; overflow-wrap: anywhere; }
+.controles-module__icon { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 7px; color: #2586c4; background: #edf6fd; font-size: 14px; }
+.controles-table tr[data-control-code=RRHH] .controles-module__icon { color: #7764b5; background: #f3effb; }
+.controles-table tr[data-control-code=ACTIVOS] .controles-module__icon { color: #a57924; background: #fff7e7; }
+.controles-table tr[data-control-code=COMBUSTIBLE] .controles-module__icon { color: #16956b; background: #eaf8f1; }
+.controles-code { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 4px 8px; border: 1px solid #d3e3f0; border-radius: 5px; background: #edf5fc; color: #214d70; font-size: 11px; font-weight: 800; overflow-wrap: anywhere; }
 .controles-code--soft { border-color: #e0e7ed; background: #f4f7fa; color: #405a70; }
-.controles-caption { display: block; margin-top: 6px; color: #718497; font-size: 12px; line-height: 1.5; }
+.controles-caption { display: block; margin-top: 5px; color: #718497; font-size: 11px; line-height: 1.5; }
 .controles-table .controles-description { color: #557086; overflow-wrap: anywhere; }
 .controles-uses { display: flex; flex-wrap: wrap; gap: 6px; }
 .controles-uses span { padding: 3px 8px; border: 1px solid #dce8e1; border-radius: 5px; background: #f0f7f3; color: #3d6a51; font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
 .controles-panel-note { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 15px 18px; color: #718497; background: #fafcfe; font-size: 12px; line-height: 1.6; }
-.controles-location-note { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px; border: 1px solid #d7e6f2; border-radius: 8px; background: #f3f8fd; color: #52718a; }
-.controles-location-note > i { flex: 0 0 auto; padding-top: 2px; color: #4083b3; font-size: 18px; }
+.controles-location-note { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px; border: 1px solid #d7e6f2; border-left: 3px solid #208fd1; border-radius: 8px; background: #fff; color: #52718a; }
+.controles-location-note > i { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border: 1px solid #d6e8f5; border-radius: 8px; color: #208fd1; background: #f1f8fe; font-size: 17px; }
 .controles-location-note strong { color: #315571; font-size: 13px; }
 .controles-location-note p { margin: 4px 0 0; font-size: 12px; line-height: 1.6; }
 .controles-page .controles-error { border-color: #edcbc6; background: #fff3f1; color: #923c32; }
-.controles-products-column { width: 70px; text-align: center !important; }
+.controles-products-column { width: 126px; text-align: center !important; }
+.controles-page .controles-search-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; min-height: 32px; height: auto; padding: 7px 10px; border-color: #c7ddef; border-radius: 6px; color: #245c87; background: #f4f9ff; font: inherit; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.controles-page .controles-search-button:hover { color: #fff; background: #208fd1; border-color: #197eb9; }
 .controles-search-button { display: inline-grid; place-items: center; width: 34px; height: 34px; border: 1px solid #c9deed; border-radius: 7px; color: #24618b; background: #f2f8fd; font-size: 15px; cursor: pointer; }
 .controles-search-button:hover { background: #e4f0fa; border-color: #94bad6; }
 .controles-search-button:focus-visible, .controles-catalog :is(button, input, [tabindex]):focus-visible { outline: 3px solid #edb526; outline-offset: 2px; }
@@ -69,16 +96,25 @@ body.controles-catalog-open { overflow: hidden; }
 .controles-catalog__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; flex: 0 0 auto; padding-top: 14px; border-top: 1px solid #e3ebf2; }
 .controles-catalog__pagination { display: flex; align-items: center; gap: 10px; }
 .controles-catalog__pagination span { color: #70879a; font-size: 12px; }
+.controles-main ~ .controles-catalog .controles-catalog__kicker { box-sizing: border-box; max-width: calc(100% - 32px); line-height: 1.4; }
+.controles-main ~ .controles-catalog .controles-catalog__head h2 { color: #fff; }
+.controles-main ~ .controles-catalog .controles-catalog__search button[type=submit], .controles-main ~ .controles-catalog .controles-catalog__footer > button { background: #208fd1; border-color: #197eb9; color: #fff; }
+.controles-main ~ .controles-catalog .controles-catalog__search button[type=submit]:hover, .controles-main ~ .controles-catalog .controles-catalog__footer > button:hover { background: #167fbd; }
+@media (min-width: 621px) and (max-width: 1100px) { .controles-kpis .controles-kpi { gap: 10px; padding: 15px 12px; } .controles-kpi__icon { flex-basis: 34px; width: 34px; height: 34px; font-size: 17px; } .controles-kpi small { font-size: 10px; } .controles-tabs { gap: 8px; padding: 12px; } .controles-tab { gap: 8px; padding: 10px; } .controles-tab__icon { display: none; } }
 @media (max-width: 620px) {
     .controles-page .admin-cat-hero { grid-template-columns: minmax(0, 1fr); padding: 24px 20px; }
     .controles-readonly { justify-self: start; }
     .controles-kpis { gap: 8px; }
-    .controles-kpis .admin-cat-kpi { padding: 12px 10px; }
-    .controles-kpis .admin-cat-kpi span { font-size: 10px; }
-    .controles-kpis .admin-cat-kpi strong { font-size: 25px; }
-    .controles-tabs { padding: 12px; gap: 7px; }
-    .controles-tab { flex: 1 1 130px; padding: 9px; font-size: 12px; }
-    .controles-page .admin-cat-panel__head { gap: 9px; padding: 16px 14px; }
+    .controles-kpis .controles-kpi { display: block; padding: 12px 9px; }
+    .controles-kpi__icon { width: 28px; height: 28px; margin-bottom: 8px; border-radius: 7px; font-size: 14px; }
+    .controles-kpis .controles-kpi span { min-height: 29px; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+    .controles-kpis .controles-kpi strong { font-size: 27px; }
+    .controles-kpi small { display: none; }
+    .controles-tabs { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 8px; }
+    .controles-tab { min-height: 58px; padding: 10px; }
+    .controles-tab__copy strong { font-size: 12px; }
+    .controles-tab__copy small { font-size: 10px; }
+    .controles-page .admin-cat-panel__head { flex-wrap: wrap; gap: 9px; padding: 16px 14px; }
     .controles-page .admin-cat-panel__head h2 { font-size: 17px; }
     .controles-page .admin-cat-panel__head p { line-height: 1.5; }
     .controles-count { font-size: 10px; padding: 4px 7px; }

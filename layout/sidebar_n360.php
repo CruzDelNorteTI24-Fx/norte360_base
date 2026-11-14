@@ -145,12 +145,6 @@ function n360_menu_config(): array {
                                 'admin' => true
                             ],
                             [
-                                'titulo' => 'Espacios por sede',
-                                'icono' => 'bi bi-geo-alt-fill',
-                                'url' => 'admin/espacios_sedes.php',
-                                'admin' => true
-                            ],
-                            [
                                 'titulo' => 'Anaqueles',
                                 'icono' => 'bi bi-boxes',
                                 'url' => 'admin/anaqueles.php',

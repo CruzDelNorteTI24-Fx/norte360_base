@@ -13,11 +13,11 @@ $conn->set_charset('utf8mb4');
 
 $tabs = [
     'mapa' => ['nombre' => 'Mapa por módulo', 'icono' => 'bi-diagram-3',
-        'titulo' => 'Gestión de productos por módulo', 'detalle' => 'Relación entre el módulo de gestión, el área y su tipo de control.'],
+        'ayuda' => 'Módulo, área y tipo', 'titulo' => 'Gestión de productos por módulo', 'detalle' => 'Relación entre el módulo de gestión, el área y su tipo de control.'],
     'areas' => ['nombre' => 'Áreas de control', 'icono' => 'bi-building-gear',
-        'titulo' => 'Áreas de control', 'detalle' => 'Códigos de área y su relación de referencia con los módulos del sistema.'],
+        'ayuda' => 'Ámbito de gestión', 'titulo' => 'Áreas de control', 'detalle' => 'Códigos de área y su relación de referencia con los módulos del sistema.'],
     'tipos' => ['nombre' => 'Tipos de control', 'icono' => 'bi-sliders',
-        'titulo' => 'Tipos de control', 'detalle' => 'Los tipos actuales de los productos y su descripción de uso.'],
+        'ayuda' => 'Comportamiento del producto', 'titulo' => 'Tipos de control', 'detalle' => 'Los tipos actuales de los productos y su descripción de uso.'],
 ];
 $view = is_string($_GET['vista'] ?? null) && isset($tabs[$_GET['vista']]) ? $_GET['vista'] : 'mapa';
 $areas = []; $types = []; $modulesByType = [];
@@ -57,29 +57,29 @@ $rows = $view === 'tipos' ? $types : $areas;
 $columnCount = $view === 'areas' ? 6 : 5;
 n360_admin_render_head('Controles de productos');
 ?>
-<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_controles_productos_n360.css?controles=2') ?>">
+<link rel="stylesheet" href="<?= n360_asset('assets/css/admin_controles_productos_n360.css?controles=3') ?>">
 <?php n360_render_header(['title' => 'Controles de productos', 'subtitle' => 'Administración']); ?>
 <?php n360_render_sidebar(); ?>
-<main class="main-content n360-main n360-main--module n360-main--compact-access" role="main">
+<main class="main-content n360-main n360-main--module n360-main--compact-access controles-main" role="main">
 <div class="n360-main__inner admin-cat-shell controles-page">
     <?php n360_render_content_separator('top'); ?>
     <section class="admin-cat-hero">
         <div><span class="admin-cat-kicker"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> Administración - Maestros</span>
             <h1>Controles de productos</h1><p>Consulta las áreas, los tipos de control y su relación con los módulos de Norte360.</p></div>
-        <span class="controles-readonly"><i class="bi bi-eye" aria-hidden="true"></i> Consulta</span>
+        <span class="controles-readonly"><i class="bi bi-eye" aria-hidden="true"></i> Solo consulta</span>
     </section>
     <section class="admin-cat-kpis controles-kpis" aria-label="Resumen de catálogos">
-        <article class="admin-cat-kpi"><span>Áreas de control</span><strong><?= $mapReady ? count($areas) : '-' ?></strong></article>
-        <article class="admin-cat-kpi"><span>Tipos de control</span><strong><?= $typeReady ? count($types) : '-' ?></strong></article>
-        <article class="admin-cat-kpi"><span>Módulos relacionados</span><strong><?= $mapReady ? $moduleCount : '-' ?></strong></article>
+        <article class="admin-cat-kpi controles-kpi controles-kpi--areas"><div class="controles-kpi__icon" aria-hidden="true"><i class="bi bi-building-gear"></i></div><div><span>Áreas de control</span><strong><?= $mapReady ? count($areas) : '-' ?></strong><small>Ámbitos de gestión del producto</small></div></article>
+        <article class="admin-cat-kpi controles-kpi controles-kpi--tipos"><div class="controles-kpi__icon" aria-hidden="true"><i class="bi bi-sliders"></i></div><div><span>Tipos de control</span><strong><?= $typeReady ? count($types) : '-' ?></strong><small>Formas de controlar los productos</small></div></article>
+        <article class="admin-cat-kpi controles-kpi controles-kpi--modulos"><div class="controles-kpi__icon" aria-hidden="true"><i class="bi bi-grid"></i></div><div><span>Módulos</span><strong><?= $mapReady ? $moduleCount : '-' ?></strong><small>Gestiones vinculadas al catálogo</small></div></article>
     </section>
     <?php if ($error !== ''): ?><div class="admin-cat-note controles-error" role="alert"><?= n360_admin_h($error) ?></div>
     <?php elseif (!$mapReady): ?><div class="admin-cat-note" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Los catálogos de controles aún no están habilitados por completo. La consulta estará disponible al completar su instalación.</span></div><?php endif; ?>
-    <section class="admin-cat-panel">
+    <section class="admin-cat-panel controles-panel">
         <nav class="controles-tabs" aria-label="Catálogos de controles">
-            <?php foreach ($tabs as $key => $tab): ?><a href="?vista=<?= $key ?>" class="controles-tab <?= $view === $key ? 'is-current' : '' ?>" <?= $view === $key ? 'aria-current="page"' : '' ?>><i class="bi <?= $tab['icono'] ?>" aria-hidden="true"></i><?= $tab['nombre'] ?></a><?php endforeach; ?>
+            <?php foreach ($tabs as $key => $tab): ?><a href="?vista=<?= $key ?>" class="controles-tab <?= $view === $key ? 'is-current' : '' ?>" <?= $view === $key ? 'aria-current="page"' : '' ?>><span class="controles-tab__icon"><i class="bi <?= $tab['icono'] ?>" aria-hidden="true"></i></span><span class="controles-tab__copy"><strong><?= $tab['nombre'] ?></strong><small><?= $tab['ayuda'] ?></small></span><span class="controles-tab__count"><?= $key === 'tipos' ? ($typeReady ? count($types) : '-') : ($mapReady ? count($areas) : '-') ?></span></a><?php endforeach; ?>
         </nav>
-        <div class="admin-cat-panel__head"><div><h2><?= $tabs[$view]['titulo'] ?></h2><p><?= $tabs[$view]['detalle'] ?></p></div>
+        <div class="admin-cat-panel__head controles-panel__head"><div><h2><?= $tabs[$view]['titulo'] ?></h2><p><?= $tabs[$view]['detalle'] ?></p></div>
             <?php if ($available): ?><span class="controles-count"><?= count($rows) ?> <?= count($rows) === 1 ? 'registro' : 'registros' ?></span><?php endif; ?></div>
         <div class="admin-cat-table-wrap" tabindex="0" role="region" aria-label="<?= $tabs[$view]['titulo'] ?>">
             <table class="admin-cat-table controles-table controles-table--<?= $view ?>"><thead><tr>
@@ -89,9 +89,9 @@ n360_admin_render_head('Controles de productos');
                 <th scope="col" class="controles-products-column">Productos</th>
             </tr></thead><tbody>
                 <?php if (!$available || !$rows): ?><tr><td colspan="<?= $columnCount ?>" class="admin-cat-empty"><?= $error !== '' ? 'La consulta no está disponible temporalmente.' : (!$available ? 'Este catálogo está pendiente de habilitación.' : 'No hay registros en este catálogo.') ?></td></tr>
-                <?php else: foreach ($rows as $row): ?><tr>
+                <?php else: foreach ($rows as $row): ?><tr data-control-code="<?= n360_admin_h($row['codigo']) ?>">
                     <?php if ($view === 'mapa'): ?>
-                        <td><span class="controles-module"><i class="bi bi-grid" aria-hidden="true"></i><?= n360_admin_h(n360_controles_module_name($row['modulo_nombre'])) ?></span></td>
+                        <td><span class="controles-module"><span class="controles-module__icon"><i class="bi bi-grid" aria-hidden="true"></i></span><?= n360_admin_h(n360_controles_module_name($row['modulo_nombre'])) ?></span></td>
                         <td><span class="controles-code"><?= n360_admin_h($row['codigo']) ?></span><small class="controles-caption"><?= n360_admin_h($row['nombre']) ?></small></td>
                         <td><span class="controles-code controles-code--soft"><?= n360_admin_h($row['tipo_codigo'] ?? 'Sin tipo relacionado') ?></span><small class="controles-caption"><?= n360_admin_h($row['tipo_nombre'] ?? '') ?></small></td>
                         <td class="controles-description"><?= n360_admin_h($row['descripcion']) ?></td>
@@ -102,7 +102,7 @@ n360_admin_render_head('Controles de productos');
                         <td><span class="controles-code"><?= n360_admin_h($row['codigo']) ?></span></td><td><strong><?= n360_admin_h($row['nombre']) ?></strong></td><td class="controles-description"><?= n360_admin_h($row['descripcion']) ?></td>
                         <td><?php if (!$mapReady): ?><span class="controles-caption">Pendiente de relación</span><?php elseif (empty($modulesByType[(int)$row['id']])): ?><span class="controles-caption">Sin módulos relacionados</span><?php else: ?><div class="controles-uses"><?php foreach ($modulesByType[(int)$row['id']] as $module): ?><span><?= n360_admin_h($module) ?></span><?php endforeach; ?></div><?php endif; ?></td>
                     <?php endif; ?>
-                    <td class="controles-products-column"><button type="button" class="controles-search-button" data-control-catalog data-control-scope="<?= $view ?>" data-control-id="<?= (int)$row['id'] ?>" data-control-label="<?= n360_admin_h($row['nombre']) ?>" title="Ver catálogo: <?= n360_admin_h($row['nombre']) ?>" aria-label="Ver catálogo de productos: <?= n360_admin_h($row['nombre']) ?>"><i class="bi bi-search" aria-hidden="true"></i></button></td>
+                    <td class="controles-products-column"><button type="button" class="controles-search-button" data-control-catalog data-control-scope="<?= $view ?>" data-control-id="<?= (int)$row['id'] ?>" data-control-label="<?= n360_admin_h($row['nombre']) ?>" title="Ver catálogo: <?= n360_admin_h($row['nombre']) ?>" aria-label="Ver catálogo de productos: <?= n360_admin_h($row['nombre']) ?>"><i class="bi bi-search" aria-hidden="true"></i><span>Ver catálogo</span></button></td>
                 </tr><?php endforeach; endif; ?>
             </tbody></table>
         </div>

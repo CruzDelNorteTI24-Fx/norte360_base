@@ -121,7 +121,8 @@ try {
         $assetLocationSuggestions = alm_activos_detalles_sugeridos($conn);
     }
     $anaqueles = alm_select_anaqueles($conn);
-    $originSpace = alm_select_espacio($conn, $originSpaceId) ?: [];
+    // Solo Almacén usa aquí un espacio operativo. 4/12 son procedencias de RRHH/Contabilidad.
+    $originSpace = $originSpaceId === 1 ? (alm_select_espacio($conn, 1) ?: []) : [];
     $stats = array_merge($stats, alm_select_stats($conn, $originSpaceId));
     $recentMovements = alm_select_recent_movements($conn, $originSpaceId);
 } catch (Throwable $e) {
@@ -225,7 +226,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
         <section class="alm-modebar" aria-label="Tipo de movimiento">
             <div class="alm-modebar__title">
                 <strong>Formulario de <?= alm_page_h($currentContext['label']) ?></strong>
-                <span class="alm-origin-chip"><i class="bi bi-geo-alt-fill"></i> Origen: <?= alm_page_h($originSpaceLabel) ?></span>
+                <span class="alm-origin-chip"><i class="bi bi-geo-alt-fill"></i> Gestión: <?= alm_page_h($originSpaceLabel) ?></span>
             </div>
             <div class="alm-modebar__buttons">
                 <button type="button" class="is-active" id="almEntradaMode">
@@ -546,9 +547,9 @@ window.N360_RRHH_ACTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=5') ?>"></script>
-<script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=3&etiqueta=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=3') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=6') ?>"></script>
+<script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=4&etiqueta=3') ?>"></script>
 <script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>

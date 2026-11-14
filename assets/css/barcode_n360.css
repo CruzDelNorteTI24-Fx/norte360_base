@@ -352,3 +352,4 @@
         width: 100%;
     }
 }
+.n360-barcode-location { display: block; margin-top: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #000; font: 700 10px N360Consola, Consolas, monospace; }

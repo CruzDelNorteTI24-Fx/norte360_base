@@ -819,6 +819,8 @@ function alm_action_save_entrada(mysqli $conn): void {
         }
     }
 
+    $labelLocation = $labelCodes ? alm_activos_ubicacion($sedeId > 0 ? alm_sede_display_name($conn, $sedeId) : '',
+        implode(' - ', array_filter([$espacioRow['area'] ?? '', $espacioRow['espacio'] ?? ''], static fn($v) => $v !== ''))) : '';
     $conn->commit();
 
     alm_json([
@@ -832,6 +834,7 @@ function alm_action_save_entrada(mysqli $conn): void {
         'etiquetas' => $labelCodes,
         'etiquetas_anios' => $labelYears,
         'etiquetas_meses' => $labelMonths,
+        'etiquetas_ubicacion' => $labelLocation,
         'auto_pdf' => $autoPdf,
         'pdf_params' => [
             'id_nota' => $notaId,

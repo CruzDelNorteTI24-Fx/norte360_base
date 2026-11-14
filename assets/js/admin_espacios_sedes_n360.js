@@ -7,6 +7,7 @@
   const sede = document.getElementById('sedeespCreateSede');
   const area = document.getElementById('sedeespCreateArea');
   const espacio = document.getElementById('sedeespCreateEspacio');
+  const pabellon = document.getElementById('sedeespCreatePabellon');
   const preview = document.getElementById('sedeespCreatePreview');
   const suggestions = document.getElementById('sedeespAreas');
   const submit = document.getElementById('sedeespCreateSubmit');
@@ -18,7 +19,7 @@
 
   function updatePreview() {
     const sedeName = sede.value ? sede.selectedOptions[0].textContent.trim() : '';
-    const place = [clean(area.value), clean(espacio.value)].filter(Boolean).join(' / ');
+    const place = [clean(pabellon?.value || ''), clean(area.value), clean(espacio.value)].filter(Boolean).join(' / ');
     preview.textContent = sedeName ? sedeName + (place ? '\n' + place : '\nCompleta el nombre del área.') : 'Selecciona una sede y completa el área.';
   }
 
@@ -66,7 +67,7 @@
     backdropStart = false;
   });
   sede.addEventListener('change', updateSuggestions);
-  [sede, area, espacio].forEach(field => field.addEventListener('input', () => {
+  [sede, area, espacio, pabellon].filter(Boolean).forEach(field => field.addEventListener('input', () => {
     const error = document.getElementById('sedeespCreateError');
     if (error) error.hidden = true;
     updatePreview();
@@ -155,4 +156,29 @@
     dialog.querySelectorAll('[data-classify-close]').forEach(button => { button.disabled = false; });
   });
   if (dialog.dataset.open === '1') open();
+})();
+(function () {
+  'use strict';
+  const dialog = document.getElementById('sedeespPavilionDialog');
+  if (!dialog) return;
+  const form = dialog.querySelector('form');
+  let opener, saving = false;
+  document.querySelectorAll('[data-sedeesp-pavilion]').forEach(button => button.addEventListener('click', () => {
+    opener = button;
+    form.elements.id.value = button.dataset.id;
+    form.elements.pabellon.value = '';
+    dialog.querySelector('[data-pavilion-location]').textContent = button.dataset.location;
+    dialog.showModal();
+    document.body.classList.add('sedeesp-dialog-open');
+    form.elements.pabellon.focus();
+  }));
+  dialog.querySelectorAll('[data-pavilion-close]').forEach(button => button.addEventListener('click', () => { if (!saving) dialog.close(); }));
+  dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
+  dialog.addEventListener('close', () => { document.body.classList.remove('sedeesp-dialog-open'); if (opener?.isConnected) opener.focus(); });
+  form.addEventListener('submit', event => {
+    if (saving) { event.preventDefault(); return; }
+    saving = true;
+    form.querySelector('[type=submit]').disabled = true;
+  });
+  window.addEventListener('pageshow', event => { if (event.persisted) { saving = false; form.querySelector('[type=submit]').disabled = false; } });
 })();
