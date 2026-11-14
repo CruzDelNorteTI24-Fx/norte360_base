@@ -304,6 +304,18 @@ try {
 } catch (Throwable $e) {
     $pageError = $e instanceof InvalidArgumentException ? $e->getMessage() : 'No se pudo consultar la trazabilidad. Intenta nuevamente.';
 }
+$locationPersonnel = array_column($locationSpaces, 'personal', 'id');
+$locationNameCounts = $locationSpaceNames = [];
+foreach ($locationSpaces as $option) {
+    $key = (int)$option['sede_id'] . '|' . alm_activos_espacio_nombre($option);
+    $locationNameCounts[$key] = ($locationNameCounts[$key] ?? 0) + 1;
+}
+foreach ($locationSpaces as $option) {
+    $name = alm_activos_espacio_nombre($option);
+    $locationSpaceNames[(int)$option['id']] = $name . ($locationNameCounts[(int)$option['sede_id'] . '|' . $name] > 1 ? ' - Ubicación ' . (int)$option['id'] : '');
+}
+foreach ($labels as &$labelRow) $labelRow['personal'] = $locationPersonnel[(int)($labelRow['espacio_id'] ?? 0)] ?? null;
+unset($labelRow);
 $exportFilters = ['Buscar' => $buscar, 'Estado' => $estado, 'Sede' => $sede === -1 ? 'Sin ubicacion' : 'Todas',
     'Detalle de ubicacion' => $detalleFiltro, 'Nota de origen' => $notaFiltro,
     'Categoria' => $categoriaFiltro ? ($categorias[$categoriaFiltro] ?? (string)$categoriaFiltro) : 'Todas',
@@ -312,7 +324,7 @@ foreach ($sedes as $option) { if ((int)$option['id'] === $sede) $exportFilters['
 $exportFilters['Área / espacio'] = $espacioFiltro === -1 ? 'Sin espacio específico' : 'Todos';
 $exportFilters['Clasificación de ubicación'] = $clasificacionFiltro === -1 ? 'Sin clasificar' : 'Todas';
 foreach ($clasificaciones as $option) { if ((int)$option['id'] === $clasificacionFiltro) $exportFilters['Clasificación de ubicación'] = $option['nombre']; }
-foreach ($locationSpaces as $option) { if ((int)$option['id'] === $espacioFiltro) $exportFilters['Área / espacio'] = alm_activos_espacio_nombre($option); }
+foreach ($locationSpaces as $option) { if ((int)$option['id'] === $espacioFiltro) $exportFilters['Área / espacio'] = $locationSpaceNames[(int)$option['id']]; }
 foreach ($productos as $option) { if ((int)$option['id'] === $productoFiltro) $exportFilters['Producto'] = $option['codigo'] . ' ' . $option['nombre']; }
 foreach ($usuarios as $option) { if ((int)$option['id'] === $usuarioFiltro) $exportFilters['Usuario del movimiento'] = $option['nombre']; }
 foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => $name) {
@@ -339,6 +351,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=3') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=2&consulta=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/activos_ubicacion_n360.css?personal=1') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_modales_n360.css?modal=2') ?>">
 </head>
 <body>
@@ -430,7 +443,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                     <label><span>Área / espacio</span><select name="espacio" id="traceFilterEspacio" <?= $locationSpacesEnabled ? '' : 'disabled' ?>>
                         <option value="0">Todos los espacios</option>
                         <option value="-1" <?= $espacioFiltro === -1 ? 'selected' : '' ?>>Sin espacio específico</option>
-                        <?php foreach ($locationSpaces as $option): ?><option value="<?= (int)$option['id'] ?>" data-sede="<?= (int)$option['sede_id'] ?>" data-clasificacion="<?= (int)($option['clasificacion_id'] ?? 0) ?>" <?= $espacioFiltro === (int)$option['id'] ? 'selected' : '' ?>><?= trace_h(alm_activos_espacio_nombre($option)) ?><?= (int)$option['estado'] !== 1 ? ' (inactivo)' : '' ?></option><?php endforeach; ?>
+                        <?php foreach ($locationSpaces as $option): ?><option value="<?= (int)$option['id'] ?>" data-sede="<?= (int)$option['sede_id'] ?>" data-clasificacion="<?= (int)($option['clasificacion_id'] ?? 0) ?>" <?= $espacioFiltro === (int)$option['id'] ? 'selected' : '' ?>><?= trace_h($locationSpaceNames[(int)$option['id']]) ?><?= (int)$option['estado'] !== 1 ? ' (inactivo)' : '' ?></option><?php endforeach; ?>
                     </select></label>
                     <label><span>Producto</span><select name="producto">
                         <option value="0">Todos los productos</option>
@@ -504,6 +517,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                         $categoriaLine = trim(($row['categoria_codigo'] ?? '') . ' ' . ($row['categoria_nombre'] ?? ''));
                         $etiquetaCodigo = (string)($row['etiqueta_codigo'] ?? ('ETQ-' . $etiquetaId));
                         $canMove = $estadoRow !== 'CONSUMIDO';
+                        $spacePersonnel = $locationPersonnel[(int)($row['espacio_id'] ?? 0)] ?? null;
                         ?>
                         <tr data-trace-row data-label-id="<?= $etiquetaId ?>">
                             <td>
@@ -519,6 +533,9 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                                 <?php if ($row['espacio_nombre'] !== ''): ?><small class="trace-location-detail"><?= trace_h($row['espacio_nombre']) ?></small><?php endif; ?>
                                 <?php if ($classificationEnabled): ?><small><?= trace_h($row['clasificacion_nombre'] !== '' ? $row['clasificacion_nombre'] : 'Sin clasificar') ?></small><?php endif; ?>
                                 <?php if ($ubicacionDetalle !== ''): ?><small class="trace-location-detail"><?= trace_h($ubicacionDetalle) ?></small><?php endif; ?>
+                                <?php if ((int)($row['espacio_id'] ?? 0) > 0 && $spacePersonnel !== null): ?>
+                                    <?php foreach ([1, 2] as $turn): ?><small class="trace-location-detail"><b>Turno <?= $turn ?>:</b> <?= trace_h(implode(', ', $spacePersonnel[$turn] ?? []) ?: 'Sin personal asignado') ?></small><?php endforeach; ?>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <strong><?= trace_h($row['nota_codigo'] ?? ('MOV-' . ($row['movimiento_id'] ?? ''))) ?></strong>
@@ -601,7 +618,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                     <div class="trace-dialog-body trace-move-body">
                     <div class="trace-modal__summary trace-move-summary">
                         <div><i class="bi bi-box-seam trace-card-icon" aria-hidden="true"></i><span>Producto</span><strong id="traceMoveProduct">-</strong></div>
-                        <div><i class="bi bi-geo-alt trace-card-icon" aria-hidden="true"></i><span>Ubicación actual</span><strong id="traceMoveCurrent">-</strong></div>
+                        <div><i class="bi bi-geo-alt trace-card-icon" aria-hidden="true"></i><span>Ubicación actual</span><strong id="traceMoveCurrent">-</strong><div class="n360-space-personnel n360-space-personnel--compact" id="traceMoveCurrentPersonal" data-title="Personal vigente del espacio" hidden></div></div>
                     </div>
                     <div class="trace-move-fields">
                     <label class="trace-modal__field trace-move-wide">
@@ -727,16 +744,16 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
     'logoRight' => n360_base_url('img/norte360_black.png'),
 ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_excel.js?consulta=3') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_excel.js?consulta=4') ?>"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=5') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/reportes/activos_trazabilidad_pdf.js?consulta=6') ?>"></script>
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=3') ?>"></script>
-<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=6') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=5&etiqueta=3&consulta=4') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=7') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=6&etiqueta=3&consulta=4') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

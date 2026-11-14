@@ -158,6 +158,8 @@ function trace_api_detail(mysqli $conn): void {
     if (!$label) {
         alm_json(['ok' => false, 'message' => 'No se encontró la etiqueta en esta trazabilidad.'], 404);
     }
+    $personnel = alm_espacios_personal($conn, [(int)($label['espacio_id'] ?? 0)]);
+    $label['personal'] = $personnel[(int)($label['espacio_id'] ?? 0)] ?? null;
     alm_json([
         'ok' => true,
         'label' => $label,

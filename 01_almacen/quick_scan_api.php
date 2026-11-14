@@ -174,6 +174,7 @@ if ($isEtiqueta) {
     $stmt->close();
 
     if ($row) {
+        $personnel = alm_espacios_personal($conn, [(int)($row['espacio_id'] ?? 0)]);
         n360_qs_json([
             'ok' => true,
             'mode' => 'etiqueta',
@@ -182,6 +183,7 @@ if ($isEtiqueta) {
             'trace' => [
                 'sede' => n360_qs_text($row['sede_nombre'] ?? ''),
                 'espacio' => n360_qs_text($row['espacio_nombre'] ?? ''),
+                'personal' => $personnel[(int)($row['espacio_id'] ?? 0)] ?? null,
                 'ubicacion_etiqueta' => alm_activos_ubicacion($row['sede_nombre'] ?? '', $row['espacio_corto'] ?? ''),
                 'detalle_ubicacion' => n360_qs_text($row['ubicacion_detalle'] ?? ''),
                 'anaquel' => n360_qs_text($row['anaquel'] ?? ''),

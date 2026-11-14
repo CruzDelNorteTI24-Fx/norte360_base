@@ -156,6 +156,7 @@ $originSpaceLabel = '(' . $originSpaceCode . ') ' . $originSpaceName;
     <link rel="stylesheet" href="<?= n360_asset('assets/css/loader_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/almacen_movimiento_n360.css?ubicacion=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/activos_ubicacion_n360.css?personal=1') ?>">
 </head>
 <body>
 <?php n360_render_header(['title' => 'Registro de movimientos', 'subtitle' => (string)$currentContext['subtitle']]); ?>
@@ -548,7 +549,7 @@ window.N360_RRHH_ACTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/loader_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=3') ?>"></script>
-<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=6') ?>"></script>
+<script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=7') ?>"></script>
 <script src="<?= n360_asset('assets/js/almacen_movimiento_n360.js?ubicacion=4&etiqueta=3') ?>"></script>
 <script src="<?= n360_asset('assets/js/product_create_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>

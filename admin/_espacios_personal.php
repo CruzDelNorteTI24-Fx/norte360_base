@@ -43,7 +43,7 @@ function n360_espper_espacio(mysqli $conn, int $id, bool $lock = false): array {
         // Mismo orden de bloqueo que altas, pabellones y carga inicial: sede -> espacio.
         alm_fetch_one($conn, 'SELECT clm_sedes_id FROM tb_sedes WHERE clm_sedes_id = ? FOR UPDATE', 'i', [(int)$parent['sede_id']]);
     }
-    $name = alm_espacios_nombre_sql($conn, 'e');
+    $name = alm_espacios_nombre_sql($conn, 'e', true);
     $row = alm_fetch_one($conn, "SELECT e.clm_sedeesp_id AS id, e.clm_sedeesp_estado AS activo,
         CONCAT_WS(' - ', s.clm_sedes_name, $name) AS nombre
         FROM tb_sedes_espacios e JOIN tb_sedes s ON s.clm_sedes_id = e.clm_sedeesp_idsede

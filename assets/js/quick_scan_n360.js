@@ -57,6 +57,10 @@
         const items = [
             ['Sede actual', trace.sede],
             ['Área / espacio', trace.espacio],
+            ...(trace.espacio ? [
+                ['Personal del espacio - Turno 1', trace.personal ? (trace.personal[1] || []).join(', ') || 'Sin personal asignado' : 'Personal no disponible'],
+                ['Personal del espacio - Turno 2', trace.personal ? (trace.personal[2] || []).join(', ') || 'Sin personal asignado' : 'Personal no disponible'],
+            ] : []),
             ['Detalle de ubicación', trace.detalle_ubicacion],
             ['Anaquel', trace.anaquel],
             ['Fecha de ingreso', trace.fecha_ingreso],

@@ -81,7 +81,7 @@ if (!function_exists('n360_render_quick_scan')) {
                 </section>
             </div>
             <script src="' . n360_asset('assets/js/barcode_n360.js?etiqueta=3') . '"></script>
-            <script src="' . n360_asset('assets/js/quick_scan_n360.js?etiqueta=3&ubicacion=2') . '"></script>
+            <script src="' . n360_asset('assets/js/quick_scan_n360.js?etiqueta=3&ubicacion=3') . '"></script>
         ';
     }
 }

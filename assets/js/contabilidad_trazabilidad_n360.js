@@ -173,6 +173,8 @@
     }
 
     refreshSpaces(button.dataset.currentEspacioId || '');
+    assetLocation.renderPersonnel($('#traceMoveCurrentPersonal'), assetLocation.spacePersonnel($('#traceMoveEspacio'), button.dataset.currentEspacioId),
+      Number(button.dataset.currentEspacioId) > 0);
     refreshDetailSuggestions();
     updateMovePreview();
     openModal(moveModal);
@@ -241,6 +243,8 @@
         ${field('Categoria', label.categoria)}${field('Unidad', label.producto_unidad)}
         ${field('Estado de etiqueta', label.etiqueta_estado)}${field('Creacion de etiqueta', formatDate(label.etiqueta_fecha))}
         ${field('Ubicacion actual', assetLocation.location(label.sede_nombre || 'Sin ubicacion', assetLocation.description(label.espacio_nombre, label.ubicacion_detalle)), true)}
+        ${Number(label.espacio_id) > 0 ? field('Personal del espacio - Turno 1', assetLocation.personnelNames(label.personal, 1))
+          + field('Personal del espacio - Turno 2', assetLocation.personnelNames(label.personal, 2)) : ''}
         ${field('Clasificación de ubicación', label.clasificacion_nombre || 'Sin clasificar', true)}
       </dl><dl class="trace-info-grid trace-info-grid--full">${field('Descripcion del producto', label.producto_descripcion)}</dl></section>
       <section class="trace-info-section"><h3><i class="bi bi-receipt" aria-hidden="true"></i> Movimiento de origen</h3><dl class="trace-info-grid">

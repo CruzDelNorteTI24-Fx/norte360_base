@@ -13,7 +13,7 @@ function alm_espacios_pabellon_disponible(mysqli $conn): bool {
     return $cache[$key];
 }
 
-function alm_espacios_nombre_sql(mysqli $conn, string $alias, bool $conPabellon = true): string {
+function alm_espacios_nombre_sql(mysqli $conn, string $alias, bool $conPabellon = false): string {
     if (!preg_match('/^[a-z][a-z0-9_]*$/D', $alias)) throw new InvalidArgumentException('Alias no válido.');
     $pabellon = $conPabellon && alm_espacios_pabellon_disponible($conn) ? "NULLIF(TRIM($alias.clm_sedeesp_pabellon), ''), " : '';
     return "CONCAT_WS(' - ', $pabellon NULLIF(TRIM($alias.clm_sedeesp_area), ''), NULLIF(TRIM($alias.clm_sedeesp_espacio), ''))";
@@ -63,9 +63,47 @@ function alm_activos_espacios_disponibles(mysqli $conn): bool {
 
 function alm_activos_espacio_nombre(array $row): string {
     return implode(' - ', array_filter([
-        trim((string)($row['pabellon'] ?? '')),
         trim((string)($row['area'] ?? '')), trim((string)($row['espacio'] ?? '')),
     ], static function ($value) { return $value !== ''; }));
+}
+
+function alm_espacios_personal(mysqli $conn, array $ids): array {
+    static $cache = [];
+    $key = spl_object_hash($conn);
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn(int $id): bool => $id > 0)));
+    if (!$ids) return [];
+    if (!isset($cache[$key])) {
+        $columns = [];
+        foreach (alm_fetch_all($conn, "SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('tb_sedes_espacios_personal', 'tb_trabajador')") as $column) {
+            $columns[$column['TABLE_NAME']][] = $column['COLUMN_NAME'];
+        }
+        $required = ['clm_espper_id', 'clm_espper_idespacio', 'clm_espper_turno', 'clm_espper_idtrabajador', 'clm_espper_nombre', 'clm_espper_hasta'];
+        $cache[$key] = ['ready' => !array_diff($required, $columns['tb_sedes_espacios_personal'] ?? []),
+            'workers' => $columns['tb_trabajador'] ?? [], 'rows' => []];
+    }
+    if (!$cache[$key]['ready']) return array_fill_keys($ids, null);
+    $missing = array_values(array_diff($ids, array_keys($cache[$key]['rows'])));
+    if ($missing) {
+        $names = [];
+        if (in_array('clm_tra_id', $cache[$key]['workers'], true)) {
+            foreach (['clm_tra_namesistem', 'clm_tra_nomandapellidos', 'clm_tra_nombres'] as $field) {
+                if (in_array($field, $cache[$key]['workers'], true)) $names[] = "NULLIF(TRIM(t.$field), '')";
+            }
+        }
+        $join = $names ? 'LEFT JOIN tb_trabajador t ON t.clm_tra_id = p.clm_espper_idtrabajador' : '';
+        $names[] = "NULLIF(TRIM(p.clm_espper_nombre), '')";
+        $name = 'COALESCE(' . implode(', ', $names) . ", 'Persona asignada')";
+        // Una sola lectura por conjunto; solo nombres de asignaciones vigentes, sin catálogo ni DNI.
+        $rows = alm_fetch_all($conn, "SELECT p.clm_espper_idespacio AS espacio_id, p.clm_espper_turno AS turno,
+            $name AS nombre FROM tb_sedes_espacios_personal p $join
+            WHERE p.clm_espper_idespacio IN (" . implode(',', $missing) . ")
+              AND p.clm_espper_hasta IS NULL AND p.clm_espper_turno IN (1, 2)
+            ORDER BY p.clm_espper_idespacio, p.clm_espper_turno, p.clm_espper_id");
+        foreach ($missing as $id) $cache[$key]['rows'][$id] = [1 => [], 2 => []];
+        foreach ($rows as $row) $cache[$key]['rows'][(int)$row['espacio_id']][(int)$row['turno']][] = (string)$row['nombre'];
+    }
+    return array_intersect_key($cache[$key]['rows'], array_flip($ids));
 }
 
 function alm_activos_espacios(mysqli $conn, bool $soloActivos = true): array {
@@ -73,7 +111,7 @@ function alm_activos_espacios(mysqli $conn, bool $soloActivos = true): array {
     $where = $soloActivos ? 'WHERE clm_sedeesp_estado = 1' : '';
     $classId = alm_espacios_clasificacion_disponible($conn) ? 'clm_sedeesp_idespacio' : 'NULL';
     $pabellon = alm_espacios_pabellon_disponible($conn) ? 'clm_sedeesp_pabellon' : 'NULL';
-    return alm_fetch_all($conn, "
+    $rows = alm_fetch_all($conn, "
         SELECT clm_sedeesp_id AS id, clm_sedeesp_idsede AS sede_id,
             clm_sedeesp_area AS area, clm_sedeesp_espacio AS espacio,
             clm_sedeesp_referencia_id AS referencia_id,
@@ -82,6 +120,10 @@ function alm_activos_espacios(mysqli $conn, bool $soloActivos = true): array {
         FROM tb_sedes_espacios $where
         ORDER BY pabellon, clm_sedeesp_area, clm_sedeesp_espacio, clm_sedeesp_id
     ");
+    $personnel = alm_espacios_personal($conn, array_column($rows, 'id'));
+    foreach ($rows as &$row) $row['personal'] = $personnel[(int)$row['id']] ?? null;
+    unset($row);
+    return $rows;
 }
 
 function alm_activos_espacio_id($value): ?int {
