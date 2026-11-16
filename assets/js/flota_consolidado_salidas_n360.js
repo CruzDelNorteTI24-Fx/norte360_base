@@ -1574,17 +1574,14 @@
           const pageH = doc.internal.pageSize.getHeight();
           const width = pageW - left - right;
           const bottomLimit = pageH - 24;
-          // Título del reporte dentro del contenido, debajo del encabezado corporativo.
+          // RUC y fecha del reporte encima de la tabla.
           doc.setTextColor(0, 0, 0);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(10.5);
-          doc.text('REPORTE DE HOJA DE RUTA', pageW / 2, 29.5, {align: 'center'});
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8);
-          doc.text('RUC: 20403002101', pageW / 2, 33, {align: 'center'});
+          doc.text('RUC: 20403002101', pageW / 2, 29.5, {align: 'center'});
           doc.setFontSize(8.5);
-          doc.text(report.period || formatIsoDate(data[0].fecha), pageW / 2, 36.5, {align: 'center'});
-          let y = 40;
+          doc.text(report.period || formatIsoDate(data[0].fecha), pageW / 2, 33, {align: 'center'});
+          let y = 36.5;
 
           groups.forEach((groupBlock) => {
             if (y + 38 > bottomLimit) {
