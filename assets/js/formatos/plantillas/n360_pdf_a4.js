@@ -197,16 +197,26 @@
             }
 
             doc.setTextColor(0, 0, 0);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            text(doc, cfg.companyName, W / 2, 9.8, {align: 'center'});
-
-            doc.setFontSize(7);
-            text(doc, `RUC: ${cfg.ruc}`, W / 2, 13.1, {align: 'center'});
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(13);
-            text(doc, cfg.title, W / 2, 20.8, {align: 'center'});
+            if (Array.isArray(cfg.headerLines) && cfg.headerLines.length === 3) {
+                // Encabezado compacto optativo; los demás reportes conservan el formato habitual.
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(13);
+                text(doc, cfg.headerLines[0], W / 2, 10.5, {align: 'center'});
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                text(doc, cfg.headerLines[1], W / 2, 15.5, {align: 'center'});
+                doc.setFontSize(9);
+                text(doc, cfg.headerLines[2], W / 2, 20.8, {align: 'center'});
+            } else {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                text(doc, cfg.companyName, W / 2, 9.8, {align: 'center'});
+                doc.setFontSize(7);
+                text(doc, `RUC: ${cfg.ruc}`, W / 2, 13.1, {align: 'center'});
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(13);
+                text(doc, cfg.title, W / 2, 20.8, {align: 'center'});
+            }
 
             doc.setDrawColor(0, 0, 0);
             doc.setLineWidth(0.18);

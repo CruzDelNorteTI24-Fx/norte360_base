@@ -325,36 +325,17 @@
   }
 
   function rowRouteReportData(row) {
-    const origen = compact(row.dataset.csbTransferOrigin || '');
-    const destino = compact(row.dataset.csbTransferDestination || '');
-    const rutaExtra = compact(row.dataset.csbTransferRoute || '');
-    const baseRoute = `${origen || '-'} -> ${destino || '-'}`;
-    const routeLines = [baseRoute];
-    if (rutaExtra && rutaExtra !== baseRoute) {
-      routeLines.push(rutaExtra);
-    }
-
-    const comentario = compact(row.querySelector('[data-csb-field="comentario"]')?.value || '');
-    const correccion = compact(row.querySelector('[data-csb-field="correccion"]')?.value || '');
-    const notes = [
-      comentario ? `Comentario: ${comentario}` : '',
-      correccion ? `Correccion: ${correccion}` : ''
-    ].filter(Boolean).join(' | ');
-    if (notes) {
-      routeLines.push(`Obs: ${notes}`);
-    }
-
     return {
       group: rowGroupLabel(row),
       fecha: compact(row.dataset.csbTransferDate || ''),
       hora: compact(row.dataset.csbTransferHour || ''),
-      unidad: compact(row.dataset.csbTransferUnit || ''),
-      servicio: compact(row.dataset.csbTransferService || ''),
+      bus: compact(row.dataset.csbReportBus || ''),
+      placa: compact(row.dataset.csbReportPlaca || ''),
+      eddie: row.dataset.csbReportEddie === '1',
+      origen: compact(row.dataset.csbTransferOrigin || ''),
+      destino: compact(row.dataset.csbTransferDestination || ''),
       hojaRuta: compact(row.querySelector('[data-csb-field="hojaruta"]')?.value || ''),
-      hojaFisicaRevisada: physicalRouteReviewed(row),
-      conductores: rowDriversText(row),
-      estado: rowRevisionText(row),
-      ruta: routeLines.join('\n')
+      estado: rowRevisionText(row)
     };
   }
 
@@ -1489,24 +1470,28 @@
     return Array.from(map.entries()).map(([group, items]) => ({ group, items }));
   }
 
+  function routeReportDay(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    if (!match) return '-';
+    const [year, month, day] = match.slice(1).map(Number);
+    const date = new Date(0);
+    date.setUTCFullYear(year, month - 1, day);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '-';
+    return ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'][date.getUTCDay()];
+  }
+
   function routeReportBody(items) {
     return items.map((item, index) => [
       String(index + 1).padStart(2, '0'),
-      [formatIsoDate(item.fecha), item.hora || '-'].filter(Boolean).join('\n'),
-      [item.unidad || '-', item.servicio || ''].filter(Boolean).join('\n'),
-      item.ruta || '-',
-      physicalRoutePdfCell(item.hojaRuta || 'SIN NUMERO', item.hojaFisicaRevisada),
-      item.conductores || '-',
-      item.estado || 'PENDIENTE'
+      formatIsoDate(item.fecha),
+      routeReportDay(item.fecha),
+      item.placa || '-',
+      item.bus || '-',
+      item.hora || '-',
+      item.origen || '-',
+      item.destino || '-',
+      item.hojaRuta || ''
     ]);
-  }
-
-  function routeReportStateColor(value) {
-    const raw = String(value || '').toUpperCase();
-    if (raw.includes('VALIDADO') || raw.includes('CORREGIDO')) return [5, 112, 68];
-    if (raw.includes('OBSERVADO') || raw.includes('ANULADO')) return [170, 36, 31];
-    if (raw.includes('MANUAL') || raw.includes('TRANSBORDO')) return [7, 89, 133];
-    return [146, 64, 14];
   }
 
   function drawRouteGroupHeader(doc, left, y, width, group, total) {
@@ -1521,9 +1506,21 @@
     return y + 8;
   }
 
+  function routeReportFilename(items) {
+    const dates = items.map(item => item.fecha).filter(value => /^\d{4}-\d{2}-\d{2}$/.test(value)).sort();
+    const selectedStart = cfg.fechaInicio || cfg.fechaOperativa || '';
+    const from = selectedStart || dates[0] || '';
+    const to = cfg.fechaFin || selectedStart || dates[dates.length - 1] || from;
+    const start = from ? formatIsoDate(from).replace(/\//g, '.') : 'SIN_FECHA';
+    const end = to ? formatIsoDate(to).replace(/\//g, '.') : start;
+    return `HOJA DE RUTA_${start}${start === end ? '' : '_AL_' + end}_CDN.pdf`;
+  }
+
+  let routePdfBusy = false;
   async function exportRoutePdf() {
-    const data = currentVisibleRows().map(rowRouteReportData);
-    if (!data.length) {
+    if (routePdfBusy) return;
+    const visible = currentVisibleRows().map(rowRouteReportData);
+    if (!visible.length) {
       showNotice('No hay registros visibles para exportar.', false);
       return;
     }
@@ -1532,17 +1529,34 @@
       return;
     }
 
+    const buttons = Array.from(document.querySelectorAll('[data-csb-export-route-pdf]'))
+      .map(button => ({button, html: button.innerHTML, disabled: button.disabled, busy: button.getAttribute('aria-busy')}));
+    routePdfBusy = true;
+    buttons.forEach(({button}) => { button.disabled = true; button.setAttribute('aria-busy', 'true'); });
     try {
+      // El estado guardado conserva prioridad frente a una edición pendiente de la fila.
+      let data = visible.filter(item => item.estado !== 'ANULADO');
+      const observed = data.filter(item => item.estado === 'OBSERVADO').length;
+      if (observed) {
+        const message = `Hay ${observed} ${observed === 1 ? 'viaje OBSERVADO' : 'viajes OBSERVADOS'}. ¿Quieres generar el PDF incluyéndolos?`;
+        const includeObserved = window.N360Dialog?.confirm
+          ? await window.N360Dialog.confirm(message, {variant: 'warning', title: 'Viajes observados',
+            confirmText: 'Sí, incluir observados', cancelText: 'No, excluir observados'})
+          : window.confirm(message + '\nAceptar: incluir observados. Cancelar: excluir observados.');
+        if (!includeObserved) data = data.filter(item => item.estado !== 'OBSERVADO');
+      }
+      if (!data.length) {
+        showNotice('No hay viajes para exportar con esta selección. Los ANULADOS se excluyen de este PDF.', false);
+        return;
+      }
+      buttons.forEach(({button}) => { button.innerHTML = '<i class="bi bi-file-earmark-richtext"></i> Generando PDF...'; });
       const groups = routeReportGroups(data);
-      const totalHojaRuta = data.filter((item) => item.hojaRuta).length;
-      const totalPendiente = data.length - totalHojaRuta;
-      const formatter = new Intl.NumberFormat('es-PE');
 
       const doc = await window.N360PDF.createDocument({
         orientation: 'portrait',
-        title: 'HOJA DE RUTA - CONSOLIDADO DE SALIDAS',
+        title: 'REPORTE VIAJES',
         secondTitle: report.period || 'Consolidado operativo',
-        description: 'Reporte vertical generado con los viajes visibles del consolidado.',
+        description: '',
         docCode: 'FLOTA_HOJA_RUTA_CONS',
         userName: report.generatedBy || '',
         dni: report.dni || '',
@@ -1560,27 +1574,17 @@
           const pageH = doc.internal.pageSize.getHeight();
           const width = pageW - left - right;
           const bottomLimit = pageH - 24;
-          let y = 34;
-
-          if (window.N360PDF && typeof window.N360PDF.drawReportSummary === 'function') {
-            y = window.N360PDF.drawReportSummary(doc, {
-              x: left,
-              y,
-              width,
-              title: 'Resumen de Hoja de Ruta',
-              rows: [
-                { label: 'Periodo', value: report.period || '-' },
-                { label: 'Grupo visible', value: activeGroupLabel() },
-                { label: 'Filtro de importes', value: activeAmountLabel() },
-                { label: 'Viajes visibles', value: formatter.format(data.length) },
-                { label: 'Con Hoja de Ruta', value: formatter.format(totalHojaRuta) },
-                { label: 'Pendientes', value: formatter.format(totalPendiente) },
-                { label: 'Generado por', value: report.generatedBy || '-' }
-              ],
-              columns: 2,
-              bottomGap: 7
-            });
-          }
+          // Título del reporte dentro del contenido, debajo del encabezado corporativo.
+          doc.setTextColor(0, 0, 0);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10.5);
+          doc.text('REPORTE DE HOJA DE RUTA', pageW / 2, 29.5, {align: 'center'});
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.text('RUC: 20403002101', pageW / 2, 33, {align: 'center'});
+          doc.setFontSize(8.5);
+          doc.text(report.period || formatIsoDate(data[0].fecha), pageW / 2, 36.5, {align: 'center'});
+          let y = 40;
 
           groups.forEach((groupBlock) => {
             if (y + 38 > bottomLimit) {
@@ -1591,15 +1595,17 @@
             y = drawRouteGroupHeader(doc, left, y, width, groupBlock.group, groupBlock.items.length);
 
             doc.autoTable({
-              head: [['#', 'Fecha / Hora', 'Unidad', 'Ruta', 'Hoja de ruta', 'Conductores', 'Estado']],
+              head: [['ÍTEM', 'FECHA', 'DÍA', 'PLACA', 'N.° BUS', 'HORA', 'ORIGEN', 'DESTINO', 'HOJA DE RUTA']],
               body: routeReportBody(groupBlock.items),
               startY: y,
               margin: { left, right, top: 32, bottom: 22 },
               tableWidth: width,
               rowPageBreak: 'avoid',
               styles: {
-                fontSize: 6.2,
-                cellPadding: 1.15,
+                fontSize: 7.1,
+                textColor: [0, 0, 0],
+                cellPadding: {top: .9, right: 1, bottom: .9, left: 1},
+                minCellHeight: 4.8,
                 overflow: 'linebreak',
                 valign: 'middle',
                 lineColor: [226, 232, 240],
@@ -1607,35 +1613,27 @@
               },
               headStyles: {
                 fillColor: [235, 243, 250],
-                textColor: [15, 42, 64],
+                textColor: [0, 0, 0],
                 fontStyle: 'bold',
                 halign: 'center'
               },
               alternateRowStyles: { fillColor: [249, 251, 253] },
               columnStyles: {
-                0: { cellWidth: 9, halign: 'center' },
-                1: { cellWidth: 23, halign: 'center' },
-                2: { cellWidth: 28 },
-                3: { cellWidth: 49 },
-                4: { cellWidth: 25 },
-                5: { cellWidth: 32 },
-                6: { cellWidth: width - 166, halign: 'center' }
+                0: { cellWidth: 14, halign: 'center' },
+                1: { cellWidth: 18, halign: 'center' },
+                2: { cellWidth: 20, halign: 'center' },
+                3: { cellWidth: 19, halign: 'center' },
+                4: { cellWidth: 13, halign: 'center' },
+                5: { cellWidth: 13, halign: 'center' },
+                6: { cellWidth: 29 },
+                7: { cellWidth: 29 },
+                8: { cellWidth: width - 155, halign: 'center', fontStyle: 'bold' }
               },
-              didParseCell: function (cellData) {
-                if (cellData.section !== 'body') return;
-                if (cellData.column.index === 4) {
-                  const raw = String(cellData.cell.raw?.content ?? cellData.cell.raw ?? '').toUpperCase();
-                  cellData.cell.styles.fontStyle = 'bold';
-                  cellData.cell.styles.textColor = raw === 'SIN NUMERO' ? [146, 64, 14] : [5, 112, 68];
+              didParseCell: function (cell) {
+                if (cell.section === 'body' && cell.column.index === 4 && groupBlock.items[cell.row.index]?.eddie) {
+                  cell.cell.styles.fillColor = [255, 255, 0];
+                  cell.cell.styles.textColor = [0, 0, 0];
                 }
-                if (cellData.column.index === 6) {
-                  cellData.cell.styles.fontStyle = 'bold';
-                  const color = routeReportStateColor(cellData.cell.raw);
-                  cellData.cell.styles.textColor = color;
-                }
-              },
-              didDrawCell: function (cellData) {
-                drawPhysicalRoutePdfCell(doc, cellData);
               }
             });
 
@@ -1644,11 +1642,17 @@
         }
       });
 
-      doc.save(`${report.fileBase || 'consolidado_salidas_buses'}_hoja_ruta_${moneyDate()}.pdf`);
+      doc.save(routeReportFilename(data));
       showNotice(`PDF Hoja de Ruta generado con ${data.length.toLocaleString('es-PE')} viajes visibles.`, true);
     } catch (error) {
       console.error(error);
       showNotice('No se pudo generar el PDF de Hoja de Ruta.', false);
+    } finally {
+      routePdfBusy = false;
+      buttons.forEach(({button, html, disabled, busy}) => {
+        button.disabled = disabled; button.innerHTML = html;
+        if (busy === null) button.removeAttribute('aria-busy'); else button.setAttribute('aria-busy', busy);
+      });
     }
   }
 

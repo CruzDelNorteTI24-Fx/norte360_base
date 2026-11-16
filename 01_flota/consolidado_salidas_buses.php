@@ -44,6 +44,10 @@ function csb_h($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
+function csb_route_owner_eddie(?string $owner): bool {
+    return preg_match('/(?:^|[^\p{L}\p{N}])(?:eddy|eddie)(?:$|[^\p{L}\p{N}])/iu', trim((string)$owner)) === 1;
+}
+
 function csb_uid(): int {
     if (isset($_SESSION['id_usuario']) && is_numeric($_SESSION['id_usuario'])) {
         return (int)$_SESSION['id_usuario'];
@@ -1755,9 +1759,13 @@ if ($tableReady) {
             array_push($params, $like, $like, $like, $like, $like, $like, $like, $like, $like, $like, $like);
         }
 
+        $reportOwnerReady = csb_column_exists($conn, 'tb_placas', 'clm_placas_DUEÑO');
+        $reportOwnerSelect = $reportOwnerReady ? "COALESCE(rp.`clm_placas_DUEÑO`, '')" : "''";
+        $reportOwnerJoin = $reportOwnerReady ? 'LEFT JOIN tb_placas rp ON rp.clm_placas_id = sc.clm_salprog_idplaca' : '';
         $rows = csb_fetch_all($conn, "
-            SELECT *
-            FROM tb_progbuses_salida_consolidado
+            SELECT sc.*, $reportOwnerSelect AS reporte_dueno
+            FROM tb_progbuses_salida_consolidado sc
+            $reportOwnerJoin
             WHERE " . implode(' AND ', $where) . "
             ORDER BY clm_salprog_fecha_operativa ASC, clm_salprog_hora_orden ASC, clm_salprog_horasalida ASC, clm_salprog_bus ASC, clm_salprog_id ASC
         ", $types, $params);
@@ -2178,6 +2186,9 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                                 data-csb-transfer-hour="<?= csb_h(csb_hora_label($row['clm_salprog_horasalida'] ?? '')) ?>"
                                 data-csb-transfer-idplaca="<?= (int)($row['clm_salprog_idplaca'] ?? 0) ?>"
                                 data-csb-transfer-unit="<?= csb_h($unidadLabel) ?>"
+                                data-csb-report-bus="<?= csb_h($busLabel) ?>"
+                                data-csb-report-placa="<?= csb_h($placaLabel) ?>"
+                                data-csb-report-eddie="<?= csb_route_owner_eddie($row['reporte_dueno'] ?? '') ? '1' : '0' ?>"
                                 data-csb-transfer-service="<?= csb_h($row['clm_salprog_servicio'] ?? '') ?>"
                                 data-csb-transfer-idorigen="<?= (int)($row['clm_salprog_idorigen'] ?? 0) ?>"
                                 data-csb-transfer-origin="<?= csb_h($row['clm_salprog_origen'] ?? '') ?>"
@@ -2894,14 +2905,14 @@ window.N360_SALPROG_HISTORY = {
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js') ?>"></script>
+<script src="<?= n360_asset('assets/js/formatos/plantillas/n360_pdf_a4.js?header=2') ?>"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <?php n360_contract_render($conn, $canEdit, $isAdmin); ?>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=contracts-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=route-pdf-5', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
