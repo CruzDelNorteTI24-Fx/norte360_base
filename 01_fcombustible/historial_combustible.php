@@ -684,7 +684,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=mensual') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -1021,6 +1021,10 @@ require_once __DIR__ . '/../layout/content_n360.php';
         <button type="button" class="stock-btn stock-btn--primary" data-comb-resumen-pdf>
             <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Generar PDF
         </button>
+        <fieldset class="comb-resumen-clasificaciones" data-comb-resumen-clasificaciones hidden>
+            <legend>Clasificación</legend>
+            <div class="comb-resumen-clasificaciones__opciones" data-comb-resumen-clasificaciones-opciones></div>
+        </fieldset>
     </div>
     <?php if (count($rows) >= 3000): ?>
         <p class="comb-resumen-limit" data-comb-resumen-limit>
@@ -1039,6 +1043,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                             <tr>
                                 <th scope="col">Fecha de emisión</th>
                                 <th scope="col">Producto</th>
+                                <th scope="col" data-comb-resumen-clasificacion-col hidden>Clasificación</th>
                                 <th scope="col">Und.</th>
                                 <th scope="col" class="stock-num">Cantidad</th>
                                 <th scope="col" class="stock-num">Importe (S/)</th>
@@ -1295,7 +1300,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=mensual') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>

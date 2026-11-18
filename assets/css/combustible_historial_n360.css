@@ -224,6 +224,7 @@
 }
 
 .comb-resumen-dialog {
+    box-sizing: border-box;
     width: min(1080px, calc(100vw - 24px));
     padding: clamp(12px, 2.2vw, 24px);
 }
@@ -248,6 +249,42 @@ body:has(.comb-resumen-dialog[open]) {
     min-width: 0;
 }
 
+.comb-resumen-clasificaciones {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin: 0;
+    padding: 6px 12px 10px;
+    border: 1px solid #d6e2ef;
+    border-radius: 8px;
+}
+
+.comb-resumen-clasificaciones legend {
+    float: none;
+    width: auto;
+    margin: 0;
+    padding: 0 5px;
+    font-size: .85rem;
+    font-weight: 800;
+}
+
+.comb-resumen-clasificaciones__opciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+}
+
+.comb-resumen-clasificaciones__opciones label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: .8rem;
+}
+
+.comb-resumen-clasificaciones__opciones input {
+    accent-color: #204d69;
+}
+
 .comb-resumen-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
 }
@@ -270,6 +307,18 @@ body:has(.comb-resumen-dialog[open]) {
 
 .comb-resumen-wrap table {
     min-width: 445px;
+}
+
+.comb-resumen-dialog--clasificacion {
+    width: min(1280px, calc(100vw - 24px));
+}
+
+.comb-resumen-dialog--clasificacion .comb-resumen-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 570px), 1fr));
+}
+
+.comb-resumen-dialog--clasificacion .comb-resumen-wrap table {
+    min-width: 560px;
 }
 
 .comb-resumen-wrap .stock-table .comb-resumen-fila--mes td {

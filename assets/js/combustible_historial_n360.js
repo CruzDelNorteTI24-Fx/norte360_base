@@ -196,7 +196,7 @@
         formatoImporte.format(grupo.monto / 10000)
     ];
 
-    const movimientosResumen = () => Array.from(table?.querySelectorAll('tbody tr[data-combustible-row]') || [])
+    const movimientosResumen = (porClasificacion) => Array.from(table?.querySelectorAll('tbody tr[data-combustible-row]') || [])
         .filter((row) => Object.hasOwn(tipoResumen, row.dataset.tipo)
             && !row.hidden
             && row.getClientRects().length > 0
@@ -204,12 +204,14 @@
         .map((row) => {
             const { tipo, fechaEmision, productoId, cantidad, monto } = row.dataset;
             const cells = row.children;
+            const categoria = porClasificacion ? row.querySelector('[data-comb-classification-column]') : null;
             return {
                 id: Number(cells[0].textContent),
                 tipo,
                 fechaEmision,
                 productoId,
                 producto: clean(cells[5].textContent),
+                clasificacion: porClasificacion ? clean(categoria?.textContent) || 'Sin clasificación' : '',
                 unidad: clean(cells[6].textContent),
                 nota: getCellExportText(cells[3]),
                 grifo: clean(cells[4].textContent),
@@ -224,37 +226,51 @@
     const compararProductoTipo = (a, b) => a.producto.localeCompare(b.producto, 'es-PE')
         || Number(a.productoId) - Number(b.productoId) || a.tipo.localeCompare(b.tipo);
 
-    const agruparResumen = (movimientos) => {
+    const acumularTotales = (destino, origen) => {
+        destino.cantidad += origen.cantidad;
+        destino.monto += origen.monto;
+    };
+
+    const agruparResumen = (movimientos, porClasificacion = false) => {
         const grupos = new Map();
         movimientos.forEach((mov) => {
-            const key = JSON.stringify([mov.fechaEmision, mov.productoId, mov.tipo]);
+            const key = JSON.stringify([mov.fechaEmision, mov.productoId, mov.tipo, porClasificacion ? mov.clasificacion : '']);
             if (!grupos.has(key)) grupos.set(key, { ...mov, cantidad: 0, monto: 0, movimientos: [] });
             const grupo = grupos.get(key);
-            grupo.cantidad += mov.cantidad;
-            grupo.monto += mov.monto;
+            acumularTotales(grupo, mov);
             grupo.movimientos.push(mov);
         });
         return Array.from(grupos.values()).sort((a, b) =>
             (a.fechaEmision || '9999-99-99').localeCompare(b.fechaEmision || '9999-99-99')
-            || compararProductoTipo(a, b));
+            || compararProductoTipo(a, b)
+            || (porClasificacion ? a.clasificacion.localeCompare(b.clasificacion, 'es-PE') : 0));
     };
 
-    const sumarPorProductoTipo = (grupos) => {
+    const sumarPorProductoTipo = (grupos, porClasificacion) => {
         const totales = new Map();
         for (const grupo of grupos) {
-            const { productoId, producto, unidad, tipo, cantidad, monto } = grupo;
+            const { productoId, producto, unidad, tipo, clasificacion } = grupo;
             const clave = JSON.stringify([productoId, unidad, tipo]);
             if (!totales.has(clave)) {
-                totales.set(clave, { productoId, producto, unidad, tipo, cantidad: 0, monto: 0 });
+                totales.set(clave, { productoId, producto, unidad, tipo, cantidad: 0, monto: 0, categorias: new Map() });
             }
             const total = totales.get(clave);
-            total.cantidad += cantidad;
-            total.monto += monto;
+            acumularTotales(total, grupo);
+            if (porClasificacion) {
+                if (!total.categorias.has(clasificacion)) total.categorias.set(clasificacion, { cantidad: 0, monto: 0 });
+                acumularTotales(total.categorias.get(clasificacion), grupo);
+            }
         }
-        return Array.from(totales.values()).sort(compararProductoTipo);
+        return Array.from(totales.values()).sort(compararProductoTipo).flatMap(({ categorias, ...total }) => {
+            if (!porClasificacion) return [total];
+            const desglose = Array.from(categorias, ([clasificacion, importes]) => ({ ...total, clasificacion, ...importes }))
+                .sort((a, b) => a.clasificacion.localeCompare(b.clasificacion, 'es-PE'));
+            if (desglose.length > 1) desglose.push(total);
+            return desglose;
+        });
     };
 
-    const prepararResumenMensual = (grupos) => {
+    const prepararResumenMensual = (grupos, porClasificacion) => {
         const meses = new Map();
         const sinEmision = [];
         for (const grupo of grupos) {
@@ -271,7 +287,7 @@
             return {
                 titulo: nombre[0].toUpperCase() + nombre.slice(1),
                 diarios,
-                totales: sumarPorProductoTipo(diarios)
+                totales: sumarPorProductoTipo(diarios, porClasificacion)
             };
         });
         if (sinEmision.length) secciones.push({ titulo: 'Sin emisión', diarios: sinEmision, totales: [] });
@@ -279,7 +295,7 @@
             secciones.push({
                 titulo: 'Total de los meses mostrados',
                 diarios: [],
-                totales: sumarPorProductoTipo(Array.from(meses.values()).flat()),
+                totales: sumarPorProductoTipo(Array.from(meses.values()).flat(), porClasificacion),
                 acumulado: true
             });
         }
@@ -297,6 +313,13 @@
         if (!filas.length && !sumas.length) return [];
         return [{ texto: titulo, clase: acumulado ? 'acumulado' : 'mes' }, ...filas, ...sumas];
     });
+
+    const celdasResumen = (grupo, porClasificacion) => [
+        grupo.producto,
+        ...(porClasificacion ? [grupo.clasificacion || 'Todas las seleccionadas'] : []),
+        grupo.unidad,
+        ...totalesResumen(grupo)
+    ];
 
     const exportResumenPdf = async (grupos, secciones, contexto) => {
         const doc = await window.N360PDF.createDocument({
@@ -331,6 +354,10 @@
                 doc.setFontSize(8);
                 doc.text(contexto.alcance, left, 63);
                 const filasResumen = filasResumenMensual(secciones);
+                const columnasResumen = ['Fecha de emisión', 'Tipo', 'Producto'];
+                if (contexto.porClasificacion) columnasResumen.push('Clasificación');
+                columnasResumen.push('Und.', 'Cantidad', 'Importe (S/)');
+                const numeroColumnas = columnasResumen.length;
                 const estilosResumen = {
                     mes: { fillColor: [224, 235, 245], fontStyle: 'bold' },
                     subtotal: { fillColor: [237, 246, 242], fontStyle: 'bold' },
@@ -340,11 +367,14 @@
                 doc.autoTable({
                     ...layout,
                     startY: 70,
-                    head: [['Fecha de emisión', 'Tipo', 'Producto', 'Und.', 'Cantidad', 'Importe (S/)']],
+                    head: [columnasResumen],
                     body: filasResumen.map(({ texto, grupo }) => grupo
-                        ? [texto, tipoResumen[grupo.tipo], grupo.producto, grupo.unidad, ...totalesResumen(grupo)]
-                        : [{ content: texto, colSpan: 6 }]),
-                    columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' } },
+                        ? [texto, tipoResumen[grupo.tipo], ...celdasResumen(grupo, contexto.porClasificacion)]
+                        : [{ content: texto, colSpan: numeroColumnas }]),
+                    columnStyles: {
+                        [numeroColumnas - 2]: { halign: 'right' },
+                        [numeroColumnas - 1]: { halign: 'right' }
+                    },
                     didParseCell: (data) => {
                         if (data.section !== 'body') return;
                         const estilo = estilosResumen[filasResumen[data.row.index].clase];
@@ -401,6 +431,9 @@
         if (!dialog || !open) return;
         const tipo = dialog.querySelector('[data-comb-resumen-tipo]');
         const producto = dialog.querySelector('[data-comb-resumen-producto]');
+        const filtroClasificacion = dialog.querySelector('[data-comb-resumen-clasificaciones]');
+        const opcionesClasificacion = filtroClasificacion.querySelector('[data-comb-resumen-clasificaciones-opciones]');
+        const columnasClasificacion = dialog.querySelectorAll('[data-comb-resumen-clasificacion-col]');
         const pdf = dialog.querySelector('[data-comb-resumen-pdf]');
         const status = dialog.querySelector('[data-comb-resumen-status]');
         const error = dialog.querySelector('[data-comb-resumen-error]');
@@ -408,13 +441,21 @@
         let movimientos = [];
         let grupos = [];
         let secciones = [];
+        let porClasificacion = false;
         let exportando = false;
 
+        const clasificacionesMarcadas = () => Array.from(opcionesClasificacion.querySelectorAll('input:checked'), (input) => input.value);
+
         const render = () => {
-            grupos = agruparResumen(movimientos.filter((mov) =>
+            const marcadas = new Set(clasificacionesMarcadas());
+            const seleccion = movimientos.filter((mov) =>
                 (tipo.value === 'TODOS' || mov.tipo === tipo.value)
-                && (producto.value === 'TODOS' || mov.productoId === producto.value)));
-            secciones = prepararResumenMensual(grupos);
+                && (producto.value === 'TODOS' || mov.productoId === producto.value)
+                && (!porClasificacion || marcadas.has(mov.clasificacion)));
+            grupos = agruparResumen(seleccion);
+            const gruposResumen = porClasificacion ? agruparResumen(seleccion, true) : grupos;
+            secciones = prepararResumenMensual(gruposResumen, porClasificacion);
+            const numeroColumnas = porClasificacion ? 6 : 5;
             for (const panel of paneles) {
                 const tipoPanel = panel.dataset.combResumenPanel;
                 panel.hidden = tipo.value !== 'TODOS' && tipo.value !== tipoPanel;
@@ -426,31 +467,50 @@
                     fila.className = `comb-resumen-fila--${clase}`;
                     if (!grupo) {
                         const cell = fila.insertCell();
-                        cell.colSpan = 5;
+                        cell.colSpan = numeroColumnas;
                         cell.textContent = texto;
                         return;
                     }
-                    [texto, grupo.producto, grupo.unidad, ...totalesResumen(grupo)]
+                    [texto, ...celdasResumen(grupo, porClasificacion)]
                         .forEach((texto, index) => {
                             const cell = fila.insertCell();
                             cell.textContent = texto;
-                            if (index >= 3) cell.className = 'stock-num';
+                            if (index >= numeroColumnas - 2) cell.className = 'stock-num';
                         });
                 });
                 if (!tbody.rows.length) {
                     const cell = tbody.insertRow().insertCell();
-                    cell.colSpan = 5;
+                    cell.colSpan = numeroColumnas;
                     cell.textContent = 'Sin movimientos para estos filtros.';
                 }
             }
-            const cantidad = grupos.reduce((total, grupo) => total + grupo.movimientos.length, 0);
+            const cantidad = seleccion.length;
             status.textContent = `${cantidad} ${cantidad === 1 ? 'movimiento' : 'movimientos'}`;
             pdf.disabled = exportando || !grupos.length;
             error.hidden = true;
         };
 
         open.addEventListener('click', () => {
-            movimientos = movimientosResumen();
+            porClasificacion = Boolean(showClassification?.checked);
+            movimientos = movimientosResumen(porClasificacion);
+            filtroClasificacion.hidden = !porClasificacion;
+            dialog.classList.toggle('comb-resumen-dialog--clasificacion', porClasificacion);
+            columnasClasificacion.forEach((columna) => { columna.hidden = !porClasificacion; });
+            opcionesClasificacion.replaceChildren();
+            if (porClasificacion) {
+                const categorias = Array.from(new Set(movimientos.map((mov) => mov.clasificacion)))
+                    .sort((a, b) => a.localeCompare(b, 'es-PE'));
+                for (const categoria of categorias) {
+                    const label = document.createElement('label');
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.value = categoria;
+                    input.checked = true;
+                    label.append(input, categoria);
+                    opcionesClasificacion.append(label);
+                }
+                if (!categorias.length) opcionesClasificacion.textContent = 'No hay clasificaciones disponibles.';
+            }
             const productos = new Map(movimientos.map((mov) => [mov.productoId, mov.producto]));
             producto.replaceChildren(new Option('Todos los productos', 'TODOS'));
             Array.from(productos).sort((a, b) => a[1].localeCompare(b[1], 'es-PE'))
@@ -473,6 +533,7 @@
         });
         tipo.addEventListener('change', render);
         producto.addEventListener('change', render);
+        opcionesClasificacion.addEventListener('change', render);
         pdf.addEventListener('click', async () => {
             if (!grupos.length || exportando) return;
             error.hidden = true;
@@ -483,6 +544,7 @@
             }
             const filtros = [
                 tipo.selectedOptions[0].text, producto.selectedOptions[0].text,
+                porClasificacion ? `Clasificación: ${clasificacionesMarcadas().join(', ')}` : '',
                 report.period, ...(report.filters || []), searchInput?.value.trim()
             ].filter(Boolean).join(' | ');
             const alcance = dialog.querySelector('[data-comb-resumen-limit]')
@@ -491,7 +553,7 @@
             exportando = true;
             pdf.disabled = true;
             try {
-                await exportResumenPdf(grupos, secciones, { filtros, alcance });
+                await exportResumenPdf(grupos, secciones, { filtros, alcance, porClasificacion });
             } catch (exception) {
                 console.error(exception);
                 error.textContent = 'No se pudo generar el PDF del resumen.';
