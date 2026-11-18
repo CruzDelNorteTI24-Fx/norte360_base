@@ -533,6 +533,7 @@ function enc_fetch_manifest_document(mysqli $conn, int $docId): ?array {
                d.clm_encdoc_nombre,
                d.clm_encdoc_mime,
                d.clm_encdoc_size,
+               d.clm_encdoc_sha256,
                d.clm_encdoc_archivo,
                d.clm_encdoc_fechacarga,
                g.clm_enc_guia,

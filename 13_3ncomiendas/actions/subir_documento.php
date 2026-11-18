@@ -3,6 +3,7 @@ ob_start();
 define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/../includes/encomiendas_validations.php';
 require_once __DIR__ . '/../includes/encomiendas_queries.php';
+require_once __DIR__ . '/../includes/encomiendas_inventario_legacy.php';
 
 $conn = enc_start_action('enc-docs');
 enc_verify_action_csrf();
@@ -146,10 +147,16 @@ try {
         }
     }
 
+    if ($existing && $tipo==='MANIFIESTO_ENCOMIENDAS' && !enc_inventory_ready($conn)) {
+        enc_json(false,'Instala la actualización de inventario antes de reemplazar un manifiesto. Sus items se conservarán.',[],409);
+    }
     $conn->begin_transaction();
     $storedDocId = 0;
+    $oldPdfHash='';
     if ($existing) {
         $storedDocId = (int)$existing['clm_encdoc_id'];
+        $lockedDoc=enc_fetch_one($conn,'SELECT clm_encdoc_sha256 FROM tb_enc_documentos WHERE clm_encdoc_id=? FOR UPDATE','i',[$storedDocId]);
+        $oldPdfHash=(string)($lockedDoc['clm_encdoc_sha256']??'');
         enc_execute($conn, "
             UPDATE tb_enc_documentos
                SET clm_encdoc_nombre = ?,
@@ -215,7 +222,7 @@ try {
     }
 
     if ($existing && $tipo === 'MANIFIESTO_ENCOMIENDAS' && $storedDocId > 0 && enc_schema_has_manifest_reviews($conn)) {
-        enc_execute($conn, "DELETE FROM tb_enc_manifiesto_revisiones WHERE clm_encrev_iddocumento = ?", 'i', [$storedDocId]);
+        enc_inventory_invalidate_pdf($conn,$storedDocId,$userId,$oldPdfHash,(string)$pdf['sha256']);
     }
 
     if ($tipo === 'MANIFIESTO_ENCOMIENDAS' && $pointId && !$isMassManifest) {

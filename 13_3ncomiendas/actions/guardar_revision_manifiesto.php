@@ -2,12 +2,16 @@
 ob_start();
 define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/../includes/encomiendas_queries.php';
+require_once __DIR__ . '/../includes/encomiendas_inventario_legacy.php';
 
 $conn = enc_start_action('enc-tracking');
 enc_verify_action_csrf();
 
 if (!enc_schema_has_manifest_review_pages($conn)) {
     enc_json(false, 'Falta ejecutar la migracion SQL de revisiones de manifiestos por hoja.', [], 409);
+}
+if (!enc_inventory_ready($conn)) {
+    enc_json(false,'Instala la actualización de inventario antes de guardar revisiones. Los registros anteriores se conservan.',[],409);
 }
 
 function enc_manifest_review_datetime($value): ?string {
@@ -66,6 +70,8 @@ function enc_manifest_review_normalize_item(array $raw, int $order): ?array {
 
     return [
         'orden' => $order,
+        'inventory_id' => max(0,(int)($raw['inventory_id'] ?? 0)),
+        'inventory_version' => max(0,(int)($raw['inventory_version'] ?? 0)),
         'manual' => $manual,
         'documento' => $documento,
         'consignado' => $consignado,
@@ -100,6 +106,12 @@ function enc_manifest_review_item_is_manual_placeholder(array $item): bool {
 
 $documentId = max(0, (int)($_POST['documento_id'] ?? 0));
 $postedSheets = $_POST['sheets'] ?? [];
+if (isset($_POST['sheets_json'])) {
+    $json = is_string($_POST['sheets_json']) ? $_POST['sheets_json'] : '';
+    if (strlen($json)>5242880) enc_json(false,'La revisión excede el tamaño permitido.',[],422);
+    $postedSheets = json_decode($json,true);
+    if (!is_array($postedSheets)) enc_json(false,'El contenido de la revisión no es válido.',[],422);
+}
 $legacyItems = $_POST['items'] ?? [];
 $userId = enc_user_id();
 
@@ -234,7 +246,9 @@ try {
     }
 
     $conn->begin_transaction();
-    enc_execute($conn, "DELETE FROM tb_enc_manifiesto_revisiones WHERE clm_encrev_iddocumento = ?", 'i', [$documentId]);
+    $inventoryLocked = enc_inventory_lock_legacy($conn,$documentId,$sheets,(string)($_POST['inventory_fingerprint'] ?? ''),(string)$doc['clm_encdoc_sha256']);
+    $inventoryLinks = [];
+    enc_inventory_prepare_legacy($conn,$documentId);
 
     $reviewIds = [];
     $pointIdsToMark = [];
@@ -255,9 +269,21 @@ try {
                 clm_encrev_total_rezagados,
                 clm_encrev_estado,
                 clm_encrev_observacion,
-                clm_encrev_idusuario_crea
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ", 'iiii' . 'ssssss' . 'ii' . 'ss' . 'i', [
+                clm_encrev_idusuario_crea,
+                clm_encrev_pdf_sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                clm_encrev_id=LAST_INSERT_ID(clm_encrev_id),
+                clm_encrev_idguia=VALUES(clm_encrev_idguia),clm_encrev_idpunto=VALUES(clm_encrev_idpunto),
+                clm_encrev_codigo_manifiesto=VALUES(clm_encrev_codigo_manifiesto),
+                clm_encrev_origen=VALUES(clm_encrev_origen),clm_encrev_destino=VALUES(clm_encrev_destino),
+                clm_encrev_bus=VALUES(clm_encrev_bus),clm_encrev_placa=VALUES(clm_encrev_placa),
+                clm_encrev_fecha_viaje=VALUES(clm_encrev_fecha_viaje),
+                clm_encrev_total_items=VALUES(clm_encrev_total_items),clm_encrev_total_rezagados=VALUES(clm_encrev_total_rezagados),
+                clm_encrev_estado=VALUES(clm_encrev_estado),clm_encrev_observacion=VALUES(clm_encrev_observacion),
+                clm_encrev_idusuario_actualiza=VALUES(clm_encrev_idusuario_crea),clm_encrev_datetimeupdated=NOW(),
+                clm_encrev_pdf_sha256=VALUES(clm_encrev_pdf_sha256),clm_encrev_activo=1
+        ", 'iiii' . 'ssssss' . 'ii' . 'ss' . 'is', [
             $documentId,
             (int)$doc['clm_encdoc_idguia'],
             $sheet['idpunto'],
@@ -273,6 +299,7 @@ try {
             $sheet['estado'],
             $sheet['observacion'],
             $userId,
+            $doc['clm_encdoc_sha256'],
         ]);
         $reviewId = (int)$conn->insert_id;
         $reviewIds[] = $reviewId;
@@ -281,36 +308,17 @@ try {
         }
 
         foreach ($sheet['items'] as $item) {
-            enc_execute($conn, "
-                INSERT INTO tb_enc_manifiesto_revision_items (
-                    clm_encrevitem_idrevision,
-                    clm_encrevitem_orden,
-                    clm_encrevitem_documento,
-                    clm_encrevitem_consignado,
-                    clm_encrevitem_referencia_envio,
-                    clm_encrevitem_peso,
-                    clm_encrevitem_tipo_pago,
-                    clm_encrevitem_importe_cobrado,
-                    clm_encrevitem_guia_remision,
-                    clm_encrevitem_estado,
-                    clm_encrevitem_observacion,
-                    clm_encrevitem_activo
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-            ", 'iisssdsdsss', [
-                $reviewId,
-                $item['orden'],
-                $item['documento'],
-                $item['consignado'],
-                $item['referencia_envio'],
-                $item['peso'],
-                $item['tipo_pago'],
-                $item['importe_cobrado'],
-                $item['guia_remision'],
-                $item['estado'],
-                $item['observacion'],
-            ]);
+            $savedItemId=enc_inventory_store_legacy_item($conn,$doc,$reviewId,$sheet['orden_hoja'],$item,$inventoryLocked,$userId);
+            $inventoryLinks[]=['inventory_id'=>$savedItemId];
         }
     }
+
+    // Las hojas retiradas se conservan inactivas; sus items ya no se borran por cascada.
+    $reviewParams=array_merge([$userId,$documentId],$reviewIds);
+    enc_execute($conn,'UPDATE tb_enc_manifiesto_revisiones SET clm_encrev_activo=0,
+        clm_encrev_idusuario_actualiza=?,clm_encrev_datetimeupdated=NOW()
+        WHERE clm_encrev_iddocumento=? AND clm_encrev_id NOT IN ('.implode(',',array_fill(0,count($reviewIds),'?')).')',
+        str_repeat('i',count($reviewParams)),$reviewParams)->close();
 
     foreach (array_keys($pointIdsToMark) as $pointId) {
         enc_execute($conn, "
@@ -325,6 +333,7 @@ try {
     }
 
     enc_execute($conn, "UPDATE tb_enc_guias SET clm_enc_idusuario_actualiza = ? WHERE clm_enc_id = ?", 'ii', [$userId, (int)$doc['clm_encdoc_idguia']]);
+    enc_inventory_finish_legacy($conn,$documentId,$inventoryLocked,$inventoryLinks,$userId);
     $conn->commit();
 
     enc_json(true, 'Revision de manifiesto guardada correctamente.', [
@@ -334,5 +343,6 @@ try {
 } catch (Throwable $e) {
     $conn->rollback();
     enc_log($e);
+    if ($e instanceof InvalidArgumentException) enc_json(false,$e->getMessage(),[],409);
     enc_json(false, enc_db_message($e), [], 500);
 }

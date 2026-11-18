@@ -3,6 +3,7 @@ ob_start();
 define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/includes/encomiendas_helpers.php';
 require_once __DIR__ . '/includes/encomiendas_queries.php';
+require_once __DIR__ . '/includes/encomiendas_inventory_layout.php';
 
 $partial = isset($_GET['partial']) && $_GET['partial'] === '1';
 $conn = enc_start_page('enc-tracking', 'Detalle de Control Encomienda');
@@ -512,6 +513,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/encomiendas.css')) ?>">
+    <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/kupos_inventario.css')) ?>?v=3">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -522,7 +524,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
 
     <main class="n360-content enc-content">
         <div class="n360-main__inner enc-page" data-enc-detail-page data-csrf="<?= enc_h($csrf) ?>" data-report-user="<?= enc_h(enc_user_name()) ?>" data-report-dni="<?= enc_h($_SESSION['DNI'] ?? $_SESSION['dni'] ?? 'No registrado') ?>">
-            <div class="enc-backbar"><a class="stock-btn stock-btn--soft" href="tracking.php"><i class="bi bi-arrow-left"></i> Volver al tracking</a></div>
+            <?php enc_inventory_navigation('tracking'); ?>
             <?php enc_render_detail_content($guia, $points, $documents, $history, $pageError, $csrf); ?>
         </div>
     </main>

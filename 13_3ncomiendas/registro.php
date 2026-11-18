@@ -3,6 +3,8 @@ ob_start();
 define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/includes/encomiendas_helpers.php';
 require_once __DIR__ . '/includes/encomiendas_queries.php';
+require_once __DIR__ . '/includes/encomiendas_inventario.php';
+require_once __DIR__ . '/includes/encomiendas_inventory_layout.php';
 
 $conn = enc_start_page('enc-register', 'Registro de Control Encomienda');
 
@@ -11,8 +13,10 @@ $placas = [];
 $programaciones = [];
 $pageError = '';
 $schemaReady = false;
+$inventoryReady = false;
 try {
     $schemaReady = enc_schema_has_guias_norte($conn);
+    $inventoryReady = enc_inventory_ready($conn);
     $sedes = enc_fetch_sedes($conn);
     $placas = enc_fetch_placas($conn);
     $programaciones = enc_fetch_active_programaciones($conn);
@@ -49,6 +53,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/encomiendas.css')) ?>">
+    <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/kupos_inventario.css')) ?>?v=3">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -64,11 +69,14 @@ require_once __DIR__ . '/../layout/content_n360.php';
             <div class="enc-hero__text">
                 <span class="stock-eyebrow"><i class="bi bi-send-check-fill"></i> Encomiendas - Control Encomienda</span>
                 <h1>Registrar Control Encomienda</h1>
+                <p>Registra un viaje manual o importa Kupos; consulta su control en Tracking y sus envíos en Inventario.</p>
             </div>
             <div class="stock-hero-actions enc-hero__actions">
-                <a class="stock-btn stock-btn--soft" href="tracking.php"><i class="bi bi-search"></i> Ir a tracking</a>
+                <?php if (enc_can_view('enc-tracking')): ?><a class="stock-btn stock-btn--soft" href="tracking.php"><i class="bi bi-search"></i> Ver controles</a><?php endif; ?>
             </div>
         </section>
+
+        <?php enc_inventory_navigation('registro'); ?>
 
         <?php if ($pageError !== ''): ?>
             <div class="stock-alert stock-alert--danger"><i class="bi bi-exclamation-triangle-fill"></i><?= enc_h($pageError) ?></div>
@@ -77,10 +85,15 @@ require_once __DIR__ . '/../layout/content_n360.php';
         <?php if (!$schemaReady): ?>
             <div class="stock-alert stock-alert--warning enc-schema-warning">
                 <i class="bi bi-database-fill-gear"></i>
-                Ejecuta manualmente <strong>C:\00_core_norte360\DOCS\sql\norte360\querysnuevas_encomiendas_unificado.sql</strong> para activar correlativos CE, puntos de ruta y la referencia opcional a pizarra.
+                El registro manual requiere completar la instalación del módulo de Encomiendas. Consulta con Administración.
             </div>
         <?php endif; ?>
 
+        <div class="enc-entry-modes" role="tablist" aria-label="Tipo de registro">
+            <button type="button" id="encManualTab" class="enc-entry-option is-active" role="tab" aria-selected="true" aria-controls="encManualPanel" data-enc-mode="manual"><i class="bi bi-pencil-square"></i><span><strong>Manual</strong><small>Quatrobus y casos excepcionales</small></span></button>
+            <button type="button" id="encKuposTab" class="enc-entry-option" role="tab" aria-selected="false" aria-controls="encKuposPanel" data-enc-mode="kupos" tabindex="-1"><i class="bi bi-file-earmark-spreadsheet"></i><span><strong>Importar Kupos</strong><small>CSV, validación y seguimiento de cambios</small></span></button>
+        </div>
+        <div id="encManualPanel" data-enc-manual-panel role="tabpanel" aria-labelledby="encManualTab">
         <section class="enc-result" id="encRegistroResult" hidden></section>
 
         <form class="enc-form" id="encRegistroForm" action="actions/guardar_guia.php" method="post" novalidate data-tracking-url="tracking.php" data-detail-url="detalle.php" <?= !$schemaReady ? 'data-disabled="1"' : '' ?>>
@@ -95,7 +108,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                 <span>Control Encomienda</span>
                                 <h2>Datos base del viaje</h2>
                             </div>
-                            <span class="enc-auto-guide"><i class="bi bi-magic"></i> Correlativo automatico CE-000001</span>
+                            <span class="enc-auto-guide"><i class="bi bi-magic"></i> Código CE automático al guardar</span>
                         </div>
 
                         <div class="enc-form-grid enc-form-grid--guide">
@@ -241,6 +254,8 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 <button class="stock-btn stock-btn--primary" type="submit" <?= !$schemaReady ? 'disabled' : '' ?>><i class="bi bi-save2"></i> Registrar Control Encomienda</button>
             </div>
         </form>
+        </div>
+        <div id="encKuposPanel" role="tabpanel" aria-labelledby="encKuposTab" hidden><?php require __DIR__.'/includes/encomiendas_kupos_form.php'; ?></div>
     </div>
     </main>
 
@@ -257,5 +272,6 @@ require_once __DIR__ . '/../layout/content_n360.php';
 <script src="<?= enc_h(n360_asset('assets/js/header_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('assets/js/sidebar_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/registro_encomiendas.js')) ?>"></script>
+<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/kupos_importacion.js')) ?>?v=1"></script>
 </body>
 </html>

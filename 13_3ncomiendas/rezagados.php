@@ -1,9 +1,17 @@
 <?php
 ob_start();
 define('N360_ENCOMIENDAS', true);
+require_once __DIR__ . '/includes/encomiendas_inventario.php';
 require_once __DIR__ . '/includes/encomiendas_queries.php';
 
 $conn = enc_start_page('enc-tracking', 'Rezagados de Encomienda');
+if (enc_inventory_ready($conn)) {
+    $query=$_GET;
+    if (!isset($query['estado']) && !isset($query['revision'])) $query['revision']='REZAGADO';
+    $conn->close();
+    header('Location: inventario.php'.($query ? '?'.http_build_query($query) : ''));
+    exit;
+}
 $filters = enc_current_rezagados_filters();
 $schemaReady = false;
 $pageError = '';

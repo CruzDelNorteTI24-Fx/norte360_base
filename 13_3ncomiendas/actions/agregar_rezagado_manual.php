@@ -2,6 +2,7 @@
 ob_start();
 define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/../includes/encomiendas_queries.php';
+require_once __DIR__ . '/../includes/encomiendas_inventario_legacy.php';
 
 $conn = enc_start_action('enc-tracking');
 enc_verify_action_csrf();
@@ -283,6 +284,7 @@ try {
         $estado,
         $observacion,
     ]);
+    $newLegacyId = (int)$conn->insert_id;
 
     enc_execute($conn, "
         UPDATE tb_enc_manifiesto_revisiones r
@@ -320,6 +322,7 @@ try {
          WHERE clm_enc_id = ?
     ", 'ii', [$userId, (int)$review['clm_encrev_idguia']]);
 
+    enc_inventory_add_manual($conn,(int)$review['clm_encrev_iddocumento'],$newLegacyId,$userId);
     $conn->commit();
 
     enc_json(true, 'Encomienda manual agregada correctamente.', [

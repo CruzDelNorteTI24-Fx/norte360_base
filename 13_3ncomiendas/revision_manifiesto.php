@@ -2,6 +2,7 @@
 ob_start();
 define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/includes/encomiendas_queries.php';
+require_once __DIR__ . '/includes/encomiendas_inventario_legacy.php';
 
 $conn = enc_start_page('enc-tracking', 'Revision de Manifiesto');
 $documentId = max(0, (int)($_GET['documento'] ?? 0));
@@ -10,6 +11,8 @@ $schemaReady = false;
 $doc = null;
 $sheets = [];
 $reviews = [];
+$inventoryMap = [];
+$inventoryFingerprint = '';
 
 function enc_review_status_options(string $selected): string {
     $options = [
@@ -53,6 +56,8 @@ function enc_review_sheet_label(int $order): string {
 
 function enc_review_item_from_row(array $row): array {
     return [
+        'inventory_id' => (int)($row['inventory_id'] ?? 0),
+        'inventory_version' => (int)($row['inventory_version'] ?? 0),
         'orden' => (int)$row['clm_encrevitem_orden'],
         'documento' => $row['clm_encrevitem_documento'],
         'consignado' => $row['clm_encrevitem_consignado'],
@@ -94,30 +99,30 @@ function enc_review_item_key(array $item): string {
     return $guia !== '' ? 'GUIA|' . $guia : '';
 }
 
-function enc_review_merge_saved_items(array $parsedItems, array $savedItems): array {
+function enc_review_merge_saved_items(array $parsedItems, array $savedItems,bool $keepUnmatched=true): array {
     $savedByDocument = [];
     $matchedSaved = [];
     foreach ($savedItems as $savedIdx => $savedItem) {
         $key = enc_review_item_key($savedItem);
-        if ($key !== '' && !isset($savedByDocument[$key])) {
-            $savedByDocument[$key] = $savedIdx;
-        }
+        if ($key !== '') $savedByDocument[$key][] = $savedIdx;
     }
 
     foreach ($parsedItems as $idx => $item) {
         $parsedItems[$idx]['manual'] = false;
         $key = enc_review_item_key($item);
-        if ($key === '' || !isset($savedByDocument[$key])) {
+        if ($key === '' || empty($savedByDocument[$key])) {
             continue;
         }
-        $savedIdx = $savedByDocument[$key];
+        $savedIdx = array_shift($savedByDocument[$key]);
         $matchedSaved[$savedIdx] = true;
         $parsedItems[$idx]['estado'] = $savedItems[$savedIdx]['estado'] ?? ($item['estado'] ?? 'PENDIENTE');
         $parsedItems[$idx]['observacion'] = $savedItems[$savedIdx]['observacion'] ?? ($item['observacion'] ?? '');
+        $parsedItems[$idx]['inventory_id'] = $savedItems[$savedIdx]['inventory_id'] ?? 0;
+        $parsedItems[$idx]['inventory_version'] = $savedItems[$savedIdx]['inventory_version'] ?? 0;
     }
 
     foreach ($savedItems as $savedIdx => $savedItem) {
-        if (isset($matchedSaved[$savedIdx])) {
+        if (!$keepUnmatched || isset($matchedSaved[$savedIdx])) {
             continue;
         }
         $savedItem['manual'] = true;
@@ -170,6 +175,14 @@ try {
     }
 
     $reviews = enc_fetch_manifest_reviews($conn, $documentId);
+    $inventoryMap = enc_inventory_legacy_map($conn,$documentId);
+    $inventoryFingerprint = enc_inventory_ready($conn) ? enc_inventory_legacy_fingerprint($inventoryMap,(string)$doc['clm_encdoc_sha256']) : '';
+    $inventoryByLegacy = [];
+    foreach ($inventoryMap as $inventoryRow) {
+        $inventoryByLegacy[(int)$inventoryRow['legacy_item_id']] = [
+            'inventory_id'=>(int)$inventoryRow['id'],'inventory_version'=>(int)$inventoryRow['version']
+        ];
+    }
     $savedSheetsByOrder = [];
     foreach ($reviews as $review) {
         $order = (int)($review['clm_encrev_orden_hoja'] ?? count($savedSheetsByOrder) + 1);
@@ -177,6 +190,7 @@ try {
         $point = $pointId ? ($routePointsById[$pointId] ?? null) : null;
         $items = [];
         foreach (enc_fetch_manifest_review_items($conn, (int)$review['clm_encrev_id']) as $row) {
+            $row += $inventoryByLegacy[(int)$row['clm_encrevitem_id']] ?? [];
             $item = enc_review_item_from_row($row);
             if ($manualDocument && enc_review_item_is_manual_placeholder($item)) {
                 continue;
@@ -190,6 +204,7 @@ try {
             'punto_sede' => $point['sede_nombre'] ?? $doc['punto_sede'] ?? null,
             'estado_revision' => $review['clm_encrev_estado'] ?? 'EN_REVISION',
             'observacion_revision' => $review['clm_encrev_observacion'] ?? '',
+            'pdf_vigente'=>isset($review['clm_encrev_pdf_sha256']) && hash_equals((string)$review['clm_encrev_pdf_sha256'],(string)$doc['clm_encdoc_sha256']),
             'meta' => [
                 'codigo_manifiesto' => $review['clm_encrev_codigo_manifiesto'] ?? '',
                 'origen' => $review['clm_encrev_origen'] ?? '',
@@ -249,7 +264,7 @@ try {
         }
         $items = $page['items'] ?? [];
         if ($savedSheet) {
-            $items = enc_review_merge_saved_items($items, $savedSheet['items'] ?? []);
+            $items = enc_review_merge_saved_items($items, $savedSheet['items'] ?? [],$manualDocument || !empty($savedSheet['pdf_vigente']));
         }
         $sheets[] = [
             'review_id' => $savedSheet['review_id'] ?? null,
@@ -349,6 +364,7 @@ foreach ($sheets as $sheet) {
                 </section>
 
                 <form class="enc-review-form" action="actions/guardar_revision_manifiesto.php" method="post" data-enc-review-form data-confirm="Guardar la revision del manifiesto y actualizar rezagados.">
+                    <input type="hidden" name="inventory_fingerprint" value="<?= enc_h($inventoryFingerprint) ?>">
                     <input type="hidden" name="csrf_token" value="<?= enc_h(enc_csrf_token()) ?>">
                     <input type="hidden" name="documento_id" value="<?= enc_h($doc['clm_encdoc_id']) ?>">
 
@@ -415,6 +431,8 @@ foreach ($sheets as $sheet) {
                                                 <article class="enc-review-row <?= $isManual ? 'enc-review-row--manual ' : '' ?>is-<?= enc_h(strtolower($estado)) ?>" data-enc-review-row>
                                                     <div class="enc-review-row__num"><?= enc_h(str_pad((string)($idx + 1), 2, '0', STR_PAD_LEFT)) ?></div>
                                                     <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][manual]" value="<?= $isManual ? '1' : '0' ?>">
+                                                    <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][inventory_id]" value="<?= (int)($item['inventory_id'] ?? 0) ?>">
+                                                    <input type="hidden" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][inventory_version]" value="<?= (int)($item['inventory_version'] ?? 0) ?>">
                                                     <?php if ($isManual): ?>
                                                         <div class="enc-review-row__manual">
                                                             <label><span>Documento</span><input type="text" name="sheets[<?= enc_h($sheetIdx) ?>][items][<?= enc_h($idx) ?>][documento]" value="<?= enc_h($item['documento'] ?? '') ?>" maxlength="100" autocomplete="off"></label>

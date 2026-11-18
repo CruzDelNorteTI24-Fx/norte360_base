@@ -3,52 +3,27 @@ ob_start();
 define('N360_ENCOMIENDAS', true);
 require_once __DIR__ . '/includes/encomiendas_helpers.php';
 require_once __DIR__ . '/includes/encomiendas_queries.php';
+require_once __DIR__ . '/includes/encomiendas_inventory_layout.php';
 
-$conn = enc_start_page('enc-tracking', 'Tracking de Control Encomiendas');
-$filters = enc_current_filters();
-$pageError = '';
-$schemaReady = false;
-$sedes = [];
-$placas = [];
-$rows = [];
-$totalRows = 0;
-$kpis = [
-    'total' => 0,
-    'activas' => 0,
-    'transito' => 0,
-    'finalizadas' => 0,
-    'observadas' => 0,
-    'anuladas' => 0,
-    'con_manifiestos' => 0,
-];
-
+require_once __DIR__.'/includes/encomiendas_tracking_queries.php';
+$conn=enc_start_page('enc-tracking','Tracking de controles');
+$filters=enc_control_tracking_filters();
+$pageError='';$schemaReady=false;$inventoryReady=false;$sedes=[];$placas=[];$rows=[];$totalRows=0;
+$tracking=['rows'=>[],'total'=>0,'page'=>1,'pages'=>1,'kupos'=>0,'viajes'=>0];
 try {
-    $sedes = enc_fetch_sedes($conn);
-    $placas = enc_fetch_placas($conn);
-    $schemaReady = enc_schema_has_guias_norte($conn);
+    $schemaReady=enc_schema_has_guias_norte($conn);$inventoryReady=enc_inventory_ready($conn);
+    $sedes=enc_fetch_sedes($conn);$placas=enc_fetch_placas($conn);
     if ($schemaReady) {
-        $totalRows = enc_count_tracking($conn, $filters);
-        $rows = enc_fetch_tracking($conn, $filters);
-        $kpis = array_merge($kpis, enc_fetch_kpis($conn, $filters));
+        $tracking=enc_control_tracking_query($conn,$filters,$inventoryReady);
+        $rows=$tracking['rows'];$totalRows=$tracking['total'];
     }
-} catch (Throwable $e) {
-    enc_log($e);
-    $pageError = enc_db_message($e);
-}
-
-$totalPages = max(1, (int)ceil($totalRows / max(1, $filters['per_page'])));
-$currentPage = min($filters['page'], $totalPages);
-$canAnular = enc_can_view('enc-anular');
-$hasAdvancedFilters = $filters['fecha_guia'] !== ''
-    || $filters['desde'] !== date('Y-m-01')
-    || $filters['hasta'] !== date('Y-m-d')
-    || $filters['idsede_embarque'] > 0
-    || $filters['idsede_desembarque'] > 0
-    || $filters['idplaca'] > 0
-    || $filters['estado_embarque'] !== 'TODOS'
-    || $filters['estado_desembarque'] !== 'TODOS'
-    || $filters['estado_general'] !== 'TODOS'
-    || $filters['estado_vida'] !== 'TODOS';
+} catch (Throwable $e) {enc_log($e);$pageError=enc_db_message($e);}
+$currentPage=$tracking['page'];$totalPages=$tracking['pages'];$canAnular=enc_can_view('enc-anular');
+$hasAdvancedFilters=$filters['guia']!=='' || $filters['documento']!=='' || $filters['buscar']!==''
+    || $filters['fecha_guia']!=='' || $filters['desde']!==date('Y-m-01') || $filters['hasta']!==date('Y-m-d')
+    || $filters['idsede_embarque']>0 || $filters['idsede_desembarque']>0 || $filters['idplaca']>0
+    || $filters['estado_embarque']!=='TODOS' || $filters['estado_desembarque']!=='TODOS'
+    || $filters['estado_general']!=='TODOS' || $filters['estado_vida']!=='TODOS';
 
 if (!defined('N360_LAYOUT')) define('N360_LAYOUT', true);
 if (!defined('N360_BASE_URL')) define('N360_BASE_URL', '../');
@@ -56,15 +31,6 @@ require_once __DIR__ . '/../layout/sidebar_n360.php';
 require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';
-
-function enc_tracking_url(array $changes = []): string {
-    $params = array_merge($_GET, $changes);
-    unset($params['per_page']);
-    foreach ($params as $key => $value) {
-        if ($value === null || $value === '') unset($params[$key]);
-    }
-    return 'tracking.php' . ($params ? '?' . http_build_query($params) : '');
-}
 
 function enc_unit_label(array $placa): string {
     $bus = trim((string)($placa['bus'] ?? ''));
@@ -75,14 +41,6 @@ function enc_unit_label(array $placa): string {
     return 'Unidad ' . (int)($placa['id'] ?? 0);
 }
 
-function enc_manifest_status(array $row): string {
-    $required = (int)($row['manifiestos_req'] ?? 0);
-    $ready = (int)($row['manifiestos_ok'] ?? 0);
-    $class = ($required > 0 && $ready >= $required) ? 'enc-manifest-pill--ok' : 'enc-manifest-pill--pending';
-    $icon = ($required > 0 && $ready >= $required) ? 'bi-check2-circle' : 'bi-hourglass-split';
-    $text = $required > 0 ? $ready . '/' . $required : '0/0';
-    return '<span class="enc-manifest-pill ' . enc_h($class) . '"><i class="bi ' . enc_h($icon) . '"></i>' . enc_h($text) . '</span>';
-}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -103,6 +61,7 @@ function enc_manifest_status(array $row): string {
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/encomiendas.css')) ?>">
+    <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/kupos_inventario.css')) ?>?v=3">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -117,225 +76,28 @@ function enc_manifest_status(array $row): string {
                 <div class="enc-hero__icon"><i class="bi bi-signpost-split-fill"></i></div>
                 <div class="enc-hero__text">
                     <span class="stock-eyebrow"><i class="bi bi-radar"></i> Encomiendas - Control Encomiendas</span>
-                    <h1>Tracking de Control Encomiendas</h1>
+                    <h1>Tracking de controles</h1><p>Controles de viaje y reportes Kupos, con acceso a sus encomiendas.</p>
                 </div>
                 <div class="stock-hero-actions enc-hero__actions">
                     <?php if (enc_can_view('enc-register')): ?>
-                        <a class="stock-btn stock-btn--primary" href="registro.php"><i class="bi bi-plus-circle"></i> Nueva Control Encomienda</a>
+                        <a class="stock-btn stock-btn--primary" href="registro.php"><i class="bi bi-plus-circle"></i> Registrar control</a>
                     <?php endif; ?>
                     <a class="stock-btn stock-btn--soft" href="rezagados.php"><i class="bi bi-list-check"></i> Rezagados</a>
-                    <button class="stock-btn stock-btn--soft" type="button" data-enc-pdf-tracking><i class="bi bi-filetype-pdf"></i> PDF consolidado</button>
+                    <?php if ($filters['origen_registro']!=='KUPOS'): ?><button class="stock-btn stock-btn--soft" type="button" data-enc-pdf-tracking><i class="bi bi-filetype-pdf"></i> PDF de viajes</button><?php endif; ?>
                 </div>
             </section>
 
             <?php if (!$schemaReady): ?>
                 <div class="stock-alert stock-alert--warning enc-schema-warning">
                     <i class="bi bi-database-exclamation"></i>
-                    Esta vista ya esta preparada para Control Encomiendas. Ejecuta manualmente el SQL complementario <strong>querysnuevas_encomiendas_unificado.sql</strong> para activar correlativos, puntos de ruta y documentos por punto.
+                    La instalación de Control Encomiendas está incompleta. Solicita revisar la estructura existente antes de instalar una actualización; los documentos y controles guardados deben conservarse.
                 </div>
             <?php endif; ?>
 
             <?php if ($pageError !== ''): ?>
                 <div class="stock-alert stock-alert--danger"><i class="bi bi-exclamation-triangle-fill"></i><?= enc_h($pageError) ?></div>
             <?php endif; ?>
-<!-- 
-            <section class="stock-kpis enc-kpis">
-                <article class="stock-kpi stock-kpi--blue"><span>Guias Norte</span><strong><?= enc_h($kpis['total'] ?? 0) ?></strong></article>
-                <article class="stock-kpi stock-kpi--green"><span>Activas</span><strong><?= enc_h($kpis['activas'] ?? 0) ?></strong></article>
-                <article class="stock-kpi"><span>En transito</span><strong><?= enc_h($kpis['transito'] ?? 0) ?></strong></article>
-                <article class="stock-kpi stock-kpi--green"><span>Con manifiestos</span><strong><?= enc_h($kpis['con_manifiestos'] ?? 0) ?></strong></article>
-                <article class="stock-kpi stock-kpi--amber"><span>Observadas</span><strong><?= enc_h($kpis['observadas'] ?? 0) ?></strong></article>
-                <article class="stock-kpi stock-kpi--red"><span>Anuladas</span><strong><?= enc_h($kpis['anuladas'] ?? 0) ?></strong></article>
-            </section> -->
-
-                        <form class="stock-filters enc-filters enc-filters--segmented <?= $hasAdvancedFilters ? 'is-expanded' : '' ?>" method="get" action="tracking.php" data-enc-filter-form>
-                <div class="enc-filter-toolbar">
-                    <div>
-                        <strong>Filtros de tracking</strong>
-                        <span>Busqueda rapida y filtros operativos.</span>
-                    </div>
-                    <button class="stock-btn stock-btn--soft" type="button" data-enc-filter-toggle aria-expanded="<?= $hasAdvancedFilters ? 'true' : 'false' ?>">
-                        <i class="bi bi-sliders"></i>
-                        <span data-enc-filter-toggle-text><?= $hasAdvancedFilters ? 'Ocultar filtros' : 'Mostrar filtros' ?></span>
-                    </button>
-                </div>
-
-                <section class="enc-filter-group enc-filter-group--lookup">
-                    <div class="enc-filter-group__head">
-                        <i class="bi bi-search"></i>
-                        <div><strong>Busqueda principal</strong><span>Control Encomienda, documento o texto libre.</span></div>
-                    </div>
-                    <div class="enc-filter-group__fields">
-                        <label class="stock-field"><span>Control Encomienda</span><input type="text" name="guia" value="<?= enc_h($filters['guia']) ?>" placeholder="CE-000001" autocomplete="off"></label>
-                        <label class="stock-field"><span>Documento legal</span><input type="text" name="documento" value="<?= enc_h($filters['documento']) ?>" placeholder="Factura, boleta, recibo o PDF" autocomplete="off"></label>
-                        <label class="stock-field stock-field--search"><span>Buscar</span><i class="bi bi-search"></i><input type="text" name="buscar" value="<?= enc_h($filters['buscar']) ?>" placeholder="Guia, ruta, unidad u observacion..." autocomplete="off"></label>
-                    </div>
-                </section>
-
-                <section class="enc-filter-group enc-filter-group--dates" data-enc-filter-advanced>
-                    <div class="enc-filter-group__head">
-                        <i class="bi bi-calendar-range"></i>
-                        <div><strong>Fechas</strong><span>Dia de guia o periodo.</span></div>
-                    </div>
-                    <div class="enc-filter-group__fields">
-                        <label class="stock-field"><span>Desde</span><input type="date" name="desde" value="<?= enc_h($filters['desde']) ?>"></label>
-                        <label class="stock-field"><span>Hasta</span><input type="date" name="hasta" value="<?= enc_h($filters['hasta']) ?>"></label>
-                        <label class="stock-field"><span>Fecha guia</span><input type="date" name="fecha_guia" value="<?= enc_h($filters['fecha_guia']) ?>"></label>
-                    </div>
-                </section>
-
-                <section class="enc-filter-group enc-filter-group--route" data-enc-filter-advanced>
-                    <div class="enc-filter-group__head">
-                        <i class="bi bi-signpost-2"></i>
-                        <div><strong>Ruta y unidad</strong><span>Origen, destino y bus asignado.</span></div>
-                    </div>
-                    <div class="enc-filter-group__fields">
-                        <label class="stock-field"><span>Origen</span><select name="idsede_embarque"><option value="0">Todas</option><?php foreach ($sedes as $sede): ?><option value="<?= enc_h($sede['id']) ?>" <?= $filters['idsede_embarque']==$sede['id']?'selected':'' ?>><?= enc_h($sede['nombre']) ?></option><?php endforeach; ?></select></label>
-                        <label class="stock-field"><span>Destino</span><select name="idsede_desembarque"><option value="0">Todas</option><?php foreach ($sedes as $sede): ?><option value="<?= enc_h($sede['id']) ?>" <?= $filters['idsede_desembarque']==$sede['id']?'selected':'' ?>><?= enc_h($sede['nombre']) ?></option><?php endforeach; ?></select></label>
-                        <label class="stock-field"><span>Unidad</span><select name="idplaca"><option value="0">Todas</option><?php foreach ($placas as $placa): ?><option value="<?= enc_h($placa['id']) ?>" <?= $filters['idplaca']==$placa['id']?'selected':'' ?>><?= enc_h(enc_unit_label($placa)) ?></option><?php endforeach; ?></select></label>
-                    </div>
-                </section>
-
-                <section class="enc-filter-group enc-filter-group--states" data-enc-filter-advanced>
-                    <div class="enc-filter-group__head">
-                        <i class="bi bi-toggles2"></i>
-                        <div><strong>Estados</strong><span>Control operativo de la guia.</span></div>
-                    </div>
-                    <div class="enc-filter-group__fields">
-                        <label class="stock-field"><span>Estado embarque</span><select name="estado_embarque"><option value="TODOS">Todos</option><?php foreach (['PENDIENTE','EMBARCADO','OBSERVADO'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_embarque']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
-                        <label class="stock-field"><span>Estado desembarque</span><select name="estado_desembarque"><option value="TODOS">Todos</option><?php foreach (['PENDIENTE','RECIBIDO','INCOMPLETO','OBSERVADO'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_desembarque']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
-                        <label class="stock-field"><span>Estado general</span><select name="estado_general"><option value="TODOS">Todos</option><?php foreach (['REGISTRADA','EN_TRANSITO','FINALIZADA','OBSERVADA','ANULADA'] as $e): ?><option value="<?= enc_h($e) ?>" <?= $filters['estado_general']===$e?'selected':'' ?>><?= enc_h($e) ?></option><?php endforeach; ?></select></label>
-                        <label class="stock-field"><span>Vista</span><select name="estado_vida"><option value="TODOS">Todos</option><?php foreach (['ACTIVO'=>'Activas','FINALIZADO'=>'Finalizadas','OBSERVADO'=>'Observadas','ANULADO'=>'Anuladas'] as $value=>$label): ?><option value="<?= enc_h($value) ?>" <?= $filters['estado_vida']===$value?'selected':'' ?>><?= enc_h($label) ?></option><?php endforeach; ?></select></label>
-                    </div>
-                </section>
-
-                <div class="stock-filter-actions enc-filter-actions enc-filter-actions--panel">
-                    <button class="stock-btn stock-btn--primary" type="submit"><i class="bi bi-funnel"></i> Buscar</button>
-                    <a class="stock-btn stock-btn--soft" href="tracking.php"><i class="bi bi-x-circle"></i> Limpiar</a>
-                </div>
-            </form>
-
-            <section class="stock-table-card enc-table-card">
-                <div class="stock-table-card__head">
-                    <div>
-                        <h2>Control Encomiendas registradas</h2>
-                    </div>
-                    <span class="stock-table-count"><?= enc_h($totalRows) ?> registros</span>
-                </div>
-                <div class="stock-table-wrap enc-table-wrap--cards">
-                    <table class="stock-table enc-table enc-table--tracking">
-                        <thead>
-                            <tr>
-                                <th>Control Encomienda</th>
-                                <th>Fecha / horario</th>
-                                <th>Ruta</th>
-                                <th>Unidad</th>
-                                <th>General</th>
-                                <th>Embarque</th>
-                                <th>Desembarque</th>
-                                <th>Manifiestos</th>
-                                <th>G. transp.</th>
-                                <th>Ultima act.</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php if (!$rows): ?>
-                            <tr><td colspan="11" class="stock-empty"><?= $schemaReady ? 'No existen Control Encomiendas para los filtros actuales.' : 'Pendiente ejecutar la migracion de Control Encomiendas.' ?></td></tr>
-                        <?php else: ?>
-                            <?php foreach ($rows as $row): ?>
-                                <?php
-                                $unit = trim((string)($row['placa_bus'] ?? '')) . (trim((string)($row['placa_placa'] ?? '')) !== '' ? ' - ' . trim((string)$row['placa_placa']) : '');
-                                $scheduleText = trim((string)($row['clm_enc_horario_operativo'] ?? ''));
-                                $scheduleHour = trim((string)($row['clm_enc_hora_embarque_programada'] ?? ''));
-                                $hour = $scheduleText !== '' ? $scheduleText : 'Sin horario';
-                                if ($scheduleHour !== '') $hour .= ' | ' . substr($scheduleHour, 0, 5);
-                                ?>
-                                <tr>
-                                    <td><strong><?= enc_h($row['clm_enc_guia']) ?></strong></td>
-                                    <td><span class="enc-table__main"><strong><?= enc_h(enc_fmt_date($row['clm_enc_fecha_guia'])) ?></strong><small><?= enc_h($hour) ?></small></span></td>
-                                    <td><span class="enc-table__main"><strong><?= enc_h($row['sede_embarque']) ?></strong><small>hacia <?= enc_h($row['sede_desembarque']) ?></small></span></td>
-                                    <td><?= enc_h(trim($unit) !== '' ? $unit : 'Sin unidad') ?></td>
-                                    <td><?= enc_state_badge($row['clm_enc_estado_general']) ?></td>
-                                    <td><?= enc_state_badge($row['clm_enc_estado_embarque']) ?></td>
-                                    <td><?= enc_state_badge($row['clm_enc_estado_desembarque']) ?></td>
-                                    <td><?= enc_manifest_status($row) ?></td>
-                                    <td><span class="enc-mini-chip"><i class="bi bi-files"></i><?= enc_h((int)($row['guias_transportista_total'] ?? 0)) ?></span></td>
-                                    <td><?= enc_h(enc_fmt_datetime($row['clm_enc_datetimeupdated'] ?: $row['clm_enc_fechacreated'])) ?></td>
-                                    <td>
-                                        <?php $isAnulada = ((int)($row['clm_enc_activo'] ?? 1) === 0) || strtoupper((string)($row['clm_enc_estado_general'] ?? '')) === 'ANULADA'; ?>
-                                        <div class="enc-row-actions enc-row-actions--expanded">
-                                            <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-eye"></i> Ver</button>
-                                            <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail-section="timeline" data-guide-id="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-diagram-3"></i> Seguimiento</button>
-                                            <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail-section="history" data-guide-id="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-clock-history"></i> Historial</button>
-                                            <button class="stock-btn stock-btn--primary stock-btn--sm" type="button" data-enc-pdf-guide="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-filetype-pdf"></i> PDF</button>
-                                            <?php if ($canAnular && !$isAnulada): ?>
-                                                <button class="stock-btn stock-btn--danger stock-btn--sm" type="button" data-enc-annul-open data-guide-id="<?= enc_h($row['clm_enc_id']) ?>" data-guide-code="<?= enc_h($row['clm_enc_guia']) ?>"><i class="bi bi-x-octagon"></i> Anular</button>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="enc-card-list enc-tracking-card-list" aria-label="Control Encomiendas registradas en vista compacta">
-                    <?php if (!$rows): ?>
-                        <div class="stock-empty"><?= $schemaReady ? 'No existen Control Encomiendas para los filtros actuales.' : 'Pendiente ejecutar la migracion de Control Encomiendas.' ?></div>
-                    <?php else: ?>
-                        <?php foreach ($rows as $row): ?>
-                            <?php
-                            $unit = trim((string)($row['placa_bus'] ?? '')) . (trim((string)($row['placa_placa'] ?? '')) !== '' ? ' - ' . trim((string)$row['placa_placa']) : '');
-                            $scheduleText = trim((string)($row['clm_enc_horario_operativo'] ?? ''));
-                            $scheduleHour = trim((string)($row['clm_enc_hora_embarque_programada'] ?? ''));
-                            $hour = $scheduleText !== '' ? $scheduleText : 'Sin horario';
-                            if ($scheduleHour !== '') $hour .= ' | ' . substr($scheduleHour, 0, 5);
-                            $isAnulada = ((int)($row['clm_enc_activo'] ?? 1) === 0) || strtoupper((string)($row['clm_enc_estado_general'] ?? '')) === 'ANULADA';
-                            ?>
-                            <article class="enc-mobile-card enc-tracking-card">
-                                <div class="enc-tracking-card__head">
-                                    <div>
-                                        <span>Control Encomienda</span>
-                                        <h3><?= enc_h($row['clm_enc_guia']) ?></h3>
-                                    </div>
-                                    <?= enc_state_badge($row['clm_enc_estado_general']) ?>
-                                </div>
-                                <div class="enc-tracking-card__route">
-                                    <strong><?= enc_h($row['sede_embarque']) ?></strong>
-                                    <i class="bi bi-arrow-right"></i>
-                                    <strong><?= enc_h($row['sede_desembarque']) ?></strong>
-                                </div>
-                                <dl>
-                                    <div><dt>Fecha</dt><dd><?= enc_h(enc_fmt_date($row['clm_enc_fecha_guia'])) ?></dd></div>
-                                    <div><dt>Horario</dt><dd><?= enc_h($hour) ?></dd></div>
-                                    <div><dt>Unidad</dt><dd><?= enc_h(trim($unit) !== '' ? $unit : 'Sin unidad') ?></dd></div>
-                                    <div><dt>Ultima act.</dt><dd><?= enc_h(enc_fmt_datetime($row['clm_enc_datetimeupdated'] ?: $row['clm_enc_fechacreated'])) ?></dd></div>
-                                </dl>
-                                <div class="enc-tracking-card__states">
-                                    <?= enc_state_badge($row['clm_enc_estado_embarque']) ?>
-                                    <?= enc_state_badge($row['clm_enc_estado_desembarque']) ?>
-                                    <?= enc_manifest_status($row) ?>
-                                    <span class="enc-mini-chip"><i class="bi bi-files"></i><?= enc_h((int)($row['guias_transportista_total'] ?? 0)) ?></span>
-                                </div>
-                                <div class="enc-card-actions">
-                                    <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-eye"></i> Ver</button>
-                                    <button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-enc-detail-section="timeline" data-guide-id="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-diagram-3"></i> Seguimiento</button>
-                                    <button class="stock-btn stock-btn--primary stock-btn--sm" type="button" data-enc-pdf-guide="<?= enc_h($row['clm_enc_id']) ?>"><i class="bi bi-filetype-pdf"></i> PDF</button>
-                                    <?php if ($canAnular && !$isAnulada): ?>
-                                        <button class="stock-btn stock-btn--danger stock-btn--sm" type="button" data-enc-annul-open data-guide-id="<?= enc_h($row['clm_enc_id']) ?>" data-guide-code="<?= enc_h($row['clm_enc_guia']) ?>"><i class="bi bi-x-octagon"></i> Anular</button>
-                                    <?php endif; ?>
-                                </div>
-                            </article>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-                <div class="enc-pagination">
-                    <a class="stock-btn stock-btn--soft <?= $currentPage <= 1 ? 'is-disabled' : '' ?>" href="<?= enc_h(enc_tracking_url(['page' => max(1, $currentPage - 1)])) ?>"><i class="bi bi-chevron-left"></i> Anterior</a>
-                    <span>Pagina <?= enc_h($currentPage) ?> de <?= enc_h($totalPages) ?></span>
-                    <a class="stock-btn stock-btn--soft <?= $currentPage >= $totalPages ? 'is-disabled' : '' ?>" href="<?= enc_h(enc_tracking_url(['page' => min($totalPages, $currentPage + 1)])) ?>">Siguiente <i class="bi bi-chevron-right"></i></a>
-                </div>
-            </section>
+<?php require __DIR__.'/includes/encomiendas_tracking_content.php'; ?>
         </div>
     </main>
 

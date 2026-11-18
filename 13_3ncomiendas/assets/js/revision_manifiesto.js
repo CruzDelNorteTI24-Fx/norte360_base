@@ -171,9 +171,26 @@
       if (!confirmed) return;
 
       const task = async () => {
+        const body = new FormData(form);
+        const sheets = Object.create(null);
+        const packedNames = [];
+        // Una sola variable POST evita truncar manifiestos grandes por max_input_vars.
+        for (const [name, value] of body.entries()) {
+          if (!name.startsWith('sheets[')) continue;
+          const keys = name.match(/[^\[\]]+/g).slice(1);
+          if (keys.some(key => ['__proto__', 'constructor', 'prototype'].includes(key))) continue;
+          let branch = sheets;
+          keys.forEach((key, index) => {
+            if (index === keys.length - 1) branch[key] = value;
+            else { branch[key] ||= Object.create(null); branch = branch[key]; }
+          });
+          packedNames.push(name);
+        }
+        packedNames.forEach(name => body.delete(name));
+        body.set('sheets_json', JSON.stringify(sheets));
         const response = await fetch(form.action, {
           method: 'POST',
-          body: new FormData(form),
+          body,
           credentials: 'same-origin',
           headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });

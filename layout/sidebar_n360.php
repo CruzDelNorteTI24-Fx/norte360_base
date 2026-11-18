@@ -139,6 +139,12 @@ function n360_menu_config(): array {
                                 'admin' => true
                             ],
                             [
+                                'titulo' => 'Oficinas de Encomiendas',
+                                'icono' => 'bi bi-signpost-2',
+                                'url' => 'admin/encomiendas_oficinas.php',
+                                'admin' => true
+                            ],
+                            [
                                 'titulo' => 'Espacios',
                                 'icono' => 'bi bi-grid-1x2-fill',
                                 'url' => 'admin/espacios.php',
@@ -576,9 +582,9 @@ function n360_menu_config(): array {
                                 'vista' => 'enc-tracking'
                             ],
                             [
-                                'titulo' => 'Rezagados',
+                                'titulo' => 'Inventario de encomiendas',
                                 'icono' => 'bi bi-list-check',
-                                'url' => '13_3ncomiendas/rezagados.php',
+                                'url' => '13_3ncomiendas/inventario.php',
                                 'modulo' => 13,
                                 'vista' => 'enc-tracking'
                             ],
