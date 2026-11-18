@@ -999,7 +999,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <header class="comb-emision-dialog__head">
         <div>
             <h2 id="combResumenTitle">Resumen por fecha de emisión</h2>
-            <p>Movimientos visibles del historial</p>
+            <p>Entradas y salidas visibles en la tabla del historial</p>
         </div>
         <button type="button" class="comb-emision-close" data-comb-resumen-close aria-label="Cerrar resumen">
             <i class="bi bi-x-lg" aria-hidden="true"></i>
@@ -1295,7 +1295,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=2') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>

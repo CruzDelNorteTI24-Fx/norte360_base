@@ -195,18 +195,25 @@
         formatoImporte.format(grupo.monto / 10000)
     ];
 
-    const movimientosResumen = () => visibleRows().filter((row) => Object.hasOwn(tipoResumen, row.dataset.tipo))
+    const movimientosResumen = () => Array.from(table?.querySelectorAll('tbody tr[data-combustible-row]') || [])
+        .filter((row) => Object.hasOwn(tipoResumen, row.dataset.tipo)
+            && !row.hidden
+            && row.getClientRects().length > 0
+            && window.getComputedStyle(row).visibility === 'visible')
         .map((row) => {
             const { tipo, fechaEmision, productoId, cantidad, monto } = row.dataset;
             const cells = row.children;
             return {
-                row,
                 id: Number(cells[0].textContent),
                 tipo,
                 fechaEmision,
                 productoId,
                 producto: clean(cells[5].textContent),
                 unidad: clean(cells[6].textContent),
+                nota: getCellExportText(cells[3]),
+                grifo: clean(cells[4].textContent),
+                placa: clean(cells[7].textContent),
+                observacion: getCellExportText(cells[13]),
                 // Los enteros conservan los decimales de las columnas MySQL al sumar.
                 cantidad: Math.round(Number(cantidad) * 1000),
                 monto: Math.round(Number(monto) * 10000)
@@ -278,10 +285,9 @@
                     const fecha = fechaResumen(grupo.fechaEmision);
                     const tipo = tipoResumen[grupo.tipo];
                     grupo.movimientos.slice().sort((a, b) => a.id - b.id).forEach((mov) => {
-                        const cells = mov.row.children;
                         detalle.push([
-                            fecha, mov.id, tipo, mov.producto, mov.unidad, getCellExportText(cells[3]),
-                            clean(cells[4].textContent), clean(cells[7].textContent), getCellExportText(cells[13]),
+                            fecha, mov.id, tipo, mov.producto, mov.unidad, mov.nota,
+                            mov.grifo, mov.placa, mov.observacion,
                             ...totalesResumen(mov)
                         ]);
                     });
@@ -368,7 +374,9 @@
             producto.replaceChildren(new Option('Todos los productos', 'TODOS'));
             Array.from(productos).sort((a, b) => a[1].localeCompare(b[1], 'es-PE'))
                 .forEach(([id, label]) => producto.add(new Option(label, id)));
-            tipo.value = 'TODOS';
+            const tiposVisibles = new Set(movimientos.map((mov) => mov.tipo));
+            tipo.value = tiposVisibles.size === 1 ? movimientos[0].tipo : 'TODOS';
+            producto.value = productos.size === 1 ? movimientos[0].productoId : 'TODOS';
             render();
             dialog.showModal();
             tipo.focus();
