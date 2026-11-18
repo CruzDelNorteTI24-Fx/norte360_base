@@ -272,6 +272,30 @@ body:has(.comb-resumen-dialog[open]) {
     min-width: 445px;
 }
 
+.comb-resumen-wrap .stock-table .comb-resumen-fila--mes td {
+    background: #e0ebf5;
+    color: #1e415a;
+    font-weight: 800;
+}
+
+.comb-resumen-wrap .stock-table .comb-resumen-fila--subtotal td {
+    background: #edf6f2;
+    color: #235745;
+    font-weight: 700;
+}
+
+.comb-resumen-wrap .stock-table .comb-resumen-fila--acumulado td {
+    background: #1e415a;
+    color: white;
+    font-weight: 800;
+}
+
+.comb-resumen-wrap .stock-table .comb-resumen-fila--total td {
+    background: #dfefe7;
+    color: #235745;
+    font-weight: 800;
+}
+
 .comb-resumen-status,
 .comb-resumen-limit {
     margin: 10px 0;

@@ -189,6 +189,7 @@
     const tipoResumen = { ENTRADA: 'Entrada', SALIDA: 'Salida' };
     const formatoCantidad = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
     const formatoImporte = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+    const formatoMes = new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     const fechaResumen = (iso) => iso ? iso.split('-').reverse().join('/') : 'Sin emisión';
     const totalesResumen = (grupo) => [
         formatoCantidad.format(grupo.cantidad / 1000),
@@ -220,6 +221,9 @@
             };
         });
 
+    const compararProductoTipo = (a, b) => a.producto.localeCompare(b.producto, 'es-PE')
+        || Number(a.productoId) - Number(b.productoId) || a.tipo.localeCompare(b.tipo);
+
     const agruparResumen = (movimientos) => {
         const grupos = new Map();
         movimientos.forEach((mov) => {
@@ -232,12 +236,69 @@
         });
         return Array.from(grupos.values()).sort((a, b) =>
             (a.fechaEmision || '9999-99-99').localeCompare(b.fechaEmision || '9999-99-99')
-            || a.producto.localeCompare(b.producto, 'es-PE')
-            || Number(a.productoId) - Number(b.productoId)
-            || a.tipo.localeCompare(b.tipo));
+            || compararProductoTipo(a, b));
     };
 
-    const exportResumenPdf = async (grupos, contexto) => {
+    const sumarPorProductoTipo = (grupos) => {
+        const totales = new Map();
+        for (const grupo of grupos) {
+            const { productoId, producto, unidad, tipo, cantidad, monto } = grupo;
+            const clave = JSON.stringify([productoId, unidad, tipo]);
+            if (!totales.has(clave)) {
+                totales.set(clave, { productoId, producto, unidad, tipo, cantidad: 0, monto: 0 });
+            }
+            const total = totales.get(clave);
+            total.cantidad += cantidad;
+            total.monto += monto;
+        }
+        return Array.from(totales.values()).sort(compararProductoTipo);
+    };
+
+    const prepararResumenMensual = (grupos) => {
+        const meses = new Map();
+        const sinEmision = [];
+        for (const grupo of grupos) {
+            if (!grupo.fechaEmision) {
+                sinEmision.push(grupo);
+                continue;
+            }
+            const mes = grupo.fechaEmision.slice(0, 7);
+            if (!meses.has(mes)) meses.set(mes, []);
+            meses.get(mes).push(grupo);
+        }
+        const secciones = Array.from(meses, ([mes, diarios]) => {
+            const nombre = formatoMes.format(new Date(`${mes}-01T00:00:00Z`));
+            return {
+                titulo: nombre[0].toUpperCase() + nombre.slice(1),
+                diarios,
+                totales: sumarPorProductoTipo(diarios)
+            };
+        });
+        if (sinEmision.length) secciones.push({ titulo: 'Sin emisión', diarios: sinEmision, totales: [] });
+        if (meses.size > 1) {
+            secciones.push({
+                titulo: 'Total de los meses mostrados',
+                diarios: [],
+                totales: sumarPorProductoTipo(Array.from(meses.values()).flat()),
+                acumulado: true
+            });
+        }
+        return secciones;
+    };
+
+    const filasResumenMensual = (secciones, tipo) => secciones.flatMap(({ titulo, diarios, totales, acumulado }) => {
+        const delTipo = (grupo) => !tipo || grupo.tipo === tipo;
+        const filas = diarios.filter(delTipo).map((grupo) => ({
+            texto: fechaResumen(grupo.fechaEmision), clase: 'diario', grupo
+        }));
+        const sumas = totales.filter(delTipo).map((grupo) => ({
+            texto: acumulado ? 'Total' : 'Subtotal mensual', clase: acumulado ? 'total' : 'subtotal', grupo
+        }));
+        if (!filas.length && !sumas.length) return [];
+        return [{ texto: titulo, clase: acumulado ? 'acumulado' : 'mes' }, ...filas, ...sumas];
+    });
+
+    const exportResumenPdf = async (grupos, secciones, contexto) => {
         const doc = await window.N360PDF.createDocument({
             orientation: 'landscape',
             title: 'COMBUSTIBLE POR FECHA DE EMISIÓN',
@@ -269,15 +330,26 @@
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8);
                 doc.text(contexto.alcance, left, 63);
+                const filasResumen = filasResumenMensual(secciones);
+                const estilosResumen = {
+                    mes: { fillColor: [224, 235, 245], fontStyle: 'bold' },
+                    subtotal: { fillColor: [237, 246, 242], fontStyle: 'bold' },
+                    acumulado: { fillColor: [30, 65, 90], textColor: 255, fontStyle: 'bold' },
+                    total: { fillColor: [223, 239, 231], fontStyle: 'bold' }
+                };
                 doc.autoTable({
                     ...layout,
                     startY: 70,
                     head: [['Fecha de emisión', 'Tipo', 'Producto', 'Und.', 'Cantidad', 'Importe (S/)']],
-                    body: grupos.map((grupo) => [
-                        fechaResumen(grupo.fechaEmision), tipoResumen[grupo.tipo], grupo.producto,
-                        grupo.unidad, ...totalesResumen(grupo)
-                    ]),
-                    columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' } }
+                    body: filasResumen.map(({ texto, grupo }) => grupo
+                        ? [texto, tipoResumen[grupo.tipo], grupo.producto, grupo.unidad, ...totalesResumen(grupo)]
+                        : [{ content: texto, colSpan: 6 }]),
+                    columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' } },
+                    didParseCell: (data) => {
+                        if (data.section !== 'body') return;
+                        const estilo = estilosResumen[filasResumen[data.row.index].clase];
+                        if (estilo) Object.assign(data.cell.styles, estilo);
+                    }
                 });
 
                 const detalle = [];
@@ -335,21 +407,30 @@
         const paneles = Array.from(dialog.querySelectorAll('[data-comb-resumen-panel]'));
         let movimientos = [];
         let grupos = [];
+        let secciones = [];
         let exportando = false;
 
         const render = () => {
             grupos = agruparResumen(movimientos.filter((mov) =>
                 (tipo.value === 'TODOS' || mov.tipo === tipo.value)
                 && (producto.value === 'TODOS' || mov.productoId === producto.value)));
+            secciones = prepararResumenMensual(grupos);
             for (const panel of paneles) {
                 const tipoPanel = panel.dataset.combResumenPanel;
                 panel.hidden = tipo.value !== 'TODOS' && tipo.value !== tipoPanel;
                 const tbody = panel.querySelector('tbody');
                 tbody.replaceChildren();
                 if (panel.hidden) continue;
-                grupos.filter((grupo) => grupo.tipo === tipoPanel).forEach((grupo) => {
+                filasResumenMensual(secciones, tipoPanel).forEach(({ texto, clase, grupo }) => {
                     const fila = tbody.insertRow();
-                    [fechaResumen(grupo.fechaEmision), grupo.producto, grupo.unidad, ...totalesResumen(grupo)]
+                    fila.className = `comb-resumen-fila--${clase}`;
+                    if (!grupo) {
+                        const cell = fila.insertCell();
+                        cell.colSpan = 5;
+                        cell.textContent = texto;
+                        return;
+                    }
+                    [texto, grupo.producto, grupo.unidad, ...totalesResumen(grupo)]
                         .forEach((texto, index) => {
                             const cell = fila.insertCell();
                             cell.textContent = texto;
@@ -410,7 +491,7 @@
             exportando = true;
             pdf.disabled = true;
             try {
-                await exportResumenPdf(grupos, { filtros, alcance });
+                await exportResumenPdf(grupos, secciones, { filtros, alcance });
             } catch (exception) {
                 console.error(exception);
                 error.textContent = 'No se pudo generar el PDF del resumen.';
