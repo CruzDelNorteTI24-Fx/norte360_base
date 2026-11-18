@@ -223,6 +223,78 @@
     background: rgba(9, 23, 40, .55);
 }
 
+.comb-resumen-dialog {
+    width: min(1080px, calc(100vw - 24px));
+    padding: clamp(12px, 2.2vw, 24px);
+}
+
+body:has(.comb-resumen-dialog[open]) {
+    overflow: hidden;
+}
+
+.comb-resumen-toolbar,
+.comb-resumen-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.comb-resumen-toolbar {
+    grid-template-columns: minmax(155px, 1fr) minmax(160px, 2fr) auto;
+    align-items: end;
+    margin-top: 16px;
+}
+
+.comb-resumen-toolbar .stock-field {
+    min-width: 0;
+}
+
+.comb-resumen-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+}
+
+.comb-resumen-grid section {
+    min-width: 0;
+}
+
+.comb-resumen-grid h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.comb-resumen-wrap {
+    max-height: 52dvh;
+    border: 1px solid #d6e2ef;
+    border-radius: 8px;
+}
+
+.comb-resumen-wrap table {
+    min-width: 445px;
+}
+
+.comb-resumen-status,
+.comb-resumen-limit {
+    margin: 10px 0;
+    color: #54657a;
+    font-size: .85rem;
+}
+
+.comb-resumen-limit,
+.comb-resumen-status[role="alert"] {
+    color: #893c12;
+}
+
+@media (max-width: 650px) {
+    .comb-resumen-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .comb-resumen-wrap {
+        max-height: 35dvh;
+    }
+}
+
 .comb-emision-dialog form {
     display: grid;
     gap: 16px;

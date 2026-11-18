@@ -142,13 +142,15 @@
                 if (!response.ok || !data?.ok) {
                     throw new Error(data?.message || 'No se pudo guardar la fecha de emisión.');
                 }
-                if (String(data.id_mov) !== idInput.value || !/^\d{2}\/\d{2}\/\d{4}$/.test(data.fecha_display)) {
+                if (String(data.id_mov) !== idInput.value || !/^\d{2}\/\d{2}\/\d{4}$/.test(data.fecha_display)
+                    || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha_emision)) {
                     throw new Error('No se pudo confirmar la fecha guardada. Actualiza el historial.');
                 }
                 const cell = sourceButton.closest('td');
                 const row = sourceButton.closest('[data-combustible-row]');
                 cell.textContent = data.fecha_display;
                 cell.dataset.combExportText = data.fecha_display;
+                row.dataset.fechaEmision = data.fecha_emision;
                 row.dataset.search = (row.dataset.search || '') + ' ' + data.fecha_emision + ' ' + data.fecha_display;
                 applySearch();
                 dialog.close();
@@ -182,6 +184,234 @@
         doc.setTextColor(71, 85, 105);
         const lines = doc.splitTextToSize(filters || '-', width - 8);
         doc.text(lines.slice(0, 2), left + 4, top + 10.5);
+    };
+
+    const tipoResumen = { ENTRADA: 'Entrada', SALIDA: 'Salida' };
+    const formatoCantidad = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    const formatoImporte = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+    const fechaResumen = (iso) => iso ? iso.split('-').reverse().join('/') : 'Sin emisión';
+    const totalesResumen = (grupo) => [
+        formatoCantidad.format(grupo.cantidad / 1000),
+        formatoImporte.format(grupo.monto / 10000)
+    ];
+
+    const movimientosResumen = () => visibleRows().filter((row) => Object.hasOwn(tipoResumen, row.dataset.tipo))
+        .map((row) => {
+            const { tipo, fechaEmision, productoId, cantidad, monto } = row.dataset;
+            const cells = row.children;
+            return {
+                row,
+                id: Number(cells[0].textContent),
+                tipo,
+                fechaEmision,
+                productoId,
+                producto: clean(cells[5].textContent),
+                unidad: clean(cells[6].textContent),
+                // Los enteros conservan los decimales de las columnas MySQL al sumar.
+                cantidad: Math.round(Number(cantidad) * 1000),
+                monto: Math.round(Number(monto) * 10000)
+            };
+        });
+
+    const agruparResumen = (movimientos) => {
+        const grupos = new Map();
+        movimientos.forEach((mov) => {
+            const key = JSON.stringify([mov.fechaEmision, mov.productoId, mov.tipo]);
+            if (!grupos.has(key)) grupos.set(key, { ...mov, cantidad: 0, monto: 0, movimientos: [] });
+            const grupo = grupos.get(key);
+            grupo.cantidad += mov.cantidad;
+            grupo.monto += mov.monto;
+            grupo.movimientos.push(mov);
+        });
+        return Array.from(grupos.values()).sort((a, b) =>
+            (a.fechaEmision || '9999-99-99').localeCompare(b.fechaEmision || '9999-99-99')
+            || a.producto.localeCompare(b.producto, 'es-PE')
+            || Number(a.productoId) - Number(b.productoId)
+            || a.tipo.localeCompare(b.tipo));
+    };
+
+    const exportResumenPdf = async (grupos, contexto) => {
+        const doc = await window.N360PDF.createDocument({
+            orientation: 'landscape',
+            title: 'COMBUSTIBLE POR FECHA DE EMISIÓN',
+            docCode: report.docCode || 'COM_RPT_HIST_COMB',
+            userName: report.generatedBy || '',
+            dni: report.dni || '',
+            logoLeft: report.logoLeft,
+            logoRight: report.logoRight,
+            useCover: false,
+            content: function (doc) {
+                const left = 12.7;
+                const right = 12.7;
+                const width = doc.internal.pageSize.getWidth() - left - right;
+                const layout = {
+                    margin: { left, right, top: 32, bottom: 22 },
+                    rowPageBreak: 'avoid',
+                    styles: { fontSize: 8, cellPadding: 1.4, valign: 'middle', overflow: 'linebreak' },
+                    headStyles: { fillColor: [18, 42, 64], textColor: 255 },
+                    alternateRowStyles: { fillColor: [245, 248, 252] }
+                };
+                const titulo = (texto, y) => {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.setTextColor(18, 42, 64);
+                    doc.text(texto, left, y);
+                };
+                titulo('Resumen por fecha de emisión', 36);
+                drawFilters(doc, left, 40, width, contexto.filtros);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.text(contexto.alcance, left, 63);
+                doc.autoTable({
+                    ...layout,
+                    startY: 70,
+                    head: [['Fecha de emisión', 'Tipo', 'Producto', 'Und.', 'Cantidad', 'Importe (S/)']],
+                    body: grupos.map((grupo) => [
+                        fechaResumen(grupo.fechaEmision), tipoResumen[grupo.tipo], grupo.producto,
+                        grupo.unidad, ...totalesResumen(grupo)
+                    ]),
+                    columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' } }
+                });
+
+                const detalle = [];
+                grupos.forEach((grupo) => {
+                    const fecha = fechaResumen(grupo.fechaEmision);
+                    const tipo = tipoResumen[grupo.tipo];
+                    grupo.movimientos.slice().sort((a, b) => a.id - b.id).forEach((mov) => {
+                        const cells = mov.row.children;
+                        detalle.push([
+                            fecha, mov.id, tipo, mov.producto, mov.unidad, getCellExportText(cells[3]),
+                            clean(cells[4].textContent), clean(cells[7].textContent), getCellExportText(cells[13]),
+                            ...totalesResumen(mov)
+                        ]);
+                    });
+                    detalle.push([
+                        {
+                            content: `Subtotal · ${fecha} · ${tipo} · ${grupo.producto} ${grupo.unidad}`,
+                            colSpan: 9
+                        },
+                        ...totalesResumen(grupo)
+                    ]);
+                });
+                doc.addPage();
+                titulo('Detalle de movimientos por fecha de emisión', 36);
+                doc.autoTable({
+                    ...layout,
+                    startY: 41,
+                    head: [['Fecha de emisión', 'Mov.', 'Tipo', 'Producto', 'Und.', 'Nota', 'Grifo', 'Placa',
+                        'Observación', 'Cantidad', 'Importe (S/)']],
+                    body: detalle,
+                    styles: { ...layout.styles, fontSize: 7, cellPadding: 1.1 },
+                    columnStyles: Object.fromEntries([25, 13, 17, 39, 11, 21, 26, 24, 51, 21, 23]
+                        .map((cellWidth, column) => [column, { cellWidth, ...(column >= 9 ? { halign: 'right' } : {}) }])),
+                    didParseCell: (data) => {
+                        if (data.section === 'body' && data.row.raw[0].colSpan === 9) {
+                            data.cell.styles.fillColor = [221, 235, 248];
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                });
+            }
+        });
+        const sufijo = (report.fileBase || '').replace(/^Movimientos_Combustible_/, '');
+        doc.save(`Combustible_por_emision${sufijo ? '_' + sufijo : ''}.pdf`);
+    };
+
+    const initResumenEmision = () => {
+        const dialog = document.querySelector('[data-comb-resumen]');
+        const open = document.querySelector('[data-comb-resumen-open]');
+        if (!dialog || !open) return;
+        const tipo = dialog.querySelector('[data-comb-resumen-tipo]');
+        const producto = dialog.querySelector('[data-comb-resumen-producto]');
+        const pdf = dialog.querySelector('[data-comb-resumen-pdf]');
+        const status = dialog.querySelector('[data-comb-resumen-status]');
+        const error = dialog.querySelector('[data-comb-resumen-error]');
+        const paneles = Array.from(dialog.querySelectorAll('[data-comb-resumen-panel]'));
+        let movimientos = [];
+        let grupos = [];
+        let exportando = false;
+
+        const render = () => {
+            grupos = agruparResumen(movimientos.filter((mov) =>
+                (tipo.value === 'TODOS' || mov.tipo === tipo.value)
+                && (producto.value === 'TODOS' || mov.productoId === producto.value)));
+            for (const panel of paneles) {
+                const tipoPanel = panel.dataset.combResumenPanel;
+                panel.hidden = tipo.value !== 'TODOS' && tipo.value !== tipoPanel;
+                const tbody = panel.querySelector('tbody');
+                tbody.replaceChildren();
+                if (panel.hidden) continue;
+                grupos.filter((grupo) => grupo.tipo === tipoPanel).forEach((grupo) => {
+                    const fila = tbody.insertRow();
+                    [fechaResumen(grupo.fechaEmision), grupo.producto, grupo.unidad, ...totalesResumen(grupo)]
+                        .forEach((texto, index) => {
+                            const cell = fila.insertCell();
+                            cell.textContent = texto;
+                            if (index >= 3) cell.className = 'stock-num';
+                        });
+                });
+                if (!tbody.rows.length) {
+                    const cell = tbody.insertRow().insertCell();
+                    cell.colSpan = 5;
+                    cell.textContent = 'Sin movimientos para estos filtros.';
+                }
+            }
+            const cantidad = grupos.reduce((total, grupo) => total + grupo.movimientos.length, 0);
+            status.textContent = `${cantidad} ${cantidad === 1 ? 'movimiento' : 'movimientos'}`;
+            pdf.disabled = exportando || !grupos.length;
+            error.hidden = true;
+        };
+
+        open.addEventListener('click', () => {
+            movimientos = movimientosResumen();
+            const productos = new Map(movimientos.map((mov) => [mov.productoId, mov.producto]));
+            producto.replaceChildren(new Option('Todos los productos', 'TODOS'));
+            Array.from(productos).sort((a, b) => a[1].localeCompare(b[1], 'es-PE'))
+                .forEach(([id, label]) => producto.add(new Option(label, id)));
+            tipo.value = 'TODOS';
+            render();
+            dialog.showModal();
+            tipo.focus();
+        });
+        const close = () => {
+            dialog.close();
+            open.focus({ preventScroll: true });
+        };
+        dialog.querySelector('[data-comb-resumen-close]').addEventListener('click', close);
+        dialog.addEventListener('cancel', (event) => {
+            event.preventDefault();
+            close();
+        });
+        tipo.addEventListener('change', render);
+        producto.addEventListener('change', render);
+        pdf.addEventListener('click', async () => {
+            if (!grupos.length || exportando) return;
+            error.hidden = true;
+            if (!window.N360PDF || !window.jspdf?.jsPDF) {
+                error.textContent = 'No se pudo cargar el generador PDF.';
+                error.hidden = false;
+                return;
+            }
+            const filtros = [
+                tipo.selectedOptions[0].text, producto.selectedOptions[0].text,
+                report.period, ...(report.filters || []), searchInput?.value.trim()
+            ].filter(Boolean).join(' | ');
+            const alcance = dialog.querySelector('[data-comb-resumen-limit]')
+                ? 'Movimientos visibles del historial · Límite de 3 000 filas alcanzado.'
+                : 'Movimientos visibles del historial';
+            exportando = true;
+            pdf.disabled = true;
+            try {
+                await exportResumenPdf(grupos, { filtros, alcance });
+            } catch (exception) {
+                console.error(exception);
+                error.textContent = 'No se pudo generar el PDF del resumen.';
+                error.hidden = false;
+            } finally {
+                exportando = false;
+                pdf.disabled = !grupos.length;
+            }
+        });
     };
 
     const exportPdf = async () => {
@@ -530,4 +760,5 @@
     applyOptionalColumnsVisibility();
     initPriceModals();
     initEmissionEditor();
+    initResumenEmision();
 })();

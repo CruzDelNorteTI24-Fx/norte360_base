@@ -684,7 +684,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=1') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -703,6 +703,9 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 </div>
             </div>
             <div class="stock-hero-actions comb-hero-actions">
+                <button type="button" class="stock-btn stock-btn--soft" data-comb-resumen-open aria-haspopup="dialog">
+                    <i class="bi bi-calendar2-week" aria-hidden="true"></i> Resumen por emisión
+                </button>
                 <button type="button" class="stock-btn stock-btn--primary" data-combustible-export-pdf>
                     <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
                 </button>
@@ -907,6 +910,8 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                 <tr data-combustible-row
                                     data-search="<?= comb_h(strtolower($searchBlob)) ?>"
                                     data-tipo="<?= comb_h($tipoRow) ?>"
+                                    data-producto-id="<?= (int)$row['id_producto'] ?>"
+                                    data-fecha-emision="<?= comb_h($fechaEmisionDisplay !== '-' ? $fechaEmision : '') ?>"
                                     data-cantidad="<?= comb_h((string)($row['cantidad'] ?? 0)) ?>"
                                     data-monto="<?= comb_h((string)($row['monto'] ?? 0)) ?>">
                                     <td><span class="stock-code"><?= comb_h($row['id_mov'] ?? '-') ?></span></td>
@@ -989,6 +994,63 @@ require_once __DIR__ . '/../layout/content_n360.php';
     </form>
 </dialog>
 <?php endif; ?>
+
+<dialog class="comb-emision-dialog comb-resumen-dialog" data-comb-resumen aria-labelledby="combResumenTitle">
+    <header class="comb-emision-dialog__head">
+        <div>
+            <h2 id="combResumenTitle">Resumen por fecha de emisión</h2>
+            <p>Movimientos visibles del historial</p>
+        </div>
+        <button type="button" class="comb-emision-close" data-comb-resumen-close aria-label="Cerrar resumen">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+    </header>
+    <div class="comb-resumen-toolbar">
+        <label class="stock-field">
+            <span>Tipo de movimiento</span>
+            <select data-comb-resumen-tipo autocomplete="off">
+                <option value="TODOS">Entradas y salidas</option>
+                <option value="ENTRADA">Entradas</option>
+                <option value="SALIDA">Salidas</option>
+            </select>
+        </label>
+        <label class="stock-field">
+            <span>Producto</span>
+            <select data-comb-resumen-producto autocomplete="off"></select>
+        </label>
+        <button type="button" class="stock-btn stock-btn--primary" data-comb-resumen-pdf>
+            <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Generar PDF
+        </button>
+    </div>
+    <?php if (count($rows) >= 3000): ?>
+        <p class="comb-resumen-limit" data-comb-resumen-limit>
+            El historial alcanzó el límite de 3 000 filas. Acota las fechas para incluir todos los movimientos del período.
+        </p>
+    <?php endif; ?>
+    <p class="comb-resumen-status" data-comb-resumen-status role="status"></p>
+    <p class="comb-resumen-status" data-comb-resumen-error role="alert" hidden></p>
+    <div class="comb-resumen-grid">
+        <?php foreach (['ENTRADA' => 'Entradas', 'SALIDA' => 'Salidas'] as $tipoResumen => $tituloResumen): ?>
+            <section data-comb-resumen-panel="<?= $tipoResumen ?>" aria-labelledby="combResumen<?= $tipoResumen ?>">
+                <h3 id="combResumen<?= $tipoResumen ?>"><?= $tituloResumen ?></h3>
+                <div class="stock-table-wrap comb-resumen-wrap">
+                    <table class="stock-table" aria-labelledby="combResumen<?= $tipoResumen ?>">
+                        <thead>
+                            <tr>
+                                <th scope="col">Fecha de emisión</th>
+                                <th scope="col">Producto</th>
+                                <th scope="col">Und.</th>
+                                <th scope="col" class="stock-num">Cantidad</th>
+                                <th scope="col" class="stock-num">Importe (S/)</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+        <?php endforeach; ?>
+    </div>
+</dialog>
 
 <div class="modal fade comb-price-modal" id="modalHistPrecio" tabindex="-1" aria-labelledby="modalHistPrecioLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -1233,7 +1295,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>
