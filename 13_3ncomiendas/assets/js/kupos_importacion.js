@@ -39,16 +39,16 @@
     form.setAttribute('aria-busy', String(busy));
   };
   const display = (value, field) => {
-    if (value === null || value === '') return '-';
+    if (value === null || value === undefined || value === '') return '-';
     if (field === 'total') return `S/ ${String(value)}`;
-    if (field === 'fecha' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value.split('-').reverse().join('/');
+    if (['fecha', 'fecha_creacion_externa', 'fecha_cobro_externa'].includes(field) && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value.split('-').reverse().join('/');
     return String(value);
   };
   const renderRows = () => {
     if (!model) return;
     const term = search.value.trim().toLocaleLowerCase('es');
     const rows = model.rows.filter(row => (!stateFilter.value || row.estado === stateFilter.value)
-      && (!branchFilter.value || row.data.sucursal === branchFilter.value)
+      && (!branchFilter.value || (branchFilter.value === '__SIN_SUCURSAL__' ? !row.data.sucursal : row.data.sucursal === branchFilter.value))
       && (!term || Object.values(row.data).some(value => String(value ?? '').toLocaleLowerCase('es').includes(term))));
     const pages = Math.max(1, Math.ceil(rows.length / 25));
     page = Math.min(page, pages);
@@ -96,9 +96,17 @@
     data.warnings.forEach(text => warningList.append(node('li', text)));
     data.sin_equivalencia.forEach(name => warningList.append(node('li', `${name}: sin equivalencia de sede.`)));
     warnings.hidden = !warningList.children.length;
+    const branchNote = root.querySelector('[data-kupos-branch-note]');
+    branchNote.hidden = !data.sin_sucursal;
+    branchNote.textContent = data.sin_sucursal
+      ? `${data.sin_sucursal} envíos sin sucursal de origen informada por Kupos. Se conservará la que ya tenga el inventario. Las ${data.sucursales_reportadas} sucursales del resumen no identifican el origen de cada envío.` : '';
     const currentBranch = branchFilter.value;
     branchFilter.replaceChildren(node('option', 'Todas las sucursales'));
     branchFilter.firstChild.value = '';
+    if (data.sin_sucursal) {
+      const option = node('option', `Sin sucursal informada (${data.sin_sucursal})`);
+      option.value = '__SIN_SUCURSAL__'; branchFilter.append(option);
+    }
     Object.keys(data.sucursales).sort().forEach(name => {
       const option = node('option', `${name} (${data.sucursales[name]})`); option.value = name; branchFilter.append(option);
     });

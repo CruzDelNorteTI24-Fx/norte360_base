@@ -272,6 +272,6 @@ require_once __DIR__ . '/../layout/content_n360.php';
 <script src="<?= enc_h(n360_asset('assets/js/header_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('assets/js/sidebar_n360.js')) ?>"></script>
 <script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/registro_encomiendas.js')) ?>"></script>
-<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/kupos_importacion.js')) ?>?v=1"></script>
+<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/kupos_importacion.js')) ?>?v=4"></script>
 </body>
 </html>

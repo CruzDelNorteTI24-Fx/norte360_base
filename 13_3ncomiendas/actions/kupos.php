@@ -17,8 +17,8 @@ try {
             || !is_uploaded_file((string)($file['tmp_name'] ?? ''))) {
             throw new InvalidArgumentException('Selecciona un CSV válido dentro del tamaño permitido por el servidor.');
         }
-        if ((int)$file['size'] <= 0 || (int)$file['size'] > ENC_KUPOS_MAX_BYTES) {
-            throw new InvalidArgumentException('El CSV debe pesar como máximo 10 MB.');
+        if ((int)$file['size'] <= 0) {
+            throw new InvalidArgumentException('El CSV está vacío.');
         }
         $name = basename(str_replace('\\','/',(string)$file['name']));
         if (strtolower(pathinfo($name,PATHINFO_EXTENSION)) !== 'csv' || enc_kupos_length($name)>255) {
@@ -27,7 +27,7 @@ try {
         $stream = fopen($file['tmp_name'],'rb');
         if (!$stream) throw new RuntimeException('No se pudo leer el archivo temporal.');
         try { $parsed = enc_kupos_parse($stream); } finally { fclose($stream); }
-        $stage = ['token'=>bin2hex(random_bytes(24)),'user'=>enc_user_id(),'expires'=>time()+1800,
+        $stage = ['format_version'=>ENC_KUPOS_STAGE_VERSION,'token'=>bin2hex(random_bytes(24)),'user'=>enc_user_id(),'expires'=>time()+1800,
             'archivo'=>$name,'parsed'=>$parsed,'fecha_corte'=>enc_kupos_cutoff((string)($_POST['fecha_corte'] ?? ''),$parsed)];
     } else {
         $stage = enc_kupos_stage();
@@ -36,6 +36,8 @@ try {
     $conn = enc_open_connection_json();
     if (!enc_inventory_ready($conn)) {
         $status = 409; $response = ['ok'=>false,'message'=>'Falta instalar la actualización de inventario e importaciones de Encomiendas.'];
+    } elseif (!enc_kupos_dates_ready($conn)) {
+        $status = 409; $response = ['ok'=>false,'message'=>'Falta actualizar el inventario para conservar las fechas de creación y cobro de Kupos. Solicita la actualización a Administración.'];
     } elseif ($operation === 'importar') {
         $result = enc_kupos_commit($conn,$stage,enc_user_id());
         if (!empty($result['conflict'])) {

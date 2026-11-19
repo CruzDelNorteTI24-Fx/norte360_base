@@ -10,10 +10,10 @@
         <div class="enc-kupos-upload">
             <label class="stock-field"><span>Archivo CSV de Kupos *</span>
                 <input type="file" name="archivo" accept=".csv,text/csv" required <?= !$inventoryReady ? 'disabled' : '' ?>>
-                <small>Incluye los envíos de todas las sucursales del reporte. Máximo 10 MB y 5.000 envíos.</small></label>
+                </label>
             <label class="stock-field"><span>Fecha y hora de corte del reporte *</span>
                 <input type="datetime-local" name="fecha_corte" required max="<?= enc_h(date('Y-m-d\TH:i')) ?>" <?= !$inventoryReady ? 'disabled' : '' ?>>
-                <small>Verifica la fecha sugerida del archivo antes de importar.</small></label>
+                </label>
         </div>
         <div class="enc-kupos-toolbar">
             <p>La importación crea un control CE y actualiza el inventario conservando el código de cada envío.</p>
@@ -24,6 +24,7 @@
     <div data-kupos-message class="enc-kupos-message" role="status" aria-live="polite"></div>
     <section data-kupos-preview hidden>
         <div class="enc-kupos-counts" data-kupos-counts></div>
+        <div data-kupos-branch-note class="stock-alert stock-alert--warning" role="status" hidden></div>
         <div data-kupos-errors class="stock-alert stock-alert--danger" role="alert" hidden></div>
         <details data-kupos-warnings hidden><summary>Oficinas y avisos de validación</summary>
             <p>Los nombres originales se conservan. Las oficinas sin equivalencia siguen disponibles por su nombre en el inventario.</p>

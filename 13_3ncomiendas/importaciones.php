@@ -54,11 +54,11 @@ enc_inventory_page_start('Controles Kupos','Importaciones');
 <?php foreach ($rows as $row): ?><tr>
 <?php if ($lote): $data=json_decode($row['datos_json'],true) ?: []; ?>
 <td><?= enc_h($row['accion']) ?></td><td><?= enc_h($row['sucursal']) ?></td>
-<?php foreach (enc_kupos_columns() as $field=>$label): ?><td><?= enc_h($field==='total' ? enc_inventory_money($data[$field] ?? null) : ($data[$field] ?? '-')) ?></td><?php endforeach; ?>
+<?php foreach (enc_kupos_columns() as $field=>$label): ?><td><?= enc_h($field==='total' ? enc_inventory_money($data[$field] ?? null) : (in_array($field,array_merge(['fecha'],enc_kupos_date_columns()),true) ? enc_fmt_date($data[$field] ?? null) : ($data[$field] ?? '-'))) ?></td><?php endforeach; ?>
 <?php else: ?><td><strong><?= enc_h($row['codigo_control']) ?></strong><small class="d-block"><?= enc_h(enc_fmt_datetime($row['creado_en'])) ?></small></td><td><?= enc_h($row['archivo_nombre']) ?></td><td><?= enc_h(enc_fmt_datetime($row['fecha_corte'])) ?></td>
 <td><?= (int)$row['total_envios'] ?></td><td><?= (int)$row['nuevos'] ?></td><td><?= (int)$row['modificados'] ?></td><td><?= (int)$row['sin_cambios'] ?></td>
 <td><a class="stock-btn stock-btn--soft stock-btn--sm" href="importaciones.php?id=<?= (int)$row['id'] ?>">Ver control</a></td><?php endif; ?>
 </tr><?php endforeach; ?>
-<?php if (!$rows): ?><tr><td colspan="21" class="enc-inventory-empty">No hay importaciones registradas.</td></tr><?php endif; ?>
+<?php if (!$rows): ?><tr><td colspan="<?= $lote?count(enc_kupos_columns())+2:8 ?>" class="enc-inventory-empty">No hay importaciones registradas.</td></tr><?php endif; ?>
 </tbody></table></div><?php enc_ui_pagination($count,$page,$lote?50:25,$_GET,'importaciones.php'); ?></section><?php endif; ?>
 <?php enc_inventory_page_end(); ?>

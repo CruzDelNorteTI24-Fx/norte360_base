@@ -1,6 +1,13 @@
 <?php
 if (!defined('N360_ENCOMIENDAS')) exit('Acceso no permitido.');
 
+function enc_inventory_asset_url(string $path): string {
+    $file=__DIR__.'/../../'.$path;
+    $revision=is_file($file)?substr(hash_file('sha256',$file),0,12):'1';
+    // El helper general ya añade ?v; la revisión local usa & y se escapa una sola vez.
+    return enc_h(n360_asset_url($path).'&rev='.$revision);
+}
+
 function enc_inventory_page_start(string $title, string $subtitle): void {
     if (!defined('N360_LAYOUT')) define('N360_LAYOUT',true);
     if (!defined('N360_BASE_URL')) define('N360_BASE_URL','../');
@@ -18,7 +25,7 @@ function enc_inventory_page_start(string $title, string $subtitle): void {
 <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/'.$asset.'_n360.css')) ?>">
 <?php endforeach; ?>
 <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/encomiendas.css')) ?>">
-<link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/kupos_inventario.css')) ?>?v=3">
+<link rel="stylesheet" href="<?= enc_inventory_asset_url('13_3ncomiendas/assets/css/kupos_inventario.css') ?>">
 </head><body>
 <?php n360_render_sidebar(); n360_render_header(['title'=>'Encomiendas','subtitle'=>$subtitle]); ?>
 <div class="n360-main"><?php n360_render_content_separator('top'); ?>
@@ -31,7 +38,7 @@ function enc_inventory_page_end(array $scripts=[]): void {
 <?php foreach (['loader','dialog','header','sidebar'] as $asset): ?>
 <script src="<?= enc_h(n360_asset('assets/js/'.$asset.'_n360.js')) ?>"></script>
 <?php endforeach; foreach ($scripts as $script): ?>
-<script src="<?= enc_h(n360_asset('13_3ncomiendas/assets/js/'.$script)) ?>?v=2"></script>
+<script src="<?= enc_inventory_asset_url('13_3ncomiendas/assets/js/'.$script) ?>"></script>
 <?php endforeach; ?></body></html><?php
 }
 

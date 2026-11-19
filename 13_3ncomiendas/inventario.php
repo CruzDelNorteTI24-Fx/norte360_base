@@ -4,20 +4,16 @@ define('N360_ENCOMIENDAS',true);
 require_once __DIR__.'/includes/encomiendas_inventario_queries.php';
 require_once __DIR__.'/includes/encomiendas_inventory_layout.php';
 $conn=enc_start_page('enc-tracking','Inventario de encomiendas');
-$f=enc_inventory_filters(); $ready=false; $error=''; $rows=[]; $options=[]; $sedes=[];
-$result=['summary'=>['total'=>0,'articulos'=>0,'rezagados'=>0,'kupos'=>0],'page'=>1,'pages'=>1];
+$f=enc_inventory_filters(); $ready=false; $error=''; $rows=[]; $sedes=[];
 try {
     $ready=enc_inventory_ready($conn);
-    if ($ready) { $result=enc_inventory_query($conn,$f);$rows=$result['rows'];$options=enc_inventory_options($conn);$sedes=enc_fetch_sedes($conn); }
-} catch (Throwable $e) { enc_log($e);$error='No se pudo consultar el inventario. Inténtalo nuevamente.'; }
+    if ($ready) { $rows=enc_inventory_query($conn,$f);$sedes=enc_fetch_sedes($conn); }
+} catch (Throwable $e) { enc_log($e);$rows=[];$error='No se pudo consultar el inventario. Inténtalo nuevamente.'; }
 $csrf=enc_csrf_token();
-$activeFilters=0;
-foreach (['buscar','revision','seguimiento','estatus','pago','sucursal','desde','hasta'] as $key) if ($f[$key]!=='') $activeFilters++;
-if ($f['sede']) $activeFilters++;
-if ($f['archivados']) $activeFilters++;
+$searchParams=array_intersect_key($f,array_flip(['buscar','desde','hasta','origen_registro','lote']));
 enc_inventory_page_start('Inventario de encomiendas','Inventario');
 ?>
-<div data-enc-inventory data-enc-rezagados data-csrf="<?= enc_h($csrf) ?>">
+<div data-enc-inventory data-enc-rezagados data-csrf="<?= enc_h($csrf) ?>" data-initial-page="<?= $f['pagina'] ?>">
 <section class="stock-hero enc-hero"><div class="enc-hero__text"><span class="stock-eyebrow">Encomiendas - Inventario común</span>
 <h1>Inventario de encomiendas</h1><p>Envíos, importes, seguimiento e historial en un solo lugar.</p></div>
 <div class="stock-hero-actions"><?php if (enc_can_view('enc-register')): ?><a class="stock-btn stock-btn--soft" href="registro.php"><i class="bi bi-plus-circle"></i> Registrar control</a><?php endif; ?>
@@ -28,59 +24,80 @@ enc_inventory_page_start('Inventario de encomiendas','Inventario');
 <?php if ($ready): ?>
 <section class="enc-inventory-summary">
 <?php foreach (['total'=>'Envíos filtrados','articulos'=>'Artículos informados','rezagados'=>'Rezagados','kupos'=>'Envíos Kupos'] as $key=>$label): ?>
-<article><span><?= enc_h($label) ?></span><strong><?= enc_h(number_format((int)($result['summary'][$key] ?? 0),0,'.',',')) ?></strong></article>
+<article><span><?= enc_h($label) ?></span><strong data-inventory-kpi="<?= enc_h($key) ?>">…</strong></article>
 <?php endforeach; ?></section>
 <section class="enc-panel enc-filter-panel">
 <div class="enc-source-bar"><span>Origen del registro</span><nav aria-label="Filtrar por origen del registro">
 <?php foreach ([''=>'Todos','KUPOS'=>'Kupos','QUATROBUS'=>'Quatrobus','MANUAL'=>'Manual / excepcional'] as $v=>$label): ?>
-<a class="enc-source-tab <?= $f['origen_registro']===$v?'is-active':'' ?>" href="<?= enc_h(enc_ui_url('inventario.php',$_GET,['origen_registro'=>$v,'pagina'=>1])) ?>" <?= $f['origen_registro']===$v?'aria-current="true"':'' ?>><?= enc_h($label) ?></a>
+<a class="enc-source-tab <?= $f['origen_registro']===$v?'is-active':'' ?>" data-inventory-source="<?= enc_h($v) ?>" href="<?= enc_h(enc_ui_url('inventario.php',$searchParams,['origen_registro'=>$v])) ?>" <?= $f['origen_registro']===$v?'aria-current="true"':'' ?>><?= enc_h($label) ?></a>
 <?php endforeach; ?></nav></div>
 <?php if ($f['lote']): ?><div class="enc-context-note"><i class="bi bi-file-earmark-spreadsheet"></i> Inventario del control seleccionado <a href="importaciones.php?id=<?= $f['lote'] ?>">Ver control</a><a href="<?= enc_h(enc_ui_url('inventario.php',$_GET,['lote'=>'','pagina'=>1])) ?>">Ver todo el inventario</a></div><?php endif; ?>
-<details class="enc-filter-accordion" <?= $activeFilters?'open':'' ?>>
-<summary><span><i class="bi bi-sliders"></i> Buscar y filtrar <small><?= $activeFilters ? $activeFilters.' filtros aplicados' : 'Código, estado, oficina y fechas' ?></small></span><i class="bi bi-chevron-down enc-filter-chevron"></i></summary>
-<form method="get" class="enc-inventory-filters">
+<form method="get" class="enc-inventory-search" data-inventory-search aria-label="Buscar encomiendas">
 <label class="stock-field enc-filter-wide"><span>Buscar</span><input type="search" name="buscar" value="<?= enc_h($f['buscar']) ?>" placeholder="Código, documento, control, remitente o destinatario..."></label>
 <input type="hidden" name="origen_registro" value="<?= enc_h($f['origen_registro']) ?>">
-<label class="stock-field"><span>Revisión Norte360</span><select name="revision"><option value="">Todas</option><?php foreach (['PENDIENTE','OK','REZAGADO','OBSERVADO'] as $v): ?><option <?= $f['revision']===$v?'selected':'' ?>><?= enc_h($v) ?></option><?php endforeach; ?></select></label>
-<label class="stock-field"><span>Resultados por página</span><select name="por_pagina"><?php foreach ([25,50,100] as $size): ?><option value="<?= $size ?>" <?= $f['por_pagina']===$size?'selected':'' ?>><?= $size ?> encomiendas</option><?php endforeach; ?></select></label>
-<?php foreach (['seguimiento'=>'Seguimiento Kupos','estatus'=>'Estatus Kupos','pago'=>'Estado de pago','sucursal'=>'Sucursal del reporte'] as $key=>$label): ?>
-<label class="stock-field"><span><?= enc_h($label) ?></span><select name="<?= enc_h($key) ?>"><option value="">Todos</option><?php foreach ($options[$key] as $v): ?><option value="<?= enc_h($v) ?>" <?= $f[$key]===$v?'selected':'' ?>><?= enc_h($v) ?></option><?php endforeach; ?></select></label>
-<?php endforeach; ?>
-<label class="stock-field"><span>Sede vinculada</span><select name="sede"><option value="0">Todas</option><?php foreach ($sedes as $sede): ?><option value="<?= (int)$sede['id'] ?>" <?= $f['sede']===(int)$sede['id']?'selected':'' ?>><?= enc_h($sede['nombre']) ?></option><?php endforeach; ?></select></label>
 <label class="stock-field"><span>Fecha desde</span><input type="date" name="desde" value="<?= enc_h($f['desde']) ?>"></label>
 <label class="stock-field"><span>Fecha hasta</span><input type="date" name="hasta" value="<?= enc_h($f['hasta']) ?>"></label>
-<div class="enc-filter-actions"><button class="stock-btn stock-btn--primary" type="submit"><i class="bi bi-funnel"></i> Filtrar</button><a class="stock-btn stock-btn--soft" href="inventario.php">Limpiar</a>
-<label><input type="checkbox" name="archivados" value="1" <?= $f['archivados']?'checked':'' ?>> Incluir retirados de manifiestos</label>
-<?php if ($f['lote']): ?><input type="hidden" name="lote" value="<?= $f['lote'] ?>"><?php endif; ?></div>
+<div class="enc-search-actions"><button class="stock-btn stock-btn--primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i> Buscar</button><a class="stock-btn stock-btn--soft" data-inventory-clear-search title="Limpiar búsqueda y fechas" href="<?= enc_h(enc_ui_url('inventario.php',$searchParams,['buscar'=>'','desde'=>'','hasta'=>''])) ?>">Limpiar</a></div>
+<?php if ($f['lote']): ?><input type="hidden" name="lote" value="<?= $f['lote'] ?>"><?php endif; ?>
+<div data-inventory-search-state hidden></div></form></section>
+<section class="enc-panel enc-local-filter-panel"><details class="enc-filter-accordion">
+<summary><span><i class="bi bi-sliders" aria-hidden="true"></i> Filtrar resultados <small data-inventory-filter-count aria-live="polite">Todos los resultados cargados</small></span><i class="bi bi-chevron-down enc-filter-chevron" aria-hidden="true"></i></summary>
+<form data-inventory-filters>
+<div class="enc-local-filter-groups">
+<fieldset><legend>Envío y pago</legend>
+<label class="stock-field"><span>Modalidad del envío</span><select name="tipo_envio"><option value="">Todas</option><option value="CE">Contra entrega (CE)</option><option value="CP">Pagado al enviar (CP)</option><option value="OTRO">Otros / sin código CE o CP</option></select></label>
+<label class="stock-field"><span>Estado de pago</span><select name="pago"><option value="">Todos</option></select></label>
+<label class="stock-field"><span>Forma de pago</span><select name="tipo_pago"><option value="">Todas</option></select></label>
+</fieldset><fieldset><legend>Seguimiento y revisión</legend>
+<label class="stock-field"><span>Seguimiento del envío</span><select name="seguimiento"><option value="">Todos</option></select></label>
+<label class="stock-field"><span>Estado del envío en Kupos</span><select name="estatus"><option value="">Todos</option></select></label>
+<label class="stock-field"><span>Revisión Norte360</span><select name="revision"><option value="">Todas</option><option value="PENDIENTE">Pendiente</option><option value="OK">OK / revisado</option><option value="REZAGADO">Rezagado</option><option value="OBSERVADO">Observado</option></select></label>
+</fieldset><fieldset><legend>Oficinas y texto</legend>
+<?php foreach (['sucursal'=>'Sucursal de origen informada','oficina_destino'=>'Oficina de destino'] as $field=>$label): ?>
+<div class="stock-field enc-multi-picker" data-inventory-multi="<?= enc_h($field) ?>">
+<span id="encMultiLabel_<?= enc_h($field) ?>"><?= enc_h($label) ?></span>
+<button type="button" class="enc-multi-trigger" data-multi-toggle aria-expanded="false" aria-controls="encMultiPanel_<?= enc_h($field) ?>" aria-labelledby="encMultiLabel_<?= enc_h($field) ?> encMultiCount_<?= enc_h($field) ?>"><strong id="encMultiCount_<?= enc_h($field) ?>" data-multi-count>Todas</strong><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+<div class="enc-multi-box" id="encMultiPanel_<?= enc_h($field) ?>" data-multi-panel role="group" aria-labelledby="encMultiLabel_<?= enc_h($field) ?>" hidden>
+<input type="search" data-multi-search placeholder="Buscar opciones..." aria-label="Buscar en <?= enc_h($label) ?>" autocomplete="off">
+<div class="enc-multi-actions"><button type="button" data-multi-visible>Seleccionar visibles</button><button type="button" data-multi-clear>Limpiar selección</button></div>
+<div class="enc-multi-list" data-multi-list></div><p data-multi-empty hidden>No hay opciones para ese texto.</p>
+</div></div>
+<?php endforeach; ?>
+<label class="stock-field"><span>Texto en pantalla</span><input type="search" name="texto_pantalla" placeholder="Código, documento, nombres, ruta..." autocomplete="off"></label>
+</fieldset></div>
+<div class="enc-local-filter-footer"><label><input type="checkbox" name="archivados" value="1"> Incluir retirados de manifiestos</label><button type="button" class="stock-btn stock-btn--soft" data-inventory-clear-filters><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Limpiar filtros</button></div>
 </form></details></section>
-<section class="enc-panel"><div class="enc-panel__head"><div><span>Consulta de envíos</span><h2>Encomiendas registradas</h2></div><span><?= count($rows) ?> de <?= (int)$result['summary']['total'] ?></span></div>
-<?php enc_ui_pagination((int)$result['summary']['total'],$result['page'],$f['por_pagina'],$_GET,'inventario.php','pagina',true); ?>
+<section class="enc-panel" data-inventory-results><div class="enc-panel__head"><div><span>Consulta de envíos</span><h2>Encomiendas registradas</h2></div><div class="enc-inventory-result-actions"><span data-inventory-count aria-live="polite">Cargando resultados…</span><button type="button" class="stock-btn stock-btn--soft" data-inventory-excel disabled><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Exportar Excel</button></div></div>
+<p data-inventory-export-status class="enc-export-status" role="status" aria-live="polite"></p>
+<noscript><p class="stock-alert stock-alert--warning">Activa JavaScript para mostrar, filtrar y paginar los resultados de la búsqueda y exportar a Excel.</p></noscript>
+<div class="enc-pager enc-inventory-pager" data-inventory-pager></div>
 <div class="enc-inventory-table-wrap" tabindex="0" aria-label="Inventario de encomiendas"><table class="stock-table enc-inventory-table"><thead><tr>
 <th>Origen / control</th><th>Envío / documento</th><th>Remitente / destinatario</th><th>Ruta / oficina</th><th>Seguimiento</th><th>Pago / importe</th><th>Revisión</th><th>Acciones</th>
 </tr></thead><tbody>
-<?php foreach ($rows as $row): ?><tr>
-<td><span class="enc-inventory-source"><?= enc_h($row['tipo_origen']) ?></span><strong>
-<?php if ($row['tipo_origen']==='KUPOS' && $row['ultimo_lote_id']): ?><a href="importaciones.php?id=<?= (int)$row['ultimo_lote_id'] ?>"><?= enc_h($row['codigo_control'] ?: '-') ?></a>
-<?php elseif ($row['legacy_guia_id']): ?><a href="detalle.php?id=<?= (int)$row['legacy_guia_id'] ?>"><?= enc_h($row['codigo_control'] ?: '-') ?></a>
-<?php else: ?><?= enc_h($row['codigo_control'] ?: '-') ?><?php endif; ?></strong><small><?= enc_h(enc_fmt_date($row['fecha'])) ?></small></td>
-<td><strong><?= enc_h($row['codigo_envio'] ?: $row['doc_fiscal'] ?: '-') ?></strong><small><?= enc_h($row['codigo_envio'] ? ($row['doc_fiscal'] ?: 'Sin documento fiscal') : ($row['guia_remision'] ?: '')) ?></small></td>
-<td><?= enc_h($row['remitente'] ?: '-') ?><small>Para: <?= enc_h($row['destinatario'] ?: '-') ?></small><?php if ($row['articulos']!==null): ?><small><?= (int)$row['articulos'] ?> artículo(s)</small><?php endif; ?></td>
-<td><?= enc_h(($row['origen'] ?: '-') . ' - ' . ($row['destino'] ?: '-')) ?><small><?= enc_h($row['oficina_destino'] ?: '-') ?></small><?php if ($row['sucursal']): ?><small>Sucursal: <?= enc_h($row['sucursal']) ?></small><?php endif; ?></td>
-<td><?= enc_h($row['seguimiento'] ?: '-') ?><small><?= enc_h($row['estatus'] ?: '') ?></small><?php if (!(int)$row['activo']): ?><small>Retirado del manifiesto</small><?php endif; ?></td>
-<td><small><?= $row['tipo_origen']==='KUPOS' ? 'Total' : 'Importe cobrado' ?></small><strong><?= enc_h(enc_inventory_money($row['tipo_origen']==='KUPOS'?$row['total']:$row['importe_cobrado'])) ?></strong><small><?= enc_h($row['estado_pago'] ?: '-') ?></small><small><?= enc_h($row['tipo_pago'] ?: '') ?></small></td>
-<td><span class="enc-state <?= $row['revision_estado']==='REZAGADO'?'enc-state--danger':'enc-state--muted' ?>"><?= enc_h($row['revision_estado']) ?></span></td>
-<td><div class="enc-inventory-actions"><button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-inventory-info="<?= (int)$row['id'] ?>"><i class="bi bi-info-circle"></i> Información</button>
-<button class="stock-btn stock-btn--soft stock-btn--sm" type="button" data-inventory-history="<?= (int)$row['id'] ?>"><i class="bi bi-clock-history"></i> Historial</button>
-<?php if ($row['legacy_documento_id']): ?><a class="stock-btn stock-btn--soft stock-btn--sm" href="revision_manifiesto.php?documento=<?= (int)$row['legacy_documento_id'] ?>"><i class="bi bi-pencil"></i> Revisar PDF</a><?php endif; ?></div></td>
-</tr><?php endforeach; ?>
-<?php if (!$rows): ?><tr><td colspan="8" class="enc-inventory-empty">No hay encomiendas para los filtros seleccionados.</td></tr><?php endif; ?>
+<tr><td colspan="8" class="enc-inventory-empty">Cargando encomiendas…</td></tr>
 </tbody></table></div>
-<?php enc_ui_pagination((int)$result['summary']['total'],$result['page'],$f['por_pagina'],$_GET,'inventario.php'); ?></section>
-<div class="modal fade enc-inventory-modal" id="encInventoryModal" tabindex="-1" aria-labelledby="encInventoryModalTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content">
-<div class="modal-header"><div><span class="stock-eyebrow">Inventario de encomiendas</span><h2 class="modal-title fs-5" id="encInventoryModalTitle">Encomienda</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
-<div class="modal-body" data-inventory-modal-body></div></div></div></div>
+<div class="enc-pager enc-inventory-pager" data-inventory-pager></div></section>
+<div class="modal fade enc-inventory-modal" id="encInventoryModal" tabindex="-1" aria-labelledby="encInventoryModalTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+<div class="modal-header"><div><span class="stock-eyebrow" data-inventory-modal-kicker>Información de encomienda</span><h2 class="modal-title" id="encInventoryModalTitle">Encomienda</h2><p class="enc-modal-subtitle" data-inventory-modal-subtitle></p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+<div class="enc-modal-nav" role="group" aria-label="Vista de la encomienda"><button type="button" data-inventory-mode="info" aria-pressed="true"><i class="bi bi-info-circle" aria-hidden="true"></i> Información</button><button type="button" data-inventory-mode="history" aria-pressed="false"><i class="bi bi-clock-history" aria-hidden="true"></i> Historial</button></div>
+<div class="modal-body" data-inventory-modal-body></div><div class="modal-footer"><button type="button" class="stock-btn stock-btn--soft" data-bs-dismiss="modal">Cerrar</button></div></div></div></div>
 <?php $schemaReady=true; require __DIR__.'/includes/encomiendas_manual_modal.php'; ?>
-<script type="application/json" id="encInventoryRows"><?= json_encode(array_column($rows,null,'id'),JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?></script>
+<script type="application/json" id="encInventoryRows"><?php
+$loadError=$error!=='';$sent=0;echo '{';
+try {
+    foreach ($rows as $row) {
+        if ($sent) echo ',';
+        echo json_encode((string)$row['id']).':'.json_encode($row,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);
+        $sent++;
+        // Vaciar el buffer de salida no abre consultas ni conexiones por fila.
+        if ($sent%200===0) { if (ob_get_level()>0) ob_flush();flush(); }
+    }
+} catch (Throwable $e) { enc_log($e);$loadError=true; }
+echo '}';
+?></script>
+<?php if ($loadError && !$error): ?><p class="stock-alert stock-alert--danger" role="alert">No se pudo completar la búsqueda. Vuelve a buscar para obtener resultados completos.</p><?php endif; ?>
+<script type="application/json" id="encInventoryConfig"><?= json_encode(['filters'=>$f,'sedes'=>$sedes,'search'=>$searchParams,'load_error'=>$loadError],JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?></script>
 <script type="application/json" id="encInventoryColumns"><?= json_encode(enc_kupos_columns()+['importe_cobrado'=>'Importe cobrado del manifiesto','sucursal'=>'Sucursal del reporte','tipo_origen'=>'Origen del registro','revision_estado'=>'Revisión Norte360','revision_observacion'=>'Observación Norte360','referencia_envio'=>'Referencia','peso'=>'Peso','guia_remision'=>'Guía de remisión','activo'=>'Vigente','legacy_hoja'=>'Hoja del manifiesto','legacy_orden'=>'Orden del ítem'],JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?></script>
 <?php endif; ?></div>
-<?php enc_inventory_page_end(['rezagados_encomienda.js','inventario_encomiendas.js']); ?>
+<?php if ($ready): ?><script src="<?= enc_inventory_asset_url('assets/js/vendor/xlsx.full.min.js') ?>"></script><?php endif; ?>
+<?php enc_inventory_page_end(['rezagados_encomienda.js','inventario_encomiendas.js']);$conn->close(); ?>

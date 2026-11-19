@@ -1,8 +1,7 @@
 <?php
 if (!defined('N360_ENCOMIENDAS')) exit('Acceso no permitido.');
 
-const ENC_KUPOS_MAX_BYTES = 10485760;
-const ENC_KUPOS_MAX_ROWS = 5000;
+const ENC_KUPOS_STAGE_VERSION = 3;
 
 function enc_kupos_columns(): array {
     return [
@@ -13,8 +12,13 @@ function enc_kupos_columns(): array {
         'estado_pago' => 'Estado de Pago', 'tipo_pago' => 'Tipo de Pago',
         'numero_operacion' => 'N° de Operación', 'origen' => 'Origen', 'destino' => 'Destino',
         'oficina_destino' => 'Oficina de Destino', 'creado_por_externo' => 'Creado Por',
-        'cobrado_por_externo' => 'Cobrado Por', 'total' => 'Total',
+        'fecha_creacion_externa' => 'Fecha de Creación',
+        'cobrado_por_externo' => 'Cobrado Por', 'fecha_cobro_externa' => 'Fecha de Cobro', 'total' => 'Total',
     ];
+}
+
+function enc_kupos_date_columns(): array {
+    return ['fecha_creacion_externa','fecha_cobro_externa'];
 }
 
 function enc_kupos_text(string $text): string {
@@ -71,6 +75,8 @@ function enc_kupos_row(array $raw, ?string $branch): array {
         'creado_por_externo'=>160,'cobrado_por_externo'=>160];
     $row = [];
     foreach (enc_kupos_columns() as $key => $label) {
+        // Un campo ausente en el formato anterior no equivale a borrar su valor.
+        if (in_array($key,enc_kupos_date_columns(),true) && !array_key_exists($key,$raw)) continue;
         $value = enc_kupos_text((string)($raw[$key] ?? ''));
         if (isset($limits[$key]) && enc_kupos_length($value) > $limits[$key]) {
             throw new InvalidArgumentException($label . ' excede la longitud permitida.');
@@ -85,6 +91,14 @@ function enc_kupos_row(array $raw, ?string $branch): array {
         throw new InvalidArgumentException('Fecha debe tener el formato DD/MM/AAAA y ser válida.');
     }
     $row['fecha'] = $date->format('Y-m-d');
+    foreach (enc_kupos_date_columns() as $key) {
+        if (!isset($row[$key])) continue;
+        $externalDate=DateTimeImmutable::createFromFormat('!d/m/Y',$row[$key]);
+        if (!$externalDate || $externalDate->format('d/m/Y')!==$row[$key]) {
+            throw new InvalidArgumentException(enc_kupos_columns()[$key].' debe tener el formato DD/MM/AAAA y ser válida.');
+        }
+        $row[$key]=$externalDate->format('Y-m-d');
+    }
     if (!preg_match('/^[1-9]\d{0,6}$/D', (string)$row['articulos']) || (int)$row['articulos'] > 1000000) {
         throw new InvalidArgumentException('Artículos debe ser una cantidad entera positiva.');
     }
@@ -113,15 +127,16 @@ function enc_kupos_parse($stream): array {
         'neto (vigente)','cobrado en origen','pendiente por cobrar en destino','convenio','cortesía'];
     $rows = []; $errors = []; $warnings = []; $map = null; $branch = null; $line = 0;
     $headers = 0; $skipped = 0; $branches = []; $duplicates = 0;
+    $summaryBranches=[];$unassigned=0;$from=null;$to=null;$observedDate=null;
     while (($cells = fgetcsv($stream, 0, ',', '"', '')) !== false) {
         $line++;
-        if ($line > ENC_KUPOS_MAX_ROWS * 3) throw new InvalidArgumentException('El archivo tiene demasiadas filas.');
         if (isset($cells[0])) $cells[0] = preg_replace('/^\xEF\xBB\xBF/', '', $cells[0]);
         $nonempty = array_filter($cells, static function ($v) { return trim((string)$v) !== ''; });
         if (!$nonempty) { $skipped++; continue; }
         $first = enc_kupos_text((string)($cells[0] ?? ''));
         if (count($cells) === 1 && preg_match('/^Sucursal:\s*(.+)$/u', $first, $m)) {
-            $branch = enc_kupos_text($m[1]); $branches[$branch] = 0; $map = null; $skipped++; continue;
+            // En el formato plano los marcadores finales son solo resúmenes.
+            $branch = enc_kupos_text($m[1]); $summaryBranches[$branch]=true; $map = null; $skipped++; continue;
         }
         if (enc_kupos_key($first) === enc_kupos_key('Doc. Fiscal')) {
             $map = []; $seen = [];
@@ -132,11 +147,15 @@ function enc_kupos_parse($stream): array {
                 }
                 $seen[$normalized] = true; $map[$expected[$normalized]] = $position;
             }
-            if (count($map) !== count($columns)) throw new InvalidArgumentException('El encabezado debe incluir las 19 columnas de Kupos, incluido Total.');
+            $optional=enc_kupos_date_columns();
+            $required=array_diff(array_keys($columns),$optional);
+            if (array_diff($required,array_keys($map)) || !in_array(count($map),[19,21],true)) {
+                throw new InvalidArgumentException('El encabezado debe incluir las 19 columnas originales o las 21 actuales de Kupos, incluido Total.');
+            }
             $headers++; continue;
         }
         if (count($cells) <= 2 && in_array(enc_kupos_key($first), $summaryLabels, true)) { $skipped++; continue; }
-        if ($map === null || count($cells) !== count($columns)) {
+        if ($map === null || count($cells) !== count($map)) {
             if (count($errors) < 50) $errors[] = ['fila'=>$line,'mensaje'=>'Fila fuera de un encabezado válido o con cantidad de columnas incorrecta.'];
             continue;
         }
@@ -151,7 +170,12 @@ function enc_kupos_parse($stream): array {
             }
             $rows[$code] = ['fila'=>$line,'data'=>$data];
             if ($branch !== null) $branches[$branch] = ($branches[$branch] ?? 0) + 1;
-            if (count($rows) > ENC_KUPOS_MAX_ROWS) throw new LengthException('El archivo supera los 5.000 envíos permitidos por carga. Exporta un periodo menor.');
+            else $unassigned++;
+            $from=$from===null? $data['fecha']:min($from,$data['fecha']);
+            $to=$to===null? $data['fecha']:max($to,$data['fecha']);
+            foreach (array_merge(['fecha'],enc_kupos_date_columns()) as $field) {
+                if (!empty($data[$field])) $observedDate=$observedDate===null?$data[$field]:max($observedDate,$data[$field]);
+            }
         } catch (InvalidArgumentException $e) {
             if (count($errors) < 50) $errors[] = ['fila'=>$line,'mensaje'=>$e->getMessage()];
         }
@@ -159,10 +183,14 @@ function enc_kupos_parse($stream): array {
     if (!$headers) throw new InvalidArgumentException('No se encontró el encabezado de envíos de Kupos.');
     if (!$rows && !$errors) throw new InvalidArgumentException('El archivo no contiene envíos.');
     if ($duplicates) $warnings[] = 'Se consolidaron ' . $duplicates . ' filas idénticas repetidas.';
+    if ($unassigned) $warnings[]='El CSV no identifica la sucursal de origen de '.$unassigned.' envíos. Se conservará la conocida en el inventario; los nuevos quedarán sin sucursal informada. Los resúmenes finales no permiten asignarla por envío.';
     ksort($rows, SORT_STRING);
-    $canonical = array_map(static function ($r) { return $r['data']; }, array_values($rows));
-    $dates = array_column($canonical, 'fecha'); sort($dates, SORT_STRING);
+    // Misma huella del formato anterior, sin construir un JSON gigante adicional.
+    $hash=hash_init('sha256');hash_update($hash,'[');$separator='';
+    foreach ($rows as $record) {hash_update($hash,$separator.enc_kupos_json($record['data']));$separator=',';}
+    hash_update($hash,']');
     return ['rows'=>array_values($rows),'errors'=>$errors,'warnings'=>$warnings,'branches'=>$branches,
-        'headers'=>$headers,'skipped'=>$skipped,'hash'=>enc_kupos_hash($canonical),
-        'fecha_desde'=>$dates[0] ?? null,'fecha_hasta'=>$dates ? $dates[count($dates)-1] : null];
+        'reported_branch_count'=>count($summaryBranches),'unassigned'=>$unassigned,
+        'headers'=>$headers,'skipped'=>$skipped,'hash'=>hash_final($hash),
+        'fecha_desde'=>$from,'fecha_hasta'=>$to,'observed_date_max'=>$observedDate];
 }
