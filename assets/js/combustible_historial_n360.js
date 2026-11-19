@@ -189,11 +189,12 @@
     const tipoResumen = { ENTRADA: 'Entrada', SALIDA: 'Salida' };
     const formatoCantidad = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
     const formatoImporte = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+    const formatoImportePdf = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const formatoMes = new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     const fechaResumen = (iso) => iso ? iso.split('-').reverse().join('/') : 'Sin emisión';
-    const totalesResumen = (grupo) => [
+    const totalesResumen = (grupo, formatoMonto = formatoImporte) => [
         formatoCantidad.format(grupo.cantidad / 1000),
-        formatoImporte.format(grupo.monto / 10000)
+        formatoMonto.format(grupo.monto / 10000)
     ];
 
     const movimientosResumen = (porClasificacion) => Array.from(table?.querySelectorAll('tbody tr[data-combustible-row]') || [])
@@ -314,11 +315,11 @@
         return [{ texto: titulo, clase: acumulado ? 'acumulado' : 'mes' }, ...filas, ...sumas];
     });
 
-    const celdasResumen = (grupo, porClasificacion) => [
+    const celdasResumen = (grupo, porClasificacion, formatoMonto) => [
         grupo.producto,
         ...(porClasificacion ? [grupo.clasificacion || 'Todas las seleccionadas'] : []),
         grupo.unidad,
-        ...totalesResumen(grupo)
+        ...totalesResumen(grupo, formatoMonto)
     ];
 
     const exportResumenPdf = async (grupos, secciones, contexto) => {
@@ -369,7 +370,7 @@
                     startY: 70,
                     head: [columnasResumen],
                     body: filasResumen.map(({ texto, grupo }) => grupo
-                        ? [texto, tipoResumen[grupo.tipo], ...celdasResumen(grupo, contexto.porClasificacion)]
+                        ? [texto, tipoResumen[grupo.tipo], ...celdasResumen(grupo, contexto.porClasificacion, formatoImportePdf)]
                         : [{ content: texto, colSpan: numeroColumnas }]),
                     columnStyles: {
                         [numeroColumnas - 2]: { halign: 'right' },
@@ -390,7 +391,7 @@
                         detalle.push([
                             fecha, mov.id, tipo, mov.producto, mov.unidad, mov.nota,
                             mov.grifo, mov.placa, mov.observacion,
-                            ...totalesResumen(mov)
+                            ...totalesResumen(mov, formatoImportePdf)
                         ]);
                     });
                     detalle.push([
@@ -398,7 +399,7 @@
                             content: `Subtotal · ${fecha} · ${tipo} · ${grupo.producto} ${grupo.unidad}`,
                             colSpan: 9
                         },
-                        ...totalesResumen(grupo)
+                        ...totalesResumen(grupo, formatoImportePdf)
                     ]);
                 });
                 doc.addPage();
