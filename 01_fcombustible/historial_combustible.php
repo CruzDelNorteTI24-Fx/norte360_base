@@ -54,21 +54,19 @@ function comb_fetch_all(mysqli $conn, string $sql, string $types = '', array $pa
 {
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
-        throw new RuntimeException($conn->error ?: 'No se pudo preparar la consulta.');
+        throw new RuntimeException($conn->error ?: 'No se pudo preparar la consulta.', $conn->errno);
     }
 
-    comb_bind_params($stmt, $types, $params);
-    if (!$stmt->execute()) {
-        $error = $stmt->error;
+    try {
+        comb_bind_params($stmt, $types, $params);
+        if (!$stmt->execute()) {
+            throw new RuntimeException($stmt->error ?: 'No se pudo ejecutar la consulta.', $stmt->errno);
+        }
+        $result = $stmt->get_result();
+        return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+    } finally {
         $stmt->close();
-        throw new RuntimeException($error ?: 'No se pudo ejecutar la consulta.');
     }
-
-    $result = $stmt->get_result();
-    $rows = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
-    $stmt->close();
-
-    return $rows;
 }
 
 function comb_valid_date($value, string $fallback): string
@@ -279,12 +277,19 @@ if (!comb_can_modulo(9)) {
     exit;
 }
 
+require_once __DIR__ . '/lib/combustible_apuntes.php';
+
 $canAddEmision = ($_SESSION['web_rol'] ?? '') === 'Admin';
-if ($isPost) {
+$usuarioApuntes = (int)($_SESSION['id_usuario'] ?? 0);
+$accionPost = $_POST['action'] ?? '';
+$esPostApuntes = $isPost && in_array($accionPost, ['crear_apunte', 'editar_apunte', 'archivar_apunte'], true);
+if ($esPostApuntes) {
+    $datosApunte = comb_apuntes_validar($accionPost, $usuarioApuntes, $_SESSION['comb_hist_apuntes_csrf'] ?? null, $_POST);
+} elseif ($isPost) {
     if (!$canAddEmision) {
         comb_hist_json(['ok' => false, 'message' => 'Solo un administrador puede agregar la fecha de emisión.'], 403);
     }
-    if (($_POST['action'] ?? '') !== 'guardar_fecha_emision') {
+    if ($accionPost !== 'guardar_fecha_emision') {
         comb_hist_json(['ok' => false, 'message' => 'Operación no válida.'], 400);
     }
     $csrfExpected = $_SESSION['comb_hist_emision_csrf'] ?? '';
@@ -301,19 +306,46 @@ if ($isPost) {
 } elseif ($canAddEmision && empty($_SESSION['comb_hist_emision_csrf'])) {
     $_SESSION['comb_hist_emision_csrf'] = bin2hex(random_bytes(32));
 }
+if (!$isPost && $usuarioApuntes > 0 && empty($_SESSION['comb_hist_apuntes_csrf'])) {
+    $_SESSION['comb_hist_apuntes_csrf'] = bin2hex(random_bytes(32));
+}
 
 define('ACCESS_GRANTED', true);
 require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 
 if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
     if ($isPost) {
-        comb_hist_json(['ok' => false, 'message' => 'No se pudo conectar para guardar la fecha.'], 503);
+        $mensaje = $esPostApuntes ? 'No se pudo conectar para gestionar apuntes.' : 'No se pudo conectar para guardar la fecha.';
+        comb_hist_json(['ok' => false, 'message' => $mensaje], 503);
     }
     die('No se pudo conectar a la base de datos.');
 }
 
 $conn->set_charset('utf8mb4');
 $conn->query("SET collation_connection = 'utf8mb4_unicode_ci'");
+
+if ($esPostApuntes) {
+    try {
+        $resultadoApunte = comb_apuntes_guardar($conn, $accionPost, $datosApunte, $usuarioApuntes, $canAddEmision);
+    } catch (Throwable $e) {
+        if ((int)$e->getCode() === 1146) {
+            comb_hist_json(['ok' => false, 'message' => 'La tabla de apuntes aún debe instalarse.'], 503);
+        }
+        if ($accionPost === 'crear_apunte' && $datosApunte['id_movimiento'] === null
+            && in_array((int)$e->getCode(), [1048, 1452], true)) {
+            comb_hist_json(['ok' => false, 'message' => 'Actualiza la tabla de apuntes para guardar notas sin movimiento.'], 503);
+        }
+        error_log('Error al gestionar apuntes de combustible (' . (int)$e->getCode() . ').');
+        comb_hist_json(['ok' => false, 'message' => 'No se pudo guardar el cambio en apuntes.'], 500);
+    }
+    if ($resultadoApunte === null) {
+        comb_hist_json([
+            'ok' => false,
+            'message' => 'El movimiento o el apunte cambió o no está disponible. Actualiza el historial.',
+        ], 409);
+    }
+    comb_hist_json(['ok' => true] + $resultadoApunte);
+}
 
 if ($isPost) {
     try {
@@ -627,6 +659,19 @@ try {
     $rows = [];
 }
 
+$apuntes = [];
+$apuntesError = '';
+try {
+    $apuntes = comb_apuntes_listar($conn, $rows, $usuarioApuntes, $canAddEmision);
+} catch (Throwable $e) {
+    if ((int)$e->getCode() === 1146) {
+        $apuntesError = 'La tabla de apuntes aún debe instalarse.';
+    } else {
+        error_log('Error al consultar apuntes de combustible (' . (int)$e->getCode() . ').');
+        $apuntesError = 'No se pudieron cargar los apuntes. Actualiza el historial.';
+    }
+}
+
 $histPrecioKpis = comb_hist_metric($histPrecios, 'precio');
 $histExtraKpis = comb_hist_metric($histExtras, 'extra');
 $histPromedioKpis = comb_hist_metric($histPromedios, 'pu_promedio');
@@ -684,7 +729,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&apuntes=1') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -703,6 +748,9 @@ require_once __DIR__ . '/../layout/content_n360.php';
                 </div>
             </div>
             <div class="stock-hero-actions comb-hero-actions">
+                <button type="button" class="stock-btn stock-btn--soft" data-comb-apuntes-open aria-haspopup="dialog">
+                    <i class="bi bi-journal-text" aria-hidden="true"></i> Apuntes
+                </button>
                 <button type="button" class="stock-btn stock-btn--soft" data-comb-resumen-open aria-haspopup="dialog">
                     <i class="bi bi-calendar2-week" aria-hidden="true"></i> Resumen por emisión
                 </button>
@@ -994,6 +1042,62 @@ require_once __DIR__ . '/../layout/content_n360.php';
     </form>
 </dialog>
 <?php endif; ?>
+
+<dialog class="comb-emision-dialog comb-apuntes-dialog" data-comb-apuntes aria-labelledby="combApuntesTitle">
+    <header class="comb-emision-dialog__head">
+        <div>
+            <h2 id="combApuntesTitle">Apuntes de combustible</h2>
+            <p>Apuntes sin movimiento y de los movimientos visibles</p>
+        </div>
+        <button type="button" class="comb-emision-close" data-comb-apuntes-close aria-label="Cerrar apuntes">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+    </header>
+    <div class="comb-apuntes-toolbar">
+        <label class="stock-field">
+            <span>Movimiento</span>
+            <select data-comb-apuntes-filtro></select>
+        </label>
+        <button type="button" class="stock-btn stock-btn--primary" data-comb-apuntes-nuevo hidden>
+            <i class="bi bi-plus-lg" aria-hidden="true"></i> Nuevo apunte
+        </button>
+    </div>
+    <p class="comb-emision-message" data-comb-apuntes-error role="alert"></p>
+    <form class="comb-apuntes-form" data-comb-apuntes-form hidden>
+        <h3 data-comb-apuntes-titulo>Nuevo apunte</h3>
+        <label class="stock-field">
+            <span>Movimiento asociado (opcional)</span>
+            <select name="id_movimiento"></select>
+        </label>
+        <label class="stock-field">
+            <span>Nota</span>
+            <textarea name="nota" rows="3" maxlength="2000" required></textarea>
+        </label>
+        <div class="comb-apuntes-acciones">
+            <button type="submit" class="stock-btn stock-btn--primary">Guardar apunte</button>
+            <button type="button" class="stock-btn stock-btn--soft" data-comb-apuntes-cancelar>Cancelar</button>
+        </div>
+    </form>
+    <p class="comb-resumen-status" data-comb-apuntes-status role="status"></p>
+    <div class="stock-table-wrap comb-apuntes-wrap">
+        <table class="stock-table" aria-label="Apuntes por movimiento">
+            <thead>
+                <tr>
+                    <th scope="col">Movimiento</th>
+                    <th scope="col">Nota</th>
+                    <th scope="col">Autor</th>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</dialog>
+<script type="application/json" data-comb-apuntes-config><?= json_encode(
+    ['apuntes' => $apuntes, 'error' => $apuntesError, 'csrf' => $usuarioApuntes > 0 ? ($_SESSION['comb_hist_apuntes_csrf'] ?? '') : ''],
+    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE
+) ?></script>
 
 <dialog class="comb-emision-dialog comb-resumen-dialog" data-comb-resumen aria-labelledby="combResumenTitle">
     <header class="comb-emision-dialog__head">
@@ -1300,7 +1404,8 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_tanqueada.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&importe=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_apuntes_n360.js?apuntes=2') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&importe=2&apuntes=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>

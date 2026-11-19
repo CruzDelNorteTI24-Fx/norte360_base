@@ -229,8 +229,84 @@
     padding: clamp(12px, 2.2vw, 24px);
 }
 
-body:has(.comb-resumen-dialog[open]) {
+body:has(.comb-resumen-dialog[open]),
+body:has(.comb-apuntes-dialog[open]) {
     overflow: hidden;
+}
+
+.comb-apuntes-dialog {
+    box-sizing: border-box;
+    width: min(940px, calc(100vw - 24px));
+    padding: clamp(12px, 2.2vw, 24px);
+}
+
+.comb-apuntes-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.comb-apuntes-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.comb-emision-dialog .comb-apuntes-form {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #d6e2ef;
+    border-radius: 8px;
+    background: #f5f8fb;
+}
+
+.comb-apuntes-form[hidden] {
+    display: none;
+}
+
+.comb-apuntes-form h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.comb-apuntes-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d6e2ef;
+    border-radius: 8px;
+    font: inherit;
+    resize: vertical;
+}
+
+.comb-apuntes-wrap {
+    max-height: 45dvh;
+    border: 1px solid #d6e2ef;
+    border-radius: 8px;
+}
+
+.comb-apuntes-wrap table {
+    min-width: 680px;
+}
+
+.comb-apuntes-wrap td:nth-child(2) {
+    width: 38%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.comb-apuntes-wrap td small {
+    display: block;
+    color: #54657a;
+}
+
+@media (max-width: 550px) {
+    .comb-apuntes-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .comb-resumen-toolbar,

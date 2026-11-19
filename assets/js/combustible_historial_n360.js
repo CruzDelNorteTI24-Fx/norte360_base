@@ -197,11 +197,13 @@
         formatoMonto.format(grupo.monto / 10000)
     ];
 
-    const movimientosResumen = (porClasificacion) => Array.from(table?.querySelectorAll('tbody tr[data-combustible-row]') || [])
-        .filter((row) => Object.hasOwn(tipoResumen, row.dataset.tipo)
-            && !row.hidden
+    const filasVisiblesHistorial = () => Array.from(table?.querySelectorAll('tbody tr[data-combustible-row]') || [])
+        .filter((row) => !row.hidden
             && row.getClientRects().length > 0
-            && window.getComputedStyle(row).visibility === 'visible')
+            && window.getComputedStyle(row).visibility === 'visible');
+
+    const movimientosResumen = (porClasificacion) => filasVisiblesHistorial()
+        .filter((row) => Object.hasOwn(tipoResumen, row.dataset.tipo))
         .map((row) => {
             const { tipo, fechaEmision, productoId, cantidad, monto } = row.dataset;
             const cells = row.children;
@@ -913,4 +915,5 @@
     initPriceModals();
     initEmissionEditor();
     initResumenEmision();
+    window.N360CombustibleApuntes?.init(filasVisiblesHistorial);
 })();
