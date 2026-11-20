@@ -27,19 +27,24 @@ try {
         $stream = fopen($file['tmp_name'],'rb');
         if (!$stream) throw new RuntimeException('No se pudo leer el archivo temporal.');
         try { $parsed = enc_kupos_parse($stream); } finally { fclose($stream); }
+        $originalHash=hash_file('sha256',$file['tmp_name']);
+        if (!is_string($originalHash)) throw new RuntimeException('No se pudo verificar el CSV original.');
         $stage = ['format_version'=>ENC_KUPOS_STAGE_VERSION,'token'=>bin2hex(random_bytes(24)),'user'=>enc_user_id(),'expires'=>time()+1800,
-            'archivo'=>$name,'parsed'=>$parsed,'fecha_corte'=>enc_kupos_cutoff((string)($_POST['fecha_corte'] ?? ''),$parsed)];
+            'archivo'=>$name,'archivo_sha256'=>$originalHash,'parsed'=>$parsed,'fecha_corte'=>enc_kupos_cutoff((string)($_POST['fecha_corte'] ?? ''),$parsed)];
     } else {
         $stage = enc_kupos_stage();
         $stage['fecha_corte'] = enc_kupos_cutoff((string)($_POST['fecha_corte'] ?? $stage['fecha_corte']),$stage['parsed']);
     }
+    $originalUpload=$operation==='importar' ? enc_kupos_original_upload($_FILES['archivo'] ?? null,$stage) : null;
     $conn = enc_open_connection_json();
     if (!enc_inventory_ready($conn)) {
         $status = 409; $response = ['ok'=>false,'message'=>'Falta instalar la actualización de inventario e importaciones de Encomiendas.'];
     } elseif (!enc_kupos_dates_ready($conn)) {
         $status = 409; $response = ['ok'=>false,'message'=>'Falta actualizar el inventario para conservar las fechas de creación y cobro de Kupos. Solicita la actualización a Administración.'];
+    } elseif ($operation === 'importar' && !enc_kupos_original_ready($conn)) {
+        $status=409;$response=['ok'=>false,'message'=>'Falta agregar las columnas para conservar el CSV original en la base de datos. Ejecuta la actualización SQL antes de importar.'];
     } elseif ($operation === 'importar') {
-        $result = enc_kupos_commit($conn,$stage,enc_user_id());
+        $result = enc_kupos_commit($conn,$stage,enc_user_id(),$originalUpload);
         if (!empty($result['conflict'])) {
             $stage['baseline'] = $result['comparison']['baseline'];
             $stage['expires'] = time()+1800;

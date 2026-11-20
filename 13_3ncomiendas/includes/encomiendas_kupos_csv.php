@@ -1,7 +1,7 @@
 <?php
 if (!defined('N360_ENCOMIENDAS')) exit('Acceso no permitido.');
 
-const ENC_KUPOS_STAGE_VERSION = 3;
+const ENC_KUPOS_STAGE_VERSION = 4;
 
 function enc_kupos_columns(): array {
     return [

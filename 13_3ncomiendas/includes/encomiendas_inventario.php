@@ -3,6 +3,7 @@ if (!defined('N360_ENCOMIENDAS')) exit('Acceso no permitido.');
 require_once __DIR__ . '/encomiendas_queries.php';
 require_once __DIR__ . '/encomiendas_kupos_csv.php';
 require_once __DIR__ . '/encomiendas_inventario_fields.php';
+require_once __DIR__ . '/encomiendas_kupos_archivo.php';
 
 function enc_inventory_ready(mysqli $conn): bool {
     static $cache = [];
@@ -183,7 +184,7 @@ function enc_kupos_preview_result(array $stage, array $comparison): array {
         'sin_equivalencia'=>$comparison['unmapped'],'procesado'=>$comparison['processed']];
 }
 
-function enc_kupos_commit(mysqli $conn, array $stage, int $userId): array {
+function enc_kupos_commit(mysqli $conn, array $stage, int $userId, array $originalUpload): array {
     if ($stage['parsed']['errors']) throw new InvalidArgumentException('Corrige los errores del CSV antes de importar.');
     $conn->begin_transaction();
     try {
@@ -266,9 +267,10 @@ function enc_kupos_commit(mysqli $conn, array $stage, int $userId): array {
         $aliases = [];
         foreach ($officeNames as $key => $name) $aliases[] = ['tipo_origen'=>'KUPOS','clave'=>$key,'nombre'=>$name,'actualizado_en'=>$now];
         enc_inventory_insert_many($conn,'tb_enc_oficinas_origen',$aliases,' ON DUPLICATE KEY UPDATE nombre=VALUES(nombre)');
-        $conn->commit();
+        enc_kupos_original_store($conn,$loteId,$originalUpload);
+        if (!$conn->commit()) throw new RuntimeException('No se pudo confirmar la importación.');
         return ['lote'=>['id'=>$loteId,'codigo_control'=>$control],'counts'=>$counts];
-    } catch (Throwable $e) { $conn->rollback(); throw $e; }
+    } catch (Throwable $e) { $conn->rollback();throw $e; }
 }
 
 function enc_inventory_require_api(string $view, bool $write = true): void {

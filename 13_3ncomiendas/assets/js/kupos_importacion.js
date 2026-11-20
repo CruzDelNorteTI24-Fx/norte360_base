@@ -128,8 +128,8 @@
     data.append('csrf_token', form.elements.csrf_token.value);
     data.append('operacion', operation);
     data.append('fecha_corte', cutoff.value);
-    if (operation === 'previsualizar') data.append('archivo', file.files[0]);
-    else data.append('token', token);
+    if (operation === 'previsualizar' || operation === 'importar') data.append('archivo', file.files[0]);
+    if (operation !== 'previsualizar') data.append('token', token);
     try {
       const response = await fetch(form.action, { method: 'POST', body: data, credentials: 'same-origin', headers: { Accept: 'application/json' } });
       const result = await response.json();

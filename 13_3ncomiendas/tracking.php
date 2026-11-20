@@ -19,11 +19,13 @@ try {
     }
 } catch (Throwable $e) {enc_log($e);$pageError=enc_db_message($e);}
 $currentPage=$tracking['page'];$totalPages=$tracking['pages'];$canAnular=enc_can_view('enc-anular');
-$hasAdvancedFilters=$filters['guia']!=='' || $filters['documento']!=='' || $filters['buscar']!==''
-    || $filters['fecha_guia']!=='' || $filters['desde']!==date('Y-m-01') || $filters['hasta']!==date('Y-m-d')
-    || $filters['idsede_embarque']>0 || $filters['idsede_desembarque']>0 || $filters['idplaca']>0
-    || $filters['estado_embarque']!=='TODOS' || $filters['estado_desembarque']!=='TODOS'
-    || $filters['estado_general']!=='TODOS' || $filters['estado_vida']!=='TODOS';
+$advancedFilterCount=count(array_filter([
+    $filters['guia']!=='', $filters['documento']!=='', $filters['fecha_guia']!=='',
+    $filters['idsede_embarque']>0, $filters['idsede_desembarque']>0, $filters['idplaca']>0,
+    $filters['estado_embarque']!=='TODOS', $filters['estado_desembarque']!=='TODOS',
+    $filters['estado_general']!=='TODOS', $filters['estado_vida']!=='TODOS'
+]));
+$hasAdvancedFilters=$advancedFilterCount>0;
 
 if (!defined('N360_LAYOUT')) define('N360_LAYOUT', true);
 if (!defined('N360_BASE_URL')) define('N360_BASE_URL', '../');
@@ -61,7 +63,7 @@ function enc_unit_label(array $placa): string {
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/dialog_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('assets/css/inventario_stock_n360.css')) ?>">
     <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/encomiendas.css')) ?>">
-    <link rel="stylesheet" href="<?= enc_h(n360_asset('13_3ncomiendas/assets/css/kupos_inventario.css')) ?>?v=3">
+    <link rel="stylesheet" href="<?= enc_inventory_asset_url('13_3ncomiendas/assets/css/kupos_inventario.css') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>

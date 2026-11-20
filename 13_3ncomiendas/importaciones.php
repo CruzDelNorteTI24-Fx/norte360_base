@@ -7,13 +7,17 @@ n360_start_secure_session();
 $canTrack=enc_can_view('enc-tracking');
 $conn=enc_start_page($canTrack ? 'enc-tracking' : 'enc-register','Controles Kupos');
 $id=max(0,(int)($_GET['id'] ?? 0)); $page=max(1,(int)($_GET['pagina'] ?? 1));
-$ready=false;$error='';$lote=null;$rows=[];$count=0;$pages=1;
+$ready=false;$originalReady=false;$error='';$lote=null;$rows=[];$count=0;$pages=1;
 try {
     $ready=enc_inventory_ready($conn);
     if ($ready) {
+        $originalReady=enc_kupos_original_ready($conn);
+        // No seleccionar el LONGBLOB al listar controles o navegar por sus envíos.
+        $loteColumns='l.id,l.codigo_control,l.contenido_hash,l.archivo_nombre,l.fecha_corte,l.fecha_desde,l.fecha_hasta,l.sucursales,l.total_envios,l.nuevos,l.modificados,l.sin_cambios,l.creado_por,l.creado_en';
+        if ($originalReady) $loteColumns.=',l.archivo_bytes,l.archivo_sha256,(l.archivo_original IS NOT NULL) archivo_guardado';
         $owner=$canTrack ? '' : ' AND l.creado_por=?';$ownerTypes=$canTrack?'':'i';$ownerParams=$canTrack?[]:[enc_user_id()];
         if ($id) {
-            $lote=enc_fetch_one($conn,"SELECT l.*,COALESCE(NULLIF(u.usuario,''),u.nombre) usuario FROM tb_enc_importaciones l
+            $lote=enc_fetch_one($conn,"SELECT ".$loteColumns.",COALESCE(NULLIF(u.usuario,''),u.nombre) usuario FROM tb_enc_importaciones l
                 LEFT JOIN tb_usuarios u ON u.id_usuario=l.creado_por WHERE l.id=?".$owner,'i'.$ownerTypes,array_merge([$id],$ownerParams));
             if (!$lote) { http_response_code(404);$error='El control no existe o no está disponible para tu usuario.'; }
             else {
@@ -23,10 +27,11 @@ try {
         } else {
             $total=enc_fetch_one($conn,'SELECT COUNT(*) total FROM tb_enc_importaciones l WHERE 1=1'.$owner,$ownerTypes,$ownerParams);
             $count=(int)$total['total'];$pages=max(1,(int)ceil($count/25));$page=min($page,$pages);
-            $rows=enc_fetch_all($conn,'SELECT l.* FROM tb_enc_importaciones l WHERE 1=1'.$owner.' ORDER BY l.id DESC LIMIT 25 OFFSET '.(($page-1)*25),$ownerTypes,$ownerParams);
+            $rows=enc_fetch_all($conn,'SELECT '.$loteColumns.' FROM tb_enc_importaciones l WHERE 1=1'.$owner.' ORDER BY l.id DESC LIMIT 25 OFFSET '.(($page-1)*25),$ownerTypes,$ownerParams);
         }
     }
 } catch (Throwable $e) {enc_log($e);$error='No se pudieron consultar los controles de importación.';}
+$originalAvailable=$lote ? enc_kupos_original_available($lote) : false;
 enc_inventory_page_start('Controles Kupos','Importaciones');
 ?>
 <section class="stock-hero enc-hero"><div class="enc-hero__text"><span class="stock-eyebrow">Encomiendas - Kupos</span>
@@ -37,11 +42,12 @@ enc_inventory_page_start('Controles Kupos','Importaciones');
 <?php if ($lote && $canTrack): ?><a class="stock-btn stock-btn--primary" href="inventario.php?lote=<?= $id ?>&amp;origen_registro=KUPOS"><i class="bi bi-box-seam"></i> Encomiendas del control</a><?php endif; ?></div></section>
 <?php if ($canTrack) enc_inventory_navigation('kupos'); ?>
 <?php if (!$ready): ?><div class="stock-alert stock-alert--warning">La actualización de importaciones está pendiente de instalación.</div><?php endif; ?>
+<?php if ($ready && !$originalReady): ?><div class="stock-alert stock-alert--warning">Falta la actualización SQL para guardar y descargar el CSV original desde la base de datos.</div><?php endif; ?>
 <?php if ($error): ?><div class="stock-alert stock-alert--danger"><?= enc_h($error) ?></div><?php endif; ?>
 <?php if ($lote): ?>
-<section class="enc-panel"><div class="enc-panel__head"><div><span>Control Encomienda · Kupos</span><h2>Datos de la importación</h2></div><span class="enc-state enc-state--success">Importado</span></div><dl class="enc-inventory-detail-grid">
+<section class="enc-panel"><div class="enc-panel__head"><div><span>Control Encomienda · Kupos</span><h2>Datos de la importación</h2></div><div class="enc-inventory-actions"><strong class="enc-state enc-state--success">Importado</strong><?php if ($originalAvailable): ?><a class="stock-btn stock-btn--soft stock-btn--sm" href="actions/archivo_importacion.php?id=<?= (int)$lote['id'] ?>"><i class="bi bi-download" aria-hidden="true"></i> Descargar CSV original</a><?php endif; ?></div></div><dl class="enc-inventory-detail-grid">
 <?php foreach (['archivo_nombre'=>'Archivo','usuario'=>'Importado por','creado_en'=>'Fecha de importación','fecha_corte'=>'Corte del reporte'] as $field=>$label): ?><div><dt><?= enc_h($label) ?></dt><dd><?= enc_h($lote[$field]) ?></dd></div><?php endforeach; ?>
-</dl></section><section class="enc-inventory-summary">
+</dl><?php if (!$originalAvailable): ?><p class="text-secondary small mx-3 mb-3">Esta importación no tiene un CSV original conservado. Sus datos guardados siguen disponibles.</p><?php endif; ?></section><section class="enc-inventory-summary">
 <?php foreach (['total_envios'=>'Envíos','nuevos'=>'Nuevos','modificados'=>'Modificados','sin_cambios'=>'Sin cambios'] as $field=>$label): ?><article><span><?= enc_h($label) ?></span><strong><?= (int)$lote[$field] ?></strong></article><?php endforeach; ?></section>
 <?php endif; ?>
 <?php if ($ready && (!$id || $lote)): ?>
