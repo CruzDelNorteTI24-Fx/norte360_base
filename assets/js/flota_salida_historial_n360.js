@@ -174,6 +174,9 @@
       ? fields.map((field) => renderChange(row, field)).join('')
       : '<div class="n360-salprog-history-state">El evento no contiene diferencias para mostrar.</div>';
     const fieldCount = fields.length;
+    const sqlUserMeta = Object.prototype.hasOwnProperty.call(row, 'db_user')
+      ? `<span><small>Usuario SQL</small><strong>${escapeHtml(compact(row.db_user) || '-')}</strong></span>`
+      : '';
 
     return `
       <details class="n360-salprog-history-item n360-salprog-history-item--${escapeHtml(action.toLowerCase())}">
@@ -193,7 +196,7 @@
         <div class="n360-salprog-history-body">
           <div class="n360-salprog-history-meta">
             <span><small>Origen</small><strong>${escapeHtml(originLabel(row.origen_evento))}</strong></span>
-            <span><small>Usuario SQL</small><strong>${escapeHtml(compact(row.db_user) || '-')}</strong></span>
+            ${sqlUserMeta}
             <span><small>Estado</small><strong>${escapeHtml(compact(row.revision_estado) || '-')}</strong></span>
           </div>
           <div class="n360-salprog-history-changes">${changes}</div>

@@ -189,7 +189,6 @@ function csb_fetch_salprog_history(mysqli $conn, string $fechaInicio, string $fe
             clm_salprog_revision_estado AS revision_estado,
             clm_hist_salprog_usuario_id AS usuario_id,
             clm_hist_salprog_usuario AS usuario,
-            clm_hist_salprog_db_user AS db_user,
             clm_hist_salprog_origen AS origen_evento,
             clm_hist_salprog_campos_modificados AS campos_modificados,
             clm_hist_salprog_snapshot_old AS snapshot_old,
@@ -1879,7 +1878,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=driver-order-1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=consolidado-2', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -2913,7 +2912,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <?php n360_contract_render($conn, $canEdit, $isAdmin); ?>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=route-pdf-6', ENT_QUOTES, 'UTF-8') ?>"></script>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=official-approval-1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=consolidado-2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
 </body>
