@@ -80,7 +80,10 @@ function comb_valid_date($value, string $fallback): string
 
 function comb_suggested_emission_date(string $observation): string
 {
-    $pattern = '~(?<![\p{L}\p{N}/])([0-9]{2})/([0-9]{2})/([0-9]{4}|[0-9]{2})(?![\p{L}\p{N}/])~u';
+    $pattern = '~(?<![\p{L}\p{N}/])(?|
+        ([0-9]{2})/([0-9]{2})/([0-9]{4}|[0-9]{2})
+        | (?<!\p{N}\.)([0-9]{2})\.([0-9]{2})\.([0-9]{4}|[0-9]{2})(?!\.\p{N})
+    )(?![\p{L}\p{N}/])~ux';
     if (!preg_match_all($pattern, $observation, $matches, PREG_SET_ORDER)) {
         return '';
     }
