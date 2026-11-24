@@ -80,13 +80,16 @@ function comb_valid_date($value, string $fallback): string
 
 function comb_suggested_emission_date(string $observation): string
 {
-    $pattern = '~(?<![\p{L}\p{N}/])([0-9]{2})/([0-9]{2})/([0-9]{4})(?![\p{L}\p{N}/])~u';
+    $pattern = '~(?<![\p{L}\p{N}/])([0-9]{2})/([0-9]{2})/([0-9]{4}|[0-9]{2})(?![\p{L}\p{N}/])~u';
     if (!preg_match_all($pattern, $observation, $matches, PREG_SET_ORDER)) {
         return '';
     }
 
     $suggestion = '';
     foreach ($matches as [, $day, $month, $year]) {
+        if (strlen($year) === 2) {
+            $year = '20' . $year;
+        }
         $date = comb_valid_date("$year-$month-$day", '');
         if ($date < '1000-01-01') {
             continue;
