@@ -1900,6 +1900,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                 <?php n360_contract_button($conn, 'csb-btn csb-btn--hero-soft'); ?>
                 <button type="button" class="csb-btn csb-btn--hero" data-csb-export-pdf><i class="bi bi-file-earmark-pdf"></i> PDF</button>
                 <button type="button" class="csb-btn csb-btn--hero" data-csb-export-route-pdf><i class="bi bi-file-earmark-richtext"></i> PDF Hoja de Ruta</button>
+                <button type="button" class="csb-btn csb-btn--excel" data-csb-export-bus-excel><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel de buses</button>
                 <?php if ($isAdmin): ?>
                     <button type="button" class="csb-btn csb-btn--hero-soft" data-csb-manual-open><i class="bi bi-plus-circle"></i> Viaje manual</button>
                     <button type="button" class="csb-btn csb-btn--hero-soft" data-csb-calendar-open><i class="bi bi-calendar3"></i> Calendario</button>
@@ -2911,7 +2912,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <?php n360_contract_render($conn, $canEdit, $isAdmin); ?>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=route-pdf-6', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=route-pdf-6&buses-xlsx=1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=consolidado-2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>

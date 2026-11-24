@@ -1006,6 +1006,118 @@
     excelButton?.addEventListener('click', exportExcel);
   }
 
+  const operationalStateLabels = {
+    PENDIENTE: 'Pendientes',
+    VALIDADO: 'Validados',
+    OBSERVADO: 'Observados',
+    CORREGIDO: 'Corregidos',
+    ANULADO: 'Anulados',
+    MANUAL: 'Manuales',
+    TRANSBORDADO: 'Transbordados',
+    TRANSBORDO: 'Transbordos'
+  };
+
+  function excelOperativeDate(value) {
+    // Excel serials use 1899-12-30 for dates from March 1900 onward.
+    const serial = Date.parse(`${value}T00:00:00Z`) / 86400000 + 25569;
+    return serial >= 61 ? { t: 'n', v: serial, z: 'dd/mm/yyyy' } : value;
+  }
+
+  function excelDepartureTime(value) {
+    const parts = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+    if (!parts) return value === '-' ? '' : value;
+    const minutes = Number(parts[1]) * 60 + Number(parts[2]);
+    return { t: 'n', v: minutes / 1440, z: 'hh:mm' };
+  }
+
+  function appendBusExcelSheet(utils, workbook, name, columns, records) {
+    const sheet = utils.aoa_to_sheet([
+      ['Periodo operativo', report.period || ''],
+      [],
+      columns.map(([label]) => label),
+      ...records
+    ]);
+    sheet['!cols'] = columns.map(([, width]) => ({ wch: width }));
+    sheet['!autofilter'] = {
+      ref: utils.encode_range({ s: { r: 2, c: 0 }, e: { r: records.length + 2, c: columns.length - 1 } })
+    };
+    utils.book_append_sheet(workbook, sheet, name);
+  }
+
+  function exportBusExcel() {
+    const visible = currentVisibleRows();
+    if (!visible.length) {
+      showNotice('No hay viajes visibles para exportar.', false);
+      return;
+    }
+
+    const xlsx = window.XLSX;
+    if (!xlsx?.utils || typeof xlsx.writeFile !== 'function') {
+      showNotice('No se pudo cargar el generador de Excel.', false);
+      return;
+    }
+
+    try {
+      const buses = new Map();
+      const stateKeys = Object.keys(operationalStateLabels);
+      const detail = visible.map((row) => {
+        const data = row.dataset;
+        const bus = compact(data.csbReportBus);
+        const plate = compact(data.csbReportPlaca);
+        const unit = Number(data.csbTransferIdplaca) > 0 ? `id:${data.csbTransferIdplaca}`
+          : (plate ? `placa:${plate.toUpperCase()}` : `bus:${bus.toUpperCase()}`);
+        const savedState = rowRevisionText(row);
+        const state = stateKeys.includes(savedState) ? savedState : 'PENDIENTE';
+
+        if (!buses.has(unit)) {
+          buses.set(unit, { numbers: new Set(), plates: new Set(), states: new Map(), total: 0 });
+        }
+        const summary = buses.get(unit);
+        if (bus) summary.numbers.add(bus);
+        if (plate) summary.plates.add(plate);
+        summary.total += 1;
+        summary.states.set(state, (summary.states.get(state) || 0) + 1);
+
+        return [
+          excelOperativeDate(compact(data.csbTransferDate)),
+          excelDepartureTime(compact(data.csbTransferHour)),
+          bus,
+          plate,
+          compact(data.csbTransferService),
+          compact(data.csbTransferOrigin),
+          compact(data.csbTransferDestination),
+          compact(data.csbTransferRoute),
+          compact(rowBaselines.get(row)?.hojaruta ?? codeInput(row, 'hojaruta')?.value),
+          state
+        ];
+      });
+
+      const summary = Array.from(buses.values(), ({ numbers, plates, states, total }) => [
+        Array.from(numbers).join(' / '),
+        Array.from(plates).join(' / '),
+        total,
+        total - (states.get('ANULADO') || 0),
+        ...stateKeys.map((state) => states.get(state) || 0)
+      ]);
+      const workbook = xlsx.utils.book_new();
+      appendBusExcelSheet(xlsx.utils, workbook, 'Resumen por bus', [
+        ['N.° bus', 16], ['Placa', 16], ['Total de registros', 20], ['Viajes sin anulación', 23],
+        ...Object.values(operationalStateLabels).map((label) => [label, label.length + 5])
+      ], summary);
+      appendBusExcelSheet(xlsx.utils, workbook, 'Detalle de viajes', [
+        ['Fecha operativa', 18], ['Hora', 10], ['N.° bus', 12], ['Placa', 14], ['Servicio', 19],
+        ['Origen', 22], ['Destino', 22], ['Ruta', 36], ['Número MTC', 18], ['Estado', 18]
+      ], detail);
+
+      xlsx.writeFile(workbook, `${report.fileBase || 'consolidado_salidas_buses'}.xlsx`, { compression: true });
+      const count = visible.length.toLocaleString('es-PE');
+      showNotice(`Excel generado con ${count} ${visible.length === 1 ? 'registro visible' : 'registros visibles'}.`, true);
+    } catch (error) {
+      console.error('Error al exportar Excel de buses', error);
+      showNotice('No se pudo generar el Excel de buses.', false);
+    }
+  }
+
   function setupOperationalSummary() {
     const openButton = document.querySelector('[data-csb-general-open]');
     const modalEl = document.getElementById('csbGeneralSummaryModal');
@@ -1019,28 +1131,13 @@
     if (!openButton || !modalEl || !bodyEl || !window.bootstrap) return;
 
     const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-    const stateKeys = [
-      'PENDIENTE',
-      'VALIDADO',
-      'OBSERVADO',
-      'CORREGIDO',
-      'ANULADO',
-      'MANUAL',
-      'TRANSBORDADO',
-      'TRANSBORDO'
-    ];
+    const stateKeys = Object.keys(operationalStateLabels);
 
     const visibleRowsNow = () => Array.from(document.querySelectorAll('[data-csb-row]'))
       .filter((row) => !row.hidden);
 
     const normalizeState = (row) => {
-      const state = compact(
-        row.dataset.csbDbRevision
-        || row.querySelector('[data-csb-status]')?.textContent
-        || row.querySelector('[data-csb-field="estado"]')?.value
-        || 'PENDIENTE'
-      ).toUpperCase();
-
+      const state = rowRevisionText(row);
       return stateKeys.includes(state) ? state : 'PENDIENTE';
     };
 
@@ -2558,6 +2655,7 @@
   });
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   document.querySelector('[data-csb-export-route-pdf]')?.addEventListener('click', exportRoutePdf);
+  document.querySelector('[data-csb-export-bus-excel]')?.addEventListener('click', exportBusExcel);
   setupScreenFilters();
   setupBulkRevision();
   setupHojaRutaSort();
