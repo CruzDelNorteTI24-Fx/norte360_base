@@ -208,6 +208,22 @@
     background: #eaf4fc;
 }
 
+.comb-emision-suggest {
+    border-color: #b9dec9;
+    background: #edf8f1;
+    color: #176143;
+}
+
+.comb-emision-suggest:hover {
+    background: #dff2e6;
+}
+
+.comb-emision-cell .comb-emision-message {
+    max-width: 210px;
+    margin-top: 5px;
+    white-space: normal;
+}
+
 .comb-emision-dialog {
     width: min(420px, calc(100vw - 32px));
     max-height: calc(100dvh - 32px);

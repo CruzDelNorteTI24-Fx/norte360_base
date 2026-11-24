@@ -78,6 +78,27 @@ function comb_valid_date($value, string $fallback): string
     return ($date && $date->format('Y-m-d') === (string)$value) ? (string)$value : $fallback;
 }
 
+function comb_suggested_emission_date(string $observation): string
+{
+    $pattern = '~(?<![\p{L}\p{N}/])([0-9]{2})/([0-9]{2})/([0-9]{4})(?![\p{L}\p{N}/])~u';
+    if (!preg_match_all($pattern, $observation, $matches, PREG_SET_ORDER)) {
+        return '';
+    }
+
+    $suggestion = '';
+    foreach ($matches as [, $day, $month, $year]) {
+        $date = comb_valid_date("$year-$month-$day", '');
+        if ($date < '1000-01-01') {
+            continue;
+        }
+        if ($suggestion !== '' && $suggestion !== $date) {
+            return '';
+        }
+        $suggestion = $date;
+    }
+    return $suggestion;
+}
+
 function comb_period_label(string $desde, string $hasta): string
 {
     if ($desde !== '' && $hasta !== '') {
@@ -729,7 +750,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&apuntes=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&apuntes=1&sugerencia-emision=1') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -991,6 +1012,16 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                     <td class="comb-emision-cell" data-comb-export-text="<?= comb_h($fechaEmisionDisplay) ?>">
                                         <span><?= comb_h($fechaEmisionDisplay) ?></span>
                                         <?php if ($canAddEmision && $fechaEmision === null): ?>
+                                            <?php $fechaSugerida = comb_suggested_emission_date($row['observacion'] ?? ''); ?>
+                                            <?php if ($fechaSugerida !== ''): ?>
+                                                <?php $fechaSugeridaDisplay = date('d/m/Y', strtotime($fechaSugerida)); ?>
+                                                <button type="button" class="comb-emision-add comb-emision-suggest"
+                                                        data-comb-emision-suggest="<?= comb_h($fechaSugerida) ?>" data-movement-id="<?= (int)$row['id_mov'] ?>"
+                                                        aria-label="Usar fecha de emisión sugerida <?= comb_h($fechaSugeridaDisplay) ?> del movimiento <?= (int)$row['id_mov'] ?>">
+                                                    <i class="bi bi-calendar-check" aria-hidden="true"></i> Usar <?= comb_h($fechaSugeridaDisplay) ?>
+                                                </button>
+                                                <p class="comb-emision-message" data-comb-emision-suggestion-message role="alert"></p>
+                                            <?php endif; ?>
                                             <button type="button" class="comb-emision-add"
                                                     data-comb-emision-add data-movement-id="<?= (int)$row['id_mov'] ?>"
                                                     aria-label="Agregar fecha de emisión al movimiento <?= (int)$row['id_mov'] ?>">
@@ -1405,7 +1436,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/combustible_apuntes_n360.js?apuntes=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&importe=2&apuntes=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&importe=2&apuntes=1&sugerencia-emision=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>

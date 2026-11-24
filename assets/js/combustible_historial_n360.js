@@ -122,15 +122,20 @@
         dialog.addEventListener('close', () => {
             if (sourceButton?.isConnected) sourceButton.focus({ preventScroll: true });
         });
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (saving || !form.reportValidity()) return;
+        const saveEmission = async (button, date, status) => {
+            const cell = button.closest('td');
+            const row = button.closest('[data-combustible-row]');
+            const id = button.dataset.movementId;
+            const fromDialog = dialog.open;
+            const busyTarget = fromDialog ? form : cell;
+            const controls = fromDialog ? [...buttons, dateInput] : cell.querySelectorAll('button');
             const payload = new FormData(form);
+            payload.set('id_mov', id);
+            payload.set('fecha_emision', date);
             saving = true;
-            message.textContent = '';
-            form.setAttribute('aria-busy', 'true');
-            buttons.forEach((button) => { button.disabled = true; });
-            dateInput.disabled = true;
+            status.textContent = '';
+            busyTarget.setAttribute('aria-busy', 'true');
+            controls.forEach((control) => { control.disabled = true; });
             try {
                 const response = await fetch(form.getAttribute('action'), {
                     method: 'POST',
@@ -142,31 +147,40 @@
                 if (!response.ok || !data?.ok) {
                     throw new Error(data?.message || 'No se pudo guardar la fecha de emisión.');
                 }
-                if (String(data.id_mov) !== idInput.value || !/^\d{2}\/\d{2}\/\d{4}$/.test(data.fecha_display)
+                if (String(data.id_mov) !== id || !/^\d{2}\/\d{2}\/\d{4}$/.test(data.fecha_display)
                     || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha_emision)) {
                     throw new Error('No se pudo confirmar la fecha guardada. Actualiza el historial.');
                 }
-                const cell = sourceButton.closest('td');
-                const row = sourceButton.closest('[data-combustible-row]');
                 cell.textContent = data.fecha_display;
                 cell.dataset.combExportText = data.fecha_display;
                 row.dataset.fechaEmision = data.fecha_emision;
                 row.dataset.search = (row.dataset.search || '') + ' ' + data.fecha_emision + ' ' + data.fecha_display;
                 applySearch();
-                dialog.close();
+                if (fromDialog) dialog.close();
                 cell.tabIndex = -1;
                 cell.focus({ preventScroll: true });
                 toast('Fecha de emisión guardada.', 'success');
             } catch (error) {
-                message.textContent = error instanceof SyntaxError
+                status.textContent = error instanceof SyntaxError
                     ? 'No se pudo confirmar el guardado. Actualiza el historial antes de reintentar.'
                     : (error.message || 'No se pudo guardar la fecha de emisión.');
             } finally {
                 saving = false;
-                form.removeAttribute('aria-busy');
-                buttons.forEach((button) => { button.disabled = false; });
-                dateInput.disabled = false;
+                busyTarget.removeAttribute('aria-busy');
+                controls.forEach((control) => { control.disabled = false; });
             }
+        };
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (saving || !sourceButton || !form.reportValidity()) return;
+            saveEmission(sourceButton, dateInput.value, message);
+        });
+        document.querySelectorAll('[data-comb-emision-suggest]').forEach((button) => {
+            button.addEventListener('click', () => {
+                if (saving || dialog.open) return;
+                const status = button.closest('td').querySelector('[data-comb-emision-suggestion-message]');
+                saveEmission(button, button.dataset.combEmisionSuggest, status);
+            });
         });
     };
 
