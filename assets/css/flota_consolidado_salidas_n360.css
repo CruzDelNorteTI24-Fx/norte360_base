@@ -87,7 +87,8 @@
 
 .csb-summary span,
 .csb-close-info span,
-.csb-filter label span {
+.csb-filter label span,
+.csb-filter-caption {
     display: block;
     margin-bottom: 5px;
     color: #536a83;
@@ -249,8 +250,9 @@
     align-items: end;
 }
 
-.csb-filter input,
+.csb-filter input:not([type="checkbox"]),
 .csb-filter select,
+.csb-revision-filter-toggle,
 .csb-table select,
 .csb-table textarea {
     width: 100%;
@@ -261,10 +263,60 @@
     font: inherit;
 }
 
-.csb-filter input,
-.csb-filter select {
+.csb-filter input:not([type="checkbox"]),
+.csb-filter select,
+.csb-revision-filter-toggle {
     height: 44px;
     padding: 0 12px;
+}
+
+.csb-revision-filter-menu {
+    position: relative;
+}
+
+.csb-revision-filter-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.csb-revision-filter-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.csb-revision-filter-options {
+    position: absolute;
+    inset-inline: 0;
+    top: calc(100% + 4px);
+    z-index: 5;
+    padding: 4px;
+    border: 1px solid #c8d9ea;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(15, 35, 55, .12);
+}
+
+.csb-revision-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.csb-revision-filter-option:hover,
+.csb-revision-filter-option:focus-within {
+    background: #f0f7fc;
+}
+
+.csb-revision-filter-option input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: #258ed1;
 }
 
 .csb-filter-actions {

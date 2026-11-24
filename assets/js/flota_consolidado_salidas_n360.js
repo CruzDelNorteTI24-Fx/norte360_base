@@ -1044,6 +1044,19 @@
     utils.book_append_sheet(workbook, sheet, name);
   }
 
+  function excelTextParts(text) {
+    const cellLimit = 32767;
+    const parts = [];
+    while (text.length > cellLimit) {
+      // Keep surrogate pairs together across continuation cells.
+      const end = /[\uD800-\uDBFF]/.test(text[cellLimit - 1]) ? cellLimit - 1 : cellLimit;
+      parts.push(text.slice(0, end));
+      text = text.slice(end);
+    }
+    parts.push(text);
+    return parts;
+  }
+
   function exportBusExcel() {
     const visible = currentVisibleRows();
     if (!visible.length) {
@@ -1060,6 +1073,13 @@
     try {
       const buses = new Map();
       const stateKeys = Object.keys(operationalStateLabels);
+      const commentFields = [['comentario', 'Comentario de revisión'], ['correccion', 'Corrección']];
+      const detailColumns = [
+        ['Fecha operativa', 18], ['Hora', 10], ['N.° bus', 12], ['Placa', 14], ['Servicio', 19],
+        ['Origen', 22], ['Destino', 22], ['Ruta', 36], ['Número MTC', 18], ['Estado', 18],
+        ...commentFields.map(([, label]) => [label, 46])
+      ];
+      const continuationColumns = new Map();
       const detail = visible.map((row) => {
         const data = row.dataset;
         const bus = compact(data.csbReportBus);
@@ -1078,7 +1098,9 @@
         summary.total += 1;
         summary.states.set(state, (summary.states.get(state) || 0) + 1);
 
-        return [
+        const saved = rowBaselines.get(row);
+        const comments = commentFields.map(([field]) => excelTextParts(saved?.[field] ?? codeInput(row, field)?.value ?? ''));
+        const record = [
           excelOperativeDate(compact(data.csbTransferDate)),
           excelDepartureTime(compact(data.csbTransferHour)),
           bus,
@@ -1087,9 +1109,20 @@
           compact(data.csbTransferOrigin),
           compact(data.csbTransferDestination),
           compact(data.csbTransferRoute),
-          compact(rowBaselines.get(row)?.hojaruta ?? codeInput(row, 'hojaruta')?.value),
-          state
+          compact(saved?.hojaruta ?? codeInput(row, 'hojaruta')?.value),
+          state,
+          ...comments.map(([first]) => first)
         ];
+        comments.forEach((parts, fieldIndex) => {
+          parts.slice(1).forEach((part, index) => {
+            const label = `${commentFields[fieldIndex][1]} (continuación ${index + 1})`;
+            if (!continuationColumns.has(label)) {
+              continuationColumns.set(label, detailColumns.length + continuationColumns.size);
+            }
+            record[continuationColumns.get(label)] = part;
+          });
+        });
+        return record;
       });
 
       const summary = Array.from(buses.values(), ({ numbers, plates, states, total }) => [
@@ -1105,8 +1138,8 @@
         ...Object.values(operationalStateLabels).map((label) => [label, label.length + 5])
       ], summary);
       appendBusExcelSheet(xlsx.utils, workbook, 'Detalle de viajes', [
-        ['Fecha operativa', 18], ['Hora', 10], ['N.° bus', 12], ['Placa', 14], ['Servicio', 19],
-        ['Origen', 22], ['Destino', 22], ['Ruta', 36], ['Número MTC', 18], ['Estado', 18]
+        ...detailColumns,
+        ...Array.from(continuationColumns.keys(), (label) => [label, 46])
       ], detail);
 
       xlsx.writeFile(workbook, `${report.fileBase || 'consolidado_salidas_buses'}.xlsx`, { compression: true });
@@ -1331,6 +1364,27 @@
     });
 
     excelButton?.addEventListener('click', exportExcel);
+  }
+
+  function setupRevisionFilter() {
+    const filter = document.querySelector('[data-csb-revision-filter]');
+    if (!filter) return;
+    const menu = filter.querySelector('details');
+    const toggle = menu.querySelector('summary');
+    const value = toggle.querySelector('[data-csb-revision-filter-value]');
+
+    filter.addEventListener('change', () => {
+      const checked = filter.querySelectorAll('input:checked');
+      value.textContent = checked.length > 1 ? `${checked.length} seleccionados` : (checked[0]?.value || 'Todos');
+    });
+    document.addEventListener('click', (event) => {
+      if (menu.open && !filter.contains(event.target)) menu.open = false;
+    });
+    menu.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !menu.open) return;
+      menu.open = false;
+      toggle.focus();
+    });
   }
 
   function setupScreenFilters() {
@@ -2594,6 +2648,7 @@
       const [year, monthNumber] = month.split('-').map(Number);
       const first = new Date(year, monthNumber - 1, 1);
       const last = new Date(year, monthNumber, 0);
+      const selectedRevisions = document.querySelectorAll('[data-csb-revision-filter] input:checked');
       let html = weekdays.map((day) => `<div class="csb-calendar-weekday">${day}</div>`).join('');
 
       for (let i = 0; i < first.getDay(); i += 1) {
@@ -2604,8 +2659,9 @@
         const date = `${year}-${String(monthNumber).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const total = Number(counts[date] || 0);
         const cls = total > 0 ? 'csb-calendar-day has-data' : 'csb-calendar-day';
-        const url = `${endpoint}?fecha_inicio=${encodeURIComponent(date)}&fecha_fin=${encodeURIComponent(date)}`;
-        html += `<a class="${cls}" href="${url}">
+        const query = new URLSearchParams({ fecha_inicio: date, fecha_fin: date });
+        selectedRevisions.forEach((input) => query.append(input.name, input.value));
+        html += `<a class="${cls}" href="${escapeHtml(`${endpoint}?${query}`)}">
           <strong>${day}</strong>
           <span>${total ? `${total} programaciones` : 'Sin datos'}</span>
         </a>`;
@@ -2656,6 +2712,7 @@
   document.querySelector('[data-csb-export-pdf]')?.addEventListener('click', exportPdf);
   document.querySelector('[data-csb-export-route-pdf]')?.addEventListener('click', exportRoutePdf);
   document.querySelector('[data-csb-export-bus-excel]')?.addEventListener('click', exportBusExcel);
+  setupRevisionFilter();
   setupScreenFilters();
   setupBulkRevision();
   setupHojaRutaSort();

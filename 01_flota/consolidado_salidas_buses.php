@@ -1653,12 +1653,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csb_json(false, [], 'Accion no reconocida.', 400);
 }
 
-$revision = strtoupper(trim((string)($_GET['revision'] ?? 'TODOS')));
 $buscar = trim((string)($_GET['buscar'] ?? ''));
-$revisionPermitidas = ['TODOS', 'PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL', 'TRANSBORDADO', 'TRANSBORDO'];
-if (!in_array($revision, $revisionPermitidas, true)) {
-    $revision = 'TODOS';
-}
+$revisionPermitidas = ['PENDIENTE', 'VALIDADO', 'OBSERVADO', 'CORREGIDO', 'ANULADO', 'MANUAL', 'TRANSBORDADO', 'TRANSBORDO'];
+$revisionValores = array_filter((array)($_GET['revision'] ?? []), 'is_string');
+$revisionNormalizadas = array_map(static fn(string $value): string => strtoupper(trim($value)), $revisionValores);
+$revisiones = array_values(array_intersect($revisionPermitidas, $revisionNormalizadas));
+$revisionLabel = $revisiones ? implode(', ', $revisiones) : 'TODOS';
 
 $rows = [];
 $duplicateHojaRutaKeys = [];
@@ -1733,10 +1733,11 @@ if ($tableReady) {
         $types = 'ss';
         $params = [$fechaInicio, $fechaFin];
 
-        if ($revision !== 'TODOS') {
-            $where[] = "clm_salprog_revision_estado = ?";
-            $types .= 's';
-            $params[] = $revision;
+        if ($revisiones) {
+            $placeholders = implode(', ', array_fill(0, count($revisiones), '?'));
+            $where[] = "clm_salprog_revision_estado IN ({$placeholders})";
+            $types .= str_repeat('s', count($revisiones));
+            array_push($params, ...$revisiones);
         }
 
         if ($buscar !== '') {
@@ -1876,7 +1877,7 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/dialog_n360.css') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=driver-order-1', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_consolidado_salidas_n360.css') . '&csb=driver-order-1&revision-filter=1', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_evidencias_n360.css') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(n360_asset_url('assets/css/flota_salida_historial_n360.css') . '&hist=consolidado-2', ENT_QUOTES, 'UTF-8') ?>">
 </head>
@@ -1989,14 +1990,24 @@ ksort($groupCounters, SORT_NATURAL | SORT_FLAG_CASE);
                     <span>Fecha operativa final</span>
                     <input type="date" name="fecha_fin" value="<?= csb_h($fechaFin) ?>">
                 </label>
-                <label>
-                    <span>Revision</span>
-                    <select name="revision">
-                        <?php foreach ($revisionPermitidas as $opcion): ?>
-                            <option value="<?= csb_h($opcion) ?>" <?= $revision === $opcion ? 'selected' : '' ?>><?= csb_h($opcion) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
+                <div data-csb-revision-filter>
+                    <span class="csb-filter-caption" id="csbRevisionFilterLabel">Revisión</span>
+                    <details class="csb-revision-filter-menu">
+                        <summary class="csb-revision-filter-toggle" aria-labelledby="csbRevisionFilterLabel csbRevisionFilterValue">
+                            <span id="csbRevisionFilterValue" data-csb-revision-filter-value><?= csb_h(count($revisiones) > 1 ? count($revisiones) . ' seleccionados' : ($revisiones[0] ?? 'Todos')) ?></span>
+                            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                        </summary>
+                        <div class="csb-revision-filter-options" role="group" aria-labelledby="csbRevisionFilterLabel">
+                            <?php foreach ($revisionPermitidas as $opcion): ?>
+                                <label class="csb-revision-filter-option">
+                                    <input type="checkbox" name="revision[]" value="<?= csb_h($opcion) ?>"
+                                        <?= in_array($opcion, $revisiones, true) ? 'checked' : '' ?>>
+                                    <?= csb_h($opcion) ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </details>
+                </div>
                 <label class="csb-filter-search">
                     <span>Buscar</span>
                     <input type="search" name="buscar" value="<?= csb_h($buscar) ?>" placeholder="Bus, placa, conductor, ruta, comentario...">
@@ -2886,7 +2897,7 @@ window.N360_CSB = {
         subtitle: 'Buses con programacion cerrada',
         docCode: 'FLOTA_CONS_SALIDAS',
         period: <?= json_encode($periodoOperativoLabel) ?>,
-        revision: <?= json_encode($revision) ?>,
+        revision: <?= json_encode($revisionLabel) ?>,
         buscar: <?= json_encode($buscar) ?>,
         generatedBy: <?= json_encode($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? '') ?>,
         dni: <?= json_encode($_SESSION['DNI'] ?? 'No registrado') ?>,
@@ -2912,7 +2923,7 @@ window.N360_SALPROG_HISTORY = {
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <?php n360_contract_render($conn, $canEdit, $isAdmin); ?>
-<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=route-pdf-6&buses-xlsx=1', ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_consolidado_salidas_n360.js') . '&csb=route-pdf-6&buses-xlsx=2&revision-filter=1', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_salida_historial_n360.js') . '&hist=consolidado-2', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(n360_asset_url('assets/js/flota_evidencias_n360.js') . '&fe=readonly-4', ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php n360_render_footer(); ?>
