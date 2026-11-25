@@ -66,6 +66,7 @@ function trace_api_history_rows(mysqli $conn, int $labelId): array {
     $hasDetail = alm_activos_detalle_disponible($conn);
     $beforeSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_antes' : 'NULL';
     $afterSql = $hasDetail ? 'h.clm_alm_etiquetadoofi_detalle_despues' : 'NULL';
+    $reasonSql = alm_activos_motivo_disponible($conn) ? 'h.clm_alm_etiquetadoofi_motivo' : 'NULL';
     $hasSpace = alm_activos_espacios_disponibles($conn);
     $beforeSpace = $hasSpace ? alm_espacios_nombre_sql($conn, 'ea') : "''";
     $afterSpace = $hasSpace ? alm_espacios_nombre_sql($conn, 'ed') : "''";
@@ -81,6 +82,7 @@ function trace_api_history_rows(mysqli $conn, int $labelId): array {
             $afterSql AS detalle_despues,
             $beforeSpace AS espacio_antes,
             $afterSpace AS espacio_despues,
+            $reasonSql AS motivo,
             COALESCE(NULLIF(TRIM(sa.clm_sedes_name), ''), IF(h.clm_alm_etiquetadoofi_sedeIDantes IS NULL, 'Sin ubicacion', CONCAT('Sede ', h.clm_alm_etiquetadoofi_sedeIDantes))) AS sede_antes,
             COALESCE(NULLIF(TRIM(sd.clm_sedes_name), ''), IF(h.clm_alm_etiquetadoofi_sedeIDdespues IS NULL, 'Sin ubicacion', CONCAT('Sede ', h.clm_alm_etiquetadoofi_sedeIDdespues))) AS sede_despues,
             COALESCE(NULLIF(TRIM(u.nombre), ''), NULLIF(TRIM(u.usuario), ''), CONCAT('Usuario ', h.clm_alm_etiquetadoofi_idUSER)) AS usuario
@@ -185,6 +187,10 @@ function trace_api_move(mysqli $conn, array $payload): void {
         $expectedSpace = alm_activos_espacio_id($payload['expected_espacio_id'] ?? null);
         $newDetail = alm_activos_detalle($payload['ubicacion_detalle'] ?? '');
         $expectedDetail = alm_activos_detalle($payload['expected_detalle'] ?? '');
+        $reason = alm_activos_texto($payload['motivo'] ?? '');
+        if (alm_activos_longitud($reason) > 500) {
+            throw new InvalidArgumentException('El motivo del traslado admite hasta 500 caracteres.');
+        }
     } catch (InvalidArgumentException $e) {
         alm_json(['ok' => false, 'message' => $e->getMessage()], 422);
     }
@@ -193,6 +199,10 @@ function trace_api_move(mysqli $conn, array $payload): void {
     }
     if (!$hasSpace && $newSpace !== null) {
         alm_json(['ok' => false, 'message' => 'Los espacios por sede aún no están habilitados. Contacta al administrador.'], 409);
+    }
+    $hasReason = alm_activos_motivo_disponible($conn);
+    if (!$hasReason && $reason !== '') {
+        alm_json(['ok' => false, 'message' => 'El motivo del traslado se habilita al actualizar la base de datos.'], 409);
     }
     if ($hasSpace && (!array_key_exists('expected_espacio_id', $payload) || !array_key_exists('espacio_id', $payload))) {
         alm_json(['ok' => false, 'message' => 'Actualiza la página antes de mover el activo.'], 409);
@@ -257,12 +267,14 @@ function trace_api_move(mysqli $conn, array $payload): void {
         $detailValues = $hasDetail ? ', ?, ?' : '';
         $spaceColumns = $hasSpace ? ', clm_alm_etiquetadoofi_espacio_id_antes, clm_alm_etiquetadoofi_espacio_id_despues' : '';
         $spaceValues = $hasSpace ? ', ?, ?' : '';
+        $reasonColumn = $hasReason ? ', clm_alm_etiquetadoofi_motivo' : '';
+        $reasonValue = $hasReason ? ', ?' : '';
 
         $stmtHistory = $conn->prepare("
             INSERT INTO tb_alm_etiquetadoofi
             (clm_alm_etiquetadoofi_etiref, clm_alm_etiquetadoofi_sedeIDantes,
-             clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns $spaceColumns)
-            VALUES (?, ?, ?, ? $detailValues $spaceValues)
+             clm_alm_etiquetadoofi_sedeIDdespues, clm_alm_etiquetadoofi_idUSER $detailColumns $spaceColumns $reasonColumn)
+            VALUES (?, ?, ?, ? $detailValues $spaceValues $reasonValue)
         ");
         if (!$stmtHistory) {
             throw new RuntimeException('No se pudo preparar el historial de ubicación.');
@@ -272,7 +284,8 @@ function trace_api_move(mysqli $conn, array $payload): void {
             array_push($historyParams, $beforeDetail, $afterDetail);
         }
         if ($hasSpace) array_push($historyParams, $currentSpace, $newSpace);
-        alm_bind($stmtHistory, 'iiii' . ($hasDetail ? 'ss' : '') . ($hasSpace ? 'ii' : ''), $historyParams);
+        if ($hasReason) $historyParams[] = $reason !== '' ? $reason : null;
+        alm_bind($stmtHistory, 'iiii' . ($hasDetail ? 'ss' : '') . ($hasSpace ? 'ii' : '') . ($hasReason ? 's' : ''), $historyParams);
         if (!$stmtHistory->execute()) {
             throw new RuntimeException('No se pudo registrar el historial de ubicación.');
         }

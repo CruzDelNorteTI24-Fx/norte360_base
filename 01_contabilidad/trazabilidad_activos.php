@@ -107,6 +107,7 @@ $stats = [
 ];
 $pageError = '';
 $locationDetailEnabled = alm_activos_detalle_disponible($conn);
+$moveReasonEnabled = alm_activos_motivo_disponible($conn);
 $locationDetailSql = $locationDetailEnabled ? 'e.clm_alm_etiquetado_ubicacion_detalle' : 'NULL';
 $locationSuggestions = [];
 $spaceSql = alm_activos_espacio_sql($conn);
@@ -275,7 +276,6 @@ try {
             $locationDetailSql AS ubicacion_detalle,
             {$spaceSql['id']} AS espacio_id,
             {$spaceSql['nombre']} AS espacio_nombre,
-            {$spaceSql['nombre_corto']} AS espacio_corto,
             {$spaceSql['clasificacion_nombre']} AS clasificacion_nombre,
             p.clm_alm_producto_id AS producto_id,
             p.clm_alm_producto_codigo AS producto_codigo,
@@ -352,7 +352,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
     <link rel="stylesheet" href="<?= n360_asset('assets/css/barcode_n360.css?etiqueta=3') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_n360.css?ubicacion=2&consulta=1') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/activos_ubicacion_n360.css?personal=1') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_modales_n360.css?modal=2') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/contabilidad_trazabilidad_modales_n360.css?modal=3') ?>">
 </head>
 <body>
 <?php n360_render_header(['title' => $traceConfig['title'], 'subtitle' => $traceConfig['area']]); ?>
@@ -552,7 +552,6 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                                             class="trace-row-btn"
                                             title="Ver y descargar etiqueta"
                                             data-trace-label
-                                            data-location="<?= trace_h(implode(' - ', array_filter([$sedeNombre, $row['espacio_corto'] ?? ''], static fn($v) => $v !== ''))) ?>"
                                             data-code="<?= trace_h($etiquetaCodigo) ?>"
                                             data-year="<?= (int)($row['etiqueta_anio'] ?? 0) ?>"
                                             data-month="<?= (int)($row['etiqueta_mes'] ?? 0) ?>"
@@ -644,6 +643,11 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
                         </datalist>
                         <?php if ($locationDetailEnabled): ?><small>Indica el punto exacto dentro del espacio elegido. Puedes dejarlo vacío si la ubicación ya es suficiente.</small><?php endif; ?>
                     </label>
+                     <label class="trace-modal__field trace-move-wide">
+                         <span>Motivo del traslado (opcional)</span>
+                         <textarea id="traceMoveMotivo" rows="2" maxlength="500" placeholder="Ej. Reposición por falla, traslado a almacén" <?= $moveReasonEnabled ? '' : 'disabled' ?>></textarea>
+                         <?php if (!$moveReasonEnabled): ?><small>Disponible después de actualizar la base de datos.</small><?php endif; ?>
+                     </label>
                     </div>
                     <?php if (!$locationDetailEnabled): ?><p class="trace-modal__lead">El detalle de ubicación aún no está habilitado. Contacta al administrador.</p><?php endif; ?>
                     <div class="trace-location-preview" aria-live="polite">
@@ -753,7 +757,7 @@ foreach (['etiqueta' => 'Etiqueta', 'movimiento' => 'Movimiento'] as $prefix => 
 <script src="<?= n360_asset('assets/js/dialog_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/barcode_n360.js?etiqueta=3') ?>"></script>
 <script src="<?= n360_asset('assets/js/activos_ubicacion_n360.js?ubicacion=7') ?>"></script>
-<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=6&etiqueta=3&consulta=4') ?>"></script>
+<script src="<?= n360_asset('assets/js/contabilidad_trazabilidad_n360.js?ubicacion=7&etiqueta=4&consulta=4') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 </body>

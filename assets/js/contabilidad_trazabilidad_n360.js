@@ -13,6 +13,8 @@
   const infoModal = document.getElementById('traceInfoModal');
   const barcodeCard = document.getElementById('traceBarcodeCard');
   const moveForm = document.getElementById('traceMoveForm');
+  const moveReason = document.getElementById('traceMoveMotivo');
+  const moveReasonEnabled = !moveReason.disabled;
   const assetLocation = window.N360AssetLocation;
   const locationDetailEnabled = page.dataset.locationDetail === '1';
   const locationSpacesEnabled = page.dataset.locationSpaces === '1';
@@ -119,7 +121,6 @@
     barcodeCard.dataset.barcodeCode = code;
     barcodeCard.dataset.barcodeYear = button.dataset.year || '';
     barcodeCard.dataset.barcodeMonth = button.dataset.month || '';
-    barcodeCard.dataset.barcodeLocation = button.dataset.location || '';
     barcodeCard.dataset.barcodeName = button.dataset.name || 'Activo fijo';
     barcodeCard.dataset.barcodeCategory = button.dataset.category || 'Contabilidad';
     barcodeCard.dataset.barcodeCategoryCode = button.dataset.categoryCode || '';
@@ -146,6 +147,7 @@
     $('#traceMoveSubmit').disabled = value;
     $('#traceMoveSede').disabled = value;
     $('#traceMoveDetalle').disabled = value || !locationDetailEnabled;
+    moveReason.disabled = value || !moveReasonEnabled;
     refreshSpaces.setDisabled(value || !locationSpacesEnabled);
     moveModal.querySelectorAll('[data-trace-close]').forEach((button) => { button.disabled = value; });
   }
@@ -163,6 +165,7 @@
     $('#traceMoveExpectedDetalle').value = currentDetail;
     $('#traceMoveExpectedEspacio').value = button.dataset.currentEspacioId || '0';
     $('#traceMoveDetalle').value = currentDetail;
+    moveReason.value = '';
 
     const select = $('#traceMoveSede');
     if (select) {
@@ -227,6 +230,7 @@
             <i class="bi bi-arrow-right" aria-hidden="true"></i>
             <div class="trace-history-place"><span>Destino</span><strong>${esc(assetLocation.location(row.sede_despues || 'Sin ubicacion', assetLocation.description(row.espacio_despues, row.detalle_despues)))}</strong></div>
           </div>
+          ${row.motivo ? `<p class="trace-history-reason"><strong>Motivo del traslado</strong><span>${esc(row.motivo)}</span></p>` : ''}
       </article>
     `).join('');
   }
@@ -404,7 +408,7 @@
   document.addEventListener('keydown', (event) => {
     const activeModal = [infoModal, moveModal, historyModal, barcodeModal].find(modal => modal && !modal.hidden);
     if (event.key === 'Tab' && activeModal && !moveSaving) {
-      const focusable = Array.from(activeModal.querySelectorAll('button:not(:disabled), summary, [href], input:not(:disabled), select:not(:disabled), [tabindex="0"]')).filter(item => item.getClientRects().length);
+      const focusable = Array.from(activeModal.querySelectorAll('button:not(:disabled), summary, [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')).filter(item => item.getClientRects().length);
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (event.shiftKey && (document.activeElement === first || !activeModal.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
@@ -425,6 +429,7 @@
     const newSedeId = $('#traceMoveSede')?.value || '';
     const labelCode = $('#traceMoveCode')?.textContent || 'Etiqueta';
     const detail = locationDetailEnabled ? assetLocation.detail($('#traceMoveDetalle')?.value || '') : '';
+    const reason = moveReasonEnabled ? moveReason.value.trim() : '';
     const targetText = assetLocation.location($('#traceMoveSede')?.selectedOptions?.[0]?.textContent?.trim() || 'la nueva ubicacion',
       assetLocation.description(assetLocation.selectedSpace($('#traceMoveEspacio')), detail));
 
@@ -435,6 +440,10 @@
 
     if (assetLocation.length(detail) > 220) {
       await alertBox('El detalle de ubicación admite hasta 220 caracteres.', 'warning');
+      return;
+    }
+    if (assetLocation.length(reason) > 500) {
+      await alertBox('El motivo del traslado admite hasta 500 caracteres.', 'warning');
       return;
     }
 
@@ -457,6 +466,7 @@
           label_id: Number(labelId),
           new_sede_id: Number(newSedeId),
           ubicacion_detalle: detail,
+          motivo: reason,
           espacio_id: Number($('#traceMoveEspacio').value) || null,
           expected_espacio_id: Number($('#traceMoveExpectedEspacio').value) || null,
           expected_sede_id: Number($('#traceMoveExpectedSede').value),

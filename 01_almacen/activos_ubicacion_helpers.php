@@ -194,6 +194,18 @@ function alm_activos_detalle_disponible(mysqli $conn): bool {
     }
 }
 
+function alm_activos_motivo_disponible(mysqli $conn): bool {
+    static $cache = [];
+    $key = spl_object_hash($conn);
+    if (!array_key_exists($key, $cache)) {
+        $row = alm_fetch_one($conn, "SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tb_alm_etiquetadoofi'
+              AND COLUMN_NAME = 'clm_alm_etiquetadoofi_motivo'");
+        $cache[$key] = (int)($row['total'] ?? 0) === 1;
+    }
+    return $cache[$key];
+}
+
 function alm_activos_detalles_sugeridos(mysqli $conn, string $context = 'contabilidad'): array {
     if (!alm_activos_detalle_disponible($conn)) {
         return [];
