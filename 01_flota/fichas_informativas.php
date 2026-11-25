@@ -8,13 +8,11 @@ if (!isset($_SESSION['usuario'])) {
     exit;
 }
 
-$sessionPermisos = $_SESSION['permisos'] ?? [];
-$isAdmin = ($_SESSION['web_rol'] ?? '') === 'Admin';
-$hasAll = $sessionPermisos === 'all';
-$permisos = $hasAll ? [] : array_map('intval', (array)$sessionPermisos);
-$canAccess = $isAdmin || $hasAll || in_array(10, $permisos, true);
+define('N360_LAYOUT', true);
+define('N360_BASE_URL', '../');
+require_once __DIR__ . '/../layout/sidebar_n360.php';
 
-if (!$canAccess) {
+if (!n360_puede_modulo(10) || !n360_puede_vista('f-fichas-informativas')) {
     header('Location: ../login/none_permisos.php?vista=' . urlencode('Fichas informativas'));
     exit;
 }
@@ -33,9 +31,6 @@ try {
     // La vista puede continuar aunque el servidor no acepte el cambio de cotejamiento.
 }
 
-define('N360_LAYOUT', true);
-define('N360_BASE_URL', '../');
-require_once __DIR__ . '/../layout/sidebar_n360.php';
 require_once __DIR__ . '/../layout/header_n360.php';
 require_once __DIR__ . '/../layout/footer_n360.php';
 require_once __DIR__ . '/../layout/content_n360.php';

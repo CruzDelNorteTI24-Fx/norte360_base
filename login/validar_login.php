@@ -268,6 +268,10 @@ foreach ($permisos as $index => $modulo) {
             header('Location: ../01_flota/gest_plac.php');
             exit();
         }
+        if ($vista == 'f-fichas-informativas') {
+            header('Location: ../01_flota/fichas_informativas.php');
+            exit();
+        }
         if ($vista == 'f-progcond') {
             header('Location: ../01_flota/programacion_condt.php');
             exit();
