@@ -286,6 +286,8 @@ function n360_header_user_data(): array {
 }
 
 function n360_render_header(array $options = []): void {
+    require_once __DIR__ . '/session_audit_n360.php';
+    n360_audit_track_page();
     $user = n360_header_user_data();
     $homeUrl = $options['home_url'] ?? n360_base_url('index.php');
     $logoutUrl = $options['logout_url'] ?? n360_base_url('login/logout.php');

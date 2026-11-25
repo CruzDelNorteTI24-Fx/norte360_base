@@ -110,6 +110,12 @@ function n360_menu_config(): array {
                                 'admin' => true
                             ],
                             [
+                                'titulo' => 'Auditoría de sesiones',
+                                'icono' => 'bi bi-clock-history',
+                                'url' => 'admin/auditoria_sesiones.php',
+                                'admin' => true
+                            ],
+                            [
                                 'titulo' => 'Formatos',
                                 'icono' => 'bi bi-file-earmark-pdf-fill',
                                 'url' => 'admin/documentacion.php',
@@ -673,6 +679,8 @@ require_once __DIR__ . '/quick_scan_n360.php';
 require_once __DIR__ . '/bus_lookup_n360.php';
 
 function n360_render_sidebar(): void {
+    require_once __DIR__ . '/session_audit_n360.php';
+    n360_audit_track_page();
     $menu = n360_menu_config();
     $currentUri = str_replace('\\', '/', $_SERVER['REQUEST_URI'] ?? '');
 

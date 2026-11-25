@@ -4,3 +4,6 @@
 /trash/NO VALE/
 *.env
 cron_cierre_operativo.log
+norte360-audit/
+sessions.sqlite
+sessions.sqlite-*

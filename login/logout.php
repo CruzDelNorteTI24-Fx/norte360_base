@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../layout/security_n360.php';
+require_once __DIR__ . '/../layout/session_audit_n360.php';
 n360_send_security_headers();
 n360_start_secure_session();
 
+n360_audit_logout();
 $_SESSION = [];
 
 if (ini_get('session.use_cookies')) {

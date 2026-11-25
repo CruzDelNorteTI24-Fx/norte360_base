@@ -2,6 +2,7 @@
 define('ACCESS_GRANTED', true);
 
 require_once __DIR__ . '/../layout/security_n360.php';
+require_once __DIR__ . '/../layout/session_audit_n360.php';
 n360_send_security_headers();
 n360_start_secure_session();
 
@@ -66,15 +67,18 @@ $clave = trim((string)($_POST['clave'] ?? ''));
 $csrfToken = (string)($_POST['csrf_token'] ?? '');
 
 if (!n360_verify_csrf($csrfToken, 'login')) {
+    n360_audit_login_failure('csrf');
     n360_login_redirect_error('', 'csrf');
 }
 
 if ($usuario === '' || $clave === '') {
+    n360_audit_login_failure('incompleto');
     n360_login_redirect_error($usuario);
 }
 
 $rateStatus = n360_login_rate_status($usuario);
 if (!empty($rateStatus['blocked'])) {
+    n360_audit_login_failure('bloqueado');
     n360_login_redirect_error('', 'blocked');
 }
 
@@ -114,6 +118,7 @@ $stmt = $conn->prepare("
 ");
 
 if (!$stmt) {
+    n360_audit_login_failure('error_interno');
     n360_login_redirect_error($usuario);
 }
 
@@ -122,6 +127,7 @@ $stmt->execute();
 $resultado = $stmt->get_result();
 
 if ($resultado->num_rows !== 1) {
+    n360_audit_login_failure('credenciales');
     n360_login_redirect_error($usuario);
 }
 
@@ -129,6 +135,7 @@ $fila = $resultado->fetch_assoc();
 $claveBd = (string)($fila['contrasena'] ?? '');
 
 if (!hash_equals($claveBd, $claveHash)) {
+    n360_audit_login_failure('credenciales', (int)$fila['id_usuario'], (string)$fila['usuario']);
     n360_login_redirect_error($usuario);
 }
 
@@ -159,6 +166,8 @@ if ($fotoPerfil !== '') {
 } else {
     unset($_SESSION['n360_user_photo']);
 }
+
+n360_audit_login_success();
 
 if ($fila['web_rol'] === 'Admin') {
     $_SESSION['permisos'] = 'all';
