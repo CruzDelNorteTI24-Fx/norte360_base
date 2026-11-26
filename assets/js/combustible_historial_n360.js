@@ -175,6 +175,7 @@
                     cell.append(' ', timeLabel);
                 }
                 if (timeInput && data.hora_emision === null && addButton) {
+                    addButton.classList.add('comb-emision-add--hour');
                     addButton.querySelector('i').className = 'bi bi-clock';
                     addButton.querySelector('span').textContent = 'Agregar hora';
                     addButton.setAttribute('aria-label', 'Agregar hora de emisión al movimiento ' + id);

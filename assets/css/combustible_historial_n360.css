@@ -212,6 +212,11 @@
     background: #eaf4fc;
 }
 
+.comb-emision-add--hour {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
 .comb-emision-suggest {
     border-color: #b9dec9;
     background: #edf8f1;

@@ -815,7 +815,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=4&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&apuntes=1&sugerencia-emision=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=5&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&apuntes=1&sugerencia-emision=1') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -1094,7 +1094,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                             <?php endif; ?>
                                         <?php endif; ?>
                                         <?php if ($agregarFecha || $agregarHora): ?>
-                                            <button type="button" class="comb-emision-add"
+                                            <button type="button" class="comb-emision-add<?= $agregarHora ? ' comb-emision-add--hour' : '' ?>"
                                                     data-comb-emision-add data-movement-id="<?= (int)$row['id_mov'] ?>"
                                                     aria-label="Agregar <?= $agregarFecha ? 'fecha' : 'hora' ?> de emisión al movimiento <?= (int)$row['id_mov'] ?>">
                                                 <i class="bi <?= $agregarFecha ? 'bi-calendar-plus' : 'bi-clock' ?>" aria-hidden="true"></i>
@@ -1515,7 +1515,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/combustible_apuntes_n360.js?apuntes=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=4&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&importe=2&apuntes=1&sugerencia-emision=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=5&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&importe=2&apuntes=1&sugerencia-emision=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>
