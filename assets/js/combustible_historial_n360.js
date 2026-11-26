@@ -92,9 +92,12 @@
         if (!dialog) return;
         const form = dialog.querySelector('[data-comb-emision-form]');
         const dateInput = form.elements.namedItem('fecha_emision');
+        const timeInput = form.elements.namedItem('hora_emision');
         const idInput = form.elements.namedItem('id_mov');
         const movement = dialog.querySelector('[data-comb-emision-movement]');
         const message = dialog.querySelector('[data-comb-emision-message]');
+        const optionalTime = dialog.querySelector('[data-comb-emision-time-optional]');
+        const submitLabel = dialog.querySelector('[data-comb-emision-submit]');
         const buttons = Array.from(form.querySelectorAll('button'));
         let sourceButton = null;
         let saving = false;
@@ -104,11 +107,19 @@
                 if (saving || dialog.open) return;
                 sourceButton = button;
                 idInput.value = button.dataset.movementId;
-                dateInput.value = '';
+                dateInput.value = button.closest('[data-combustible-row]').dataset.fechaEmision;
+                const timeOnly = dateInput.value !== '';
+                dateInput.readOnly = timeOnly;
+                if (timeInput) {
+                    timeInput.value = '';
+                    timeInput.required = timeOnly;
+                    optionalTime.hidden = timeOnly;
+                }
+                submitLabel.textContent = timeOnly ? 'Guardar hora' : (timeInput ? 'Guardar emisión' : 'Guardar fecha');
                 movement.textContent = 'Movimiento #' + idInput.value;
                 message.textContent = '';
                 dialog.showModal();
-                dateInput.focus();
+                (timeOnly ? timeInput : dateInput).focus();
             });
         });
         dialog.querySelectorAll('[data-comb-emision-cancel]').forEach((button) => {
@@ -122,16 +133,19 @@
         dialog.addEventListener('close', () => {
             if (sourceButton?.isConnected) sourceButton.focus({ preventScroll: true });
         });
-        const saveEmission = async (button, date, status) => {
+        const saveEmission = async (button, date, time, status) => {
             const cell = button.closest('td');
             const row = button.closest('[data-combustible-row]');
             const id = button.dataset.movementId;
             const fromDialog = dialog.open;
+            const timeOnly = fromDialog && dateInput.readOnly;
             const busyTarget = fromDialog ? form : cell;
-            const controls = fromDialog ? [...buttons, dateInput] : cell.querySelectorAll('button');
+            const controls = fromDialog ? [...buttons, dateInput, ...(timeInput ? [timeInput] : [])] : cell.querySelectorAll('button');
             const payload = new FormData(form);
+            payload.set('action', timeOnly ? 'guardar_hora_emision' : 'guardar_fecha_emision');
             payload.set('id_mov', id);
             payload.set('fecha_emision', date);
+            payload.set('hora_emision', time);
             saving = true;
             status.textContent = '';
             busyTarget.setAttribute('aria-busy', 'true');
@@ -145,25 +159,39 @@
                 });
                 const data = await response.json();
                 if (!response.ok || !data?.ok) {
-                    throw new Error(data?.message || 'No se pudo guardar la fecha de emisión.');
+                    throw new Error(data?.message || 'No se pudo guardar la emisión.');
                 }
-                if (String(data.id_mov) !== id || !/^\d{2}\/\d{2}\/\d{4}$/.test(data.fecha_display)
+                if (String(data.id_mov) !== id || !/^\d{2}\/\d{2}\/\d{4}(?: \d{2}:\d{2})?$/.test(data.emision_display)
                     || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha_emision)) {
-                    throw new Error('No se pudo confirmar la fecha guardada. Actualiza el historial.');
+                    throw new Error('No se pudo confirmar la emisión guardada. Actualiza el historial.');
                 }
-                cell.textContent = data.fecha_display;
-                cell.dataset.combExportText = data.fecha_display;
+                const addButton = cell.querySelector('[data-comb-emision-add]');
+                const [dateDisplay, timeDisplay] = data.emision_display.split(' ');
+                cell.textContent = dateDisplay;
+                if (timeDisplay) {
+                    const timeLabel = document.createElement('span');
+                    timeLabel.className = 'comb-emision-time';
+                    timeLabel.textContent = timeDisplay;
+                    cell.append(' ', timeLabel);
+                }
+                if (timeInput && data.hora_emision === null && addButton) {
+                    addButton.querySelector('i').className = 'bi bi-clock';
+                    addButton.querySelector('span').textContent = 'Agregar hora';
+                    addButton.setAttribute('aria-label', 'Agregar hora de emisión al movimiento ' + id);
+                    cell.append(addButton);
+                }
+                cell.dataset.combExportText = data.emision_display;
                 row.dataset.fechaEmision = data.fecha_emision;
-                row.dataset.search = (row.dataset.search || '') + ' ' + data.fecha_emision + ' ' + data.fecha_display;
+                row.dataset.search = (row.dataset.search || '') + ' ' + data.fecha_emision + ' ' + data.emision_display;
                 applySearch();
                 if (fromDialog) dialog.close();
                 cell.tabIndex = -1;
                 cell.focus({ preventScroll: true });
-                toast('Fecha de emisión guardada.', 'success');
+                toast(timeOnly ? 'Hora de emisión guardada.' : 'Emisión guardada.', 'success');
             } catch (error) {
                 status.textContent = error instanceof SyntaxError
                     ? 'No se pudo confirmar el guardado. Actualiza el historial antes de reintentar.'
-                    : (error.message || 'No se pudo guardar la fecha de emisión.');
+                    : (error.message || 'No se pudo guardar la emisión.');
             } finally {
                 saving = false;
                 busyTarget.removeAttribute('aria-busy');
@@ -173,13 +201,13 @@
         form.addEventListener('submit', (event) => {
             event.preventDefault();
             if (saving || !sourceButton || !form.reportValidity()) return;
-            saveEmission(sourceButton, dateInput.value, message);
+            saveEmission(sourceButton, dateInput.value, timeInput?.value || '', message);
         });
         document.querySelectorAll('[data-comb-emision-suggest]').forEach((button) => {
             button.addEventListener('click', () => {
                 if (saving || dialog.open) return;
                 const status = button.closest('td').querySelector('[data-comb-emision-suggestion-message]');
-                saveEmission(button, button.dataset.combEmisionSuggest, status);
+                saveEmission(button, button.dataset.combEmisionSuggest, '', status);
             });
         });
     };
@@ -226,6 +254,7 @@
                 id: Number(cells[0].textContent),
                 tipo,
                 fechaEmision,
+                emision: getCellExportText(cells[12]),
                 productoId,
                 producto: clean(cells[5].textContent),
                 clasificacion: porClasificacion ? clean(categoria?.textContent) || 'Sin clasificación' : '',
@@ -405,7 +434,7 @@
                     const tipo = tipoResumen[grupo.tipo];
                     grupo.movimientos.slice().sort((a, b) => a.id - b.id).forEach((mov) => {
                         detalle.push([
-                            fecha, mov.id, tipo, mov.producto, mov.unidad, mov.nota,
+                            mov.fechaEmision ? mov.emision : fecha, mov.id, tipo, mov.producto, mov.unidad, mov.nota,
                             mov.grifo, mov.placa, mov.observacion,
                             ...totalesResumen(mov, formatoImportePdf)
                         ]);

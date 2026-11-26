@@ -189,6 +189,10 @@
     white-space: nowrap;
 }
 
+.comb-emision-time {
+    color: #0f766e;
+}
+
 .comb-emision-add {
     display: flex;
     align-items: center;

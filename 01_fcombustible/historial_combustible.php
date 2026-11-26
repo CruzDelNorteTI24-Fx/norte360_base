@@ -78,6 +78,20 @@ function comb_valid_date($value, string $fallback): string
     return ($date && $date->format('Y-m-d') === (string)$value) ? (string)$value : $fallback;
 }
 
+function comb_valid_emission_time($value): bool
+{
+    return is_string($value) && preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$/D', $value) === 1;
+}
+
+function comb_emission_display(string $date, ?string $time): string
+{
+    if ($date === '') {
+        return '-';
+    }
+    $display = date('d/m/Y', strtotime($date));
+    return comb_valid_emission_time($time) ? $display . ' ' . substr($time, 0, 5) : $display;
+}
+
 function comb_suggested_emission_date(string $observation): string
 {
     $pattern = '~(?<![\p{L}\p{N}/])(?|
@@ -314,9 +328,9 @@ if ($esPostApuntes) {
     $datosApunte = comb_apuntes_validar($accionPost, $usuarioApuntes, $_SESSION['comb_hist_apuntes_csrf'] ?? null, $_POST);
 } elseif ($isPost) {
     if (!$canAddEmision) {
-        comb_hist_json(['ok' => false, 'message' => 'Solo un administrador puede agregar la fecha de emisión.'], 403);
+        comb_hist_json(['ok' => false, 'message' => 'Solo un administrador puede completar la emisión.'], 403);
     }
-    if ($accionPost !== 'guardar_fecha_emision') {
+    if (!in_array($accionPost, ['guardar_fecha_emision', 'guardar_hora_emision'], true)) {
         comb_hist_json(['ok' => false, 'message' => 'Operación no válida.'], 400);
     }
     $csrfExpected = $_SESSION['comb_hist_emision_csrf'] ?? '';
@@ -330,6 +344,15 @@ if ($esPostApuntes) {
     if ($emisionId === false || $emisionFecha === '' || $emisionFecha < '1000-01-01') {
         comb_hist_json(['ok' => false, 'message' => 'Selecciona un movimiento y una fecha de emisión válidos.'], 422);
     }
+    $soloHora = $accionPost === 'guardar_hora_emision';
+    $horaIngresada = $_POST['hora_emision'] ?? '';
+    if (($soloHora || $horaIngresada !== '') && !comb_valid_emission_time($horaIngresada)) {
+        comb_hist_json(['ok' => false, 'message' => 'Ingresa una hora de emisión válida.'], 422);
+    }
+    $emisionHora = $horaIngresada === '' ? null : $horaIngresada;
+    if ($emisionHora !== null && strlen($emisionHora) === 5) {
+        $emisionHora .= ':00';
+    }
 } elseif ($canAddEmision && empty($_SESSION['comb_hist_emision_csrf'])) {
     $_SESSION['comb_hist_emision_csrf'] = bin2hex(random_bytes(32));
 }
@@ -342,7 +365,7 @@ require_once __DIR__ . '/../.c0nn3ct/db_securebd2.php';
 
 if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
     if ($isPost) {
-        $mensaje = $esPostApuntes ? 'No se pudo conectar para gestionar apuntes.' : 'No se pudo conectar para guardar la fecha.';
+        $mensaje = $esPostApuntes ? 'No se pudo conectar para gestionar apuntes.' : 'No se pudo conectar para guardar la emisión.';
         comb_hist_json(['ok' => false, 'message' => $mensaje], 503);
     }
     die('No se pudo conectar a la base de datos.');
@@ -374,38 +397,72 @@ if ($esPostApuntes) {
     comb_hist_json(['ok' => true] + $resultadoApunte);
 }
 
+$emisionHoraDisponible = false;
+try {
+    $columnasHora = $conn->query("SHOW COLUMNS FROM tb_alm_movimientos WHERE Field = 'clm_alm_mov_hora_emision'");
+    if ($columnasHora instanceof mysqli_result) {
+        $emisionHoraDisponible = $columnasHora->num_rows > 0;
+        $columnasHora->free();
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log('No se pudo verificar la columna de hora de emisión (' . (int)$e->getCode() . ').');
+}
+
 if ($isPost) {
+    if (!$emisionHoraDisponible && $emisionHora !== null) {
+        comb_hist_json(['ok' => false, 'message' => 'La columna de hora de emisión todavía no está instalada.'], 503);
+    }
     try {
+        if ($soloHora) {
+            $setEmision = 'm.clm_alm_mov_hora_emision = ?';
+            $whereEmision = 'm.clm_alm_mov_fecha_emision = ? AND m.clm_alm_mov_hora_emision IS NULL';
+            $emisionTypes = 'sis';
+            $emisionParams = [$emisionHora, $emisionId, $emisionFecha];
+        } elseif ($emisionHoraDisponible) {
+            $setEmision = 'm.clm_alm_mov_fecha_emision = ?, m.clm_alm_mov_hora_emision = ?';
+            $whereEmision = 'm.clm_alm_mov_fecha_emision IS NULL AND m.clm_alm_mov_hora_emision IS NULL';
+            $emisionTypes = 'ssi';
+            $emisionParams = [$emisionFecha, $emisionHora, $emisionId];
+        } else {
+            $setEmision = 'm.clm_alm_mov_fecha_emision = ?';
+            $whereEmision = 'm.clm_alm_mov_fecha_emision IS NULL';
+            $emisionTypes = 'si';
+            $emisionParams = [$emisionFecha, $emisionId];
+        }
         $stmt = $conn->prepare(
             "UPDATE tb_alm_movimientos m
              INNER JOIN tb_alm_producto p ON p.clm_alm_producto_id = m.clm_alm_mov_idPRODUCTO
-             SET m.clm_alm_mov_fecha_emision = ?
+             SET $setEmision
              WHERE m.clm_alm_mov_id = ?
-               AND m.clm_alm_mov_fecha_emision IS NULL
+               AND $whereEmision
                AND p.clm_alm_producto_idCATEGORIA = 11"
         );
         if (!$stmt) {
             throw new RuntimeException('No se pudo preparar el guardado.');
         }
-        $stmt->bind_param('si', $emisionFecha, $emisionId);
-        if (!$stmt->execute()) {
+        try {
+            comb_bind_params($stmt, $emisionTypes, $emisionParams);
+            if (!$stmt->execute()) {
+                throw new RuntimeException('No se pudo ejecutar el guardado.');
+            }
+            $updated = $stmt->affected_rows;
+        } finally {
             $stmt->close();
-            throw new RuntimeException('No se pudo ejecutar el guardado.');
         }
-        $updated = $stmt->affected_rows;
-        $stmt->close();
         if ($updated !== 1) {
-            comb_hist_json(['ok' => false, 'message' => 'El movimiento ya tiene fecha de emisión o no está disponible. Actualiza el historial.'], 409);
+            comb_hist_json(['ok' => false, 'message' => 'La emisión del movimiento cambió o el movimiento no está disponible. Actualiza el historial.'], 409);
         }
         comb_hist_json([
             'ok' => true,
             'id_mov' => $emisionId,
             'fecha_emision' => $emisionFecha,
-            'fecha_display' => date('d/m/Y', strtotime($emisionFecha)),
+            'hora_emision' => $emisionHora,
+            'fecha_display' => comb_emission_display($emisionFecha, null),
+            'emision_display' => comb_emission_display($emisionFecha, $emisionHora),
         ]);
     } catch (Throwable $e) {
-        error_log('No se pudo guardar la fecha de emisión del movimiento ' . $emisionId);
-        comb_hist_json(['ok' => false, 'message' => 'No se pudo guardar la fecha de emisión. Inténtalo nuevamente.'], 500);
+        error_log('No se pudo guardar la emisión del movimiento ' . $emisionId);
+        comb_hist_json(['ok' => false, 'message' => 'No se pudo guardar la emisión. Inténtalo nuevamente.'], 500);
     }
 }
 
@@ -627,10 +684,12 @@ try {
         array_push($params, $like, $like, $like, $like, $like, $like, $like, $like);
     }
 
+    $emisionHoraSelect = $emisionHoraDisponible ? 'm.clm_alm_mov_hora_emision' : 'NULL';
     $sql = "SELECT
             m.clm_alm_mov_id AS id_mov,
             m.clm_alm_mov_fecha_registro AS fecha,
             m.clm_alm_mov_fecha_emision AS fecha_emision,
+            $emisionHoraSelect AS hora_emision,
             UPPER(TRIM(CAST(m.clm_alm_mov_TIPO AS CHAR))) AS tipo,
             COALESCE(NULLIF(ns.clm_nota_sco, ''), '-') AS nota,
             CONCAT('(', COALESCE(e.clm_esp_nombre, '-'), ') ', COALESCE(e.clm_esp_desc, '')) AS grifo,
@@ -756,7 +815,7 @@ require_once __DIR__ . '/../layout/content_n360.php';
     <link rel="stylesheet" href="<?= n360_asset('assets/css/footer_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/content_n360.css') ?>">
     <link rel="stylesheet" href="<?= n360_asset('assets/css/inventario_stock_n360.css') ?>">
-    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&apuntes=1&sugerencia-emision=1') ?>">
+    <link rel="stylesheet" href="<?= n360_asset('assets/css/combustible_historial_n360.css?emision=4&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&apuntes=1&sugerencia-emision=1') ?>">
 </head>
 <body>
 <?php n360_render_sidebar(); ?>
@@ -964,6 +1023,12 @@ require_once __DIR__ . '/../layout/content_n360.php';
                         <?php else: ?>
                             <?php foreach ($rows as $row):
                                 $tipoRow = strtoupper((string)($row['tipo'] ?? ''));
+                                $fechaEmision = comb_valid_date($row['fecha_emision'], '');
+                                $horaEmision = $row['hora_emision'];
+                                $emisionDisplay = comb_emission_display($fechaEmision, $horaEmision);
+                                [$fechaVisible, $horaVisible] = array_pad(explode(' ', $emisionDisplay, 2), 2, '');
+                                $agregarFecha = $canAddEmision && $row['fecha_emision'] === null;
+                                $agregarHora = $canAddEmision && $emisionHoraDisponible && $fechaEmision !== '' && $horaEmision === null;
                                 $searchBlob = implode(' ', [
                                     $row['id_mov'] ?? '',
                                     $row['fecha'] ?? '',
@@ -975,18 +1040,17 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                     $row['bus'] ?? '',
                                     $row['placa'] ?? '',
                                     $row['observacion'] ?? '',
+                                    $fechaEmision,
+                                    $emisionDisplay,
                                 ]);
                                 $unidadTxt = comb_vehicle_label($row['bus'] ?? '', $row['placa'] ?? '');
-                                $fechaEmision = $row['fecha_emision'] ?? null;
-                                $fechaEmisionDisplay = $fechaEmision !== null && comb_valid_date($fechaEmision, '') !== ''
-                                    ? date('d/m/Y', strtotime($fechaEmision)) : '-';
                                 $clasificacion = comb_observacion_clasificacion($row['observacion'] ?? '');
                             ?>
                                 <tr data-combustible-row
                                     data-search="<?= comb_h(strtolower($searchBlob)) ?>"
                                     data-tipo="<?= comb_h($tipoRow) ?>"
                                     data-producto-id="<?= (int)$row['id_producto'] ?>"
-                                    data-fecha-emision="<?= comb_h($fechaEmisionDisplay !== '-' ? $fechaEmision : '') ?>"
+                                    data-fecha-emision="<?= comb_h($fechaEmision) ?>"
                                     data-cantidad="<?= comb_h((string)($row['cantidad'] ?? 0)) ?>"
                                     data-monto="<?= comb_h((string)($row['monto'] ?? 0)) ?>">
                                     <td><span class="stock-code"><?= comb_h($row['id_mov'] ?? '-') ?></span></td>
@@ -1015,9 +1079,9 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                     <td class="stock-num"><?= comb_h(comb_fmt_qty($row['cantidad'] ?? 0)) ?></td>
                                     <td class="stock-num"><?= comb_h(comb_fmt_pu($row['precio_unitario'] ?? null)) ?></td>
                                     <td class="stock-num"><?= comb_h(comb_fmt_money($row['monto'] ?? 0)) ?></td>
-                                    <td class="comb-emision-cell" data-comb-export-text="<?= comb_h($fechaEmisionDisplay) ?>">
-                                        <span><?= comb_h($fechaEmisionDisplay) ?></span>
-                                        <?php if ($canAddEmision && $fechaEmision === null): ?>
+                                    <td class="comb-emision-cell" data-comb-export-text="<?= comb_h($emisionDisplay) ?>">
+                                        <span><?= comb_h($fechaVisible) ?><?php if ($horaVisible !== ''): ?> <span class="comb-emision-time"><?= comb_h($horaVisible) ?></span><?php endif; ?></span>
+                                        <?php if ($agregarFecha): ?>
                                             <?php $fechaSugerida = comb_suggested_emission_date($row['observacion'] ?? ''); ?>
                                             <?php if ($fechaSugerida !== ''): ?>
                                                 <?php $fechaSugeridaDisplay = date('d/m/Y', strtotime($fechaSugerida)); ?>
@@ -1028,10 +1092,13 @@ require_once __DIR__ . '/../layout/content_n360.php';
                                                 </button>
                                                 <p class="comb-emision-message" data-comb-emision-suggestion-message role="alert"></p>
                                             <?php endif; ?>
+                                        <?php endif; ?>
+                                        <?php if ($agregarFecha || $agregarHora): ?>
                                             <button type="button" class="comb-emision-add"
                                                     data-comb-emision-add data-movement-id="<?= (int)$row['id_mov'] ?>"
-                                                    aria-label="Agregar fecha de emisión al movimiento <?= (int)$row['id_mov'] ?>">
-                                                <i class="bi bi-calendar-plus" aria-hidden="true"></i> Agregar fecha
+                                                    aria-label="Agregar <?= $agregarFecha ? 'fecha' : 'hora' ?> de emisión al movimiento <?= (int)$row['id_mov'] ?>">
+                                                <i class="bi <?= $agregarFecha ? 'bi-calendar-plus' : 'bi-clock' ?>" aria-hidden="true"></i>
+                                                <span><?= $agregarFecha ? 'Agregar fecha' : 'Agregar hora' ?></span>
                                             </button>
                                         <?php endif; ?>
                                     </td>
@@ -1071,10 +1138,16 @@ require_once __DIR__ . '/../layout/content_n360.php';
             <span>Fecha de emisión</span>
             <input type="date" name="fecha_emision" min="1000-01-01" max="9999-12-31" required>
         </label>
+        <?php if ($emisionHoraDisponible): ?>
+            <label class="stock-field">
+                <span>Hora de emisión <small data-comb-emision-time-optional>(opcional)</small></span>
+                <input type="time" name="hora_emision">
+            </label>
+        <?php endif; ?>
         <p class="comb-emision-message" data-comb-emision-message role="alert"></p>
         <div class="comb-emision-dialog__actions">
             <button type="button" class="stock-btn stock-btn--soft" data-comb-emision-cancel>Cancelar</button>
-            <button type="submit" class="stock-btn stock-btn--primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Guardar fecha</button>
+            <button type="submit" class="stock-btn stock-btn--primary"><i class="bi bi-check-lg" aria-hidden="true"></i> <span data-comb-emision-submit>Guardar fecha</span></button>
         </div>
     </form>
 </dialog>
@@ -1442,7 +1515,7 @@ window.N360_NOTA_PDF_CONFIG = {
 <script src="<?= n360_asset('assets/js/formatos/notas/n360_nota_abastecimiento.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/nota_pdf_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/combustible_apuntes_n360.js?apuntes=2') ?>"></script>
-<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=2&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&importe=2&apuntes=1&sugerencia-emision=1') ?>"></script>
+<script src="<?= n360_asset('assets/js/combustible_historial_n360.js?emision=4&observacion=2&duenos=1&clasificacion=1&resumen=clasificacion&importe=2&apuntes=1&sugerencia-emision=1') ?>"></script>
 <script src="<?= n360_asset('assets/js/sidebar_n360.js') ?>"></script>
 <script src="<?= n360_asset('assets/js/header_n360.js') ?>"></script>
 </body>
